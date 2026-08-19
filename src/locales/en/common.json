@@ -1,0 +1,64 @@
+{
+  "app": {
+    "section": "Document Management",
+    "title": "All Documents",
+    "subtitle": "Your sidebar and topbar are ready."
+  },
+  "features": {
+    "dashboard": {
+      "kicker": "Dashboard",
+      "title": "System overview",
+      "subtitle": "Summarize recent activity and system status"
+    },
+    "documents": {
+      "kicker": "All Documents",
+      "title": "Document list",
+      "subtitle": "Manage every document from this page"
+    },
+    "report": {
+      "kicker": "Report",
+      "title": "Usage reports",
+      "subtitle": "View stats and summaries for the system"
+    },
+    "trash": {
+      "kicker": "Trash",
+      "title": "Deleted items",
+      "subtitle": "Review and restore deleted files"
+    },
+    "settingsUser": {
+      "kicker": "Settings",
+      "title": "User profile",
+      "subtitle": "Manage profile details and permissions"
+    },
+    "settingsActivity": {
+      "kicker": "Settings",
+      "title": "Activity log",
+      "subtitle": "Review system usage history"
+    }
+  },
+  "sidebar": {
+    "navigation": "Main navigation",
+    "settings": "Settings",
+    "user": "User",
+    "activity": "Activity Log",
+    "settingsHint": "Settings - has submenu",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "close": "Close menu",
+    "closeNav": "Close navigation",
+    "brand": "Document management System",
+    "items": {
+      "dashboard": "Dashboard",
+      "documents": "All Documents",
+      "report": "Report",
+      "trash": "Trash"
+    }
+  },
+  "topbar": {
+    "notifications": "Notifications",
+    "openNav": "Open navigation",
+    "switchToEnglish": "Switch to English",
+    "switchToThai": "Switch to Thai",
+    "profileRole": "Project Admin"
+  }
+}
