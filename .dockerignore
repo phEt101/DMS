@@ -1,0 +1,11 @@
+.git
+.gitignore
+.DS_Store
+.env
+.env.*
+!.env.example
+!.env.docker.example
+node_modules
+server/node_modules
+dist
+npm-debug.log*

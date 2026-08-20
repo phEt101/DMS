@@ -10,7 +10,10 @@
     "server:dev": "npm --prefix server run dev",
     "server:start": "npm --prefix server start",
     "db:migrate": "npm --prefix server run db:migrate",
-    "db:seed": "npm --prefix server run db:seed"
+    "db:seed": "npm --prefix server run db:seed",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
   "dependencies": {
     "react": "^19.1.1",

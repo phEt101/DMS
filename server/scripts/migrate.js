@@ -21,10 +21,10 @@ const connection = await mysql.createConnection({
 
 try {
   await connection.query(`CREATE DATABASE IF NOT EXISTS \`${databaseName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`)
-  await connection.changeUser({ database: databaseName })
+  await connection.query(`USE \`${databaseName}\``)
   await connection.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
-      name VARCHAR(255) NOT NULL PRIMARY KEY,
+      name VARCHAR(191) NOT NULL PRIMARY KEY,
       applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)

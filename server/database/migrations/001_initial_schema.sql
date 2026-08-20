@@ -56,7 +56,7 @@ CREATE TABLE activity_logs (
   action VARCHAR(80) NOT NULL,
   entity_type VARCHAR(80) NOT NULL,
   entity_id BIGINT UNSIGNED NULL,
-  details JSON NULL,
+  details LONGTEXT NULL,
   ip_address VARCHAR(45) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),

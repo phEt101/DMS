@@ -1,0 +1,46 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: boswell-dms-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: boswell-dms-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DB_HOST: shared-mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-boswell_dms}
+      DB_USER: ${SHARED_DB_USER:-shared_app}
+      DB_PASSWORD: ${SHARED_DB_PASSWORD:-shared_app_secret}
+      DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
+    command: ["sh", "-c", "npm run db:migrate && npm start"]
+    expose:
+      - "3000"
+    networks:
+      - default
+      - shared_database
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+networks:
+  shared_database:
+    external: true
+    name: shared-database
