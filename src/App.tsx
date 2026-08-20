@@ -8,7 +8,7 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [language, setLanguage] = useState<'th' | 'en'>('th')
-  const [activeItem, setActiveItem] = useState<'dashboard' | 'documents' | 'report' | 'trash' | 'settings-user' | 'settings-activity'>('documents')
+  const [activeItem, setActiveItem] = useState<'dashboard' | 'documents' | 'report' | 'trash' | 'settings-user' | 'settings-activity'>('dashboard')
   const copy = getLocale(language).app
   const features = getLocale(language).features
   const pages = buildPages(features)

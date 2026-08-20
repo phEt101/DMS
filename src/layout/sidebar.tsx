@@ -28,7 +28,7 @@ export default function Sidebar({ language = 'th', collapsed = false, mobileOpen
 }) {
   const [settingsOpen, setSettingsOpen] = useState(true)
   const t = getLocale(language).sidebar
-  const mainItems = [
+  const mainItems: Array<{ key: SidebarItem; icon: keyof typeof icons; label: string }> = [
     { key: 'dashboard', icon: 'dashboard', label: t.items.dashboard },
     { key: 'documents', icon: 'documents', label: t.items.documents },
     { key: 'report', icon: 'report', label: t.items.report },

@@ -1,4 +1,4 @@
-export function formatDate(value, locale = 'en-US') {
+export function formatDate(value: string | number | Date | null | undefined, locale = 'en-US') {
   if (!value) return '-'
 
   const date = new Date(value)

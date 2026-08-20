@@ -1,10 +1,15 @@
+import type { ReactNode } from 'react'
 import { getLocale } from '../locales'
 
-function TopbarIcon({ children }) {
+function TopbarIcon({ children }: { children: ReactNode }) {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 }
 
-export default function Topbar({ language = 'th', onLanguageToggle, onMenuClick }) {
+export default function Topbar({ language = 'th', onLanguageToggle, onMenuClick }: {
+  language?: 'th' | 'en'
+  onLanguageToggle?: () => void
+  onMenuClick?: () => void
+}) {
   const isThai = language === 'th'
   const t = getLocale(language).topbar
 

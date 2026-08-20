@@ -1,4 +1,4 @@
-export function formatFileSize(bytes) {
+export function formatFileSize(bytes: number) {
   if (typeof bytes !== 'number' || Number.isNaN(bytes) || bytes < 0) return '-'
   if (bytes === 0) return '0 B'
 
