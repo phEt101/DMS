@@ -48,29 +48,30 @@ server/
 │   ├── features/
 │   │   ├── activity/
 │   │   │   ├── routes/
-│   │   │   │   └── activity.routes.js
+│   │   │   │   └── activity.routes.ts
 │   │   │   ├── controllers/
-│   │   │   │   └── activity.controller.js
+│   │   │   │   └── activity.controller.ts
 │   │   │   └── repositories/
-│   │   │       └── activity.repository.js
+│   │   │       └── activity.repository.ts
 │   │   ├── dashboard/
 │   │   ├── documents/
 │   │   ├── health/
 │   │   ├── reports/
 │   │   ├── users/
-│   │   └── index.js
+│   │   └── index.ts
 │   ├── config/
 │   ├── middleware/
-│   ├── app.js
-│   └── server.js
+│   ├── app.ts
+│   └── server.ts
 ├── database/
 │   ├── factories/
 │   ├── migrations/
 │   └── seeders/
-└── scripts/
+├── scripts/
+└── tsconfig.json
 ```
 
-`server/src/features/index.js` registers every backend feature under `/api/v1`. Request
+`server/src/features/index.ts` registers every backend feature under `/api/v1`. Request
 handling follows this flow:
 
 ```text
@@ -84,10 +85,33 @@ feature route → feature controller → feature repository → MySQL
 
 ## Development
 
+Run MySQL and phpMyAdmin in Docker, then run React and Express locally for hot
+reload. Create the local API environment once:
+
 ```bash
+cd /Users/support/Public/Project_web/shared-infrastructure
+docker compose up -d
+
+cd /Users/support/Public/Project_web/DMS
 npm install
-npm run dev
+npm --prefix server install
+cp server/.env.example server/.env
 ```
+
+Start the frontend and API in separate terminals:
+
+```bash
+# Terminal 1: Vite at http://127.0.0.1:5137
+npm run dev
+
+# Terminal 2: Express at http://127.0.0.1:3000
+npm run server:dev
+```
+
+Vite proxies `/api/*` to Express. Express connects to the shared Docker MySQL
+through `127.0.0.1:3307`, so local development and Docker use the same data.
+The API is written in TypeScript with strict type checking. Run
+`npm --prefix server run typecheck` before committing backend changes.
 
 ## Docker environment
 
@@ -155,14 +179,15 @@ Manage those services from `/Users/support/Public/Project_web/shared-infrastruct
 ## API and database
 
 ```bash
-docker compose run --rm api npm run db:migrate
-docker compose run --rm api npm run db:seed
+docker compose run --rm api npm run db:migrate:prod
+docker compose run --rm api npm run db:seed:prod
 ```
 
 The migration files live in `server/database/migrations`. The runner creates the `boswell_dms` database when needed, then creates
-`users`, `documents`, `document_versions`, `activity_logs`, and
+`users`, `departments`, `roles`, `permissions`, `role_permissions`,
+`documents`, `document_versions`, `activity_logs`, and
 `schema_migrations`. Docker injects the MySQL connection from the root `.env`; never commit that
-file. SQL seeders belong in `server/database/seeders`, while development/test
+file. SQL and TypeScript seeders belong in `server/database/seeders`, while development/test
 factories belong in `server/database/factories`. The API is mounted under `/api/v1`, with `GET /api/v1/health` available for
 a database health check.
 
