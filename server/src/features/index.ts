@@ -5,12 +5,16 @@ import { documentsRouter } from './documents/routes/documents.routes.js'
 import { healthRouter } from './health/routes/health.routes.js'
 import { reportsRouter } from './reports/routes/reports.routes.js'
 import { usersRouter } from './users/routes/users.routes.js'
+import { departmentsRouter } from './departments/routes/departments.routes.js'
+import { permissionsRouter } from './permissions/routes/permissions.routes.js'
 
 export const apiRouter = Router()
 
 apiRouter.use('/health', healthRouter)
 apiRouter.use('/documents', documentsRouter)
 apiRouter.use('/users', usersRouter)
+apiRouter.use('/departments', departmentsRouter)
+apiRouter.use('/permissions', permissionsRouter)
 apiRouter.use('/activity', activityRouter)
 apiRouter.use('/dashboard', dashboardRouter)
 apiRouter.use('/reports', reportsRouter)

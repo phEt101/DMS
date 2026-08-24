@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import mysql from 'mysql2/promise'
+import type { RowDataPacket } from 'mysql2/promise'
 import { env } from '../src/config/env.js'
 
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../database/seeders')
@@ -28,21 +29,37 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
-  const files = (await fs.readdir(directory)).filter((file) => file.endsWith('.sql')).sort()
-  const [appliedRows] = await connection.query('SELECT name FROM database_seeders')
+  const files = (await fs.readdir(directory))
+    .filter((file) => file.endsWith('.sql') || file.endsWith('.js') || file.endsWith('.ts'))
+    .sort()
+  const [appliedRows] = await connection.query<(RowDataPacket & { name: string })[]>('SELECT name FROM database_seeders')
   const applied = new Set(appliedRows.map((row) => row.name))
 
   for (const file of files) {
-    if (applied.has(file)) {
+    const trackingName = file.replace(/\.(?:js|ts)$/, '.ts')
+    if (applied.has(trackingName)) {
       console.log(`skip ${file}`)
       continue
     }
 
-    const sql = await fs.readFile(path.join(directory, file), 'utf8')
     await connection.beginTransaction()
     try {
-      await connection.query(sql)
-      await connection.execute('INSERT INTO database_seeders (name) VALUES (?)', [file])
+      const filePath = path.join(directory, file)
+
+      if (file.endsWith('.sql')) {
+        const sql = await fs.readFile(filePath, 'utf8')
+        await connection.query(sql)
+      } else {
+        const seeder = await import(pathToFileURL(filePath).href)
+
+        if (typeof seeder.up !== 'function') {
+          throw new Error(`${file} must export an up(connection) function`)
+        }
+
+        await seeder.up(connection)
+      }
+
+      await connection.execute('INSERT INTO database_seeders (name) VALUES (?)', [trackingName])
       await connection.commit()
       console.log(`applied ${file}`)
     } catch (error) {

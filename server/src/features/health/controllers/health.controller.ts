@@ -1,6 +1,7 @@
 import { db } from '../../../config/database.js'
+import type { RequestHandler } from 'express'
 
-export async function show(_req, res) {
+export const show: RequestHandler = async (_req, res) => {
   await db.query('SELECT 1')
   res.json({ status: 'ok' })
 }

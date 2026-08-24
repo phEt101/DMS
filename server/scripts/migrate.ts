@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import mysql from 'mysql2/promise'
+import type { RowDataPacket } from 'mysql2/promise'
 import { env } from '../src/config/env.js'
 
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../database/migrations')
@@ -30,7 +31,7 @@ try {
   `)
 
   const files = (await fs.readdir(directory)).filter((file) => file.endsWith('.sql')).sort()
-  const [appliedRows] = await connection.query('SELECT name FROM schema_migrations')
+  const [appliedRows] = await connection.query<(RowDataPacket & { name: string })[]>('SELECT name FROM schema_migrations')
   const applied = new Set(appliedRows.map((row) => row.name))
 
   for (const file of files) {

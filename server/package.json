@@ -4,15 +4,26 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
-    "db:migrate": "node scripts/migrate.js",
-    "db:seed": "node scripts/seed.js"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc && node dist/scripts/copy-assets.js",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/src/server.js",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:migrate:prod": "node dist/scripts/migrate.js",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:seed:prod": "node dist/scripts/seed.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "mysql2": "^3.14.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3"
   }
 }

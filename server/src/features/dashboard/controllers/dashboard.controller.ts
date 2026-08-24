@@ -1,5 +1,6 @@
 import { getSummary } from '../repositories/dashboard.repository.js'
+import type { RequestHandler } from 'express'
 
-export async function show(_req, res) {
+export const show: RequestHandler = async (_req, res) => {
   res.json({ data: await getSummary() })
 }

@@ -7,7 +7,7 @@ const server = app.listen(env.port, env.host, () => {
 })
 
 let shuttingDown = false
-async function shutdown(signal) {
+async function shutdown(signal: NodeJS.Signals) {
   if (shuttingDown) return
   shuttingDown = true
   console.log(`${signal} received, shutting down`)
