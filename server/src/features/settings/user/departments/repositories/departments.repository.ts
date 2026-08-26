@@ -1,4 +1,4 @@
-import { db } from '../../../config/database.js'
+import { db } from '../../../../../config/database.js'
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 
 export interface DepartmentRow extends RowDataPacket {

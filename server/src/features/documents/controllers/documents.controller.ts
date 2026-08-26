@@ -1,5 +1,5 @@
 import * as documents from '../repositories/documents.repository.js'
-import { logActivity } from '../../activity/repositories/activity.repository.js'
+import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
 import { httpError } from '../../../middleware/errors.js'
 import type { RequestHandler } from 'express'
 

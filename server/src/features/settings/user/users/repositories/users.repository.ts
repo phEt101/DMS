@@ -1,5 +1,5 @@
-import { db } from "../../../config/database.js";
-import { httpError } from "../../../middleware/errors.js";
+import { db } from "../../../../../config/database.js";
+import { httpError } from "../../../../../middleware/errors.js";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 export type UserRole = "admin" | "manager" | "user" | "viewer";

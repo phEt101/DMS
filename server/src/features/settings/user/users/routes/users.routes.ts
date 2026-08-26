@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { asyncHandler } from "../../../middleware/errors.js";
+import { asyncHandler } from "../../../../../middleware/errors.js";
 import {
   destroy,
   index,

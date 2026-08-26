@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express'
-import { httpError } from '../../../middleware/errors.js'
+import { httpError } from '../../../../../middleware/errors.js'
 import * as permissions from '../repositories/permissions.repository.js'
 import type { PermissionInput } from '../repositories/permissions.repository.js'
 

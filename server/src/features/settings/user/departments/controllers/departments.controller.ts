@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express'
-import { httpError } from '../../../middleware/errors.js'
+import { httpError } from '../../../../../middleware/errors.js'
 import * as departments from '../repositories/departments.repository.js'
 import type { DepartmentInput } from '../repositories/departments.repository.js'
 

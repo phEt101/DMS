@@ -1,12 +1,12 @@
 import { Router } from 'express'
-import { activityRouter } from './activity/routes/activity.routes.js'
+import { activityRouter } from './settings/activity/routes/activity.routes.js'
 import { dashboardRouter } from './dashboard/routes/dashboard.routes.js'
 import { documentsRouter } from './documents/routes/documents.routes.js'
 import { healthRouter } from './health/routes/health.routes.js'
 import { reportsRouter } from './reports/routes/reports.routes.js'
-import { usersRouter } from './users/routes/users.routes.js'
-import { departmentsRouter } from './departments/routes/departments.routes.js'
-import { permissionsRouter } from './permissions/routes/permissions.routes.js'
+import { usersRouter } from './settings/user/users/routes/users.routes.js'
+import { departmentsRouter } from './settings/user/departments/routes/departments.routes.js'
+import { permissionsRouter } from './settings/user/permissions/routes/permissions.routes.js'
 
 export const apiRouter = Router()
 

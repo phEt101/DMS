@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import * as users from "../repositories/users.repository.js";
-import { httpError } from "../../../middleware/errors.js";
+import { httpError } from "../../../../../middleware/errors.js";
 import type { RequestHandler } from "express";
 import type { UserRole, UserWriteInput } from "../repositories/users.repository.js";
 
