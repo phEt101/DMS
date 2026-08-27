@@ -1,5 +1,29 @@
 import { request } from '../../../../services/api'
 
+export type Role = {
+  id: number;
+  name: string;
+  description: string | null;
+  isSystem: boolean | number;
+  isActive: boolean | number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  userCount: number;
+  permissionCount: number;
+};
+
+export type RolePermission = Pick<
+  Permission,
+  'id' | 'name' | 'description' | 'module' | 'isActive'
+> & {
+  isAssigned: boolean | number
+}
+
+export type RoleDetails = Role & {
+  permissions: RolePermission[]
+}
+
 export type Department = {
   id: number
   name: string
@@ -20,6 +44,16 @@ export type Permission = {
 }
 
 export type PermissionInput = Pick<Permission, 'name' | 'description' | 'module'> & { isActive: boolean }
+
+export function listRoles() {
+  return request("/roles") as Promise<{ data: RoleDetails[] }>;
+}
+
+export function getRole(id: number) {
+  return request(`/roles/${id}`) as Promise<{
+    data: RoleDetails
+  }>
+}
 
 export function listDepartments() {
   return request('/departments') as Promise<{ data: Department[] }>

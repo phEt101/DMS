@@ -59,6 +59,7 @@ export type UserFeatureCopy = FeatureCopy & {
   module: string
   members: string
   assignedRoles: string
+  totalPermissions: string
   roleDescriptions: Record<'admin' | 'manager' | 'user' | 'viewer', string>
   rolePermissions: Record<'admin' | 'manager' | 'user' | 'viewer', string[]>
 }

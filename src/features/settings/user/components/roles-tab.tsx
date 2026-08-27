@@ -1,42 +1,76 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { UserFeatureCopy } from '../../../../types/localization'
-import { getRoleSummary, type RoleSummary, type UserRole } from '../services/usersService'
-
-const roles: UserRole[] = ['admin', 'manager', 'user', 'viewer']
-const emptySummary: RoleSummary = { admin: 0, manager: 0, user: 0, viewer: 0 }
+import { useCallback, useEffect, useState } from "react";
+import type { UserFeatureCopy } from "../../../../types/localization";
+import { listRoles, type RoleDetails } from "../services/accessControlService";
 
 export function RolesTab({ t }: { t: UserFeatureCopy }) {
-  const [summary, setSummary] = useState<RoleSummary>(emptySummary)
-  const [error, setError] = useState('')
+  const [roles, setRoles] = useState<RoleDetails[]>([]);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    setError('')
+    setError("");
     try {
-      setSummary((await getRoleSummary()).data)
+      const rolesResponse = await listRoles();
+      setRoles(rolesResponse.data);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.loadError)
+      setError(caught instanceof Error ? caught.message : t.loadError);
     }
-  }, [t.loadError])
+  }, [t.loadError]);
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   return (
     <div className="management-panel">
-      {error && <div className="form-alert" role="alert">{error}</div>}
+      {error && (
+        <div className="form-alert" role="alert">
+          {error}
+        </div>
+      )}
       <div className="roles-grid">
         {roles.map((role) => (
-          <article className="role-card" key={role}>
+          <article className="role-card" key={role.id}>
             <header>
-              <span className={`role-badge role-${role}`}>{t.roles[role]}</span>
-              <strong>{summary[role]} {t.users}</strong>
+              <span className="role-badge">{role.name}</span>
+              <strong>
+                {role.userCount} {t.users}
+              </strong>
             </header>
-            <p>{t.roleDescriptions[role]}</p>
-            <ul>
-              {t.rolePermissions[role].map((permission) => <li key={permission}>✓ {permission}</li>)}
+            <div className="role-permissions">
+              <ul className="role-permissions-list">
+                {role.permissions.map((permission) => {
+                  const enabled = Boolean(
+                    permission.isAssigned && permission.isActive,
+                  );
+
+                  return (
+                    <li
+                      className={enabled ? "is-enabled" : "is-disabled"}
+                      key={permission.id}
+                    >
+                      <span className="role-permission-indicator" aria-hidden="true">
+                        {enabled ? "✓" : "−"}
+                      </span>
+                      <span className="role-permission-name">{permission.name}</span>
+                      <span className="role-permission-status">
+                        {enabled ? t.active : t.inactive}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <ul className="role-card-summary">
+              <li className="role-card-summary-item">
+                <strong>{t.totalPermissions}:</strong> {role.permissionCount}
+              </li>
+              <li className="role-card-summary-item">
+                {t.status}: {role.isActive ? t.active : t.inactive}
+              </li>
             </ul>
           </article>
         ))}
       </div>
     </div>
-  )
+  );
 }

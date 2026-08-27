@@ -83,6 +83,7 @@
       "module": "Module",
       "members": "Users",
       "assignedRoles": "Assigned roles",
+      "totalPermissions": "Total permissions",
       "roleDescriptions": {
         "admin": "Manage the system, users, and all data",
         "manager": "Manage documents, reports, and team users",
