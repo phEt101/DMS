@@ -8,20 +8,20 @@ const roles: Array<readonly [string, string]> = [
 ]
 
 const permissions: Array<readonly [string, string]> = [
-  ['View dashboard', 'dashboard'],
-  ['View documents', 'documents'],
-  ['Create documents', 'documents'],
-  ['Update documents', 'documents'],
-  ['Delete documents', 'documents'],
-  ['Restore documents', 'documents'],
-  ['View reports', 'reports'],
-  ['View users', 'users'],
-  ['Create users', 'users'],
-  ['Update users', 'users'],
-  ['Delete users', 'users'],
-  ['Manage roles and permissions', 'roles'],
-  ['Manage departments', 'departments'],
-  ['View activity logs', 'activity_logs'],
+  ['ดูแดชบอร์ด', 'dashboard'],
+  ['ดูเอกสาร', 'documents'],
+  ['สร้างเอกสาร', 'documents'],
+  ['แก้ไขเอกสาร', 'documents'],
+  ['ลบเอกสาร', 'documents'],
+  ['กู้คืนเอกสาร', 'trash'],
+  ['ดูรายงาน', 'reports'],
+  ['ดูผู้ใช้งาน', 'users'],
+  ['สร้างผู้ใช้งาน', 'users'],
+  ['แก้ไขผู้ใช้งาน', 'users'],
+  ['ลบผู้ใช้งาน', 'users'],
+  ['จัดการบทบาทและสิทธิ์', 'roles'],
+  ['จัดการแผนก', 'departments'],
+  ['ดูบันทึกกิจกรรม', 'activity_logs'],
 ]
 
 const departments = [
@@ -34,11 +34,11 @@ const departments = [
 const rolePermissions: Record<string, readonly string[]> = {
   admin: permissions.map(([name]) => name),
   manager: [
-    'View dashboard', 'View documents', 'Create documents', 'Update documents',
-    'Delete documents', 'Restore documents', 'View reports', 'View activity logs',
+    'ดูแดชบอร์ด', 'ดูเอกสาร', 'สร้างเอกสาร', 'แก้ไขเอกสาร',
+    'ลบเอกสาร', 'กู้คืนเอกสาร', 'ดูรายงาน', 'ดูบันทึกกิจกรรม',
   ],
-  user: ['View dashboard', 'View documents', 'Create documents', 'Update documents'],
-  viewer: ['View dashboard', 'View documents'],
+  user: ['ดูแดชบอร์ด', 'ดูเอกสาร', 'สร้างเอกสาร', 'แก้ไขเอกสาร'],
+  viewer: ['ดูแดชบอร์ด', 'ดูเอกสาร'],
 }
 
 export async function up(connection: Connection) {

@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
 import type { UserFeatureCopy } from "../../../../types/localization";
 import {
   createUser,
@@ -110,7 +110,7 @@ export function UsersTab({ t }: { t: UserFeatureCopy }) {
     setFormOpen(true);
   }
 
-  async function submit(event: FormEvent) {
+  async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError("");
@@ -328,7 +328,7 @@ function UserFormModal({
   t: UserFeatureCopy;
   onChange: (form: UserInput) => void;
   onClose: () => void;
-  onSubmit: (event: FormEvent) => Promise<void>;
+  onSubmit: (event: SyntheticEvent<HTMLFormElement>) => Promise<void>;
 }) {
   return (
     <div

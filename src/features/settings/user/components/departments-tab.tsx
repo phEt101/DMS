@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
 import type { UserFeatureCopy } from "../../../../types/localization";
 import {
   createDepartment,
@@ -63,7 +63,7 @@ export function DepartmentsTab({ t }: { t: UserFeatureCopy }) {
     setError("");
   }
 
-  async function submit(event: FormEvent) {
+  async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError("");

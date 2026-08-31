@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
 import type { UserFeatureCopy } from "../../../../types/localization";
 import { PaginationFooter } from "./pagination-footer";
 import {
@@ -28,10 +28,6 @@ function resolvePermissionModule(
 ): PermissionModule {
   if (permission.module === "roles" || permission.module === "departments") {
     return "users";
-  }
-
-  if (permission.name.toLowerCase().startsWith("restore ")) {
-    return "trash";
   }
 
   return permissionModuleOrder.includes(permission.module as PermissionModule)
@@ -126,7 +122,7 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
     );
   }
 
-  async function submit(event: FormEvent) {
+  async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError("");

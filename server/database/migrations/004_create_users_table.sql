@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  email VARCHAR(190) NOT NULL,
+  password_hash VARCHAR(255) NULL,
+  name VARCHAR(150) NOT NULL,
+  role_id BIGINT UNSIGNED NOT NULL,
+  department_id BIGINT UNSIGNED NULL,
+  phone VARCHAR(30) NULL,
+  last_login_at TIMESTAMP NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY users_email_unique (email),
+  KEY users_role_id_index (role_id),
+  KEY users_department_id_index (department_id),
+  KEY users_deleted_at_index (deleted_at),
+  CONSTRAINT users_role_fk FOREIGN KEY (role_id) REFERENCES roles (id),
+  CONSTRAINT users_department_fk FOREIGN KEY (department_id) REFERENCES departments (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
