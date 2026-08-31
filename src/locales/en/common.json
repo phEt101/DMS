@@ -84,6 +84,23 @@
       "members": "Users",
       "assignedRoles": "Assigned roles",
       "totalPermissions": "Total permissions",
+      "roleManagement": "Role and permission management",
+      "roleHelp": "Create roles and assign access to each area of the system",
+      "addRole": "Add role",
+      "newRole": "New role",
+      "noRoles": "No roles found",
+      "selectPermissions": "Select permissions",
+      "viewPermissions": "View permissions",
+      "editPermissions": "Edit permissions",
+      "permissionsFor": "Permissions for",
+      "permissionModules": {
+        "dashboard": "Dashboard",
+        "documents": "Documents",
+        "reports": "Reports",
+        "trash": "Trash",
+        "users": "Users",
+        "activity_logs": "Activity log"
+      },
       "roleDescriptions": {
         "admin": "Manage the system, users, and all data",
         "manager": "Manage documents, reports, and team users",

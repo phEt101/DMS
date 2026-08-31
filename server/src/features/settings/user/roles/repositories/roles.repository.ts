@@ -1,5 +1,14 @@
 import { db } from "../../../../../config/database.js";
-import type { RowDataPacket } from "mysql2/promise";
+import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+
+export interface RoleCreateInput {
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  permissionIds: number[];
+}
+
+export class InvalidRolePermissionsError extends Error {}
 
 export interface RoleRow extends RowDataPacket {
   id: number;
@@ -184,4 +193,129 @@ export async function findById(id: string): Promise<RoleDetails | null> {
   );
 
   return { ...role, permissions };
+}
+
+export async function nameExists(name: string): Promise<boolean> {
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `SELECT id
+     FROM roles
+     WHERE name = ?
+     LIMIT 1`,
+    [name],
+  );
+
+  return rows.length > 0;
+}
+
+export async function create(input: RoleCreateInput): Promise<RoleDetails> {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [result] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO roles (name, description, is_system, is_active)
+       VALUES (?, ?, 0, ?)`,
+      [input.name, input.description, input.isActive],
+    );
+
+    if (input.permissionIds.length > 0) {
+      const placeholders = input.permissionIds.map(() => "?").join(", ");
+      const [permissionRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id
+         FROM permissions
+         WHERE id IN (${placeholders})
+           AND is_active = 1
+           AND deleted_at IS NULL`,
+        input.permissionIds,
+      );
+
+      if (permissionRows.length !== input.permissionIds.length) {
+        throw new InvalidRolePermissionsError();
+      }
+
+      const values = input.permissionIds.flatMap((permissionId) => [
+        result.insertId,
+        permissionId,
+      ]);
+      const valuePlaceholders = input.permissionIds
+        .map(() => "(?, ?)")
+        .join(", ");
+
+      await connection.execute(
+        `INSERT INTO role_permissions (role_id, permission_id)
+         VALUES ${valuePlaceholders}`,
+        values,
+      );
+    }
+
+    await connection.commit();
+
+    const role = await findById(String(result.insertId));
+    if (!role) throw new Error("Created role could not be loaded");
+    return role;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function syncPermissions(
+  id: string,
+  permissionIds: number[],
+): Promise<RoleDetails | null> {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [roleRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT id FROM roles WHERE id = ? AND deleted_at IS NULL LIMIT 1 FOR UPDATE`,
+      [id],
+    );
+    if (!roleRows[0]) {
+      await connection.rollback();
+      return null;
+    }
+
+    if (permissionIds.length > 0) {
+      const placeholders = permissionIds.map(() => "?").join(", ");
+      const [permissionRows] = await connection.execute<RowDataPacket[]>(
+        `SELECT id
+         FROM permissions
+         WHERE id IN (${placeholders})
+           AND is_active = 1
+           AND deleted_at IS NULL`,
+        permissionIds,
+      );
+      if (permissionRows.length !== permissionIds.length) {
+        throw new InvalidRolePermissionsError();
+      }
+    }
+
+    await connection.execute(
+      `DELETE FROM role_permissions WHERE role_id = ?`,
+      [id],
+    );
+
+    if (permissionIds.length > 0) {
+      const values = permissionIds.flatMap((permissionId) => [id, permissionId]);
+      const placeholders = permissionIds.map(() => "(?, ?)").join(", ");
+      await connection.execute(
+        `INSERT INTO role_permissions (role_id, permission_id)
+         VALUES ${placeholders}`,
+        values,
+      );
+    }
+
+    await connection.commit();
+    return findById(id);
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }

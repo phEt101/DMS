@@ -84,6 +84,23 @@
       "members": "ผู้ใช้งาน",
       "assignedRoles": "บทบาทที่ใช้งาน",
       "totalPermissions": "สิทธิ์ทั้งหมด",
+      "roleManagement": "จัดการบทบาทและสิทธิ์",
+      "roleHelp": "สร้างบทบาทและกำหนดสิทธิ์การเข้าถึงแต่ละส่วนของระบบ",
+      "addRole": "เพิ่มบทบาท",
+      "newRole": "บทบาทใหม่",
+      "noRoles": "ไม่พบบทบาท",
+      "selectPermissions": "เลือกสิทธิ์",
+      "viewPermissions": "ดูสิทธิ์",
+      "editPermissions": "แก้ไขสิทธิ์",
+      "permissionsFor": "สิทธิ์ของบทบาท",
+      "permissionModules": {
+        "dashboard": "แดชบอร์ด",
+        "documents": "เอกสาร",
+        "reports": "รายงาน",
+        "trash": "ขยะ",
+        "users": "ผู้ใช้",
+        "activity_logs": "บันทึกกิจกรรม"
+      },
       "roleDescriptions": {
         "admin": "จัดการระบบ ผู้ใช้ และข้อมูลทั้งหมด",
         "manager": "จัดการเอกสาร รายงาน และผู้ใช้งานในทีม",

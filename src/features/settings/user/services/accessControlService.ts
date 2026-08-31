@@ -24,6 +24,13 @@ export type RoleDetails = Role & {
   permissions: RolePermission[]
 }
 
+export type RoleInput = {
+  name: string
+  description: string
+  isActive: boolean
+  permissionIds: number[]
+}
+
 export type Department = {
   id: number
   name: string
@@ -53,6 +60,20 @@ export function getRole(id: number) {
   return request(`/roles/${id}`) as Promise<{
     data: RoleDetails
   }>
+}
+
+export function createRole(input: RoleInput) {
+  return request('/roles', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }) as Promise<{ data: RoleDetails }>
+}
+
+export function updateRolePermissions(id: number, permissionIds: number[]) {
+  return request(`/roles/${id}/permissions`, {
+    method: 'PUT',
+    body: JSON.stringify({ permissionIds }),
+  }) as Promise<{ data: RoleDetails }>
 }
 
 export function listDepartments() {
