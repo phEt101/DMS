@@ -2,7 +2,7 @@ import { db } from "../../../../../config/database.js";
 import { httpError } from "../../../../../middleware/errors.js";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
-export type UserRole = "admin" | "manager" | "user" | "viewer";
+export type UserRole = string;
 
 export interface UserRow extends RowDataPacket {
   id: number;
@@ -189,15 +189,4 @@ export async function findFirstActive() {
     `SELECT ${selectFields} ${joins} WHERE users.is_active = 1 AND users.deleted_at IS NULL ORDER BY users.id LIMIT 1`,
   );
   return rows[0] ?? null;
-}
-
-export async function countByRole() {
-  const [rows] = await db.query<(RowDataPacket & { role: UserRole; total: number })[]>(
-    `SELECT roles.name AS role, COUNT(*) AS total
-     FROM users
-     INNER JOIN roles ON roles.id = users.role_id
-     WHERE users.deleted_at IS NULL
-     GROUP BY roles.id, roles.name`,
-  );
-  return rows;
 }

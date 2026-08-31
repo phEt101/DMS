@@ -2,9 +2,7 @@ import bcrypt from "bcryptjs";
 import * as users from "../repositories/users.repository.js";
 import { httpError } from "../../../../../middleware/errors.js";
 import type { RequestHandler } from "express";
-import type { UserRole, UserWriteInput } from "../repositories/users.repository.js";
-
-const roles = new Set<UserRole>(["admin", "manager", "user", "viewer"]);
+import type { UserWriteInput } from "../repositories/users.repository.js";
 
 interface UserPayload extends UserWriteInput {
   password?: string;
@@ -52,9 +50,9 @@ function validate(input: unknown, { partial = false }: { partial?: boolean } = {
     if (output.name.length > 150) throw httpError(400, "Name is too long");
   }
   if (!partial || Object.hasOwn(body, "role")) {
-    const role = body.role ?? "user";
-    if (typeof role !== "string" || !roles.has(role as UserRole)) throw httpError(400, "Invalid role");
-    output.role = role as UserRole;
+    const role = typeof body.role === "string" ? body.role.trim() : "";
+    if (!role || role.length > 100) throw httpError(400, "Invalid role");
+    output.role = role;
   }
   if (!partial || Object.hasOwn(body, "isActive")) {
     if (Object.hasOwn(body, "isActive") && typeof body.isActive !== "boolean")
@@ -108,13 +106,6 @@ export const index: RequestHandler = async (req, res) => {
 export const show: RequestHandler = async (req, res) => {
   const data = await users.findById(routeParam(req.params.id));
   if (!data) throw httpError(404, "User not found");
-  res.json({ data });
-}
-
-export const roleSummary: RequestHandler = async (_req, res) => {
-  const rows = await users.countByRole();
-  const data = Object.fromEntries([...roles].map((role) => [role, 0]));
-  for (const row of rows) data[row.role] = row.total;
   res.json({ data });
 }
 

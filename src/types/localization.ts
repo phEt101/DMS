@@ -37,10 +37,11 @@ export type UserFeatureCopy = FeatureCopy & {
   previous: string
   next: string
   page: string
+  perPage: string
   loadError: string
   saveError: string
   deleteError: string
-  roles: Record<'admin' | 'manager' | 'user' | 'viewer', string>
+  roles: Record<string, string>
   userTab: string
   roleTab: string
   departmentTab: string
@@ -70,6 +71,4 @@ export type UserFeatureCopy = FeatureCopy & {
   editPermissions: string
   permissionsFor: string
   permissionModules: Record<'dashboard' | 'documents' | 'reports' | 'trash' | 'users' | 'activity_logs', string>
-  roleDescriptions: Record<'admin' | 'manager' | 'user' | 'viewer', string>
-  rolePermissions: Record<'admin' | 'manager' | 'user' | 'viewer', string[]>
 }

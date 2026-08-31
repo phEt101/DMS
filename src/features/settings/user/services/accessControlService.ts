@@ -56,12 +56,6 @@ export function listRoles() {
   return request("/roles") as Promise<{ data: RoleDetails[] }>;
 }
 
-export function getRole(id: number) {
-  return request(`/roles/${id}`) as Promise<{
-    data: RoleDetails
-  }>
-}
-
 export function createRole(input: RoleInput) {
   return request('/roles', {
     method: 'POST',

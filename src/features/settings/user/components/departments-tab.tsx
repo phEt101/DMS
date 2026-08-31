@@ -8,6 +8,7 @@ import {
   type Department,
   type DepartmentInput,
 } from "../services/accessControlService";
+import { PaginationFooter } from "./pagination-footer";
 
 const emptyForm: DepartmentInput = {
   name: "",
@@ -23,6 +24,10 @@ export function DepartmentsTab({ t }: { t: UserFeatureCopy }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const totalPages = Math.max(Math.ceil(items.length / pageSize), 1);
+  const visibleItems = items.slice((page - 1) * pageSize, page * pageSize);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,6 +44,9 @@ export function DepartmentsTab({ t }: { t: UserFeatureCopy }) {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   function showForm(item?: Department) {
     setEditing(item ?? null);
@@ -126,7 +134,7 @@ export function DepartmentsTab({ t }: { t: UserFeatureCopy }) {
                 </td>
               </tr>
             ) : (
-              items.map((item) => (
+              visibleItems.map((item) => (
                 <tr key={item.id}>
                   <td>
                     <strong>{item.name}</strong>
@@ -160,6 +168,14 @@ export function DepartmentsTab({ t }: { t: UserFeatureCopy }) {
           </tbody>
         </table>
       </div>
+      <PaginationFooter
+        page={page}
+        pageSize={pageSize}
+        total={items.length}
+        labels={t}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+      />
       {open && (
         <div
           className="modal-backdrop"

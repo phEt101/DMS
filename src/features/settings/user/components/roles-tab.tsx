@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import type { UserFeatureCopy } from "../../../../types/localization";
+import { PaginationFooter } from "./pagination-footer";
 import {
   createRole,
   listPermissions,
@@ -69,6 +70,10 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const totalPages = Math.max(Math.ceil(roles.length / pageSize), 1);
+  const visibleRoles = roles.slice((page - 1) * pageSize, page * pageSize);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -157,6 +162,9 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const selectedPermissionsByModule = selectedRole
     ? groupPermissions(selectedRole.permissions)
@@ -203,7 +211,7 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
                 </td>
               </tr>
             ) : (
-              roles.map((role) => (
+              visibleRoles.map((role) => (
                 <tr key={role.id}>
                   <td>
                     <strong>{role.name}</strong>
@@ -239,6 +247,14 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
           </tbody>
         </table>
       </div>
+      <PaginationFooter
+        page={page}
+        pageSize={pageSize}
+        total={roles.length}
+        labels={t}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+      />
       {open && (
         <div
           className="modal-backdrop"

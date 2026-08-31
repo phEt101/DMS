@@ -9,6 +9,11 @@ import {
   type UserInput,
   type UserRole,
 } from "../services/usersService";
+import {
+  listRoles,
+  type Role,
+} from "../services/accessControlService";
+import { PaginationFooter } from "./pagination-footer";
 
 const emptyForm = (): UserInput => ({
   email: "",
@@ -36,11 +41,12 @@ function initials(name: string) {
 
 export function UsersTab({ t }: { t: UserFeatureCopy }) {
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -53,20 +59,26 @@ export function UsersTab({ t }: { t: UserFeatureCopy }) {
     setLoading(true);
     setError("");
     try {
-      const response = await listUsers({ search, status, page });
-      setUsers(response.data);
-      setTotal(response.pagination.total);
-      setTotalPages(Math.max(response.pagination.totalPages, 1));
+      const usersResponse = await listUsers({ search, status, page, limit: pageSize });
+      setUsers(usersResponse.data);
+      setTotal(usersResponse.pagination.total);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t.loadError);
     } finally {
       setLoading(false);
     }
-  }, [page, search, status, t.loadError]);
+  }, [page, pageSize, search, status, t.loadError]);
 
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    void listRoles()
+      .then((response) => setRoles(response.data))
+      .catch((caught: unknown) => {
+        setError(caught instanceof Error ? caught.message : t.loadError);
+      });
+  }, [t.loadError]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearch(searchInput.trim());
@@ -77,7 +89,8 @@ export function UsersTab({ t }: { t: UserFeatureCopy }) {
 
   function openCreate() {
     setEditing(null);
-    setForm(emptyForm());
+    const defaultRole = roles.find((role) => Boolean(role.isActive))?.name ?? "";
+    setForm({ ...emptyForm(), role: defaultRole });
     setError("");
     setFormOpen(true);
   }
@@ -180,30 +193,20 @@ export function UsersTab({ t }: { t: UserFeatureCopy }) {
         onToggleStatus={toggleStatus}
       />
 
-      <footer className="users-pagination">
-        <button
-          type="button"
-          disabled={page <= 1}
-          onClick={() => setPage((value) => value - 1)}
-        >
-          {t.previous}
-        </button>
-        <span>
-          {t.page} {page} / {totalPages}
-        </span>
-        <button
-          type="button"
-          disabled={page >= totalPages}
-          onClick={() => setPage((value) => value + 1)}
-        >
-          {t.next}
-        </button>
-      </footer>
+      <PaginationFooter
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        labels={t}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+      />
 
       {formOpen && (
         <UserFormModal
           editing={editing}
           form={form}
+          roles={roles}
           saving={saving}
           t={t}
           onChange={setForm}
@@ -269,7 +272,7 @@ function UsersTable({
                 <td>{user.email}</td>
                 <td>{user.department || "—"}</td>
                 <td>
-                  <span className="role-badge">{t.roles[user.role]}</span>
+                  <span className="role-badge">{t.roles[user.role] ?? user.role}</span>
                 </td>
                 <td>
                   <button
@@ -311,6 +314,7 @@ function UsersTable({
 function UserFormModal({
   editing,
   form,
+  roles,
   saving,
   t,
   onChange,
@@ -319,6 +323,7 @@ function UserFormModal({
 }: {
   editing: User | null;
   form: UserInput;
+  roles: Role[];
   saving: boolean;
   t: UserFeatureCopy;
   onChange: (form: UserInput) => void;
@@ -416,14 +421,17 @@ function UserFormModal({
           <label>
             {t.role}
             <select
+              required
               value={form.role}
               onChange={(event) =>
                 onChange({ ...form, role: event.target.value as UserRole })
               }
             >
-              {(Object.keys(t.roles) as UserRole[]).map((role) => (
-                <option key={role} value={role}>
-                  {t.roles[role]}
+              {roles
+                .filter((role) => Boolean(role.isActive) || role.name === form.role)
+                .map((role) => (
+                <option key={role.id} value={role.name}>
+                  {t.roles[role.name] ?? role.name}
                 </option>
               ))}
             </select>

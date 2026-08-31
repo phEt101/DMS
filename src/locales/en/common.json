@@ -61,6 +61,7 @@
       "previous": "Previous",
       "next": "Next",
       "page": "Page",
+      "perPage": "per page",
       "loadError": "Unable to load users",
       "saveError": "Unable to save user",
       "deleteError": "Unable to delete user",
@@ -100,18 +101,6 @@
         "trash": "Trash",
         "users": "Users",
         "activity_logs": "Activity log"
-      },
-      "roleDescriptions": {
-        "admin": "Manage the system, users, and all data",
-        "manager": "Manage documents, reports, and team users",
-        "user": "Create and update documents for assigned work",
-        "viewer": "View documents and reports without editing"
-      },
-      "rolePermissions": {
-        "admin": ["Manage users", "Manage documents", "View reports", "View activity logs"],
-        "manager": ["Manage documents", "View reports", "View activity logs"],
-        "user": ["Create documents", "Edit documents", "View reports"],
-        "viewer": ["View documents", "View reports"]
       }
     },
     "settingsActivity": {
