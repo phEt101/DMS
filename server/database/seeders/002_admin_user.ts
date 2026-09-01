@@ -2,7 +2,7 @@ import type { Connection, RowDataPacket } from 'mysql2/promise'
 
 const admin = {
   name: 'System Administrator',
-  email: 'admin@boswell.local',
+  email: 'admin@boswell.com',
   passwordHash: '$2b$12$NB8sNF7D/wKu7MJcxkJ0fu7XZjZIAvkyzmMMJzRyUKRSkjR9smJX.',
   role: 'admin',
   department: 'IT / System',

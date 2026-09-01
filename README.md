@@ -179,8 +179,8 @@ Manage those services from `/Users/support/Public/Project_web/shared-infrastruct
 ## API and database
 
 ```bash
-docker compose run --rm api npm run db:migrate:prod
-docker compose run --rm api npm run db:seed:prod
+docker compose run --rm api npm run db:migrate
+docker compose run --rm api npm run db:seed
 ```
 
 The migration files live in `server/database/migrations`. The runner creates the `boswell_dms` database when needed, then creates

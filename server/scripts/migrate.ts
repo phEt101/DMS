@@ -1,11 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import mysql from 'mysql2/promise'
 import type { RowDataPacket } from 'mysql2/promise'
 import { env } from '../src/config/env.js'
 
-const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../database/migrations')
+const directory = path.resolve('database/migrations')
 const databaseName = env.db.database
 
 if (!/^[a-zA-Z0-9_]+$/.test(databaseName)) {

@@ -27,7 +27,7 @@ services:
       DB_USER: ${SHARED_DB_USER:-shared_app}
       DB_PASSWORD: ${SHARED_DB_PASSWORD:-shared_app_secret}
       DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
-    command: ["sh", "-c", "npm run db:migrate:prod && npm start"]
+    command: ["sh", "-c", "npm run db:migrate && npm start"]
     expose:
       - "3000"
     networks:

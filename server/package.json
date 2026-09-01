@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc && node dist/scripts/copy-assets.js",
+    "build": "tsc",
     "typecheck": "tsc --noEmit",
     "start": "node dist/src/server.js",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "db:migrate:prod": "node dist/scripts/migrate.js",
-    "db:seed": "tsx scripts/seed.ts",
-    "db:seed:prod": "node dist/scripts/seed.js"
+    "db:migrate": "sh -c 'if [ \"$NODE_ENV\" = \"production\" ]; then node dist/scripts/migrate.js; else tsx scripts/migrate.ts; fi'",
+    "db:seed": "sh -c 'if [ \"$NODE_ENV\" = \"production\" ]; then node dist/scripts/seed.js; else tsx scripts/seed.ts; fi'",
+    "db:fresh": "sh -c 'if [ \"$NODE_ENV\" = \"production\" ]; then node dist/scripts/fresh.js; else tsx scripts/fresh.ts; fi'",
+    "db:fresh:seed": "sh -c 'if [ \"$NODE_ENV\" = \"production\" ]; then node dist/scripts/fresh.js --seed; else tsx scripts/fresh.ts --seed; fi'"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

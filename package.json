@@ -11,6 +11,8 @@
     "server:start": "npm --prefix server start",
     "db:migrate": "npm --prefix server run db:migrate",
     "db:seed": "npm --prefix server run db:seed",
+    "db:fresh": "npm --prefix server run db:fresh",
+    "db:fresh:seed": "npm --prefix server run db:fresh:seed",
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f"
