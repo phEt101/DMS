@@ -915,6 +915,54 @@ a {
   font-size: 13px;
   font-weight: 800;
 }
+.user-modal label.permission-select-all {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  color: #596277;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.user-modal .permission-select-all input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+.user-modal .permission-select-all input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.role-permission-picker > .permission-select-all {
+  margin-bottom: 12px;
+  padding: 9px 11px;
+  border: 1px solid #e4e1ff;
+  border-radius: 9px;
+  color: var(--accent);
+  background: #f7f6ff;
+}
+.permission-picker-module-header {
+  margin-bottom: 4px;
+  padding-bottom: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid #e7eaf0;
+}
+.permission-picker-module-header h3 {
+  margin: 0;
+}
+.permission-picker-module-header .permission-select-all {
+  color: var(--accent);
+  font-size: 11px;
+  white-space: nowrap;
+}
 .role-permission-picker-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -928,7 +976,7 @@ a {
   background: #fafbfc;
 }
 .role-permission-picker-module h3 {
-  margin: 0 0 9px;
+  margin: 0;
   color: #3c4659;
   font-size: 12px;
 }

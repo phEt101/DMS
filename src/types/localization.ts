@@ -67,6 +67,8 @@ export type UserFeatureCopy = FeatureCopy & {
   newRole: string
   noRoles: string
   selectPermissions: string
+  selectAllPermissions: string
+  selectAllModule: string
   viewPermissions: string
   editPermissions: string
   permissionsFor: string

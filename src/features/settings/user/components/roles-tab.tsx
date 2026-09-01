@@ -55,6 +55,40 @@ function groupPermissions(permissions: RolePermission[]) {
   return groups;
 }
 
+function PermissionSelectionToggle({
+  ids,
+  selectedIds,
+  label,
+  onChange,
+}: {
+  ids: number[];
+  selectedIds: number[];
+  label: string;
+  onChange: (ids: number[]) => void;
+}) {
+  const selectedCount = ids.filter((id) => selectedIds.includes(id)).length;
+  const allSelected = ids.length > 0 && selectedCount === ids.length;
+
+  return (
+    <label className="permission-select-all">
+      <input
+        type="checkbox"
+        disabled={ids.length === 0}
+        checked={allSelected}
+        ref={(input) => {
+          if (input) input.indeterminate = selectedCount > 0 && !allSelected;
+        }}
+        onChange={() => onChange(
+          allSelected
+            ? selectedIds.filter((id) => !ids.includes(id))
+            : [...new Set([...selectedIds, ...ids])],
+        )}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
 export function RolesTab({ t }: { t: UserFeatureCopy }) {
   const [roles, setRoles] = useState<RoleDetails[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -317,6 +351,12 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
               </label>
               <fieldset className="role-permission-picker">
                 <legend>{t.selectPermissions}</legend>
+                <PermissionSelectionToggle
+                  ids={permissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
+                  selectedIds={form.permissionIds}
+                  label={t.selectAllPermissions}
+                  onChange={(permissionIds) => setForm((current) => ({ ...current, permissionIds }))}
+                />
                 <div className="role-permission-picker-grid">
                   {permissionModuleOrder.map((module) => {
                     const modulePermissions = permissions.filter(
@@ -329,7 +369,15 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
                         className="role-permission-picker-module"
                         key={module}
                       >
-                        <h3>{t.permissionModules[module]}</h3>
+                        <header className="permission-picker-module-header">
+                          <h3>{t.permissionModules[module]}</h3>
+                          <PermissionSelectionToggle
+                            ids={modulePermissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
+                            selectedIds={form.permissionIds}
+                            label={t.selectAllModule}
+                            onChange={(permissionIds) => setForm((current) => ({ ...current, permissionIds }))}
+                          />
+                        </header>
                         {modulePermissions.length === 0 ? (
                           <p>{t.noPermissions}</p>
                         ) : (
@@ -461,6 +509,12 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
                 )}
                 <fieldset className="role-permission-picker">
                   <legend>{t.selectPermissions}</legend>
+                  <PermissionSelectionToggle
+                    ids={permissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
+                    selectedIds={selectedPermissionIds}
+                    label={t.selectAllPermissions}
+                    onChange={setSelectedPermissionIds}
+                  />
                   <div className="role-permission-picker-grid">
                     {permissionModuleOrder.map((module) => {
                       const modulePermissions = permissions.filter(
@@ -473,7 +527,15 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
                           className="role-permission-picker-module"
                           key={module}
                         >
-                          <h3>{t.permissionModules[module]}</h3>
+                          <header className="permission-picker-module-header">
+                            <h3>{t.permissionModules[module]}</h3>
+                            <PermissionSelectionToggle
+                              ids={modulePermissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
+                              selectedIds={selectedPermissionIds}
+                              label={t.selectAllModule}
+                              onChange={setSelectedPermissionIds}
+                            />
+                          </header>
                           {modulePermissions.length === 0 ? (
                             <p>{t.noPermissions}</p>
                           ) : (

@@ -2,13 +2,11 @@ import { db } from "../../../../../config/database.js";
 import { httpError } from "../../../../../middleware/errors.js";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
-export type UserRole = string;
-
 export interface UserRow extends RowDataPacket {
   id: number;
   email: string;
   name: string;
-  role: UserRole;
+  role: string;
   department: string | null;
   phone: string | null;
   lastLoginAt: Date | null;
@@ -21,7 +19,7 @@ export interface UserWriteInput {
   email?: string;
   passwordHash?: string;
   name?: string;
-  role?: UserRole;
+  role?: string;
   department?: string | null;
   phone?: string | null;
   isActive?: boolean;
@@ -52,7 +50,7 @@ const joins = `
   LEFT JOIN departments ON departments.id = users.department_id
 `;
 
-async function resolveRoleId(name: UserRole) {
+async function resolveRoleId(name: string) {
   const [rows] = await db.execute<(RowDataPacket & { id: number })[]>(
     "SELECT id FROM roles WHERE name = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1",
     [name],

@@ -91,6 +91,8 @@
       "newRole": "New role",
       "noRoles": "No roles found",
       "selectPermissions": "Select permissions",
+      "selectAllPermissions": "Select all permissions",
+      "selectAllModule": "Select all in module",
       "viewPermissions": "View permissions",
       "editPermissions": "Edit permissions",
       "permissionsFor": "Permissions for",
