@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { authRouter } from "./auth/routes/auth.routes.js";
 import { activityRouter } from './settings/activity/routes/activity.routes.js'
 import { dashboardRouter } from './dashboard/routes/dashboard.routes.js'
 import { documentsRouter } from './documents/routes/documents.routes.js'
@@ -12,6 +13,7 @@ import { permissionsRouter } from './settings/user/permissions/routes/permission
 export const apiRouter = Router()
 
 apiRouter.use('/health', healthRouter)
+apiRouter.use("/auth", authRouter);
 apiRouter.use('/documents', documentsRouter)
 apiRouter.use('/users', usersRouter)
 apiRouter.use("/roles", rolesRouter);

@@ -7,6 +7,7 @@ function integer(value: string | undefined, fallback: number): number {
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
+  trustProxy: integer(process.env.TRUST_PROXY, 0),
   port: integer(process.env.PORT, 3000),
   host: process.env.HOST ?? '127.0.0.1',
   db: {
