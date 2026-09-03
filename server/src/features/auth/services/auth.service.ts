@@ -99,3 +99,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
     },
   };
 }
+
+export async function logout(sessionId: number): Promise<void> {
+  await authRepository.revokeSession(sessionId);
+}

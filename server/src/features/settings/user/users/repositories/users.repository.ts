@@ -181,10 +181,3 @@ export async function softDelete(id: number | string) {
   );
   return result.affectedRows > 0;
 }
-
-export async function findFirstActive() {
-  const [rows] = await db.query<UserRow[]>(
-    `SELECT ${selectFields} ${joins} WHERE users.is_active = 1 AND users.deleted_at IS NULL ORDER BY users.id LIMIT 1`,
-  );
-  return rows[0] ?? null;
-}

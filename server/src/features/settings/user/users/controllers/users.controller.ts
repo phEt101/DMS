@@ -144,8 +144,3 @@ export const destroy: RequestHandler = async (req, res) => {
   res.status(204).end();
 }
 
-export const me: RequestHandler = async (_req, res) => {
-  const user = await users.findFirstActive();
-  if (!user) throw httpError(404, "No active user found");
-  res.json({ data: user });
-}

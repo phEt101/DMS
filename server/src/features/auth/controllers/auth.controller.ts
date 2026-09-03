@@ -71,3 +71,20 @@ export const me: RequestHandler = (req, res) => {
     data: req.user,
   });
 };
+
+export const logout: RequestHandler = async (req, res) => {
+  if (!req.user || req.sessionId === undefined) {
+    throw httpError(401, "Authentication required");
+  }
+
+  await authService.logout(req.sessionId);
+
+  res.clearCookie(authService.SESSION_COOKIE_NAME, {
+    httpOnly: true,
+    secure: env.nodeEnv !== "development",
+    sameSite: "lax",
+    path: "/",
+  });
+
+  res.status(204).end();
+};
