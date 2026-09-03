@@ -66,6 +66,10 @@ type SidebarItem =
   | "report"
   | "trash"
   | "settings-user"
+  | "settings-roles"
+  | "settings-departments"
+  | "settings-permissions"
+  | "settings-modules"
   | "settings-activity";
 
 export default function Sidebar({
@@ -86,6 +90,7 @@ export default function Sidebar({
   onNavigate?: (item: SidebarItem) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(true);
+  const [accessOpen, setAccessOpen] = useState(true);
   const settingsGroupRef = useRef<HTMLDivElement>(null);
   const t = getLocale(language).sidebar;
 
@@ -212,6 +217,34 @@ export default function Sidebar({
                   <Icon name="user" />
                   <span>{t.user}</span>
                 </button>
+                <button
+                  className="nav-item nav-button access-toggle"
+                  type="button"
+                  aria-expanded={accessOpen}
+                  onClick={() => setAccessOpen((open) => !open)}
+                >
+                  <Icon name="settings" />
+                  <span>{t.access}</span>
+                  <i className={accessOpen ? "is-rotated" : ""}>⌄</i>
+                </button>
+                {accessOpen && (
+                  <div className="access-subnav">
+                    {([
+                      ["settings-roles", t.roles],
+                      ["settings-departments", t.departments],
+                      ["settings-permissions", t.permissions],
+                      ["settings-modules", t.modules],
+                    ] as const).map(([key, label]) => (
+                      <button
+                        key={key}
+                        className={"nav-item nav-button " + (activeItem === key ? "is-active" : "")}
+                        onClick={() => onNavigate?.(key)}
+                      >
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <button
                   className={`nav-item nav-button ${activeItem === "settings-activity" ? "is-active" : ""}`}
                   onClick={() => onNavigate?.("settings-activity")}

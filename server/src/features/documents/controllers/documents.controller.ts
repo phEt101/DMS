@@ -41,7 +41,7 @@ export const show: RequestHandler = async (req, res) => {
 export const store: RequestHandler = async (req, res) => {
   requireTitle(req.body)
   const data = await documents.create({ ...req.body, title: req.body.title.trim() })
-  await logActivity({ userId: req.body.uploadedBy, action: 'created', entityType: 'document', entityId: data.id })
+  await logActivity({ userId: req.user?.id, module: 'documents', action: 'created', entityType: 'document', entityId: data.id, ipAddress: req.ip })
   res.status(201).json({ data })
 }
 
@@ -51,20 +51,20 @@ export const patch: RequestHandler = async (req, res) => {
   if (!await documents.findById(id)) return res.status(404).json({ message: 'Document not found' })
   const data = await documents.update(id, req.body)
   if (!data) throw new Error('Updated document could not be loaded')
-  await logActivity({ action: 'updated', entityType: 'document', entityId: data.id })
+  await logActivity({ userId: req.user?.id, module: 'documents', action: 'updated', entityType: 'document', entityId: data.id, ipAddress: req.ip })
   res.json({ data })
 }
 
 export const destroy: RequestHandler = async (req, res) => {
   const id = routeParam(req.params.id)
   if (!await documents.trash(id)) return res.status(404).json({ message: 'Document not found' })
-  await logActivity({ action: 'trashed', entityType: 'document', entityId: id })
+  await logActivity({ userId: req.user?.id, module: 'trash', action: 'trashed', entityType: 'document', entityId: id, ipAddress: req.ip })
   res.status(204).end()
 }
 
 export const restore: RequestHandler = async (req, res) => {
   const id = routeParam(req.params.id)
   if (!await documents.restore(id)) return res.status(404).json({ message: 'Deleted document not found' })
-  await logActivity({ action: 'restored', entityType: 'document', entityId: id })
+  await logActivity({ userId: req.user?.id, module: 'trash', action: 'restored', entityType: 'document', entityId: id, ipAddress: req.ip })
   res.json({ data: await documents.findById(id) })
 }

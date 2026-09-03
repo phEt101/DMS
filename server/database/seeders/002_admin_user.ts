@@ -1,19 +1,24 @@
+import bcrypt from 'bcryptjs'
 import type { Connection, RowDataPacket } from 'mysql2/promise'
 
 const admin = {
   name: 'System Administrator',
   email: 'admin@boswell.com',
-  passwordHash: '$2b$12$NB8sNF7D/wKu7MJcxkJ0fu7XZjZIAvkyzmMMJzRyUKRSkjR9smJX.',
   role: 'admin',
   department: 'IT / System',
 }
 
 export async function up(connection: Connection) {
+  const initialPassword = process.env.ADMIN_INITIAL_PASSWORD
+  if (!initialPassword || initialPassword.length < 8) {
+    throw new Error('ADMIN_INITIAL_PASSWORD must contain at least 8 characters')
+  }
+  const passwordHash = await bcrypt.hash(initialPassword, 12)
   const [users] = await connection.execute<(RowDataPacket & { id: number })[]>('SELECT id FROM users WHERE email = ? LIMIT 1', [admin.email])
 
   const values = [
     admin.name,
-    admin.passwordHash,
+    passwordHash,
     admin.role,
     admin.department,
   ]
@@ -41,6 +46,6 @@ export async function up(connection: Connection) {
        (SELECT id FROM departments WHERE name = ? LIMIT 1),
        1
      )`,
-    [admin.name, admin.email, admin.passwordHash, admin.role, admin.department],
+    [admin.name, admin.email, passwordHash, admin.role, admin.department],
   )
 }

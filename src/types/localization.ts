@@ -4,6 +4,52 @@ export type FeatureCopy = {
   subtitle: string
 }
 
+export type ActivityFeatureCopy = FeatureCopy & {
+  sequence: string
+  user: string
+  email: string
+  activity: string
+  module: string
+  details: string
+  ipAddress: string
+  dateTime: string
+  login: string
+  logout: string
+  created: string
+  updated: string
+  deleted: string
+  activated: string
+  deactivated: string
+  loginFrom: string
+  onDevice: string
+  unknownClient: string
+  modules: Record<string, string>
+  changedFields: string
+  permissionCount: string
+  fields: Record<string, string>
+  userActions: Record<string, string>
+  roleActions: Record<string, string>
+  departmentActions: Record<string, string>
+  permissionActions: Record<string, string>
+  moduleActions: Record<string, string>
+  rolePermissionModules: string
+  roleActivated: string
+  roleDeactivated: string
+  from: string
+  to: string
+  passwordChanged: string
+  active: string
+  inactive: string
+  unknownUser: string
+  loading: string
+  empty: string
+  previous: string
+  next: string
+  page: string
+  perPage: string
+  loadError: string
+}
+
 export type UserFeatureCopy = FeatureCopy & {
   addUser: string
   newUser: string
@@ -19,8 +65,6 @@ export type UserFeatureCopy = FeatureCopy & {
   passwordOptional: string
   department: string
   phone: string
-  lastLogin: string
-  never: string
   role: string
   status: string
   createdAt: string
@@ -50,6 +94,15 @@ export type UserFeatureCopy = FeatureCopy & {
   departmentHelp: string
   permissionManagement: string
   permissionHelp: string
+  accessManagement: string
+  accessHelp: string
+  moduleManagement: string
+  moduleHelp: string
+  noModules: string
+  sortOrder: string
+  permissionsCount: string
+  addModule: string
+  editModule: string
   addDepartment: string
   editDepartment: string
   addPermission: string
@@ -71,6 +124,8 @@ export type UserFeatureCopy = FeatureCopy & {
   selectAllModule: string
   viewPermissions: string
   editPermissions: string
+  deleteRoleConfirm: string
+  deleteRoleError: string
   permissionsFor: string
   permissionModules: Record<'dashboard' | 'documents' | 'reports' | 'trash' | 'users' | 'activity_logs', string>
 }

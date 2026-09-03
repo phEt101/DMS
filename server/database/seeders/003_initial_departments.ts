@@ -19,7 +19,7 @@ export async function up(connection: Connection) {
   await connection.execute(
     `UPDATE users
      SET department_id = (SELECT id FROM departments WHERE name = 'IT / System' LIMIT 1)
-     WHERE email = 'admin@boswell.local'`,
+     WHERE email = 'admin@boswell.com'`,
   )
 
   await connection.execute(

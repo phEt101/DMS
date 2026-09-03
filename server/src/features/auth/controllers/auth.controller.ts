@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import { env } from "../../../config/env.js";
 
 import { httpError } from "../../../middleware/errors.js";
+import { logActivity } from "../../settings/activity/repositories/activity.repository.js";
 import * as authService from "../services/auth.service.js";
 
 interface LoginPayload {
@@ -42,6 +43,18 @@ export const login: RequestHandler = async (req, res, next) => {
       userAgent: req.get("User-Agent")?.slice(0, 500) ?? null,
     });
 
+    await logActivity({
+      userId: result.user.id,
+      module: "authentication",
+      action: "login",
+      entityType: "authentication",
+      entityId: result.user.id,
+      details: {
+        userAgent: req.get("User-Agent")?.slice(0, 500) ?? "",
+      },
+      ipAddress: req.ip,
+    });
+
     res.cookie(authService.SESSION_COOKIE_NAME, result.token, {
       httpOnly: true,
       secure: env.nodeEnv !== "development",
@@ -78,6 +91,15 @@ export const logout: RequestHandler = async (req, res) => {
   }
 
   await authService.logout(req.sessionId);
+
+  await logActivity({
+    userId: req.user.id,
+    module: "authentication",
+    action: "logout",
+    entityType: "authentication",
+    entityId: req.user.id,
+    ipAddress: req.ip,
+  });
 
   res.clearCookie(authService.SESSION_COOKIE_NAME, {
     httpOnly: true,

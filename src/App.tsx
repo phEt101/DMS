@@ -6,7 +6,7 @@ import Topbar from './layout/topbar'
 import { getLocale } from './locales'
 import { buildPages } from './routes/appRoutes'
 
-type PageKey = 'dashboard' | 'documents' | 'report' | 'trash' | 'settings-user' | 'settings-activity'
+type PageKey = 'dashboard' | 'documents' | 'report' | 'trash' | 'settings-user' | 'settings-roles' | 'settings-departments' | 'settings-permissions' | 'settings-modules' | 'settings-activity'
 
 const pathByPage: Record<PageKey, string> = {
   dashboard: '/dashboard',
@@ -14,6 +14,10 @@ const pathByPage: Record<PageKey, string> = {
   report: '/reports',
   trash: '/trash',
   'settings-user': '/settings/users',
+  'settings-roles': '/settings/access/roles',
+  'settings-departments': '/settings/access/departments',
+  'settings-permissions': '/settings/access/permissions',
+  'settings-modules': '/settings/access/modules',
   'settings-activity': '/settings/activity',
 }
 
@@ -30,7 +34,7 @@ export default function App() {
   const [activeItem, setActiveItem] = useState<PageKey>(() => pageFromPath(window.location.pathname))
   const copy = getLocale(language).app
   const features = getLocale(language).features
-  const pages = buildPages(features)
+  const pages = buildPages(features, language)
   useEffect(() => {
     if (isLoading) return
     if (!user) {

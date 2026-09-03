@@ -24,6 +24,17 @@ const permissions: Array<readonly [string, string]> = [
   ['ดูบันทึกกิจกรรม', 'activity_logs'],
 ]
 
+const permissionModules = [
+  'dashboard',
+  'documents',
+  'reports',
+  'trash',
+  'users',
+  'roles',
+  'departments',
+  'activity_logs',
+] as const
+
 const departments = [
   'IT / System',
   'Project Management',
@@ -61,11 +72,21 @@ export async function up(connection: Connection) {
     )
   }
 
+  for (const [index, name] of permissionModules.entries()) {
+    const sortOrder = index + 1
+    await connection.execute(
+      `INSERT INTO permission_modules (name, sort_order, is_active)
+       VALUES (?, ?, 1)
+       ON DUPLICATE KEY UPDATE sort_order = VALUES(sort_order), is_active = 1, deleted_at = NULL`,
+      [name, sortOrder],
+    )
+  }
+
   for (const [name, module] of permissions) {
     await connection.execute(
-      `INSERT INTO permissions (name, module)
-       VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE name = VALUES(name), module = VALUES(module)`,
+      `INSERT INTO permissions (name, module_id)
+       SELECT ?, id FROM permission_modules WHERE name = ? AND deleted_at IS NULL
+       ON DUPLICATE KEY UPDATE name = VALUES(name), module_id = VALUES(module_id)`,
       [name, module],
     )
   }
