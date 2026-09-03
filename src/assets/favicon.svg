@@ -1,13 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="brand" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#7967ff"/>
-      <stop offset="1" stop-color="#5543db"/>
-    </linearGradient>
+    <radialGradient id="boswell-red" cx="0" cy="0" r="1" gradientTransform="translate(20 15) rotate(48) scale(55)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff8b80"/>
+      <stop offset="0.48" stop-color="#ed4e47"/>
+      <stop offset="1" stop-color="#bf2226"/>
+    </radialGradient>
+    <clipPath id="sphere">
+      <circle cx="32" cy="32" r="29"/>
+    </clipPath>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#brand)"/>
-  <rect x="15" y="25" width="6" height="18" rx="3" fill="white"/>
-  <rect x="25" y="17" width="6" height="26" rx="3" fill="white"/>
-  <rect x="35" y="21" width="6" height="22" rx="3" fill="white"/>
-  <rect x="45" y="27" width="6" height="16" rx="3" fill="white"/>
+  <circle cx="32" cy="32" r="29" fill="url(#boswell-red)"/>
+  <g clip-path="url(#sphere)" fill="none" stroke-linecap="round">
+    <path d="M-4 39C14 42 31 33 68 14" stroke="#fff" stroke-width="2"/>
+    <path d="M-5 43C17 46 36 34 69 17" stroke="#fff" stroke-opacity="0.82" stroke-width="1.35"/>
+    <path d="M-3 47C20 49 40 35 70 21" stroke="#8e171c" stroke-opacity="0.5" stroke-width="1"/>
+  </g>
+  <path d="M14 16C20 10 29 7 38 9" fill="none" stroke="#fff" stroke-opacity="0.28" stroke-linecap="round" stroke-width="3"/>
 </svg>

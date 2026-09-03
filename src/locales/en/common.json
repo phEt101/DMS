@@ -4,6 +4,24 @@
     "title": "All Documents",
     "subtitle": "Your sidebar and topbar are ready."
   },
+  "auth": {
+    "brandLabel": "Boswell document management system",
+    "productName": "Document management system",
+    "kicker": "ON-SITE SERVICES",
+    "brandTitle": "Field service management system",
+    "brandSubtitle": "Manage projects, track equipment, capture field data, and report results.",
+    "welcome": "Welcome back",
+    "title": "Sign in",
+    "subtitle": "Enter your account details to continue.",
+    "email": "Email",
+    "emailPlaceholder": "name@company.com",
+    "password": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in...",
+    "loginError": "The email or password is incorrect, or the account is unavailable.",
+    "switchLanguage": "Switch to Thai"
+  },
   "features": {
     "dashboard": {
       "kicker": "Dashboard",
@@ -134,6 +152,8 @@
     "openNav": "Open navigation",
     "switchToEnglish": "Switch to English",
     "switchToThai": "Switch to Thai",
-    "profileRole": "Project Admin"
+    "profileRole": "Project Admin",
+    "logout": "Sign out",
+    "loggingOut": "Signing out..."
   }
 }

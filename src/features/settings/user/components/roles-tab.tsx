@@ -243,19 +243,19 @@ export function RolesTab({ t }: { t: UserFeatureCopy }) {
             ) : (
               visibleRoles.map((role) => (
                 <tr key={role.id}>
-                  <td>
+                  <td data-label={t.role}>
                     <strong>{role.name}</strong>
                   </td>
-                  <td>{role.userCount}</td>
-                  <td>{role.permissionCount}</td>
-                  <td>
+                  <td data-label={t.members}>{role.userCount}</td>
+                  <td data-label={t.totalPermissions}>{role.permissionCount}</td>
+                  <td data-label={t.status}>
                     <span
                       className={`status-pill ${role.isActive ? "is-active" : ""}`}
                     >
                       {role.isActive ? t.active : t.inactive}
                     </span>
                   </td>
-                  <td>
+                  <td data-label={t.actions}>
                     <div className="row-actions">
                       <button
                         type="button"

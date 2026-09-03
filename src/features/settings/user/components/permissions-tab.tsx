@@ -137,22 +137,22 @@ export function PermissionsTab({ t }: { t: UserFeatureCopy }) {
             ) : (
               visibleItems.map((item) => (
                 <tr key={item.id}>
-                  <td>
+                  <td data-label={t.name}>
                     <strong>{item.name}</strong>
                     <small className="cell-description">
                       {item.description}
                     </small>
                   </td>
-                  <td>{item.module}</td>
-                  <td>{item.roleCount}</td>
-                  <td>
+                  <td data-label={t.module}>{item.module}</td>
+                  <td data-label={t.assignedRoles}>{item.roleCount}</td>
+                  <td data-label={t.status}>
                     <span
                       className={`status-pill ${item.isActive ? "is-active" : ""}`}
                     >
                       {item.isActive ? t.active : t.inactive}
                     </span>
                   </td>
-                  <td>
+                  <td data-label={t.actions}>
                     <div className="row-actions">
                       <button type="button" onClick={() => showForm(item)}>
                         {t.edit}

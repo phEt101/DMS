@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getLocale } from "../locales";
 
 const icons = {
@@ -86,7 +86,31 @@ export default function Sidebar({
   onNavigate?: (item: SidebarItem) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(true);
+  const settingsGroupRef = useRef<HTMLDivElement>(null);
   const t = getLocale(language).sidebar;
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!settingsGroupRef.current?.contains(event.target as Node)) {
+        setSettingsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSettingsOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [settingsOpen]);
+
   const mainItems: Array<{
     key: SidebarItem;
     icon: keyof typeof icons;
@@ -109,13 +133,21 @@ export default function Sidebar({
         className={`sidebar ${collapsed ? "is-collapsed" : ""} ${mobileOpen ? "is-mobile-open" : ""}`}
       >
         <div className="brand-row">
-          <span className="brand-mark">
-            <span />
-          </span>
-          <div className="brand-copy">
-            <strong>Boswell</strong>
-            <small>{t.brand}</small>
-          </div>
+          <button
+            type="button"
+            className="sidebar-brand"
+            onClick={() => onNavigate?.("dashboard")}
+            title={collapsed ? "Boswell" : undefined}
+            aria-label="Boswell - Dashboard"
+          >
+            <span className="brand-mark boswell-logo-mark">
+              <span />
+            </span>
+            <span className="brand-copy">
+              <strong>Boswell</strong>
+              <small>{t.brand}</small>
+            </span>
+          </button>
           <button
             className="sidebar-toggle"
             onClick={onToggle}
@@ -159,7 +191,7 @@ export default function Sidebar({
             );
           })}
           <div className="nav-divider" />
-          <div className="settings-group">
+          <div className="settings-group" ref={settingsGroupRef}>
             <button
               className="nav-item nav-button settings-toggle"
               onClick={() => setSettingsOpen((open) => !open)}

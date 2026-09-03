@@ -8,9 +8,10 @@ export async function request(path: string, options: RequestInit = {}) {
 
   const url = path.startsWith('http') ? path : `${API_PREFIX}${path}`
   const response = await fetch(url, {
-    headers,
     ...options,
-  })
+    headers,
+    credentials: "include",
+  });
 
   if (!response.ok) {
     const body = await response.json().catch(() => null)

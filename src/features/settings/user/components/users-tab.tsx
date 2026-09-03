@@ -263,18 +263,18 @@ function UsersTable({
           ) : (
             users.map((user) => (
               <tr key={user.id}>
-                <td>
+                <td data-label={t.name}>
                   <div className="user-identity">
                     <span className="user-avatar">{initials(user.name)}</span>
                     <strong>{user.name}</strong>
                   </div>
                 </td>
-                <td>{user.email}</td>
-                <td>{user.department || "—"}</td>
-                <td>
+                <td data-label={t.email}>{user.email}</td>
+                <td data-label={t.department}>{user.department || "—"}</td>
+                <td data-label={t.role}>
                   <span className="role-badge">{t.roles[user.role] ?? user.role}</span>
                 </td>
-                <td>
+                <td data-label={t.status}>
                   <button
                     className={`status-pill ${user.isActive ? "is-active" : ""}`}
                     type="button"
@@ -283,12 +283,12 @@ function UsersTable({
                     {user.isActive ? t.active : t.inactive}
                   </button>
                 </td>
-                <td>
+                <td data-label={t.lastLogin}>
                   {user.lastLoginAt
                     ? dateFormatter.format(new Date(user.lastLoginAt))
                     : t.never}
                 </td>
-                <td>
+                <td data-label={t.actions}>
                   <div className="row-actions">
                     <button type="button" onClick={() => onEdit(user)}>
                       {t.edit}

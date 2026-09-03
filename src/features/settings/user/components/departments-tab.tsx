@@ -136,19 +136,19 @@ export function DepartmentsTab({ t }: { t: UserFeatureCopy }) {
             ) : (
               visibleItems.map((item) => (
                 <tr key={item.id}>
-                  <td>
+                  <td data-label={t.name}>
                     <strong>{item.name}</strong>
                   </td>
-                  <td>{item.description || "—"}</td>
-                  <td>{item.userCount}</td>
-                  <td>
+                  <td data-label={t.description}>{item.description || "—"}</td>
+                  <td data-label={t.members}>{item.userCount}</td>
+                  <td data-label={t.status}>
                     <span
                       className={`status-pill ${item.isActive ? "is-active" : ""}`}
                     >
                       {item.isActive ? t.active : t.inactive}
                     </span>
                   </td>
-                  <td>
+                  <td data-label={t.actions}>
                     <div className="row-actions">
                       <button type="button" onClick={() => showForm(item)}>
                         {t.edit}
