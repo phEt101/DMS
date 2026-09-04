@@ -4,6 +4,7 @@ import type { SyntheticEvent } from "react";
 import { getLocale } from "../../locales";
 import type { Language } from "../../locales";
 import { useAuth } from "./hooks/use-auth";
+import { useErrorToast } from "../../components/toast-provider";
 
 export default function LoginPage({
   language,
@@ -17,6 +18,7 @@ export default function LoginPage({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  useErrorToast(error);
   const t = getLocale(language).auth;
 
   const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
@@ -76,12 +78,6 @@ export default function LoginPage({
           </header>
 
           <form onSubmit={handleSubmit}>
-            {error && (
-              <div className="signin-alert" role="alert" aria-live="polite">
-                {error}
-              </div>
-            )}
-
             <label className="signin-field">
               <span>{t.email}</span>
               <input

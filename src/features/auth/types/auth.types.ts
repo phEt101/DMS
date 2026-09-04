@@ -11,6 +11,13 @@ export interface AuthUser {
     id: number;
     name: string;
   };
+  permissions: Array<{
+    id: number;
+    name: string;
+    module: string;
+    moduleIconName: string | null;
+    moduleSortOrder: number;
+  }>;
 }
 
 export interface LoginResponse {

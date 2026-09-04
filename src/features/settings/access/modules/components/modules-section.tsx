@@ -1,6 +1,9 @@
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
 import type { UserFeatureCopy } from "../../../../../types/localization";
-import { PaginationFooter } from "../../../components/pagination-footer";
+import { PaginationFooter } from "../../../../../components/pagination-footer";
+import { useErrorToast } from "../../../../../components/toast-provider";
+import { useAuth } from "../../../../auth/hooks/use-auth";
+import { hasPermission } from "../../../../auth/permissions";
 import {
   createPermissionModule,
   deletePermissionModule,
@@ -18,6 +21,10 @@ const emptyForm: PermissionModuleInput = {
 };
 
 export function ModulesSection({ t }: { t: UserFeatureCopy }) {
+  const { user } = useAuth();
+  const canCreate = Boolean(user && hasPermission(user, "เพิ่มโมดูล"));
+  const canEdit = Boolean(user && hasPermission(user, "แก้ไขโมดูล"));
+  const canDelete = Boolean(user && hasPermission(user, "ลบโมดูล"));
   const [modules, setModules] = useState<PermissionModule[]>([]);
   const [editing, setEditing] = useState<PermissionModule | null>(null);
   const [form, setForm] = useState<PermissionModuleInput>(emptyForm);
@@ -25,6 +32,7 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  useErrorToast(error);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const totalPages = Math.max(Math.ceil(modules.length / pageSize), 1);
@@ -98,19 +106,14 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
           <h1>{t.moduleManagement}</h1>
           <p>{t.moduleHelp}</p>
         </div>
-        <button
+        {canCreate && <button
           className="primary-button"
           type="button"
           onClick={() => showForm()}
         >
           {t.addModule}
-        </button>
+        </button>}
       </header>
-      {error && (
-        <div className="form-alert" role="alert">
-          {error}
-        </div>
-      )}
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
@@ -154,17 +157,17 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
                   </td>
                   <td data-label={t.actions}>
                     <div className="row-actions">
-                      <button type="button" onClick={() => showForm(module)}>
+                      {canEdit && <button type="button" onClick={() => showForm(module)}>
                         {t.edit}
-                      </button>
-                      <button
+                      </button>}
+                      {canDelete && <button
                         className="danger-link"
                         type="button"
                         disabled={module.permissionCount > 0}
                         onClick={() => void remove(module)}
                       >
                         {t.delete}
-                      </button>
+                      </button>}
                     </div>
                   </td>
                 </tr>

@@ -33,6 +33,14 @@ export interface AuthSessionRow extends RowDataPacket {
   roleIsActive: boolean;
 }
 
+export interface AuthPermissionRow extends RowDataPacket {
+  id: number;
+  name: string;
+  module: string;
+  moduleIconName: string | null;
+  moduleSortOrder: number;
+}
+
 export async function findUserByEmail(
   email: string,
 ): Promise<AuthUserRow | null> {
@@ -113,6 +121,27 @@ export async function findSessionByTokenHash(
   );
 
   return rows[0] ?? null;
+}
+
+export async function findActivePermissionsByRoleId(
+  roleId: number,
+): Promise<AuthPermissionRow[]> {
+  const [rows] = await db.execute<AuthPermissionRow[]>(
+    `SELECT permissions.id, permissions.name, permission_modules.name AS module,
+            permission_modules.icon_name AS moduleIconName,
+            permission_modules.sort_order AS moduleSortOrder
+     FROM role_permissions
+     INNER JOIN permissions ON permissions.id = role_permissions.permission_id
+     INNER JOIN permission_modules ON permission_modules.id = permissions.module_id
+     WHERE role_permissions.role_id = ?
+       AND permissions.is_active = 1
+       AND permissions.deleted_at IS NULL
+       AND permission_modules.is_active = 1
+       AND permission_modules.deleted_at IS NULL
+     ORDER BY permission_modules.sort_order, permissions.id`,
+    [roleId],
+  );
+  return rows;
 }
 
 export async function updateSessionLastUsed(

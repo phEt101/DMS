@@ -135,6 +135,10 @@
         "reports": "Reports",
         "trash": "Trash",
         "users": "Users",
+        "roles": "Roles and permissions",
+        "departments": "Departments",
+        "permissions": "Permissions",
+        "modules": "Modules",
         "activity_logs": "Activity log"
       }
     },

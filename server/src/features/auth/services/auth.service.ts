@@ -27,6 +27,13 @@ export interface AuthenticatedUser {
     id: number;
     name: string;
   };
+  permissions: Array<{
+    id: number;
+    name: string;
+    module: string;
+    moduleIconName: string | null;
+    moduleSortOrder: number;
+  }>;
 }
 
 export interface LoginResult {
@@ -85,6 +92,8 @@ export async function login(input: LoginInput): Promise<LoginResult> {
     userAgent: input.userAgent ?? null,
   });
 
+  const permissions = await authRepository.findActivePermissionsByRoleId(user.roleId);
+
   return {
     token,
     expiresAt,
@@ -96,6 +105,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
         id: user.roleId,
         name: user.roleName,
       },
+      permissions,
     },
   };
 }

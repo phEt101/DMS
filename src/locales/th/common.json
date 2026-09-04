@@ -130,6 +130,10 @@
         "reports": "รายงาน",
         "trash": "ขยะ",
         "users": "ผู้ใช้",
+        "roles": "บทบาทและสิทธิ์",
+        "departments": "แผนก",
+        "permissions": "สิทธิ์",
+        "modules": "โมดูล",
         "activity_logs": "บันทึกกิจกรรม"
       }
     },

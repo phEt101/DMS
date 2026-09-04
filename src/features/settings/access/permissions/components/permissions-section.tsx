@@ -9,7 +9,10 @@ import {
   type PermissionInput,
 } from "../services/permissions.service";
 import { listPermissionModules, type PermissionModule } from "../../modules/services/modules.service";
-import { PaginationFooter } from "../../../components/pagination-footer";
+import { PaginationFooter } from "../../../../../components/pagination-footer";
+import { useErrorToast } from "../../../../../components/toast-provider";
+import { useAuth } from "../../../../auth/hooks/use-auth";
+import { hasPermission } from "../../../../auth/permissions";
 
 const emptyForm: PermissionInput = {
   name: "",
@@ -18,6 +21,10 @@ const emptyForm: PermissionInput = {
 };
 
 export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
+  const { user } = useAuth();
+  const canCreate = Boolean(user && hasPermission(user, "เพิ่มสิทธิ์"));
+  const canEdit = Boolean(user && hasPermission(user, "แก้ไขสิทธิ์"));
+  const canDelete = Boolean(user && hasPermission(user, "ลบสิทธิ์"));
   const [items, setItems] = useState<Permission[]>([]);
   const [modules, setModules] = useState<PermissionModule[]>([]);
   const [editing, setEditing] = useState<Permission | null>(null);
@@ -26,6 +33,7 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  useErrorToast(error);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const totalPages = Math.max(Math.ceil(items.length / pageSize), 1);
@@ -35,18 +43,19 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
     setLoading(true);
     setError("");
     try {
-      const [permissionsResponse, modulesResponse] = await Promise.all([
-        listPermissions(),
-        listPermissionModules(),
-      ]);
+      const permissionsResponse = await listPermissions();
       setItems(permissionsResponse.data);
-      setModules(modulesResponse.data);
+      if (canCreate || canEdit) {
+        setModules((await listPermissionModules()).data);
+      } else {
+        setModules([]);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t.loadError);
     } finally {
       setLoading(false);
     }
-  }, [t.loadError]);
+  }, [canCreate, canEdit, t.loadError]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -102,19 +111,14 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
           <h1>{t.permissionManagement}</h1>
           <p>{t.permissionHelp}</p>
         </div>
-        <button
+        {canCreate && <button
           className="primary-button"
           type="button"
           onClick={() => showForm()}
         >
           {t.addPermission}
-        </button>
+        </button>}
       </header>
-      {error && (
-        <div className="form-alert" role="alert">
-          {error}
-        </div>
-      )}
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
@@ -156,16 +160,16 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
                   </td>
                   <td data-label={t.actions}>
                     <div className="row-actions">
-                      <button type="button" onClick={() => showForm(item)}>
+                      {canEdit && <button type="button" onClick={() => showForm(item)}>
                         {t.edit}
-                      </button>
-                      <button
+                      </button>}
+                      {canDelete && <button
                         className="danger-link"
                         type="button"
                         onClick={() => void remove(item)}
                       >
                         {t.delete}
-                      </button>
+                      </button>}
                     </div>
                   </td>
                 </tr>

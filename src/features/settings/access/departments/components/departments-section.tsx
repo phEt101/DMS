@@ -8,7 +8,10 @@ import {
   type Department,
   type DepartmentInput,
 } from "../services/departments.service";
-import { PaginationFooter } from "../../../components/pagination-footer";
+import { PaginationFooter } from "../../../../../components/pagination-footer";
+import { useErrorToast } from "../../../../../components/toast-provider";
+import { useAuth } from "../../../../auth/hooks/use-auth";
+import { hasAnyPermission } from "../../../../auth/permissions";
 
 const emptyForm: DepartmentInput = {
   name: "",
@@ -16,6 +19,10 @@ const emptyForm: DepartmentInput = {
 };
 
 export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
+  const { user } = useAuth();
+  const canCreate = Boolean(user && hasAnyPermission(user, "เพิ่มแผนก", "จัดการแผนก"));
+  const canEdit = Boolean(user && hasAnyPermission(user, "แก้ไขแผนก", "จัดการแผนก"));
+  const canDelete = Boolean(user && hasAnyPermission(user, "ลบแผนก", "จัดการแผนก"));
   const [items, setItems] = useState<Department[]>([]);
   const [editing, setEditing] = useState<Department | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -23,6 +30,7 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  useErrorToast(error);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const totalPages = Math.max(Math.ceil(items.length / pageSize), 1);
@@ -94,19 +102,14 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
           <h1>{t.departmentManagement}</h1>
           <p>{t.departmentHelp}</p>
         </div>
-        <button
+        {canCreate && <button
           className="primary-button"
           type="button"
           onClick={() => showForm()}
         >
           {t.addDepartment}
-        </button>
+        </button>}
       </header>
-      {error && (
-        <div className="form-alert" role="alert">
-          {error}
-        </div>
-      )}
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
@@ -146,16 +149,16 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
                   </td>
                   <td data-label={t.actions}>
                     <div className="row-actions">
-                      <button type="button" onClick={() => showForm(item)}>
+                      {canEdit && <button type="button" onClick={() => showForm(item)}>
                         {t.edit}
-                      </button>
-                      <button
+                      </button>}
+                      {canDelete && <button
                         className="danger-link"
                         type="button"
                         onClick={() => void remove(item)}
                       >
                         {t.delete}
-                      </button>
+                      </button>}
                     </div>
                   </td>
                 </tr>

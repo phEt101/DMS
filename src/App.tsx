@@ -5,6 +5,8 @@ import Sidebar from './layout/sidebar'
 import Topbar from './layout/topbar'
 import { getLocale } from './locales'
 import { buildPages } from './routes/appRoutes'
+import type { AuthUser } from './features/auth/types/auth.types'
+import { canViewModule } from './features/auth/permissions'
 
 type PageKey = 'dashboard' | 'documents' | 'report' | 'trash' | 'settings-user' | 'settings-roles' | 'settings-departments' | 'settings-permissions' | 'settings-modules' | 'settings-activity'
 
@@ -21,6 +23,29 @@ const pathByPage: Record<PageKey, string> = {
   'settings-activity': '/settings/activity',
 }
 
+const moduleByPage: Record<PageKey, string> = {
+  dashboard: 'dashboard',
+  documents: 'documents',
+  report: 'reports',
+  trash: 'trash',
+  'settings-user': 'users',
+  'settings-roles': 'roles',
+  'settings-departments': 'departments',
+  'settings-permissions': 'permissions',
+  'settings-modules': 'modules',
+  'settings-activity': 'activity_logs',
+}
+
+const pageOrder = Object.keys(pathByPage) as PageKey[]
+
+function canAccessPage(user: AuthUser, page: PageKey) {
+  return canViewModule(user, moduleByPage[page])
+}
+
+function firstAccessiblePage(user: AuthUser): PageKey | null {
+  return pageOrder.find((page) => canAccessPage(user, page)) ?? null
+}
+
 function pageFromPath(pathname: string): PageKey {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
   return (Object.entries(pathByPage).find(([, path]) => path === normalized)?.[0] as PageKey | undefined) ?? 'dashboard'
@@ -32,25 +57,35 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [language, setLanguage] = useState<'th' | 'en'>('th')
   const [activeItem, setActiveItem] = useState<PageKey>(() => pageFromPath(window.location.pathname))
-  const copy = getLocale(language).app
   const features = getLocale(language).features
   const pages = buildPages(features, language)
   useEffect(() => {
     if (isLoading) return
     if (!user) {
+      setActiveItem('dashboard')
       if (window.location.pathname !== '/login') window.history.replaceState({}, '', '/login')
       return
     }
 
-    const syncFromUrl = () => setActiveItem(pageFromPath(window.location.pathname))
+    const syncFromUrl = () => {
+      const requestedPage = pageFromPath(window.location.pathname)
+      const nextPage = canAccessPage(user, requestedPage)
+        ? requestedPage
+        : firstAccessiblePage(user)
+
+      if (!nextPage) return
+      setActiveItem(nextPage)
+      if (window.location.pathname !== pathByPage[nextPage]) {
+        window.history.replaceState({}, '', pathByPage[nextPage])
+      }
+    }
     window.addEventListener('popstate', syncFromUrl)
-    const canonicalPath = pathByPage[pageFromPath(window.location.pathname)]
-    if (window.location.pathname !== canonicalPath) window.history.replaceState({}, '', canonicalPath)
+    syncFromUrl()
     return () => window.removeEventListener('popstate', syncFromUrl)
   }, [isLoading, user])
 
   const handleNavigate = (item: PageKey) => {
-    if (pages[item]) {
+    if (user && canAccessPage(user, item) && pages[item]) {
       setActiveItem(item)
       if (window.location.pathname !== pathByPage[item]) window.history.pushState({}, '', pathByPage[item])
     }
@@ -70,11 +105,16 @@ export default function App() {
     )
   }
 
+  const canAccessActivePage = canAccessPage(user, activeItem)
+
   return <div className={`app-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
     <Sidebar language={language} collapsed={collapsed} mobileOpen={mobileOpen} activeItem={activeItem} onNavigate={handleNavigate} onClose={() => setMobileOpen(false)} onToggle={() => setCollapsed((value) => !value)} />
     <div className="app-main">
       <Topbar user={user} language={language} onLanguageToggle={() => setLanguage((value) => (value === 'th' ? 'en' : 'th'))} onMenuClick={() => setMobileOpen(true)} onLogout={logout} />
-      <main className="page-placeholder">{pages[activeItem] ?? <section className="feature-page"><p className="feature-kicker">{copy.section}</p><h1>{copy.title}</h1><span>{copy.subtitle}</span></section>}</main>
+      <main className="page-placeholder">{canAccessActivePage
+        ? pages[activeItem]
+        : <section className="feature-page"><h1>ไม่มีสิทธิ์เข้าถึงหน้านี้</h1></section>}
+      </main>
     </div>
   </div>
 }

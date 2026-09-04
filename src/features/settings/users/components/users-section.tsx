@@ -14,7 +14,10 @@ import {
   type Department,
 } from "../../access/departments/services/departments.service";
 import { listRoles, type Role } from "../../access/roles/services/roles.service";
-import { PaginationFooter } from "../../components/pagination-footer";
+import { PaginationFooter } from "../../../../components/pagination-footer";
+import { useErrorToast } from "../../../../components/toast-provider";
+import { useAuth } from "../../../auth/hooks/use-auth";
+import { hasPermission } from "../../../auth/permissions";
 
 const emptyForm = (): UserInput => ({
   email: "",
@@ -37,6 +40,10 @@ function initials(name: string) {
 }
 
 export function UsersSection({ t }: { t: UserFeatureCopy }) {
+  const { user: authenticatedUser } = useAuth();
+  const canCreate = Boolean(authenticatedUser && hasPermission(authenticatedUser, "สร้างผู้ใช้งาน"));
+  const canEdit = Boolean(authenticatedUser && hasPermission(authenticatedUser, "แก้ไขผู้ใช้งาน"));
+  const canDelete = Boolean(authenticatedUser && hasPermission(authenticatedUser, "ลบผู้ใช้งาน"));
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -48,6 +55,7 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  useErrorToast(error);
   const [editing, setEditing] = useState<User | null>(null);
   const [form, setForm] = useState<UserInput>(emptyForm);
   const [formOpen, setFormOpen] = useState(false);
@@ -71,6 +79,7 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
     void load();
   }, [load]);
   useEffect(() => {
+    if (!canCreate && !canEdit) return;
     void Promise.all([listRoles(), listDepartments()])
       .then(([rolesResponse, departmentsResponse]) => {
         setRoles(rolesResponse.data);
@@ -79,7 +88,7 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
       .catch((caught: unknown) => {
         setError(caught instanceof Error ? caught.message : t.loadError);
       });
-  }, [t.loadError]);
+  }, [canCreate, canEdit, t.loadError]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearch(searchInput.trim());
@@ -182,20 +191,17 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
         <span className="users-count">
           {total} {t.users}
         </span>
-        <button className="primary-button" type="button" onClick={openCreate}>
+        {canCreate && <button className="primary-button" type="button" onClick={openCreate}>
           {t.addUser}
-        </button>
+        </button>}
       </div>
 
-      {error && (
-        <div className="form-alert" role="alert">
-          {error}
-        </div>
-      )}
       <UsersTable
         users={users}
         loading={loading}
         t={t}
+        canEdit={canEdit}
+        canDelete={canDelete}
         onEdit={openEdit}
         onRemove={remove}
         onToggleStatus={toggleStatus}
@@ -234,6 +240,8 @@ function UsersTable({
   onEdit,
   onRemove,
   onToggleStatus,
+  canEdit,
+  canDelete,
 }: {
   users: User[];
   loading: boolean;
@@ -241,6 +249,8 @@ function UsersTable({
   onEdit: (user: User) => void;
   onRemove: (user: User) => Promise<void>;
   onToggleStatus: (user: User) => Promise<void>;
+  canEdit: boolean;
+  canDelete: boolean;
 }) {
   return (
     <div className="users-table-wrap">
@@ -280,29 +290,32 @@ function UsersTable({
                 <td data-label={t.email}>{user.email}</td>
                 <td data-label={t.department}>{user.department || "—"}</td>
                 <td data-label={t.role}>
-                  <span className="role-badge">{t.roles[user.role] ?? user.role}</span>
+                  <span className="role-badge">{user.role}</span>
                 </td>
                 <td data-label={t.status}>
-                  <button
+                  {canEdit ? <button
                     className={`status-pill ${user.isActive ? "is-active" : ""}`}
                     type="button"
                     onClick={() => void onToggleStatus(user)}
                   >
                     {user.isActive ? t.active : t.inactive}
-                  </button>
+                  </button> : <span className={`status-pill ${user.isActive ? "is-active" : ""}`}>
+                    {user.isActive ? t.active : t.inactive}
+                  </span>}
                 </td>
                 <td data-label={t.actions}>
                   <div className="row-actions">
-                    <button type="button" onClick={() => onEdit(user)}>
+                    {canEdit && <button type="button" onClick={() => onEdit(user)}>
                       {t.edit}
-                    </button>
-                    <button
+                    </button>}
+                    {canDelete && <button
                       className="danger-link"
                       type="button"
                       onClick={() => void onRemove(user)}
                     >
                       {t.delete}
-                    </button>
+                    </button>}
+                    {!canEdit && !canDelete && <span>—</span>}
                   </div>
                 </td>
               </tr>
@@ -448,7 +461,7 @@ function UserFormModal({
                 .filter((role) => Boolean(role.isActive) || role.name === form.role)
                 .map((role) => (
                 <option key={role.id} value={role.name}>
-                  {t.roles[role.name] ?? role.name}
+                  {role.name}
                 </option>
               ))}
             </select>

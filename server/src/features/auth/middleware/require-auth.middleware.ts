@@ -38,6 +38,10 @@ export const requireAuth: RequestHandler = async (
     throw httpError(401, "Invalid or expired session");
   }
 
+  const permissions = await authRepository.findActivePermissionsByRoleId(
+    session.roleId,
+  );
+
   req.user = {
     id: session.userId,
     email: session.email,
@@ -46,6 +50,7 @@ export const requireAuth: RequestHandler = async (
       id: session.roleId,
       name: session.roleName,
     },
+    permissions,
   };
 
   req.sessionId = session.sessionId;

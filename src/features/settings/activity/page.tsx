@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 
 import type { Language } from '../../../locales'
 import type { ActivityFeatureCopy } from '../../../types/localization'
-import { PaginationFooter } from '../components/pagination-footer'
+import { PaginationFooter } from '../../../components/pagination-footer'
 import { listActivityLogs, type ActivityLog } from './services/activityService'
+import { useErrorToast } from '../../../components/toast-provider'
 
 function describeClient(userAgent: string, t: ActivityFeatureCopy): string {
   if (!userAgent) return t.unknownClient
@@ -187,6 +188,7 @@ export default function SettingsActivityPage({
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  useErrorToast(error)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -229,8 +231,6 @@ export default function SettingsActivityPage({
           <p>{t.subtitle}</p>
         </div>
       </header>
-
-      {error && <div className="form-alert" role="alert">{error}</div>}
 
       <div className="users-table-wrap">
         <table className="users-table activity-table">

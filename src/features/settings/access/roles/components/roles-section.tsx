@@ -1,6 +1,6 @@
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
 import type { UserFeatureCopy } from "../../../../../types/localization";
-import { PaginationFooter } from "../../../components/pagination-footer";
+import { PaginationFooter } from "../../../../../components/pagination-footer";
 import {
   createRole,
   deleteRole,
@@ -12,6 +12,9 @@ import {
 } from "../services/roles.service";
 import { listPermissions, type Permission } from "../../permissions/services/permissions.service";
 import { listPermissionModules, type PermissionModule } from "../../modules/services/modules.service";
+import { useErrorToast } from "../../../../../components/toast-provider";
+import { useAuth } from "../../../../auth/hooks/use-auth";
+import { hasAnyPermission } from "../../../../auth/permissions";
 
 type PermissionModuleKey = string;
 
@@ -43,6 +46,22 @@ function groupPermissions(permissions: RolePermission[]) {
   }
 
   return groups;
+}
+
+function permissionActionOrder(name: string) {
+  if (name.startsWith("เข้าถึงเมนู") || name.startsWith("ดู")) return 0;
+  if (name.startsWith("สร้าง") || name.startsWith("เพิ่ม")) return 1;
+  if (name.startsWith("แก้ไข")) return 2;
+  if (name.startsWith("ลบ")) return 3;
+  if (name.startsWith("กู้คืน")) return 4;
+  return 5;
+}
+
+function sortPermissions<T extends { name: string }>(permissions: T[]): T[] {
+  return [...permissions].sort((left, right) => {
+    const actionDifference = permissionActionOrder(left.name) - permissionActionOrder(right.name);
+    return actionDifference || left.name.localeCompare(right.name, "th");
+  });
 }
 
 function PermissionSelectionToggle({
@@ -111,6 +130,10 @@ function RoleStatusToggle({
 }
 
 export function RolesSection({ t }: { t: UserFeatureCopy }) {
+  const { user } = useAuth();
+  const canCreate = Boolean(user && hasAnyPermission(user, "เพิ่มบทบาท", "จัดการบทบาทและสิทธิ์"));
+  const canEdit = Boolean(user && hasAnyPermission(user, "แก้ไขบทบาทและสิทธิ์", "จัดการบทบาทและสิทธิ์"));
+  const canDelete = Boolean(user && hasAnyPermission(user, "ลบบทบาท", "จัดการบทบาทและสิทธิ์"));
   const [roles, setRoles] = useState<RoleDetails[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [permissionModules, setPermissionModules] = useState<PermissionModule[]>([]);
@@ -123,6 +146,7 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  useErrorToast(error);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const totalPages = Math.max(Math.ceil(roles.length / pageSize), 1);
@@ -132,20 +156,28 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
     setLoading(true);
     setError("");
     try {
-      const [rolesResponse, permissionsResponse, modulesResponse] = await Promise.all([
-        listRoles(),
-        listPermissions(),
-        listPermissionModules(),
-      ]);
-      setRoles(rolesResponse.data);
-      setPermissions(permissionsResponse.data);
-      setPermissionModules(modulesResponse.data);
+      const rolesResponse = await listRoles();
+      setRoles(rolesResponse.data.map((role) => ({
+        ...role,
+        permissions: sortPermissions(role.permissions),
+      })));
+      if (canCreate || canEdit) {
+        const [permissionsResponse, modulesResponse] = await Promise.all([
+          listPermissions(),
+          listPermissionModules(),
+        ]);
+        setPermissions(sortPermissions(permissionsResponse.data));
+        setPermissionModules(modulesResponse.data);
+      } else {
+        setPermissions([]);
+        setPermissionModules([]);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t.loadError);
     } finally {
       setLoading(false);
     }
-  }, [t.loadError]);
+  }, [canCreate, canEdit, t.loadError]);
 
   function showCreateForm() {
     setForm({ ...emptyRoleForm, permissionIds: [] });
@@ -243,13 +275,10 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
   }, [page, totalPages]);
 
   const displayedPermissionModules = [...new Set(
-    permissionModules
-      .filter((module) => Boolean(module.isActive))
-      .map((module) =>
-        module.name === "roles" || module.name === "departments"
-          ? "users"
-          : module.name,
-      ),
+    [
+      ...permissionModules.filter((module) => Boolean(module.isActive)).map((module) => module.name),
+      ...roles.flatMap((role) => role.permissions.map((permission) => permission.module)),
+    ],
   )];
   const selectedPermissionsByModule = selectedRole
     ? groupPermissions(selectedRole.permissions)
@@ -262,15 +291,10 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
           <h1>{t.roleManagement}</h1>
           <p>{t.roleHelp}</p>
         </div>
-        <button className="primary-button" type="button" onClick={showCreateForm}>
+        {canCreate && <button className="primary-button" type="button" onClick={showCreateForm}>
           {t.addRole}
-        </button>
+        </button>}
       </header>
-      {error && (
-        <div className="form-alert" role="alert">
-          {error}
-        </div>
-      )}
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
@@ -318,13 +342,13 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                       >
                         {t.viewPermissions}
                       </button>
-                      <button
+                      {canEdit && <button
                         type="button"
                         onClick={() => showPermissionDialog(role, "edit")}
                       >
                         {t.editPermissions}
-                      </button>
-                      {role.name.trim().toLowerCase() !== "admin" && (
+                      </button>}
+                      {canDelete && role.name.trim().toLowerCase() !== "admin" && (
                         <button
                           className="danger-link"
                           type="button"
@@ -376,11 +400,6 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
               </button>
             </header>
             <form onSubmit={(event) => void submit(event)}>
-              {error && (
-                <div className="form-alert" role="alert">
-                  {error}
-                </div>
-              )}
               <div className="role-form-fields">
                 <label>
                   {t.name}
@@ -573,11 +592,6 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                   void savePermissions();
                 }}
               >
-                {error && (
-                  <div className="form-alert" role="alert">
-                    {error}
-                  </div>
-                )}
                 {selectedRole.name.trim().toLowerCase() !== "admin" && (
                   <RoleStatusToggle
                     active={selectedRoleActive}

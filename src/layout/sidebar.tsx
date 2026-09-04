@@ -13,12 +13,9 @@ import {
 } from "react-icons/fa6";
 import * as FaIcons from "react-icons/fa6";
 import type { IconType } from "react-icons";
+import { useAuth } from "../features/auth/hooks/use-auth";
+import { canViewModule } from "../features/auth/permissions";
 import { getLocale } from "../locales";
-import {
-  listPermissionModules,
-  permissionModulesChangedEvent,
-  type PermissionModule,
-} from "../features/settings/access/modules/services/modules.service";
 
 const icons = {
   dashboard: FaTableCellsLarge,
@@ -71,31 +68,11 @@ export default function Sidebar({
   activeItem?: SidebarItem;
   onNavigate?: (item: SidebarItem) => void;
 }) {
+  const { user } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [accessOpen, setAccessOpen] = useState(true);
-  const [permissionModules, setPermissionModules] = useState<PermissionModule[]>([]);
   const settingsGroupRef = useRef<HTMLDivElement>(null);
   const t = getLocale(language).sidebar;
-
-  useEffect(() => {
-    let active = true;
-
-    const loadModules = () => listPermissionModules()
-      .then((response) => {
-        if (active) setPermissionModules(response.data);
-      })
-      .catch(() => {
-        if (active) setPermissionModules([]);
-      });
-
-    void loadModules();
-    window.addEventListener(permissionModulesChangedEvent, loadModules);
-
-    return () => {
-      active = false;
-      window.removeEventListener(permissionModulesChangedEvent, loadModules);
-    };
-  }, []);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -119,8 +96,16 @@ export default function Sidebar({
     };
   }, [settingsOpen]);
 
-  const moduleItems = permissionModules
-    .filter((module) => Boolean(module.isActive))
+  const grantedModules = [...new Map(
+    (user?.permissions ?? []).map((permission) => [permission.module, {
+      name: permission.module,
+      iconName: permission.moduleIconName,
+      sortOrder: permission.moduleSortOrder,
+    }]),
+  ).values()];
+
+  const moduleItems = grantedModules
+    .filter((module) => Boolean(user && canViewModule(user, module.name)))
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((module) => {
       const mainKey = module.name === "reports" ? "report" : module.name;
@@ -142,6 +127,9 @@ export default function Sidebar({
     ["dashboard", "documents", "report", "trash"].includes(item.key),
   );
   const accessItems = moduleItems.filter((item) => sidebarModuleKeys.has(item.key));
+  const canViewUsers = Boolean(user && canViewModule(user, "users"));
+  const canViewActivity = Boolean(user && canViewModule(user, "activity_logs"));
+  const hasSettingsItems = canViewUsers || accessItems.length > 0 || canViewActivity;
 
   return (
     <>
@@ -213,8 +201,8 @@ export default function Sidebar({
               </button>
             );
           })}
-          <div className="nav-divider" />
-          <div className="settings-group" ref={settingsGroupRef}>
+          {hasSettingsItems && <div className="nav-divider" />}
+          {hasSettingsItems && <div className="settings-group" ref={settingsGroupRef}>
             <button
               className="nav-item nav-button settings-toggle"
               onClick={() => setSettingsOpen((open) => !open)}
@@ -228,14 +216,14 @@ export default function Sidebar({
             {settingsOpen && (
               <div className="subnav">
                 <strong className="subnav-title">{t.settings}</strong>
-                <button
+                {canViewUsers && <button
                   className={`nav-item nav-button ${activeItem === "settings-user" ? "is-active" : ""}`}
                   onClick={() => onNavigate?.("settings-user")}
                 >
                   <Icon name="user" />
                   <span>{t.user}</span>
-                </button>
-                <button
+                </button>}
+                {accessItems.length > 0 && <button
                   className="nav-item nav-button access-toggle"
                   type="button"
                   aria-expanded={accessOpen}
@@ -244,8 +232,8 @@ export default function Sidebar({
                   <Icon name="settings" />
                   <span>{t.access}</span>
                   <i className={accessOpen ? "is-rotated" : ""}>⌄</i>
-                </button>
-                {accessOpen && (
+                </button>}
+                {accessItems.length > 0 && accessOpen && (
                   <div className="access-subnav">
                     {accessItems.map(({ key, label, icon: IconComponent }) => (
                       <button
@@ -261,16 +249,16 @@ export default function Sidebar({
                     ))}
                   </div>
                 )}
-                <button
+                {canViewActivity && <button
                   className={`nav-item nav-button ${activeItem === "settings-activity" ? "is-active" : ""}`}
                   onClick={() => onNavigate?.("settings-activity")}
                 >
                   <Icon name="activity" />
                   <span>{t.activity}</span>
-                </button>
+                </button>}
               </div>
             )}
-          </div>
+          </div>}
         </nav>
       </aside>
     </>
