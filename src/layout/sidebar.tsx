@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getLocale } from "../locales";
+import { listPermissionModules, type PermissionModule } from "../features/settings/access/modules/services/modules.service";
 
 const icons = {
   dashboard: (
@@ -72,6 +73,13 @@ type SidebarItem =
   | "settings-modules"
   | "settings-activity";
 
+const sidebarModuleKeys = new Set<SidebarItem>([
+  "settings-roles",
+  "settings-departments",
+  "settings-permissions",
+  "settings-modules",
+]);
+
 export default function Sidebar({
   language = "th",
   collapsed = false,
@@ -91,8 +99,25 @@ export default function Sidebar({
 }) {
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [accessOpen, setAccessOpen] = useState(true);
+  const [permissionModules, setPermissionModules] = useState<PermissionModule[]>([]);
   const settingsGroupRef = useRef<HTMLDivElement>(null);
   const t = getLocale(language).sidebar;
+
+  useEffect(() => {
+    let active = true;
+
+    void listPermissionModules()
+      .then((response) => {
+        if (active) setPermissionModules(response.data);
+      })
+      .catch(() => {
+        if (active) setPermissionModules([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -126,6 +151,19 @@ export default function Sidebar({
     { key: "report", icon: "report", label: t.items.report },
     { key: "trash", icon: "trash", label: t.items.trash },
   ];
+
+  const accessItems = permissionModules
+    .filter((module) => Boolean(module.isActive))
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map((module) => {
+      const key = `settings-${module.name}` as SidebarItem;
+      const localizedLabel = t[module.name as keyof typeof t];
+      return {
+        key,
+        label: typeof localizedLabel === "string" ? localizedLabel : module.name,
+      };
+    })
+    .filter((item) => sidebarModuleKeys.has(item.key));
 
   return (
     <>
@@ -229,12 +267,7 @@ export default function Sidebar({
                 </button>
                 {accessOpen && (
                   <div className="access-subnav">
-                    {([
-                      ["settings-roles", t.roles],
-                      ["settings-departments", t.departments],
-                      ["settings-permissions", t.permissions],
-                      ["settings-modules", t.modules],
-                    ] as const).map(([key, label]) => (
+                    {accessItems.map(({ key, label }) => (
                       <button
                         key={key}
                         className={"nav-item nav-button " + (activeItem === key ? "is-active" : "")}

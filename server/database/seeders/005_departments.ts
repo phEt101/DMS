@@ -1,16 +1,11 @@
 import type { Connection } from 'mysql2/promise'
-
-const departments = [
-  'IT / System',
-  'Project Management',
-  'Field Service',
-  'Management',
-]
+import { departments } from './access-control-data.js'
 
 export async function up(connection: Connection) {
   for (const name of departments) {
     await connection.execute(
-      `INSERT INTO departments (name, is_active) VALUES (?, 1)
+      `INSERT INTO departments (name, is_active)
+       VALUES (?, 1)
        ON DUPLICATE KEY UPDATE is_active = 1, deleted_at = NULL`,
       [name],
     )

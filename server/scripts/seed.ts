@@ -30,7 +30,7 @@ try {
   `)
 
   const files = (await fs.readdir(directory))
-    .filter((file) => file.endsWith('.sql') || file.endsWith('.js') || file.endsWith('.ts'))
+    .filter((file) => /^\d+_.+\.(?:sql|js|ts)$/.test(file))
     .sort()
   const [appliedRows] = await connection.query<(RowDataPacket & { name: string })[]>('SELECT name FROM database_seeders')
   const applied = new Set(appliedRows.map((row) => row.name))
