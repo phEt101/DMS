@@ -12,6 +12,7 @@ import {
 
 const emptyForm: PermissionModuleInput = {
   name: "",
+  iconName: "FaLayerGroup",
   sortOrder: 0,
   isActive: true,
 };
@@ -54,6 +55,7 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
       module
         ? {
             name: module.name,
+            iconName: module.iconName ?? "",
             sortOrder: module.sortOrder,
             isActive: Boolean(module.isActive),
           }
@@ -229,6 +231,17 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
                         ...form,
                         sortOrder: Number(event.target.value),
                       })
+                    }
+                  />
+                </label>
+                <label>
+                  {t.iconName}
+                  <input
+                    maxLength={100}
+                    pattern="Fa[A-Z][A-Za-z0-9]*"
+                    value={form.iconName ?? ""}
+                    onChange={(event) =>
+                      setForm({ ...form, iconName: event.target.value.trim() })
                     }
                   />
                 </label>

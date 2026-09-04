@@ -12,18 +12,18 @@ export const departments = [
   'Management',
 ] as const
 
-export const permissionModules = [
-  'dashboard',
-  'documents',
-  'reports',
-  'trash',
-  'users',
-  'roles',
-  'departments',
-  'permissions',
-  'modules',
-  'activity_logs',
-] as const
+export const permissionModules: Array<readonly [string, string]> = [
+  ['dashboard', 'FaTableCellsLarge'],
+  ['documents', 'FaFileLines'],
+  ['reports', 'FaChartColumn'],
+  ['trash', 'FaTrashCan'],
+  ['users', 'FaUser'],
+  ['roles', 'FaShieldHalved'],
+  ['departments', 'FaBuilding'],
+  ['permissions', 'FaKey'],
+  ['modules', 'FaLayerGroup'],
+  ['activity_logs', 'FaWaveSquare'],
+]
 
 export const permissions: Array<readonly [string, string]> = [
   ['ดูแดชบอร์ด', 'dashboard'],

@@ -20,6 +20,16 @@ function validate(body: unknown, partial = false): PermissionModuleInput {
     if (!name || name.length > 80) throw httpError(400, "Valid module name is required");
     output.name = name;
   }
+  if (!partial || Object.hasOwn(input, "iconName")) {
+    const iconName = typeof input.iconName === "string" ? input.iconName.trim() : input.iconName;
+    if (iconName === null || iconName === "") {
+      output.iconName = null;
+    } else if (typeof iconName !== "string" || !/^Fa[A-Z][A-Za-z0-9]*$/.test(iconName) || iconName.length > 100) {
+      throw httpError(400, "Valid react-icons Fa6 icon name is required");
+    } else {
+      output.iconName = iconName;
+    }
+  }
   if (!partial || Object.hasOwn(input, "sortOrder")) {
     const sortOrder = Number(input.sortOrder ?? 0);
     if (!Number.isSafeInteger(sortOrder) || sortOrder < 0) throw httpError(400, "Invalid sortOrder");

@@ -101,6 +101,7 @@
       "moduleHelp": "View modules used to group system permissions",
       "noModules": "No modules found",
       "sortOrder": "Display order",
+      "iconName": "Icon name",
       "permissionsCount": "Permissions",
       "addModule": "Add module",
       "editModule": "Edit module",

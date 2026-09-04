@@ -1,64 +1,38 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  FaBuilding,
+  FaChartColumn,
+  FaFileLines,
+  FaGear,
+  FaKey,
+  FaShieldHalved,
+  FaTableCellsLarge,
+  FaTrashCan,
+  FaUser,
+  FaWaveSquare,
+} from "react-icons/fa6";
+import * as FaIcons from "react-icons/fa6";
+import type { IconType } from "react-icons";
 import { getLocale } from "../locales";
-import { listPermissionModules, type PermissionModule } from "../features/settings/access/modules/services/modules.service";
+import {
+  listPermissionModules,
+  permissionModulesChangedEvent,
+  type PermissionModule,
+} from "../features/settings/access/modules/services/modules.service";
 
 const icons = {
-  dashboard: (
-    <>
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </>
-  ),
-  documents: (
-    <>
-      <path d="M6 2h8l4 4v16H6z" />
-      <path d="M14 2v5h5M9 12h6M9 16h6" />
-    </>
-  ),
-  report: (
-    <>
-      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-    </>
-  ),
-  trash: (
-    <>
-      <path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7" />
-    </>
-  ),
-  settings: (
-    <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z" />
-    </>
-  ),
-  user: (
-    <>
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21c.8-4 3.5-6 8-6s7.2 2 8 6" />
-    </>
-  ),
-  activity: <path d="M3 12h4l2-6 4 12 2-6h6" />,
+  dashboard: FaTableCellsLarge,
+  documents: FaFileLines,
+  report: FaChartColumn,
+  trash: FaTrashCan,
+  settings: FaGear,
+  user: FaUser,
+  activity: FaWaveSquare,
 };
 
 function Icon({ name }: { name: keyof typeof icons }) {
-  return (
-    <svg
-      className="nav-icon"
-      width="17"
-      height="17"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {icons[name]}
-    </svg>
-  );
+  const IconComponent = icons[name];
+  return <IconComponent className="nav-icon" size={17} aria-hidden="true" />;
 }
 
 type SidebarItem =
@@ -106,7 +80,7 @@ export default function Sidebar({
   useEffect(() => {
     let active = true;
 
-    void listPermissionModules()
+    const loadModules = () => listPermissionModules()
       .then((response) => {
         if (active) setPermissionModules(response.data);
       })
@@ -114,8 +88,12 @@ export default function Sidebar({
         if (active) setPermissionModules([]);
       });
 
+    void loadModules();
+    window.addEventListener(permissionModulesChangedEvent, loadModules);
+
     return () => {
       active = false;
+      window.removeEventListener(permissionModulesChangedEvent, loadModules);
     };
   }, []);
 
@@ -141,29 +119,29 @@ export default function Sidebar({
     };
   }, [settingsOpen]);
 
-  const mainItems: Array<{
-    key: SidebarItem;
-    icon: keyof typeof icons;
-    label: string;
-  }> = [
-    { key: "dashboard", icon: "dashboard", label: t.items.dashboard },
-    { key: "documents", icon: "documents", label: t.items.documents },
-    { key: "report", icon: "report", label: t.items.report },
-    { key: "trash", icon: "trash", label: t.items.trash },
-  ];
-
-  const accessItems = permissionModules
+  const moduleItems = permissionModules
     .filter((module) => Boolean(module.isActive))
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((module) => {
-      const key = `settings-${module.name}` as SidebarItem;
+      const mainKey = module.name === "reports" ? "report" : module.name;
+      const key = ["dashboard", "documents", "report", "trash"].includes(mainKey)
+        ? mainKey as SidebarItem
+        : `settings-${module.name}` as SidebarItem;
       const localizedLabel = t[module.name as keyof typeof t];
+      const IconComponent = module.iconName
+        ? FaIcons[module.iconName as keyof typeof FaIcons] as IconType | undefined
+        : undefined;
       return {
         key,
         label: typeof localizedLabel === "string" ? localizedLabel : module.name,
+        icon: IconComponent,
       };
-    })
-    .filter((item) => sidebarModuleKeys.has(item.key));
+    });
+
+  const mainItems = moduleItems.filter((item) =>
+    ["dashboard", "documents", "report", "trash"].includes(item.key),
+  );
+  const accessItems = moduleItems.filter((item) => sidebarModuleKeys.has(item.key));
 
   return (
     <>
@@ -227,7 +205,9 @@ export default function Sidebar({
                 title={collapsed ? item.label : undefined}
                 onClick={() => onNavigate?.(item.key)}
               >
-                <Icon name={item.icon} />
+                {item.icon && (
+                  <item.icon className="nav-icon" size={17} aria-hidden="true" />
+                )}
                 <span>{item.label}</span>
                 {item.key === "documents" && <b className="item-count">11</b>}
               </button>
@@ -267,12 +247,15 @@ export default function Sidebar({
                 </button>
                 {accessOpen && (
                   <div className="access-subnav">
-                    {accessItems.map(({ key, label }) => (
+                    {accessItems.map(({ key, label, icon: IconComponent }) => (
                       <button
                         key={key}
                         className={"nav-item nav-button " + (activeItem === key ? "is-active" : "")}
                         onClick={() => onNavigate?.(key)}
                       >
+                        {IconComponent && (
+                          <IconComponent className="nav-icon" size={17} aria-hidden="true" />
+                        )}
                         <span>{label}</span>
                       </button>
                     ))}

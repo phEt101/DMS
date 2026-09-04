@@ -96,6 +96,7 @@
       "moduleHelp": "ดูโมดูลที่ใช้จัดกลุ่มสิทธิ์ภายในระบบ",
       "noModules": "ไม่พบโมดูล",
       "sortOrder": "ลำดับการแสดง",
+      "iconName": "ชื่อไอคอน",
       "permissionsCount": "จำนวนสิทธิ์",
       "addModule": "เพิ่มโมดูล",
       "editModule": "แก้ไขโมดูล",

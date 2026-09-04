@@ -100,6 +100,7 @@ export type UserFeatureCopy = FeatureCopy & {
   moduleHelp: string
   noModules: string
   sortOrder: string
+  iconName: string
   permissionsCount: string
   addModule: string
   editModule: string
