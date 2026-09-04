@@ -1,4 +1,5 @@
 import type { RequestHandler } from "express";
+import * as FaIcons from "react-icons/fa6";
 import { httpError } from "../../../../../middleware/errors.js";
 import { logActivity } from "../../../activity/repositories/activity.repository.js";
 import * as modules from "../repositories/modules.repository.js";
@@ -24,7 +25,12 @@ function validate(body: unknown, partial = false): PermissionModuleInput {
     const iconName = typeof input.iconName === "string" ? input.iconName.trim() : input.iconName;
     if (iconName === null || iconName === "") {
       output.iconName = null;
-    } else if (typeof iconName !== "string" || !/^Fa[A-Z][A-Za-z0-9]*$/.test(iconName) || iconName.length > 100) {
+    } else if (
+      typeof iconName !== "string" ||
+      !/^Fa[A-Z][A-Za-z0-9]*$/.test(iconName) ||
+      iconName.length > 100 ||
+      typeof FaIcons[iconName as keyof typeof FaIcons] !== "function"
+    ) {
       throw httpError(400, "Valid react-icons Fa6 icon name is required");
     } else {
       output.iconName = iconName;
