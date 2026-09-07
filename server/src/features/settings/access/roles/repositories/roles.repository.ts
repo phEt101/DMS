@@ -18,7 +18,6 @@ export interface RoleRow extends RowDataPacket {
   id: number;
   name: string;
   description: string | null;
-  isSystem: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -49,7 +48,6 @@ export async function findAll(): Promise<RoleDetails[]> {
                 roles.id, 
                 roles.name, 
                 roles.description, 
-                roles.is_system AS isSystem,
                 roles.is_active AS isActive, 
                 roles.created_at AS createdAt,
                 roles.updated_at AS updatedAt, 
@@ -72,7 +70,6 @@ export async function findAll(): Promise<RoleDetails[]> {
             GROUP BY roles.id,
                 roles.name,
                 roles.description,
-                roles.is_system,
                 roles.is_active,
                 roles.created_at,
                 roles.updated_at,
@@ -136,7 +133,6 @@ export async function findById(id: string): Promise<RoleDetails | null> {
         roles.id,
         roles.name,
         roles.description,
-        roles.is_system AS isSystem,
         roles.is_active AS isActive,
         roles.created_at AS createdAt,
         roles.updated_at AS updatedAt,
@@ -160,7 +156,6 @@ export async function findById(id: string): Promise<RoleDetails | null> {
         roles.id,
         roles.name,
         roles.description,
-        roles.is_system,
         roles.is_active,
         roles.created_at,
         roles.updated_at,
@@ -220,8 +215,8 @@ export async function create(input: RoleCreateInput): Promise<RoleDetails> {
     await connection.beginTransaction();
 
     const [result] = await connection.execute<ResultSetHeader>(
-      `INSERT INTO roles (name, description, is_system, is_active)
-       VALUES (?, ?, 0, ?)`,
+      `INSERT INTO roles (name, description, is_active)
+       VALUES (?, ?, ?)`,
       [input.name, input.description, input.isActive],
     );
 
@@ -350,7 +345,6 @@ export async function softDelete(id: string): Promise<RoleRow | null> {
          roles.id,
          roles.name,
          roles.description,
-         roles.is_system AS isSystem,
          roles.is_active AS isActive,
          roles.created_at AS createdAt,
          roles.updated_at AS updatedAt,

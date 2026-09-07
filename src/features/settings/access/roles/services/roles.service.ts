@@ -1,7 +1,7 @@
 import { request } from '../../../../../services/api'
 import type { Permission } from '../../permissions/services/permissions.service'
 
-export type Role = { id: number; name: string; description: string | null; isSystem: boolean | number; isActive: boolean | number; createdAt: string; updatedAt: string; deletedAt: string | null; userCount: number; permissionCount: number }
+export type Role = { id: number; name: string; description: string | null; isActive: boolean | number; createdAt: string; updatedAt: string; deletedAt: string | null; userCount: number; permissionCount: number }
 export type RolePermission = Pick<Permission, 'id' | 'name' | 'module' | 'isActive'> & { isAssigned: boolean | number }
 export type RoleDetails = Role & { permissions: RolePermission[] }
 export type RoleInput = { name: string; description: string; isActive: boolean; permissionIds: number[] }
