@@ -8,6 +8,7 @@ export default defineConfig({
     port: 5137,
     strictPort: true,
     proxy: {
+      '/boswell-api': 'http://127.0.0.1:3000',
       '/api': 'http://127.0.0.1:3000',
     },
   },
