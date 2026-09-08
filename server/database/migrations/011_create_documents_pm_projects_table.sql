@@ -1,0 +1,45 @@
+CREATE TABLE IF NOT EXISTS documents_pm_projects (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'รหัสโปรเจกต์ PM (PK L2)',
+  document_id BIGINT UNSIGNED NOT NULL COMMENT 'FK L1 documents.id (1:1 UNIQUE กับ is_deleted)',
+  contract_no VARCHAR(100) NULL COMMENT 'เลขที่สัญญาเช่น BSV-2569-0087',
+  site_title VARCHAR(200) NULL COMMENT 'ชื่อเรียก / ชื่อทางการของสถานที่ เช่น ท่าอากาศยาน (UI เปลี่ยน label เอกสารอื่นได้)',
+  site_name VARCHAR(191) NULL COMMENT 'ชื่อสั้นๆ เรียกขานในทีม เช่น สุวรรณภูมิ; DBA ลด 200→191 utf8mb4 767 bytes limit เพราะมี Index',
+  site_address TEXT NULL COMMENT 'ที่อยู่ละเอียด เช่น อาคารสำนักงานตัวแทนสินค้าทางอากาศ (AO1)',
+  site_lat DECIMAL(10,7) NULL COMMENT 'พิกัดสถานที่ (ละติจูด)',
+  site_lon DECIMAL(10,7) NULL COMMENT 'พิกัดสถานที่ (ลองติจูด)',
+  planned_start_date DATE NULL COMMENT 'วันที่วางแผนเริ่มดำเนินงาน',
+  planned_end_date DATE NULL COMMENT 'วันที่วางแผนเสร็จงาน',
+  actual_start_date DATE NULL COMMENT 'วันที่เริ่มงานจริง',
+  actual_end_date DATE NULL COMMENT 'วันที่เสร็จงานจริง',
+  our_acceptance_name VARCHAR(200) NULL COMMENT 'ชื่อเจ้าหน้าที่ฝ่ายเราที่ตรวจรับงาน (ตัดวันที่ตรวจรับออกก่อน ยังไม่ได้ทำระบบเซ็น)',
+  customer_acceptance_name VARCHAR(200) NULL COMMENT 'ชื่อผู้ตรวจรับงานฝ่ายลูกค้า (ตัดวันที่ตรวจรับออกก่อน)',
+  project_status ENUM('planning','active','on_hold','completed','cancelled') NOT NULL DEFAULT 'planning' COMMENT 'สถานะการดำเนินงานโปรเจกต์: planning=วางแผน, active=กำลังดำเนิน, on_hold=ระงับ, completed=เสร็จ, cancelled=ยกเลิก',
+  progress_pct TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'เปอร์เซ็นต์ความก้าวหน้างาน (0-100) บันทึกจาก Dashboard PM',
+  priority ENUM('low','normal','high','urgent') NOT NULL DEFAULT 'normal' COMMENT 'ระดับความสำคัญของโปรเจกต์',
+  created_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครสร้างโปรเจกต์นี้',
+  updated_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครแก้ไขล่าสุด',
+  deleted_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครลบโปรเจกต์นี้',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'สร้างเมื่อ',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'แก้ไขล่าสุด',
+  deleted_at TIMESTAMP NULL COMMENT 'Soft Delete เวลาที่ลบ (NULL=ยังใช้งาน)',
+  is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'DBA Flag Soft Delete ควบคุม UNIQUE Composite Key แก้ MySQL NULL!=NULL Bug',
+  PRIMARY KEY (id),
+  UNIQUE KEY documents_pm_projects_document_id_is_deleted_unique (document_id, is_deleted),
+  UNIQUE KEY documents_pm_projects_contract_no_is_deleted_unique (contract_no, is_deleted),
+  KEY documents_pm_projects_site_name_index (site_name),
+  KEY documents_pm_projects_project_status_index (project_status),
+  KEY documents_pm_projects_planned_start_date_index (planned_start_date),
+  KEY documents_pm_projects_actual_start_date_index (actual_start_date),
+  KEY documents_pm_projects_priority_index (priority),
+  KEY documents_pm_projects_is_deleted_index (is_deleted),
+  KEY documents_pm_projects_deleted_at_index (deleted_at),
+  CONSTRAINT documents_pm_projects_document_fk FOREIGN KEY (document_id)
+    REFERENCES documents (id) ON DELETE CASCADE,
+  CONSTRAINT documents_pm_projects_created_by_fk FOREIGN KEY (created_by)
+    REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT documents_pm_projects_updated_by_fk FOREIGN KEY (updated_by)
+    REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT documents_pm_projects_deleted_by_fk FOREIGN KEY (deleted_by)
+    REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='L2 ระดับโปรเจกต์ PM 1:1 ต่อ L1 documents; สถานที่ 3 คอลัมน์ site_title/site_name/site_address; ตัดวันที่ตรวจรับออก (ยังไม่ทำระบบเซ็น) เก็บแค่ชื่อคนฝั่งเรา+ลูกค้า; is_deleted TINYINT(1) + 2 UNIQUE Composite; FK document_id CASCADE';

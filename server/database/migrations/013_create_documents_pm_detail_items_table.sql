@@ -1,0 +1,33 @@
+CREATE TABLE IF NOT EXISTS documents_pm_detail_items (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'รหัสรายการย่อย PK ภายใน DB (ห้ามให้ User เห็น; Human-Readable ใช้ item_code ด้านล่าง!)',
+  pm_detail_id BIGINT UNSIGNED NOT NULL COMMENT 'FK L3 documents_pm_detail.id — ใบงานไหน (1 L3 มีได้หลายรายการย่อย)',
+  item_code VARCHAR(50) NOT NULL COMMENT 'Human-Readable Code ที่ User เห็นจริง! Format cause-1.1 / action-2.1 / result-3.1 (Backend Auto-Generate ห้าม Client ส่งมาเอง!)',
+  section ENUM('cause','action','result') NOT NULL COMMENT 'ส่วนของ Report 3 ชั้น: cause=สาเหตุขัดข้อง (1.x), action=วิธีการซ่อม (2.x), result=ผลการตรวจซ่อมหลังทำ (3.x)',
+  item_no TINYINT UNSIGNED NOT NULL COMMENT 'ลำดับที่ภายใน section (เลขท้าย .1 .2 .3 — เรียงตาม item_no ไม่ต้องมี sort_order อีกที)',
+  item_title VARCHAR(300) NULL COMMENT 'หัวขอรายการย่อย (เช่น ตรวจสอบอุณหภูมิน้ำเข้า-ออก)',
+  item_content TEXT NULL COMMENT 'เนื้อหาอธิบายรายละเอียดของรายการย่อยนี้ (User กรอกจริง)',
+  item_expected TEXT NULL COMMENT 'ค่ามาตรฐานที่ควรจะเป็น (เช่น อุณหภูมิ ควร 12 องศา)',
+  item_actual TEXT NULL COMMENT 'ค่าที่วัดจริงเมื่อทำงาน (เช่น อุณหภูมิ เหลือ 18 องศา)',
+  item_remark TEXT NULL COMMENT 'หมายเหตุเพิ่มเติมสำหรับรายการย่อยนี้',
+  created_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครสร้างรายการย่อยนี้',
+  updated_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครแก้ไขล่าสุด',
+  deleted_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครลบรายการย่อยนี้',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'สร้างเมื่อ',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'แก้ไขล่าสุด',
+  deleted_at TIMESTAMP NULL COMMENT 'Soft Delete เวลาที่ลบ (NULL=ยังใช้งาน)',
+  is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'DBA Flag Soft Delete ควบคุม 2 UNIQUE Composite ด้านล่าง แก้ MySQL NULL!=NULL Bug; 0=ใช้งาน, 1=ลบแล้ว',
+  PRIMARY KEY (id),
+  UNIQUE KEY documents_pm_detail_items_item_code_is_deleted_unique (item_code, is_deleted),
+  UNIQUE KEY documents_pm_detail_items_per_section_unique (pm_detail_id, section, item_no, is_deleted),
+  KEY documents_pm_detail_items_pm_detail_id_index (pm_detail_id),
+  KEY documents_pm_detail_items_section_index (section),
+  KEY documents_pm_detail_items_item_no_index (item_no),
+  KEY documents_pm_detail_items_is_deleted_index (is_deleted),
+  KEY documents_pm_detail_items_deleted_at_index (deleted_at),
+  CONSTRAINT documents_pm_detail_items_pm_detail_fk FOREIGN KEY (pm_detail_id)
+    REFERENCES documents_pm_detail (id) ON DELETE CASCADE,
+  CONSTRAINT documents_pm_detail_items_created_by_fk FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT documents_pm_detail_items_updated_by_fk FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT documents_pm_detail_items_deleted_by_fk FOREIGN KEY (deleted_by) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='L4 รายการย่อย Report 3 ส่วน cause(1.x)/action(2.x)/result(3.x) ของใบงาน PM; แยก id (DB PK internal) กับ item_code (Human-Readable cause-1.1) เป็นคนละฟิลด์; ตัด sort_order ทิ้งหมด ใช้ item_no เรียงแทน; DBA UNIQUE Composite 2 อัน รวม is_deleted (สิ้นสุด NULL!=NULL Bug)';

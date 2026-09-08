@@ -8,7 +8,7 @@ export const roles: Array<readonly [string, string]> = [
 export const departments = [
   'IT / System',
   'Project Management',
-  'Field Service',
+  'Service',
   'Management',
 ] as const
 

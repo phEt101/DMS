@@ -1,0 +1,40 @@
+CREATE TABLE IF NOT EXISTS document_uploads (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'รหัสไฟล์อัพโหลด (PK L5)',
+  document_id BIGINT UNSIGNED NULL COMMENT 'เปลี่ยน NOT NULL→NULL + FK เปลี่ยน CASCADE→SET NULL! ลบเอกสารแม่ ไม่ลบไฟล์ทิ้ง จะ set is_deleted=1 ทีหลังสามารถกู้คืนได้',
+  reference_type VARCHAR(100) NULL COMMENT 'L5 Polymorphic Generic: ชื่อตารางลูก (documents_pm_detail, อนาคต documents_service_cm_work_order); NULL = ไฟล์ L1 ทั่วไป',
+  reference_id BIGINT UNSIGNED NULL COMMENT 'L5 Polymorphic Generic: PK id ในตารางลูก (คู่กับ reference_type); NULL ถ้า reference_type=NULL เชื่อมตรง L1',
+  stored_name VARCHAR(191) NOT NULL COMMENT 'ชื่อไฟล์เก็บใน disk (UUID v4 เพื่อป้องกัน Path Traversal); DBA ลด 255→191 utf8mb4 767 bytes limit เพราะมี UNIQUE(stored_name,is_deleted)',
+  original_name VARCHAR(255) NOT NULL COMMENT 'ชื่อไฟล์ตอน User กดอัพโหลด (ส่วนท้าย .pdf .jpg)',
+  mime_type VARCHAR(100) NOT NULL COMMENT 'MIME Type เช่น image/jpeg, application/pdf',
+  file_size BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ขนาดไฟล์ (หน่วย Byte)',
+  file_hash CHAR(64) NULL COMMENT 'SHA-256 Hash เพื่อตรวจจับไฟล์ซ้ำ (อัพโหลด 2 ครั้ง = hash เดียว reuse upload_id เดียว)',
+  storage_driver VARCHAR(50) NOT NULL DEFAULT 'local_disk' COMMENT 'ที่เก็บไฟล์: local_disk, s3, google_cloud (อนาคตขยาย)',
+  storage_path VARCHAR(500) NOT NULL COMMENT 'พาธไฟล์จริงบน disk หรือ Key บน S3',
+  upload_category VARCHAR(100) NOT NULL DEFAULT 'document' COMMENT 'เปลี่ยนจาก ENUM→VARCHAR(100) ไม่อั้น Polymorphic! ประเภทไฟล์: document, photo_sw_1_before, photo_hw_2_after ฯลฯ',
+  version_number INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'เวอร์ชันไฟล์ (ถ้ามีการแก้ไขไฟล์อัพโหลดใหม่)',
+  is_primary TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=ไฟล์หลักของเอกสาร (PDF), 0=รูปแนบหรือไฟล์อื่นๆ',
+  upload_note VARCHAR(255) NULL COMMENT 'หมายเหตุของคนอัพโหลด (เช่น รูปก่อนซ่อมเครื่องที่ 1)',
+  uploaded_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครอัพโหลดไฟล์นี้',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'อัพโหลดเมื่อ',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'แก้ไข metadata ล่าสุด',
+  is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'DBA NEW Flag Soft Delete ควบคุม UNIQUE(file_hash, is_deleted) + UNIQUE(stored_name, is_deleted) แก้ MySQL NULL!=NULL Bug',
+  deleted_at TIMESTAMP NULL COMMENT 'NEW Soft Delete เวลาที่ลบไฟล์ (NULL=ยังใช้งาน); ถ้ามีค่า = ไฟล์ถูกย้ายเข้าถังขยะรอ GC 30 วัน',
+  deleted_by BIGINT UNSIGNED NULL COMMENT 'NEW FK users.id — ใครเป็นคนลบไฟล์นี้ (ถ้าผู้ใช้คนนั้นถูกลบ → set NULL)',
+  PRIMARY KEY (id),
+  UNIQUE KEY document_uploads_stored_name_is_deleted_unique (stored_name, is_deleted),
+  UNIQUE KEY document_uploads_file_hash_is_deleted_unique (file_hash, is_deleted),
+  KEY document_uploads_document_id_index (document_id),
+  KEY document_uploads_reference_polymorphic_index (reference_type, reference_id),
+  KEY document_uploads_upload_category_index (upload_category),
+  KEY document_uploads_uploaded_by_index (uploaded_by),
+  KEY document_uploads_created_at_index (created_at),
+  KEY document_uploads_is_deleted_index (is_deleted),
+  KEY document_uploads_deleted_at_index (deleted_at),
+  CONSTRAINT document_uploads_document_fk FOREIGN KEY (document_id)
+    REFERENCES documents (id) ON DELETE SET NULL,
+  CONSTRAINT document_uploads_uploaded_by_fk FOREIGN KEY (uploaded_by)
+    REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT document_uploads_deleted_by_fk FOREIGN KEY (deleted_by)
+    REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='L5 CENTRAL UPLOAD HUB POLYMORPHIC GENERIC (ใช้ทุกประเภทเอกสารอนาคตโดยไม่ต้อง ALTER DB!); Soft Delete 3 มุม is_deleted+deleted_at+deleted_by ตรงกับ L0/L2/L3/L4; UNIQUE(file_hash,is_deleted)+(stored_name,is_deleted); upload_category เป็น VARCHAR ไม่อั้น ไม่ใช่ ENUM; FK document_id SET NULL (ไม่ลบไฟล์ทิ้งถ้าลบเอกสารผิด)';
