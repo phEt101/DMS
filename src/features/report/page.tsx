@@ -1,9 +1,10 @@
-import type { FeatureCopy } from '../../types/localization'
+import type { Translations } from '../../locales'
 
-export default function ReportPage({ t }: { t: FeatureCopy }) {
+export default function ReportPage({ translations }: { translations: Translations }) {
+  const reportTranslations = translations.features.report
   return <section className="feature-page">
-    <p className="feature-kicker">{t.kicker}</p>
-    <h1>{t.title}</h1>
-    <span>{t.subtitle}</span>
+    <p className="feature-kicker">{reportTranslations.kicker}</p>
+    <h1>{reportTranslations.title}</h1>
+    <span>{reportTranslations.subtitle}</span>
   </section>
 }

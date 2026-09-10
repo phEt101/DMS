@@ -48,7 +48,13 @@ function firstAccessiblePage(user: AuthUser): PageKey | null {
 
 function pageFromPath(pathname: string): PageKey {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+  if (/^\/documents\/\d+$/.test(normalized)) return 'documents'
   return (Object.entries(pathByPage).find(([, path]) => path === normalized)?.[0] as PageKey | undefined) ?? 'dashboard'
+}
+
+function pathMatchesPage(pathname: string, page: PageKey) {
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+  return normalized === pathByPage[page] || (page === 'documents' && /^\/documents\/\d+$/.test(normalized))
 }
 
 export default function App() {
@@ -57,8 +63,8 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [language, setLanguage] = useState<'th' | 'en'>('th')
   const [activeItem, setActiveItem] = useState<PageKey>(() => pageFromPath(window.location.pathname))
-  const features = getLocale(language).features
-  const pages = buildPages(features, language)
+  const translations = getLocale(language)
+  const pages = buildPages(translations, language)
   useEffect(() => {
     if (isLoading) return
     if (!user) {
@@ -75,7 +81,7 @@ export default function App() {
 
       if (!nextPage) return
       setActiveItem(nextPage)
-      if (window.location.pathname !== pathByPage[nextPage]) {
+      if (!pathMatchesPage(window.location.pathname, nextPage)) {
         window.history.replaceState({}, '', pathByPage[nextPage])
       }
     }
@@ -99,6 +105,7 @@ export default function App() {
   if (!user) {
     return (
       <LoginPage
+        translations={translations}
         language={language}
         onLanguageToggle={() => setLanguage((value) => (value === 'th' ? 'en' : 'th'))}
       />
@@ -108,9 +115,9 @@ export default function App() {
   const canAccessActivePage = canAccessPage(user, activeItem)
 
   return <div className={`app-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
-    <Sidebar language={language} collapsed={collapsed} mobileOpen={mobileOpen} activeItem={activeItem} onNavigate={handleNavigate} onClose={() => setMobileOpen(false)} onToggle={() => setCollapsed((value) => !value)} />
+    <Sidebar translations={translations} collapsed={collapsed} mobileOpen={mobileOpen} activeItem={activeItem} onNavigate={handleNavigate} onClose={() => setMobileOpen(false)} onToggle={() => setCollapsed((value) => !value)} />
     <div className="app-main">
-      <Topbar user={user} language={language} onLanguageToggle={() => setLanguage((value) => (value === 'th' ? 'en' : 'th'))} onMenuClick={() => setMobileOpen(true)} onLogout={logout} />
+      <Topbar user={user} translations={translations} language={language} onLanguageToggle={() => setLanguage((value) => (value === 'th' ? 'en' : 'th'))} onMenuClick={() => setMobileOpen(true)} onLogout={logout} />
       <main className="page-placeholder">{canAccessActivePage
         ? pages[activeItem]
         : <section className="feature-page"><h1>ไม่มีสิทธิ์เข้าถึงหน้านี้</h1></section>}

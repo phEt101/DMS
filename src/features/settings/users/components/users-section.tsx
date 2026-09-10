@@ -1,5 +1,5 @@
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
-import type { UserFeatureCopy } from "../../../../types/localization";
+import type { Translations } from "../../../../locales";
 import {
   createUser,
   deleteUser,
@@ -39,7 +39,8 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-export function UsersSection({ t }: { t: UserFeatureCopy }) {
+export function UsersSection({ translations }: { translations: Translations }) {
+  const settingsTranslations = translations.features.settingsUser;
   const { user: authenticatedUser } = useAuth();
   const canCreate = Boolean(authenticatedUser && hasPermission(authenticatedUser, "สร้างผู้ใช้งาน"));
   const canEdit = Boolean(authenticatedUser && hasPermission(authenticatedUser, "แก้ไขผู้ใช้งาน"));
@@ -69,11 +70,11 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
       setUsers(usersResponse.data);
       setTotal(usersResponse.pagination.total);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.loadError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, status, t.loadError]);
+  }, [page, pageSize, search, status, settingsTranslations.loadError]);
 
   useEffect(() => {
     void load();
@@ -86,9 +87,9 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
         setDepartments(departmentsResponse.data);
       })
       .catch((caught: unknown) => {
-        setError(caught instanceof Error ? caught.message : t.loadError);
+        setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
       });
-  }, [canCreate, canEdit, t.loadError]);
+  }, [canCreate, canEdit, settingsTranslations.loadError]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearch(searchInput.trim());
@@ -139,7 +140,7 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
       setFormOpen(false);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.saveError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
     } finally {
       setSaving(false);
     }
@@ -151,19 +152,19 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
       await updateUser(user.id, { isActive: !Boolean(user.isActive) });
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.saveError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
     }
   }
 
   async function remove(user: User) {
-    if (!window.confirm(`${t.deleteConfirm} “${user.name}” ?`)) return;
+    if (!window.confirm(`${settingsTranslations.deleteConfirm} “${user.name}” ?`)) return;
     setError("");
     try {
       await deleteUser(user.id);
       if (users.length === 1 && page > 1) setPage((value) => value - 1);
       else await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.deleteError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.deleteError);
     }
   }
 
@@ -171,35 +172,35 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
     <div className="management-panel">
       <div className="users-toolbar">
         <input
-          aria-label={t.searchPlaceholder}
-          placeholder={t.searchPlaceholder}
+          aria-label={settingsTranslations.searchPlaceholder}
+          placeholder={settingsTranslations.searchPlaceholder}
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
         />
         <select
-          aria-label={t.statusFilter}
+          aria-label={settingsTranslations.statusFilter}
           value={status}
           onChange={(event) => {
             setStatus(event.target.value);
             setPage(1);
           }}
         >
-          <option value="all">{t.allStatuses}</option>
-          <option value="active">{t.active}</option>
-          <option value="inactive">{t.inactive}</option>
+          <option value="all">{settingsTranslations.allStatuses}</option>
+          <option value="active">{settingsTranslations.active}</option>
+          <option value="inactive">{settingsTranslations.inactive}</option>
         </select>
         <span className="users-count">
-          {total} {t.users}
+          {total} {settingsTranslations.users}
         </span>
         {canCreate && <button className="primary-button" type="button" onClick={openCreate}>
-          {t.addUser}
+          {settingsTranslations.addUser}
         </button>}
       </div>
 
       <UsersTable
         users={users}
         loading={loading}
-        t={t}
+        translations={translations}
         canEdit={canEdit}
         canDelete={canDelete}
         onEdit={openEdit}
@@ -211,7 +212,7 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
         page={page}
         pageSize={pageSize}
         total={total}
-        labels={t}
+        labels={translations.common.pagination}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
       />
@@ -223,7 +224,7 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
           roles={roles}
           departments={departments}
           saving={saving}
-          t={t}
+          translations={translations}
           onChange={setForm}
           onClose={() => setFormOpen(false)}
           onSubmit={submit}
@@ -236,7 +237,7 @@ export function UsersSection({ t }: { t: UserFeatureCopy }) {
 function UsersTable({
   users,
   loading,
-  t,
+  translations,
   onEdit,
   onRemove,
   onToggleStatus,
@@ -245,75 +246,76 @@ function UsersTable({
 }: {
   users: User[];
   loading: boolean;
-  t: UserFeatureCopy;
+  translations: Translations;
   onEdit: (user: User) => void;
   onRemove: (user: User) => Promise<void>;
   onToggleStatus: (user: User) => Promise<void>;
   canEdit: boolean;
   canDelete: boolean;
 }) {
+  const settingsTranslations = translations.features.settingsUser;
   return (
     <div className="users-table-wrap">
       <table className="users-table">
         <thead>
           <tr>
-            <th>{t.name}</th>
-            <th>{t.email}</th>
-            <th>{t.department}</th>
-            <th>{t.role}</th>
-            <th>{t.status}</th>
-            <th>{t.actions}</th>
+            <th>{settingsTranslations.name}</th>
+            <th>{settingsTranslations.email}</th>
+            <th>{settingsTranslations.department}</th>
+            <th>{settingsTranslations.role}</th>
+            <th>{settingsTranslations.status}</th>
+            <th>{settingsTranslations.actions}</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
             <tr>
               <td colSpan={6} className="table-message">
-                {t.loading}
+                {settingsTranslations.loading}
               </td>
             </tr>
           ) : users.length === 0 ? (
             <tr>
               <td colSpan={6} className="table-message">
-                {t.empty}
+                {settingsTranslations.empty}
               </td>
             </tr>
           ) : (
             users.map((user) => (
               <tr key={user.id}>
-                <td data-label={t.name}>
+                <td data-label={settingsTranslations.name}>
                   <div className="user-identity">
                     <span className="user-avatar">{initials(user.name)}</span>
                     <strong>{user.name}</strong>
                   </div>
                 </td>
-                <td data-label={t.email}>{user.email}</td>
-                <td data-label={t.department}>{user.department || "—"}</td>
-                <td data-label={t.role}>
+                <td data-label={settingsTranslations.email}>{user.email}</td>
+                <td data-label={settingsTranslations.department}>{user.department || "—"}</td>
+                <td data-label={settingsTranslations.role}>
                   <span className="role-badge">{user.role}</span>
                 </td>
-                <td data-label={t.status}>
+                <td data-label={settingsTranslations.status}>
                   {canEdit ? <button
                     className={`status-pill ${user.isActive ? "is-active" : ""}`}
                     type="button"
                     onClick={() => void onToggleStatus(user)}
                   >
-                    {user.isActive ? t.active : t.inactive}
+                    {user.isActive ? settingsTranslations.active : settingsTranslations.inactive}
                   </button> : <span className={`status-pill ${user.isActive ? "is-active" : ""}`}>
-                    {user.isActive ? t.active : t.inactive}
+                    {user.isActive ? settingsTranslations.active : settingsTranslations.inactive}
                   </span>}
                 </td>
-                <td data-label={t.actions}>
+                <td data-label={settingsTranslations.actions}>
                   <div className="row-actions">
                     {canEdit && <button type="button" onClick={() => onEdit(user)}>
-                      {t.edit}
+                      {translations.common.actions.edit}
                     </button>}
                     {canDelete && <button
                       className="danger-link"
                       type="button"
                       onClick={() => void onRemove(user)}
                     >
-                      {t.delete}
+                      {translations.common.actions.delete}
                     </button>}
                     {!canEdit && !canDelete && <span>—</span>}
                   </div>
@@ -333,7 +335,7 @@ function UserFormModal({
   roles,
   departments,
   saving,
-  t,
+  translations,
   onChange,
   onClose,
   onSubmit,
@@ -343,11 +345,12 @@ function UserFormModal({
   roles: Role[];
   departments: Department[];
   saving: boolean;
-  t: UserFeatureCopy;
+  translations: Translations;
   onChange: (form: UserInput) => void;
   onClose: () => void;
   onSubmit: (event: SyntheticEvent<HTMLFormElement>) => Promise<void>;
 }) {
+  const settingsTranslations = translations.features.settingsUser;
   return (
     <div
       className="modal-backdrop"
@@ -364,21 +367,21 @@ function UserFormModal({
       >
         <header>
           <div>
-            <p className="feature-kicker">{editing ? t.edit : t.addUser}</p>
-            <h2 id="user-form-title">{editing ? editing.name : t.newUser}</h2>
+            <p className="feature-kicker">{editing ? translations.common.actions.edit : settingsTranslations.addUser}</p>
+            <h2 id="user-form-title">{editing ? editing.name : settingsTranslations.newUser}</h2>
           </div>
           <button
             className="modal-close"
             type="button"
             onClick={onClose}
-            aria-label={t.cancel}
+            aria-label={translations.common.actions.cancel}
           >
             ×
           </button>
         </header>
         <form onSubmit={(event) => void onSubmit(event)}>
           <label>
-            {t.name}
+            {settingsTranslations.name}
             <input
               required
               maxLength={150}
@@ -389,7 +392,7 @@ function UserFormModal({
             />
           </label>
           <label>
-            {t.email}
+            {settingsTranslations.email}
             <input
               required
               type="email"
@@ -400,13 +403,13 @@ function UserFormModal({
             />
           </label>
           <label>
-            {t.password}
+            {settingsTranslations.password}
             <input
               required={!editing}
               minLength={8}
               type="password"
               autoComplete="new-password"
-              placeholder={editing ? t.passwordOptional : ""}
+              placeholder={editing ? settingsTranslations.passwordOptional : ""}
               value={form.password}
               onChange={(event) =>
                 onChange({ ...form, password: event.target.value })
@@ -415,7 +418,7 @@ function UserFormModal({
           </label>
           <div className="form-grid">
             <label>
-              {t.department}
+              {settingsTranslations.department}
               <select
                 value={form.department}
                 onChange={(event) =>
@@ -437,7 +440,7 @@ function UserFormModal({
               </select>
             </label>
             <label>
-              {t.phone}
+              {settingsTranslations.phone}
               <input
                 maxLength={30}
                 type="tel"
@@ -449,7 +452,7 @@ function UserFormModal({
             </label>
           </div>
           <label>
-            {t.role}
+            {settingsTranslations.role}
             <select
               required
               value={form.role}
@@ -474,7 +477,7 @@ function UserFormModal({
                 onChange({ ...form, isActive: event.target.checked })
               }
             />
-            {t.activeUser}
+            {settingsTranslations.activeUser}
           </label>
           <footer>
             <button
@@ -482,10 +485,10 @@ function UserFormModal({
               type="button"
               onClick={onClose}
             >
-              {t.cancel}
+              {translations.common.actions.cancel}
             </button>
             <button className="primary-button" disabled={saving} type="submit">
-              {saving ? t.saving : t.save}
+              {saving ? settingsTranslations.saving : translations.common.actions.save}
             </button>
           </footer>
         </form>

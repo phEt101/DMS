@@ -4,6 +4,20 @@
     "title": "All Documents",
     "subtitle": "Your sidebar and topbar are ready."
   },
+  "common": {
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page",
+      "perPage": "per page"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "save": "Save"
+    }
+  },
   "auth": {
     "brandLabel": "Boswell document management system",
     "productName": "Document management system",
@@ -65,19 +79,11 @@
       "status": "Status",
       "createdAt": "Created",
       "actions": "Actions",
-      "edit": "Edit",
-      "delete": "Delete",
       "deleteConfirm": "Delete user",
       "activeUser": "Allow this user to sign in",
-      "cancel": "Cancel",
-      "save": "Save",
       "saving": "Saving...",
       "loading": "Loading users...",
       "empty": "No users found",
-      "previous": "Previous",
-      "next": "Next",
-      "page": "Page",
-      "perPage": "per page",
       "loadError": "Unable to load users",
       "saveError": "Unable to save user",
       "deleteError": "Unable to delete user",
@@ -238,10 +244,6 @@
       "unknownUser": "Unknown user",
       "loading": "Loading...",
       "empty": "No system activity yet",
-      "previous": "Previous",
-      "next": "Next",
-      "page": "Page",
-      "perPage": "per page",
       "loadError": "Unable to load activity logs"
     }
   },

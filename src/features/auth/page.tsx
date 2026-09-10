@@ -1,15 +1,16 @@
 import { useState } from "react";
 import type { SyntheticEvent } from "react";
 
-import { getLocale } from "../../locales";
-import type { Language } from "../../locales";
+import type { Language, Translations } from "../../locales";
 import { useAuth } from "./hooks/use-auth";
 import { useErrorToast } from "../../components/toast-provider";
 
 export default function LoginPage({
+  translations,
   language,
   onLanguageToggle,
 }: {
+  translations: Translations;
   language: Language;
   onLanguageToggle: () => void;
 }) {
@@ -19,7 +20,7 @@ export default function LoginPage({
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   useErrorToast(error);
-  const t = getLocale(language).auth;
+  const authTranslations = translations.auth;
 
   const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -29,7 +30,7 @@ export default function LoginPage({
     try {
       await login({ email, password });
     } catch {
-      setError(t.loginError);
+      setError(authTranslations.loginError);
     } finally {
       setIsSubmitting(false);
     }
@@ -47,14 +48,14 @@ export default function LoginPage({
           </span>
           <div>
             <strong>Boswell</strong>
-            <span>{t.productName}</span>
+            <span>{authTranslations.productName}</span>
           </div>
         </div>
         <button
           type="button"
           className="signin-language"
           onClick={onLanguageToggle}
-          aria-label={t.switchLanguage}
+          aria-label={authTranslations.switchLanguage}
         >
           <span className={language === "th" ? "is-active" : ""}>TH</span>
           <span className={language === "en" ? "is-active" : ""}>EN</span>
@@ -62,29 +63,29 @@ export default function LoginPage({
       </header>
 
       <section className="signin-shell">
-        <aside className="signin-showcase" aria-label={t.brandLabel}>
+        <aside className="signin-showcase" aria-label={authTranslations.brandLabel}>
           <div className="signin-showcase-copy">
-            <p>{t.kicker}</p>
-            <h1>{t.brandTitle}</h1>
-            <span>{t.brandSubtitle}</span>
+            <p>{authTranslations.kicker}</p>
+            <h1>{authTranslations.brandTitle}</h1>
+            <span>{authTranslations.brandSubtitle}</span>
           </div>
         </aside>
 
         <div className="signin-card">
           <header>
-            <p>{t.welcome}</p>
-            <h2>{t.title}</h2>
-            <span>{t.subtitle}</span>
+            <p>{authTranslations.welcome}</p>
+            <h2>{authTranslations.title}</h2>
+            <span>{authTranslations.subtitle}</span>
           </header>
 
           <form onSubmit={handleSubmit}>
             <label className="signin-field">
-              <span>{t.email}</span>
+              <span>{authTranslations.email}</span>
               <input
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder={t.emailPlaceholder}
+                placeholder={authTranslations.emailPlaceholder}
                 autoComplete="email"
                 maxLength={255}
                 required
@@ -93,12 +94,12 @@ export default function LoginPage({
             </label>
 
             <label className="signin-field">
-              <span>{t.password}</span>
+              <span>{authTranslations.password}</span>
               <input
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder={t.passwordPlaceholder}
+                placeholder={authTranslations.passwordPlaceholder}
                 autoComplete="current-password"
                 maxLength={255}
                 required
@@ -110,7 +111,7 @@ export default function LoginPage({
               className="signin-submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? t.signingIn : t.signIn}
+              {isSubmitting ? authTranslations.signingIn : authTranslations.signIn}
             </button>
           </form>
 

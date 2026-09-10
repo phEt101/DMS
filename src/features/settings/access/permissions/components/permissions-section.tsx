@@ -1,5 +1,5 @@
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
-import type { UserFeatureCopy } from "../../../../../types/localization";
+import type { Translations } from "../../../../../locales";
 import {
   createPermission,
   deletePermission,
@@ -20,7 +20,8 @@ const emptyForm: PermissionInput = {
   isActive: true,
 };
 
-export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
+export function PermissionsSection({ translations }: { translations: Translations }) {
+  const settingsTranslations = translations.features.settingsUser;
   const { user } = useAuth();
   const canCreate = Boolean(user && hasPermission(user, "เพิ่มสิทธิ์"));
   const canEdit = Boolean(user && hasPermission(user, "แก้ไขสิทธิ์"));
@@ -51,11 +52,11 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
         setModules([]);
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.loadError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
     } finally {
       setLoading(false);
     }
-  }, [canCreate, canEdit, t.loadError]);
+  }, [canCreate, canEdit, settingsTranslations.loadError]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -88,19 +89,19 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
       setOpen(false);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.saveError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
     } finally {
       setSaving(false);
     }
   }
 
   async function remove(item: Permission) {
-    if (!window.confirm(`${t.deleteConfirm} “${item.name}” ?`)) return;
+    if (!window.confirm(`${settingsTranslations.deleteConfirm} “${item.name}” ?`)) return;
     try {
       await deletePermission(item.id);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.deleteError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.deleteError);
     }
   }
 
@@ -108,67 +109,67 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
     <div className="management-panel">
       <header className="management-header">
         <div>
-          <h1>{t.permissionManagement}</h1>
-          <p>{t.permissionHelp}</p>
+          <h1>{settingsTranslations.permissionManagement}</h1>
+          <p>{settingsTranslations.permissionHelp}</p>
         </div>
         {canCreate && <button
           className="primary-button"
           type="button"
           onClick={() => showForm()}
         >
-          {t.addPermission}
+          {settingsTranslations.addPermission}
         </button>}
       </header>
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
             <tr>
-              <th>{t.name}</th>
-              <th>{t.module}</th>
-              <th>{t.assignedRoles}</th>
-              <th>{t.status}</th>
-              <th>{t.actions}</th>
+              <th>{settingsTranslations.name}</th>
+              <th>{settingsTranslations.module}</th>
+              <th>{settingsTranslations.assignedRoles}</th>
+              <th>{settingsTranslations.status}</th>
+              <th>{settingsTranslations.actions}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td className="table-message" colSpan={5}>
-                  {t.loading}
+                  {settingsTranslations.loading}
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
                 <td className="table-message" colSpan={5}>
-                  {t.noPermissions}
+                  {settingsTranslations.noPermissions}
                 </td>
               </tr>
             ) : (
               visibleItems.map((item) => (
                 <tr key={item.id}>
-                  <td data-label={t.name}>
+                  <td data-label={settingsTranslations.name}>
                     <strong>{item.name}</strong>
                   </td>
-                  <td data-label={t.module}>{item.module}</td>
-                  <td data-label={t.assignedRoles}>{item.roleCount}</td>
-                  <td data-label={t.status}>
+                  <td data-label={settingsTranslations.module}>{item.module}</td>
+                  <td data-label={settingsTranslations.assignedRoles}>{item.roleCount}</td>
+                  <td data-label={settingsTranslations.status}>
                     <span
                       className={`status-pill ${item.isActive ? "is-active" : ""}`}
                     >
-                      {item.isActive ? t.active : t.inactive}
+                      {item.isActive ? settingsTranslations.active : settingsTranslations.inactive}
                     </span>
                   </td>
-                  <td data-label={t.actions}>
+                  <td data-label={settingsTranslations.actions}>
                     <div className="row-actions">
                       {canEdit && <button type="button" onClick={() => showForm(item)}>
-                        {t.edit}
+                        {translations.common.actions.edit}
                       </button>}
                       {canDelete && <button
                         className="danger-link"
                         type="button"
                         onClick={() => void remove(item)}
                       >
-                        {t.delete}
+                        {translations.common.actions.delete}
                       </button>}
                     </div>
                   </td>
@@ -182,7 +183,7 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
         page={page}
         pageSize={pageSize}
         total={items.length}
-        labels={t}
+        labels={translations.common.pagination}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
       />
@@ -202,12 +203,12 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
           >
             <header>
               <h1 id="permission-form-title">
-                {editing ? t.editPermission : t.addPermission}
+                {editing ? settingsTranslations.editPermission : settingsTranslations.addPermission}
               </h1>
               <button
                 className="modal-close"
                 type="button"
-                aria-label={t.cancel}
+                aria-label={translations.common.actions.cancel}
                 onClick={() => setOpen(false)}
               >
                 ×
@@ -216,7 +217,7 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
             <form onSubmit={(event) => void submit(event)}>
               <div className="form-grid">
                 <label>
-                  {t.name}
+                  {settingsTranslations.name}
                   <input
                     required
                     maxLength={150}
@@ -227,7 +228,7 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
                   />
                 </label>
                 <label>
-                  {t.module}
+                  {settingsTranslations.module}
                   <select
                     required
                     value={form.moduleId || ""}
@@ -254,7 +255,7 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
                     setForm({ ...form, isActive: event.target.checked })
                   }
                 />
-                {t.active}
+                {settingsTranslations.active}
               </label>
               <footer>
                 <button
@@ -262,14 +263,14 @@ export function PermissionsSection({ t }: { t: UserFeatureCopy }) {
                   type="button"
                   onClick={() => setOpen(false)}
                 >
-                  {t.cancel}
+                  {translations.common.actions.cancel}
                 </button>
                 <button
                   className="primary-button"
                   disabled={saving}
                   type="submit"
                 >
-                  {saving ? t.saving : t.save}
+                  {saving ? settingsTranslations.saving : translations.common.actions.save}
                 </button>
               </footer>
             </form>

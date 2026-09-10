@@ -1,5 +1,5 @@
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
-import type { UserFeatureCopy } from "../../../../../types/localization";
+import type { Translations } from "../../../../../locales";
 import { PaginationFooter } from "../../../../../components/pagination-footer";
 import {
   createRole,
@@ -24,8 +24,11 @@ function resolvePermissionModule(
   return permission.module.trim() || "users";
 }
 
-function permissionModuleLabel(module: PermissionModuleKey, t: UserFeatureCopy) {
-  return t.permissionModules[module as keyof UserFeatureCopy["permissionModules"]] ?? module;
+function permissionModuleLabel(
+  module: PermissionModuleKey,
+  settingsTranslations: Translations["features"]["settingsUser"],
+) {
+  return settingsTranslations.permissionModules[module as keyof typeof settingsTranslations.permissionModules] ?? module;
 }
 
 const emptyRoleForm: RoleInput = {
@@ -101,25 +104,26 @@ function PermissionSelectionToggle({
 
 function RoleStatusToggle({
   active,
-  t,
+  translations,
   onChange,
 }: {
   active: boolean;
-  t: UserFeatureCopy;
+  translations: Translations;
   onChange: (active: boolean) => void;
 }) {
+  const settingsTranslations = translations.features.settingsUser;
   return (
     <div className="role-status-setting">
       <div>
-        <strong>{t.status}</strong>
+        <strong>{settingsTranslations.status}</strong>
         <span className={`status-pill ${active ? "is-active" : ""}`}>
-          {active ? t.active : t.inactive}
+          {active ? settingsTranslations.active : settingsTranslations.inactive}
         </span>
       </div>
       <label className="role-status-switch">
         <input
           type="checkbox"
-          aria-label={t.status}
+          aria-label={settingsTranslations.status}
           checked={active}
           onChange={(event) => onChange(event.target.checked)}
         />
@@ -129,7 +133,8 @@ function RoleStatusToggle({
   );
 }
 
-export function RolesSection({ t }: { t: UserFeatureCopy }) {
+export function RolesSection({ translations }: { translations: Translations }) {
+  const settingsTranslations = translations.features.settingsUser;
   const { user } = useAuth();
   const canCreate = Boolean(user && hasAnyPermission(user, "เพิ่มบทบาท", "จัดการบทบาทและสิทธิ์"));
   const canEdit = Boolean(user && hasAnyPermission(user, "แก้ไขบทบาทและสิทธิ์", "จัดการบทบาทและสิทธิ์"));
@@ -173,11 +178,11 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
         setPermissionModules([]);
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.loadError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
     } finally {
       setLoading(false);
     }
-  }, [canCreate, canEdit, t.loadError]);
+  }, [canCreate, canEdit, settingsTranslations.loadError]);
 
   function showCreateForm() {
     setForm({ ...emptyRoleForm, permissionIds: [] });
@@ -224,7 +229,7 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
       setOpen(false);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.saveError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
     } finally {
       setSaving(false);
     }
@@ -245,7 +250,7 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
       setSelectedRole(null);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.saveError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
     } finally {
       setSaving(false);
     }
@@ -253,7 +258,7 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
 
   async function removeRole(role: RoleDetails) {
     if (role.name.trim().toLowerCase() === "admin") return;
-    if (!window.confirm(`${t.deleteRoleConfirm} “${role.name}” ?`)) return;
+    if (!window.confirm(`${settingsTranslations.deleteRoleConfirm} “${role.name}” ?`)) return;
 
     setSaving(true);
     setError("");
@@ -261,7 +266,7 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
       await deleteRole(role.id);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.deleteRoleError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.deleteRoleError);
     } finally {
       setSaving(false);
     }
@@ -288,65 +293,65 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
     <div className="management-panel">
       <header className="management-header">
         <div>
-          <h1>{t.roleManagement}</h1>
-          <p>{t.roleHelp}</p>
+          <h1>{settingsTranslations.roleManagement}</h1>
+          <p>{settingsTranslations.roleHelp}</p>
         </div>
         {canCreate && <button className="primary-button" type="button" onClick={showCreateForm}>
-          {t.addRole}
+          {settingsTranslations.addRole}
         </button>}
       </header>
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
             <tr>
-              <th>{t.role}</th>
-              <th>{t.members}</th>
-              <th>{t.totalPermissions}</th>
-              <th>{t.status}</th>
-              <th>{t.actions}</th>
+              <th>{settingsTranslations.role}</th>
+              <th>{settingsTranslations.members}</th>
+              <th>{settingsTranslations.totalPermissions}</th>
+              <th>{settingsTranslations.status}</th>
+              <th>{settingsTranslations.actions}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td className="table-message" colSpan={5}>
-                  {t.loading}
+                  {settingsTranslations.loading}
                 </td>
               </tr>
             ) : roles.length === 0 ? (
               <tr>
                 <td className="table-message" colSpan={5}>
-                  {t.noRoles}
+                  {settingsTranslations.noRoles}
                 </td>
               </tr>
             ) : (
               visibleRoles.map((role) => (
                 <tr key={role.id}>
-                  <td data-label={t.role}>
+                  <td data-label={settingsTranslations.role}>
                     <strong>{role.name}</strong>
                   </td>
-                  <td data-label={t.members}>{role.userCount}</td>
-                  <td data-label={t.totalPermissions}>{role.permissionCount}</td>
-                  <td data-label={t.status}>
+                  <td data-label={settingsTranslations.members}>{role.userCount}</td>
+                  <td data-label={settingsTranslations.totalPermissions}>{role.permissionCount}</td>
+                  <td data-label={settingsTranslations.status}>
                     <span
                       className={`status-pill ${role.isActive ? "is-active" : ""}`}
                     >
-                      {role.isActive ? t.active : t.inactive}
+                      {role.isActive ? settingsTranslations.active : settingsTranslations.inactive}
                     </span>
                   </td>
-                  <td data-label={t.actions}>
+                  <td data-label={settingsTranslations.actions}>
                     <div className="row-actions">
                       <button
                         type="button"
                         onClick={() => showPermissionDialog(role, "view")}
                       >
-                        {t.viewPermissions}
+                        {settingsTranslations.viewPermissions}
                       </button>
                       {canEdit && <button
                         type="button"
                         onClick={() => showPermissionDialog(role, "edit")}
                       >
-                        {t.editPermissions}
+                        {settingsTranslations.editPermissions}
                       </button>}
                       {canDelete && role.name.trim().toLowerCase() !== "admin" && (
                         <button
@@ -355,7 +360,7 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                           disabled={saving}
                           onClick={() => void removeRole(role)}
                         >
-                          {t.delete}
+                          {translations.common.actions.delete}
                         </button>
                       )}
                     </div>
@@ -370,7 +375,7 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
         page={page}
         pageSize={pageSize}
         total={roles.length}
-        labels={t}
+        labels={translations.common.pagination}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
       />
@@ -389,11 +394,11 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
             aria-labelledby="role-form-title"
           >
             <header>
-              <h2 id="role-form-title">{t.newRole}</h2>
+              <h2 id="role-form-title">{settingsTranslations.newRole}</h2>
               <button
                 className="modal-close"
                 type="button"
-                aria-label={t.cancel}
+                aria-label={translations.common.actions.cancel}
                 onClick={() => setOpen(false)}
               >
                 ×
@@ -402,7 +407,7 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
             <form onSubmit={(event) => void submit(event)}>
               <div className="role-form-fields">
                 <label>
-                  {t.name}
+                  {settingsTranslations.name}
                   <input
                     required
                     maxLength={150}
@@ -414,12 +419,12 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                 </label>
                 <RoleStatusToggle
                   active={form.isActive}
-                  t={t}
+                  translations={translations}
                   onChange={(isActive) => setForm({ ...form, isActive })}
                 />
               </div>
               <label>
-                {t.description}
+                {settingsTranslations.description}
                 <textarea
                   maxLength={500}
                   value={form.description}
@@ -429,11 +434,11 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                 />
               </label>
               <fieldset className="role-permission-picker">
-                <legend>{t.selectPermissions}</legend>
+                <legend>{settingsTranslations.selectPermissions}</legend>
                 <PermissionSelectionToggle
                   ids={permissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
                   selectedIds={form.permissionIds}
-                  label={t.selectAllPermissions}
+                  label={settingsTranslations.selectAllPermissions}
                   onChange={(permissionIds) => setForm((current) => ({ ...current, permissionIds }))}
                 />
                 <div className="role-permission-picker-grid">
@@ -449,16 +454,16 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                         key={module}
                       >
                         <header className="permission-picker-module-header">
-                          <h3>{permissionModuleLabel(module, t)}</h3>
+                          <h3>{permissionModuleLabel(module, settingsTranslations)}</h3>
                           <PermissionSelectionToggle
                             ids={modulePermissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
                             selectedIds={form.permissionIds}
-                            label={t.selectAllModule}
+                            label={settingsTranslations.selectAllModule}
                             onChange={(permissionIds) => setForm((current) => ({ ...current, permissionIds }))}
                           />
                         </header>
                         {modulePermissions.length === 0 ? (
-                          <p>{t.noPermissions}</p>
+                          <p>{settingsTranslations.noPermissions}</p>
                         ) : (
                           modulePermissions.map((permission) => (
                             <label
@@ -486,14 +491,14 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                   type="button"
                   onClick={() => setOpen(false)}
                 >
-                  {t.cancel}
+                  {translations.common.actions.cancel}
                 </button>
                 <button
                   className="primary-button"
                   disabled={saving}
                   type="submit"
                 >
-                  {saving ? t.saving : t.save}
+                  {saving ? settingsTranslations.saving : translations.common.actions.save}
                 </button>
               </footer>
             </form>
@@ -520,13 +525,13 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
             <header>
               <h2 id="role-permission-dialog-title">
                 {permissionDialog === "view"
-                  ? `${t.permissionsFor} ${selectedRole.name}`
-                  : `${t.editPermissions}: ${selectedRole.name}`}
+                  ? `${settingsTranslations.permissionsFor} ${selectedRole.name}`
+                  : `${settingsTranslations.editPermissions}: ${selectedRole.name}`}
               </h2>
               <button
                 className="modal-close"
                 type="button"
-                aria-label={t.cancel}
+                aria-label={translations.common.actions.cancel}
                 onClick={() => {
                   setPermissionDialog(null);
                   setSelectedRole(null);
@@ -540,14 +545,14 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
               <div className="role-permission-dialog-content">
                 <div className="role-status-setting">
                   <div>
-                    <strong>{t.status}</strong>
+                    <strong>{settingsTranslations.status}</strong>
                     <span className={`status-pill ${selectedRole.isActive ? "is-active" : ""}`}>
-                      {selectedRole.isActive ? t.active : t.inactive}
+                      {selectedRole.isActive ? settingsTranslations.active : settingsTranslations.inactive}
                     </span>
                   </div>
                 </div>
                 <fieldset className="role-permission-picker role-permission-view">
-                  <legend>{t.selectPermissions}</legend>
+                  <legend>{settingsTranslations.selectPermissions}</legend>
                   <div className="role-module-grid">
                     {displayedPermissionModules.map((module) => {
                       const assignedPermissions = (
@@ -557,11 +562,11 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                       return (
                         <section className="role-module" key={module}>
                           <header className="role-module-header">
-                            <h3>{permissionModuleLabel(module, t)}</h3>
+                            <h3>{permissionModuleLabel(module, settingsTranslations)}</h3>
                             <span>{assignedPermissions.length}</span>
                           </header>
                           {assignedPermissions.length === 0 ? (
-                            <p className="role-module-empty">{t.noPermissions}</p>
+                            <p className="role-module-empty">{settingsTranslations.noPermissions}</p>
                           ) : (
                             <ul className="role-permissions-list">
                               {assignedPermissions.map((permission) => (
@@ -595,16 +600,16 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                 {selectedRole.name.trim().toLowerCase() !== "admin" && (
                   <RoleStatusToggle
                     active={selectedRoleActive}
-                    t={t}
+                    translations={translations}
                     onChange={setSelectedRoleActive}
                   />
                 )}
                 <fieldset className="role-permission-picker">
-                  <legend>{t.selectPermissions}</legend>
+                  <legend>{settingsTranslations.selectPermissions}</legend>
                   <PermissionSelectionToggle
                     ids={permissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
                     selectedIds={selectedPermissionIds}
-                    label={t.selectAllPermissions}
+                    label={settingsTranslations.selectAllPermissions}
                     onChange={setSelectedPermissionIds}
                   />
                   <div className="role-permission-picker-grid">
@@ -620,16 +625,16 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                           key={module}
                         >
                           <header className="permission-picker-module-header">
-                            <h3>{permissionModuleLabel(module, t)}</h3>
+                            <h3>{permissionModuleLabel(module, settingsTranslations)}</h3>
                             <PermissionSelectionToggle
                               ids={modulePermissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
                               selectedIds={selectedPermissionIds}
-                              label={t.selectAllModule}
+                              label={settingsTranslations.selectAllModule}
                               onChange={setSelectedPermissionIds}
                             />
                           </header>
                           {modulePermissions.length === 0 ? (
-                            <p>{t.noPermissions}</p>
+                            <p>{settingsTranslations.noPermissions}</p>
                           ) : (
                             modulePermissions.map((permission) => (
                               <label
@@ -661,14 +666,14 @@ export function RolesSection({ t }: { t: UserFeatureCopy }) {
                     type="button"
                     onClick={() => setPermissionDialog(null)}
                   >
-                    {t.cancel}
+                    {translations.common.actions.cancel}
                   </button>
                   <button
                     className="primary-button"
                     disabled={saving}
                     type="submit"
                   >
-                    {saving ? t.saving : t.save}
+                    {saving ? settingsTranslations.saving : translations.common.actions.save}
                   </button>
                 </footer>
               </form>

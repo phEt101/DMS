@@ -15,7 +15,7 @@ import * as FaIcons from "react-icons/fa6";
 import type { IconType } from "react-icons";
 import { useAuth } from "../features/auth/hooks/use-auth";
 import { canViewModule } from "../features/auth/permissions";
-import { getLocale } from "../locales";
+import type { Translations } from "../locales";
 
 const icons = {
   dashboard: FaTableCellsLarge,
@@ -52,7 +52,7 @@ const sidebarModuleKeys = new Set<SidebarItem>([
 ]);
 
 export default function Sidebar({
-  language = "th",
+  translations,
   collapsed = false,
   mobileOpen = false,
   onClose,
@@ -60,7 +60,7 @@ export default function Sidebar({
   activeItem = "documents",
   onNavigate,
 }: {
-  language?: "th" | "en";
+  translations: Translations;
   collapsed?: boolean;
   mobileOpen?: boolean;
   onClose?: () => void;
@@ -72,7 +72,7 @@ export default function Sidebar({
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [accessOpen, setAccessOpen] = useState(true);
   const settingsGroupRef = useRef<HTMLDivElement>(null);
-  const t = getLocale(language).sidebar;
+  const sidebarTranslations = translations.sidebar;
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -112,7 +112,7 @@ export default function Sidebar({
       const key = ["dashboard", "documents", "report", "trash"].includes(mainKey)
         ? mainKey as SidebarItem
         : `settings-${module.name}` as SidebarItem;
-      const localizedLabel = t[module.name as keyof typeof t];
+      const localizedLabel = sidebarTranslations[module.name as keyof typeof sidebarTranslations];
       const IconComponent = module.iconName
         ? FaIcons[module.iconName as keyof typeof FaIcons] as IconType | undefined
         : undefined;
@@ -136,7 +136,7 @@ export default function Sidebar({
       <button
         className={`sidebar-backdrop ${mobileOpen ? "is-visible" : ""}`}
         onClick={onClose}
-        aria-label={t.closeNav}
+        aria-label={sidebarTranslations.closeNav}
       />
       <aside
         className={`sidebar ${collapsed ? "is-collapsed" : ""} ${mobileOpen ? "is-mobile-open" : ""}`}
@@ -154,13 +154,13 @@ export default function Sidebar({
             </span>
             <span className="brand-copy">
               <strong>Boswell</strong>
-              <small>{t.brand}</small>
+              <small>{sidebarTranslations.brand}</small>
             </span>
           </button>
           <button
             className="sidebar-toggle"
             onClick={onToggle}
-            aria-label={collapsed ? t.expand : t.collapse}
+            aria-label={collapsed ? sidebarTranslations.expand : sidebarTranslations.collapse}
           >
             <svg
               width="18"
@@ -179,12 +179,12 @@ export default function Sidebar({
           <button
             className="mobile-close"
             onClick={onClose}
-            aria-label={t.close}
+            aria-label={sidebarTranslations.close}
           >
             ×
           </button>
         </div>
-        <nav className="sidebar-nav" aria-label={t.navigation}>
+        <nav className="sidebar-nav" aria-label={sidebarTranslations.navigation}>
           {mainItems.map((item) => {
             return (
               <button
@@ -206,22 +206,22 @@ export default function Sidebar({
             <button
               className="nav-item nav-button settings-toggle"
               onClick={() => setSettingsOpen((open) => !open)}
-              title={collapsed ? t.settingsHint : undefined}
+              title={collapsed ? sidebarTranslations.settingsHint : undefined}
               aria-expanded={settingsOpen}
             >
               <Icon name="settings" />
-              <span>{t.settings}</span>
+              <span>{sidebarTranslations.settings}</span>
               <i className={settingsOpen ? "is-rotated" : ""}>⌄</i>
             </button>
             {settingsOpen && (
               <div className="subnav">
-                <strong className="subnav-title">{t.settings}</strong>
+                <strong className="subnav-title">{sidebarTranslations.settings}</strong>
                 {canViewUsers && <button
                   className={`nav-item nav-button ${activeItem === "settings-user" ? "is-active" : ""}`}
                   onClick={() => onNavigate?.("settings-user")}
                 >
                   <Icon name="user" />
-                  <span>{t.user}</span>
+                  <span>{sidebarTranslations.user}</span>
                 </button>}
                 {accessItems.length > 0 && <button
                   className="nav-item nav-button access-toggle"
@@ -230,7 +230,7 @@ export default function Sidebar({
                   onClick={() => setAccessOpen((open) => !open)}
                 >
                   <Icon name="settings" />
-                  <span>{t.access}</span>
+                  <span>{sidebarTranslations.access}</span>
                   <i className={accessOpen ? "is-rotated" : ""}>⌄</i>
                 </button>}
                 {accessItems.length > 0 && accessOpen && (
@@ -254,7 +254,7 @@ export default function Sidebar({
                   onClick={() => onNavigate?.("settings-activity")}
                 >
                   <Icon name="activity" />
-                  <span>{t.activity}</span>
+                  <span>{sidebarTranslations.activity}</span>
                 </button>}
               </div>
             )}

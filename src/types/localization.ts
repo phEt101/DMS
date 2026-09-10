@@ -43,10 +43,6 @@ export type ActivityFeatureCopy = FeatureCopy & {
   unknownUser: string
   loading: string
   empty: string
-  previous: string
-  next: string
-  page: string
-  perPage: string
   loadError: string
 }
 
@@ -69,19 +65,11 @@ export type UserFeatureCopy = FeatureCopy & {
   status: string
   createdAt: string
   actions: string
-  edit: string
-  delete: string
   deleteConfirm: string
   activeUser: string
-  cancel: string
-  save: string
   saving: string
   loading: string
   empty: string
-  previous: string
-  next: string
-  page: string
-  perPage: string
   loadError: string
   saveError: string
   deleteError: string

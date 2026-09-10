@@ -1,5 +1,5 @@
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
-import type { UserFeatureCopy } from "../../../../../types/localization";
+import type { Translations } from "../../../../../locales";
 import {
   createDepartment,
   deleteDepartment,
@@ -18,7 +18,8 @@ const emptyForm: DepartmentInput = {
   isActive: true,
 };
 
-export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
+export function DepartmentsSection({ translations }: { translations: Translations }) {
+  const settingsTranslations = translations.features.settingsUser;
   const { user } = useAuth();
   const canCreate = Boolean(user && hasAnyPermission(user, "เพิ่มแผนก", "จัดการแผนก"));
   const canEdit = Boolean(user && hasAnyPermission(user, "แก้ไขแผนก", "จัดการแผนก"));
@@ -42,11 +43,11 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
     try {
       setItems((await listDepartments()).data);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.loadError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
     } finally {
       setLoading(false);
     }
-  }, [t.loadError]);
+  }, [settingsTranslations.loadError]);
 
   useEffect(() => {
     void load();
@@ -79,19 +80,19 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
       setOpen(false);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.saveError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
     } finally {
       setSaving(false);
     }
   }
 
   async function remove(item: Department) {
-    if (!window.confirm(`${t.deleteConfirm} “${item.name}” ?`)) return;
+    if (!window.confirm(`${settingsTranslations.deleteConfirm} “${item.name}” ?`)) return;
     try {
       await deleteDepartment(item.id);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.deleteError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.deleteError);
     }
   }
 
@@ -99,65 +100,65 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
     <div className="management-panel">
       <header className="management-header">
         <div>
-          <h1>{t.departmentManagement}</h1>
-          <p>{t.departmentHelp}</p>
+          <h1>{settingsTranslations.departmentManagement}</h1>
+          <p>{settingsTranslations.departmentHelp}</p>
         </div>
         {canCreate && <button
           className="primary-button"
           type="button"
           onClick={() => showForm()}
         >
-          {t.addDepartment}
+          {settingsTranslations.addDepartment}
         </button>}
       </header>
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
             <tr>
-              <th>{t.name}</th>
-              <th>{t.members}</th>
-              <th>{t.status}</th>
-              <th>{t.actions}</th>
+              <th>{settingsTranslations.name}</th>
+              <th>{settingsTranslations.members}</th>
+              <th>{settingsTranslations.status}</th>
+              <th>{settingsTranslations.actions}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td className="table-message" colSpan={4}>
-                  {t.loading}
+                  {settingsTranslations.loading}
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
                 <td className="table-message" colSpan={4}>
-                  {t.noDepartments}
+                  {settingsTranslations.noDepartments}
                 </td>
               </tr>
             ) : (
               visibleItems.map((item) => (
                 <tr key={item.id}>
-                  <td data-label={t.name}>
+                  <td data-label={settingsTranslations.name}>
                     <strong>{item.name}</strong>
                   </td>
-                  <td data-label={t.members}>{item.userCount}</td>
-                  <td data-label={t.status}>
+                  <td data-label={settingsTranslations.members}>{item.userCount}</td>
+                  <td data-label={settingsTranslations.status}>
                     <span
                       className={`status-pill ${item.isActive ? "is-active" : ""}`}
                     >
-                      {item.isActive ? t.active : t.inactive}
+                      {item.isActive ? settingsTranslations.active : settingsTranslations.inactive}
                     </span>
                   </td>
-                  <td data-label={t.actions}>
+                  <td data-label={settingsTranslations.actions}>
                     <div className="row-actions">
                       {canEdit && <button type="button" onClick={() => showForm(item)}>
-                        {t.edit}
+                        {translations.common.actions.edit}
                       </button>}
                       {canDelete && <button
                         className="danger-link"
                         type="button"
                         onClick={() => void remove(item)}
                       >
-                        {t.delete}
+                        {translations.common.actions.delete}
                       </button>}
                     </div>
                   </td>
@@ -171,7 +172,7 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
         page={page}
         pageSize={pageSize}
         total={items.length}
-        labels={t}
+        labels={translations.common.pagination}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
       />
@@ -191,12 +192,12 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
           >
             <header>
               <h2 id="department-form-title">
-                {editing ? t.editDepartment : t.addDepartment}
+                {editing ? settingsTranslations.editDepartment : settingsTranslations.addDepartment}
               </h2>
               <button
                 className="modal-close"
                 type="button"
-                aria-label={t.cancel}
+                aria-label={translations.common.actions.cancel}
                 onClick={() => setOpen(false)}
               >
                 ×
@@ -204,7 +205,7 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
             </header>
             <form onSubmit={(event) => void submit(event)}>
               <label>
-                {t.name}
+                {settingsTranslations.name}
                 <input
                   required
                   maxLength={150}
@@ -222,7 +223,7 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
                     setForm({ ...form, isActive: event.target.checked })
                   }
                 />
-                {t.active}
+                {settingsTranslations.active}
               </label>
               <footer>
                 <button
@@ -230,14 +231,14 @@ export function DepartmentsSection({ t }: { t: UserFeatureCopy }) {
                   type="button"
                   onClick={() => setOpen(false)}
                 >
-                  {t.cancel}
+                  {translations.common.actions.cancel}
                 </button>
                 <button
                   className="primary-button"
                   disabled={saving}
                   type="submit"
                 >
-                  {saving ? t.saving : t.save}
+                  {saving ? settingsTranslations.saving : translations.common.actions.save}
                 </button>
               </footer>
             </form>

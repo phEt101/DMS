@@ -1,9 +1,10 @@
-import type { FeatureCopy } from '../../types/localization'
+import type { Translations } from '../../locales'
 
-export default function TrashPage({ t }: { t: FeatureCopy }) {
+export default function TrashPage({ translations }: { translations: Translations }) {
+  const trashTranslations = translations.features.trash
   return <section className="feature-page">
-    <p className="feature-kicker">{t.kicker}</p>
-    <h1>{t.title}</h1>
-    <span>{t.subtitle}</span>
+    <p className="feature-kicker">{trashTranslations.kicker}</p>
+    <h1>{trashTranslations.title}</h1>
+    <span>{trashTranslations.subtitle}</span>
   </section>
 }

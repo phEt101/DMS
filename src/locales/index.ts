@@ -7,3 +7,5 @@ export type Language = keyof typeof locales
 export function getLocale(language: Language) {
   return locales[language] ?? locales.en
 }
+
+export type Translations = ReturnType<typeof getLocale>

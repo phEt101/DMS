@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { getLocale } from "../locales";
+import type { Translations } from "../locales";
 import type { AuthUser } from "../features/auth/types/auth.types";
 
 function TopbarIcon({ children }: { children: ReactNode }) {
@@ -23,12 +23,14 @@ function TopbarIcon({ children }: { children: ReactNode }) {
 
 export default function Topbar({
   user,
+  translations,
   language = "th",
   onLanguageToggle,
   onMenuClick,
   onLogout,
 }: {
   user: AuthUser;
+  translations: Translations;
   language?: "th" | "en";
   onLanguageToggle?: () => void;
   onMenuClick?: () => void;
@@ -38,7 +40,7 @@ export default function Topbar({
   const [profileOpen, setProfileOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const isThai = language === "th";
-  const t = getLocale(language).topbar;
+  const topbarTranslations = translations.topbar;
   const initials = user.name
     .split(/\s+/)
     .filter(Boolean)
@@ -86,7 +88,7 @@ export default function Topbar({
         <button
           className="icon-button menu-button"
           onClick={onMenuClick}
-          aria-label={t.openNav}
+          aria-label={topbarTranslations.openNav}
         >
           <TopbarIcon>
             <path d="M4 7h16M4 12h16M4 17h16" />
@@ -96,7 +98,7 @@ export default function Topbar({
       <div className="topbar-actions">
         <button
           className="icon-button notification-button"
-          aria-label={t.notifications}
+          aria-label={topbarTranslations.notifications}
         >
           <TopbarIcon>
             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
@@ -106,7 +108,7 @@ export default function Topbar({
         <button
           className="language-switch"
           onClick={onLanguageToggle}
-          aria-label={isThai ? t.switchToEnglish : t.switchToThai}
+          aria-label={isThai ? topbarTranslations.switchToEnglish : topbarTranslations.switchToThai}
         >
           <span className={`language-chip ${isThai ? "is-active" : ""}`}>
             TH
@@ -147,7 +149,7 @@ export default function Topbar({
                 role="menuitem"
               >
                 <span aria-hidden="true">↪</span>
-                {isLoggingOut ? t.loggingOut : t.logout}
+                {isLoggingOut ? topbarTranslations.loggingOut : topbarTranslations.logout}
               </button>
             </div>
           )}

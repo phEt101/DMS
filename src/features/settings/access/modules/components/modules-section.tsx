@@ -1,5 +1,5 @@
 import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
-import type { UserFeatureCopy } from "../../../../../types/localization";
+import type { Translations } from "../../../../../locales";
 import { PaginationFooter } from "../../../../../components/pagination-footer";
 import { useErrorToast } from "../../../../../components/toast-provider";
 import { useAuth } from "../../../../auth/hooks/use-auth";
@@ -20,7 +20,8 @@ const emptyForm: PermissionModuleInput = {
   isActive: true,
 };
 
-export function ModulesSection({ t }: { t: UserFeatureCopy }) {
+export function ModulesSection({ translations }: { translations: Translations }) {
+  const settingsTranslations = translations.features.settingsUser;
   const { user } = useAuth();
   const canCreate = Boolean(user && hasPermission(user, "เพิ่มโมดูล"));
   const canEdit = Boolean(user && hasPermission(user, "แก้ไขโมดูล"));
@@ -43,11 +44,11 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
     try {
       setModules((await listPermissionModules()).data);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.loadError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
     } finally {
       setLoading(false);
     }
-  }, [t.loadError]);
+  }, [settingsTranslations.loadError]);
 
   useEffect(() => {
     void load();
@@ -83,19 +84,19 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
       setOpen(false);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.saveError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
     } finally {
       setSaving(false);
     }
   }
 
   async function remove(module: PermissionModule) {
-    if (!window.confirm(`${t.deleteConfirm} “${module.name}” ?`)) return;
+    if (!window.confirm(`${settingsTranslations.deleteConfirm} “${module.name}” ?`)) return;
     try {
       await deletePermissionModule(module.id);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t.deleteError);
+      setError(caught instanceof Error ? caught.message : settingsTranslations.deleteError);
     }
   }
 
@@ -103,62 +104,62 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
     <div className="management-panel">
       <header className="management-header">
         <div>
-          <h1>{t.moduleManagement}</h1>
-          <p>{t.moduleHelp}</p>
+          <h1>{settingsTranslations.moduleManagement}</h1>
+          <p>{settingsTranslations.moduleHelp}</p>
         </div>
         {canCreate && <button
           className="primary-button"
           type="button"
           onClick={() => showForm()}
         >
-          {t.addModule}
+          {settingsTranslations.addModule}
         </button>}
       </header>
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
             <tr>
-              <th>{t.name}</th>
-              <th>{t.sortOrder}</th>
-              <th>{t.permissionsCount}</th>
-              <th>{t.status}</th>
-              <th>{t.actions}</th>
+              <th>{settingsTranslations.name}</th>
+              <th>{settingsTranslations.sortOrder}</th>
+              <th>{settingsTranslations.permissionsCount}</th>
+              <th>{settingsTranslations.status}</th>
+              <th>{settingsTranslations.actions}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td className="table-message" colSpan={5}>
-                  {t.loading}
+                  {settingsTranslations.loading}
                 </td>
               </tr>
             ) : modules.length === 0 ? (
               <tr>
                 <td className="table-message" colSpan={5}>
-                  {t.noModules}
+                  {settingsTranslations.noModules}
                 </td>
               </tr>
             ) : (
               visibleModules.map((module) => (
                 <tr key={module.id}>
-                  <td data-label={t.name}>
+                  <td data-label={settingsTranslations.name}>
                     <strong>{module.name}</strong>
                   </td>
-                  <td data-label={t.sortOrder}>{module.sortOrder}</td>
-                  <td data-label={t.permissionsCount}>
+                  <td data-label={settingsTranslations.sortOrder}>{module.sortOrder}</td>
+                  <td data-label={settingsTranslations.permissionsCount}>
                     {module.permissionCount}
                   </td>
-                  <td data-label={t.status}>
+                  <td data-label={settingsTranslations.status}>
                     <span
                       className={`status-pill ${module.isActive ? "is-active" : ""}`}
                     >
-                      {module.isActive ? t.active : t.inactive}
+                      {module.isActive ? settingsTranslations.active : settingsTranslations.inactive}
                     </span>
                   </td>
-                  <td data-label={t.actions}>
+                  <td data-label={settingsTranslations.actions}>
                     <div className="row-actions">
                       {canEdit && <button type="button" onClick={() => showForm(module)}>
-                        {t.edit}
+                        {translations.common.actions.edit}
                       </button>}
                       {canDelete && <button
                         className="danger-link"
@@ -166,7 +167,7 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
                         disabled={module.permissionCount > 0}
                         onClick={() => void remove(module)}
                       >
-                        {t.delete}
+                        {translations.common.actions.delete}
                       </button>}
                     </div>
                   </td>
@@ -180,7 +181,7 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
         page={page}
         pageSize={pageSize}
         total={modules.length}
-        labels={t}
+        labels={translations.common.pagination}
         onPageChange={setPage}
         onPageSizeChange={(size) => {
           setPageSize(size);
@@ -197,7 +198,7 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
         >
           <section className="user-modal" role="dialog" aria-modal="true">
             <header>
-              <h2>{editing ? t.editModule : t.addModule}</h2>
+              <h2>{editing ? settingsTranslations.editModule : settingsTranslations.addModule}</h2>
               <button
                 className="modal-close"
                 type="button"
@@ -209,7 +210,7 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
             <form onSubmit={(event) => void submit(event)}>
               <div className="form-grid">
                 <label>
-                  {t.name}
+                  {settingsTranslations.name}
                   <input
                     required
                     maxLength={80}
@@ -223,7 +224,7 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
                   />
                 </label>
                 <label>
-                  {t.sortOrder}
+                  {settingsTranslations.sortOrder}
                   <input
                     required
                     min={0}
@@ -238,7 +239,7 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
                   />
                 </label>
                 <label>
-                  {t.iconName}
+                  {settingsTranslations.iconName}
                   <input
                     maxLength={100}
                     pattern="Fa[A-Z][A-Za-z0-9]*"
@@ -257,7 +258,7 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
                     setForm({ ...form, isActive: event.target.checked })
                   }
                 />
-                {t.active}
+                {settingsTranslations.active}
               </label>
               <footer>
                 <button
@@ -265,14 +266,14 @@ export function ModulesSection({ t }: { t: UserFeatureCopy }) {
                   type="button"
                   onClick={() => setOpen(false)}
                 >
-                  {t.cancel}
+                  {translations.common.actions.cancel}
                 </button>
                 <button
                   className="primary-button"
                   disabled={saving}
                   type="submit"
                 >
-                  {saving ? t.saving : t.save}
+                  {saving ? settingsTranslations.saving : translations.common.actions.save}
                 </button>
               </footer>
             </form>

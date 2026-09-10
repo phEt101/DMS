@@ -5,19 +5,19 @@ import TrashPage from '../features/trash/page'
 import SettingsAccessPage from '../features/settings/access/page'
 import SettingsUsersPage from '../features/settings/users/page'
 import SettingsActivityPage from '../features/settings/activity/page'
-import type { Language } from '../locales'
+import type { Language, Translations } from '../locales'
 
-export function buildPages(features: any, language: Language) {
+export function buildPages(translations: Translations, language: Language) {
   return {
-    dashboard: <DashboardPage t={features.dashboard} />,
-    documents: <DocumentsPage t={features.documents} />,
-    report: <ReportPage t={features.report} />,
-    trash: <TrashPage t={features.trash} />,
-    'settings-user': <SettingsUsersPage t={features.settingsUser} />,
-    'settings-roles': <SettingsAccessPage t={features.settingsUser} section="roles" />,
-    'settings-departments': <SettingsAccessPage t={features.settingsUser} section="departments" />,
-    'settings-permissions': <SettingsAccessPage t={features.settingsUser} section="permissions" />,
-    'settings-modules': <SettingsAccessPage t={features.settingsUser} section="modules" />,
-    'settings-activity': <SettingsActivityPage t={features.settingsActivity} language={language} />,
+    dashboard: <DashboardPage translations={translations} />,
+    documents: <DocumentsPage translations={translations} />,
+    report: <ReportPage translations={translations} />,
+    trash: <TrashPage translations={translations} />,
+    'settings-user': <SettingsUsersPage translations={translations} />,
+    'settings-roles': <SettingsAccessPage translations={translations} section="roles" />,
+    'settings-departments': <SettingsAccessPage translations={translations} section="departments" />,
+    'settings-permissions': <SettingsAccessPage translations={translations} section="permissions" />,
+    'settings-modules': <SettingsAccessPage translations={translations} section="modules" />,
+    'settings-activity': <SettingsActivityPage translations={translations} language={language} />,
   }
 }
