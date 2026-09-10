@@ -1,7 +1,6 @@
 import type { Connection } from 'mysql2/promise'
 
 const seedTypes: Array<{ name: string; departmentId: number | null }> = [
-  { name: 'เอกสารทั่วไป', departmentId: null },
   { name: 'โครงการ PM', departmentId: null },
 ]
 

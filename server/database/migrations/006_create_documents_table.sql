@@ -1,16 +1,16 @@
 CREATE TABLE IF NOT EXISTS documents (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'รหัสเอกสาร (PK L1 Shared Parent)',
-  document_type_id BIGINT UNSIGNED NOT NULL COMMENT 'รหัสประเภทเอกสาร FK L0 document_types.id (1=เอกสารทั่วไป, 2=โครงการ PM)',
-  department_id BIGINT UNSIGNED NULL COMMENT 'แผนกที่เห็นเอกสารนี้ — NULL=เอกสารกลาง ทุกฝ่ายเห็นหมด, X=เฉพาะแผนก X เห็น + Admin เห็นเสมอ',
-  project_manager_name VARCHAR(191) NULL COMMENT 'ชื่อผู้จัดการโครงการ (ช่วงเริ่มต้นเก็บ VARCHAR ก่อน อนาคตข้อมูลครบ migrate เป็น FK user_id); DBA ลด 200→191 utf8mb4 767 bytes limit เพราะมี Index',
-  customer_name VARCHAR(191) NULL COMMENT 'ชื่อลูกค้า / ผู้ว่าจ้าง (ช่วงเริ่มต้นเก็บ VARCHAR ก่อน อนาคต migrate เป็น FK customer_id); DBA ลด 255→191 utf8mb4 767 bytes limit เพราะมี Index',
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'รหัสเอกสาร',
+  document_type_id BIGINT UNSIGNED NOT NULL COMMENT 'รหัสประเภทเอกสาร',
+  department_id BIGINT UNSIGNED NULL COMMENT 'รหัสแผนกที่เข้าถึงเอกสาร; NULL=เอกสารส่วนกลาง',
+  project_manager_name VARCHAR(191) NULL COMMENT 'ชื่อผู้จัดการโครงการ',
+  customer_name VARCHAR(191) NULL COMMENT 'ชื่อลูกค้าหรือผู้ว่าจ้าง',
   status ENUM('draft','approved','archived','trash') NOT NULL DEFAULT 'draft' COMMENT 'สถานะเอกสาร: draft=ร่าง ยังแก้ไขได้, approved=อนุมัติแล้ว, archived=เก็บถาวร, trash=อยู่ในถังขยะ',
-  created_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครเป็นคนสร้างเอกสารนี้',
-  updated_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครแก้ไขล่าสุด',
-  deleted_by BIGINT UNSIGNED NULL COMMENT 'FK users.id — ใครเป็นคนลบเอกสารนี้',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'สร้างเมื่อ',
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'แก้ไขล่าสุดเมื่อ',
-  deleted_at TIMESTAMP NULL COMMENT 'Soft Delete เวลาที่ลบ (NULL=ยังใช้งานอยู่)',
+  created_by BIGINT UNSIGNED NULL COMMENT 'รหัสผู้ใช้งานที่สร้างเอกสาร',
+  updated_by BIGINT UNSIGNED NULL COMMENT 'รหัสผู้ใช้งานที่แก้ไขเอกสารล่าสุด',
+  deleted_by BIGINT UNSIGNED NULL COMMENT 'รหัสผู้ใช้งานที่ลบเอกสาร',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'วันที่และเวลาที่สร้าง',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'วันที่และเวลาที่แก้ไขล่าสุด',
+  deleted_at TIMESTAMP NULL COMMENT 'วันที่และเวลาที่ลบแบบ soft delete; NULL=ยังไม่ถูกลบ',
   PRIMARY KEY (id),
   KEY documents_document_type_id_index (document_type_id),
   KEY documents_department_id_index (department_id),
@@ -30,4 +30,4 @@ CREATE TABLE IF NOT EXISTS documents (
   CONSTRAINT documents_deleted_by_fk FOREIGN KEY (deleted_by)
     REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-COMMENT='L1 Shared Parent ตารางแม่ ทุกประเภทเอกสารใช้ร่วมกัน 100% (แสดงหน้า List รวมทุกประเภท); เก็บ PM Name + Customer Name ช่วงเริ่มต้นเป็น VARCHAR ก่อน ไม่ต้อง FK users/customers table';
+COMMENT='ข้อมูลเอกสารหลักทุกประเภท';
