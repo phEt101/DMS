@@ -10,7 +10,7 @@ export const env = {
   trustProxy: integer(process.env.TRUST_PROXY, 0),
   port: integer(process.env.PORT, 3000),
   host: process.env.HOST ?? '127.0.0.1',
-  documentPublicIdSecret: process.env.DOCUMENT_PUBLIC_ID_SECRET ?? '',
+  projectPublicIdSecret: process.env.PROJECT_PUBLIC_ID_SECRET ?? '',
   db: {
     host: process.env.DB_HOST ?? '127.0.0.1',
     port: integer(process.env.DB_PORT, 3306),

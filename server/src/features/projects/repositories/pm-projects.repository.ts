@@ -2,7 +2,7 @@ import { db } from '../../../config/database.js'
 import type { ResultSetHeader } from 'mysql2/promise'
 
 interface PmProjectInput {
-  documentId: number
+  projectId: number
   projectsName?: string | null
   projectDescription?: string | null
   siteAddress?: string | null
@@ -16,13 +16,13 @@ interface PmProjectInput {
 
 export async function create(input: PmProjectInput) {
   const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO documents_pm_projects
-      (document_id, projects_name, project_description, site_address, site_lat, site_lon,
+    `INSERT INTO pm_projects
+      (project_id, projects_name, project_description, site_address, site_lat, site_lon,
        planned_start_date, planned_end_date, created_by, updated_by,
        project_status, is_deleted)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'planning', 0)`,
     [
-      input.documentId,
+      input.projectId,
       input.projectsName ?? null,
       input.projectDescription ?? null,
       input.siteAddress ?? null,
@@ -38,12 +38,12 @@ export async function create(input: PmProjectInput) {
   return result.insertId
 }
 
-export async function updateByDocumentId(input: PmProjectInput) {
+export async function updateByProjectId(input: PmProjectInput) {
   const [result] = await db.execute<ResultSetHeader>(
-    `UPDATE documents_pm_projects
+    `UPDATE pm_projects
      SET projects_name = ?, project_description = ?, site_address = ?, site_lat = ?, site_lon = ?,
          planned_start_date = ?, planned_end_date = ?, updated_by = ?
-     WHERE document_id = ? AND is_deleted = 0`,
+     WHERE project_id = ? AND is_deleted = 0`,
     [
       input.projectsName ?? null,
       input.projectDescription ?? null,
@@ -53,18 +53,18 @@ export async function updateByDocumentId(input: PmProjectInput) {
       input.plannedStartDate ?? null,
       input.plannedEndDate ?? null,
       input.updatedBy ?? null,
-      input.documentId,
+      input.projectId,
     ],
   )
   return result.affectedRows > 0
 }
 
-export async function updateStatusByDocumentId(documentId: number | string, status: string, updatedBy: number | null) {
+export async function updateStatusByProjectId(projectId: number | string, status: string, updatedBy: number | null) {
   const [result] = await db.execute<ResultSetHeader>(
-    `UPDATE documents_pm_projects
+    `UPDATE pm_projects
      SET project_status = ?, updated_by = ?
-     WHERE document_id = ? AND is_deleted = 0`,
-    [status, updatedBy, documentId],
+     WHERE project_id = ? AND is_deleted = 0`,
+    [status, updatedBy, projectId],
   )
   return result.affectedRows > 0
 }

@@ -52,24 +52,26 @@ try {
     }
   }
 
-  const [documentColumns] = await connection.query<(RowDataPacket & { Null: 'YES' | 'NO' })[]>(
-    "SHOW COLUMNS FROM documents LIKE 'encrypted_id'",
+  const [projectColumns] = await connection.query<(RowDataPacket & { Null: 'YES' | 'NO' })[]>(
+    "SHOW COLUMNS FROM projects LIKE 'encrypted_id'",
   )
-  if (documentColumns.length) {
-    if (env.documentPublicIdSecret.length < 32) {
-      throw new Error('DOCUMENT_PUBLIC_ID_SECRET must contain at least 32 characters before migrating document public IDs')
+  if (projectColumns.length) {
+    if (env.projectPublicIdSecret.length < 32) {
+      throw new Error('PROJECT_PUBLIC_ID_SECRET must contain at least 32 characters before migrating project public IDs')
     }
-    const [documents] = await connection.query<(RowDataPacket & { id: number })[]>(
-      'SELECT id FROM documents WHERE encrypted_id IS NULL',
+    const [projects] = await connection.query<(RowDataPacket & { id: number; encryptedId: string | null })[]>(
+      'SELECT id, encrypted_id AS encryptedId FROM projects',
     )
-    for (const document of documents) {
-      const encryptedId = createHmac('sha256', env.documentPublicIdSecret)
-        .update(`documents:${document.id}`)
+    for (const project of projects) {
+      const encryptedId = createHmac('sha256', env.projectPublicIdSecret)
+        .update(`projects:${project.id}`)
         .digest('base64url')
-      await connection.execute('UPDATE documents SET encrypted_id = ? WHERE id = ?', [encryptedId, document.id])
+      if (project.encryptedId !== encryptedId) {
+        await connection.execute('UPDATE projects SET encrypted_id = ? WHERE id = ?', [encryptedId, project.id])
+      }
     }
-    if (documentColumns[0]?.Null === 'YES') {
-      await connection.query('ALTER TABLE documents MODIFY encrypted_id CHAR(43) NOT NULL')
+    if (projectColumns[0]?.Null === 'YES') {
+      await connection.query('ALTER TABLE projects MODIFY encrypted_id CHAR(43) NOT NULL')
     }
   }
 } finally {

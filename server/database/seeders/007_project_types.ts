@@ -7,7 +7,7 @@ const seedTypes: Array<{ name: string; departmentId: number | null }> = [
 export async function up(connection: Connection) {
   for (const t of seedTypes) {
     await connection.execute(
-      `INSERT INTO document_types (name, department_id, is_active)
+      `INSERT INTO project_types (name, department_id, is_active)
        VALUES (?, ?, 1)
        ON DUPLICATE KEY UPDATE
          department_id = ?,

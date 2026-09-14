@@ -16,9 +16,9 @@ src/
 │   │   ├── components/
 │   │   ├── services/dashboardService.ts
 │   │   └── page.tsx
-│   ├── documents/
+│   ├── projects/
 │   │   ├── components/
-│   │   ├── services/documentsService.ts
+│   │   ├── services/projectsService.ts
 │   │   └── page.tsx
 │   ├── report/
 │   ├── trash/
@@ -54,7 +54,7 @@ server/
 │   │   │   └── repositories/
 │   │   │       └── activity.repository.ts
 │   │   ├── dashboard/
-│   │   ├── documents/
+│   │   ├── projects/
 │   │   ├── health/
 │   │   ├── reports/
 │   │   ├── users/
@@ -71,7 +71,7 @@ server/
 └── tsconfig.json
 ```
 
-`server/src/features/index.ts` registers every backend feature under `/api/v1`. Request
+`server/src/features/index.ts` registers every backend feature under `/boswell-api/v1`. Request
 handling follows this flow:
 
 ```text
@@ -185,10 +185,11 @@ docker compose run --rm api npm run db:seed
 
 The migration files live in `server/database/migrations`. The runner creates the `boswell_dms` database when needed, then creates
 `users`, `departments`, `roles`, `permissions`, `role_permissions`,
-`documents`, `document_versions`, `activity_logs`, and
+`project_types`, `projects`, `pm_projects`, `pm_equipment`,
+`pm_equipment_items`, `pm_equipment_uploads`, `activity_logs`, and
 `schema_migrations`. Docker injects the MySQL connection from the root `.env`; never commit that
 file. SQL and TypeScript seeders belong in `server/database/seeders`, while development/test
-factories belong in `server/database/factories`. The API is mounted under `/api/v1`, with `GET /api/v1/health` available for
+factories belong in `server/database/factories`. The API is mounted under `/boswell-api/v1`, with `GET /boswell-api/v1/health` available for
 a database health check.
 
 For production, build the frontend with `npm run build`, adjust the paths and

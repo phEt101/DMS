@@ -22,7 +22,7 @@ export interface PmDetailRow extends RowDataPacket {
 }
 
 interface CreatePmDetailInput {
-  documentId: number | string
+  projectId: number | string
   equipmentName: string
   equipmentModel: string | null
   faultSymptom: string | null
@@ -47,32 +47,32 @@ const selectFields = `
   detail.created_at AS createdAt,
   detail.updated_at AS updatedAt,
   (SELECT GROUP_CONCAT(upload.id ORDER BY upload.sort_order SEPARATOR ',')
-   FROM documents_pm_detail_uploads upload
-   WHERE upload.pm_detail_id = detail.id AND upload.image_phase = 'reference' AND upload.is_deleted = 0) AS referenceImageIds,
+   FROM pm_equipment_uploads upload
+   WHERE upload.pm_equipment_id = detail.id AND upload.image_phase = 'reference' AND upload.is_deleted = 0) AS referenceImageIds,
   (SELECT GROUP_CONCAT(upload.id ORDER BY upload.sort_order SEPARATOR ',')
-   FROM documents_pm_detail_uploads upload
-   WHERE upload.pm_detail_id = detail.id AND upload.image_phase = 'before' AND upload.is_deleted = 0) AS beforeImageIds,
+   FROM pm_equipment_uploads upload
+   WHERE upload.pm_equipment_id = detail.id AND upload.image_phase = 'before' AND upload.is_deleted = 0) AS beforeImageIds,
   (SELECT GROUP_CONCAT(upload.id ORDER BY upload.sort_order SEPARATOR ',')
-   FROM documents_pm_detail_uploads upload
-   WHERE upload.pm_detail_id = detail.id AND upload.image_phase = 'after' AND upload.is_deleted = 0) AS afterImageIds
+   FROM pm_equipment_uploads upload
+   WHERE upload.pm_equipment_id = detail.id AND upload.image_phase = 'after' AND upload.is_deleted = 0) AS afterImageIds
 `
 
 const joins = `
-  FROM documents_pm_detail detail
-  INNER JOIN documents_pm_projects project ON project.id = detail.pm_project_id
-  INNER JOIN documents document ON document.id = project.document_id
+  FROM pm_equipment detail
+  INNER JOIN pm_projects project ON project.id = detail.pm_project_id
+  INNER JOIN projects root_project ON root_project.id = project.project_id
   LEFT JOIN users operator1 ON operator1.id = detail.operator_1_id
   LEFT JOIN users operator2 ON operator2.id = detail.operator_2_id
   LEFT JOIN users operator3 ON operator3.id = detail.operator_3_id
 `
 
-export async function findAllByDocumentId(documentId: number | string) {
+export async function findAllByProjectId(projectId: number | string) {
   const [rows] = await db.query<PmDetailRow[]>(
     `SELECT ${selectFields} ${joins}
-     WHERE project.document_id = ? AND document.deleted_at IS NULL
+     WHERE project.project_id = ? AND root_project.deleted_at IS NULL
        AND project.is_deleted = 0 AND detail.is_deleted = 0
      ORDER BY detail.created_at DESC, detail.id DESC`,
-    [documentId],
+    [projectId],
   )
   return rows
 }
@@ -80,7 +80,7 @@ export async function findAllByDocumentId(documentId: number | string) {
 export async function findById(id: number) {
   const [rows] = await db.query<PmDetailRow[]>(
     `SELECT ${selectFields} ${joins}
-     WHERE detail.id = ? AND document.deleted_at IS NULL
+     WHERE detail.id = ? AND root_project.deleted_at IS NULL
        AND project.is_deleted = 0 AND detail.is_deleted = 0
      LIMIT 1`,
     [id],
@@ -91,17 +91,17 @@ export async function findById(id: number) {
 export async function create(input: CreatePmDetailInput) {
   const [projects] = await db.query<(RowDataPacket & { id: number })[]>(
     `SELECT project.id
-     FROM documents_pm_projects project
-     INNER JOIN documents document ON document.id = project.document_id
-     WHERE project.document_id = ? AND project.is_deleted = 0 AND document.deleted_at IS NULL
+     FROM pm_projects project
+     INNER JOIN projects root_project ON root_project.id = project.project_id
+     WHERE project.project_id = ? AND project.is_deleted = 0 AND root_project.deleted_at IS NULL
      LIMIT 1`,
-    [input.documentId],
+    [input.projectId],
   )
   const projectId = projects[0]?.id
   if (!projectId) return null
 
   const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO documents_pm_detail
+    `INSERT INTO pm_equipment
       (pm_project_id, work_order_no, equipment_name, equipment_model, fault_symptom,
        remarks, work_order_status, operator_1_id, operator_2_id, operator_3_id,
        created_by, updated_by, is_deleted)
@@ -120,21 +120,21 @@ export async function create(input: CreatePmDetailInput) {
     ],
   )
   await db.execute(
-    'UPDATE documents_pm_projects SET updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    'UPDATE pm_projects SET updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     [input.userId, projectId],
   )
   return findById(result.insertId)
 }
 
-export async function update(documentId: number | string, detailId: number | string, input: Pick<CreatePmDetailInput, 'equipmentName' | 'equipmentModel' | 'faultSymptom' | 'remarks' | 'userId'>) {
+export async function update(projectId: number | string, detailId: number | string, input: Pick<CreatePmDetailInput, 'equipmentName' | 'equipmentModel' | 'faultSymptom' | 'remarks' | 'userId'>) {
   const [result] = await db.execute<ResultSetHeader>(
-    `UPDATE documents_pm_detail detail
-     INNER JOIN documents_pm_projects project ON project.id = detail.pm_project_id
-     INNER JOIN documents document ON document.id = project.document_id
+    `UPDATE pm_equipment detail
+     INNER JOIN pm_projects project ON project.id = detail.pm_project_id
+     INNER JOIN projects root_project ON root_project.id = project.project_id
      SET detail.equipment_name = ?, detail.equipment_model = ?, detail.fault_symptom = ?, detail.remarks = ?, detail.updated_by = ?
-     WHERE project.document_id = ? AND detail.id = ? AND document.deleted_at IS NULL
+     WHERE project.project_id = ? AND detail.id = ? AND root_project.deleted_at IS NULL
        AND project.is_deleted = 0 AND detail.is_deleted = 0`,
-    [input.equipmentName, input.equipmentModel, input.faultSymptom, input.remarks, input.userId, documentId, detailId],
+    [input.equipmentName, input.equipmentModel, input.faultSymptom, input.remarks, input.userId, projectId, detailId],
   )
   return result.affectedRows ? findById(Number(detailId)) : null
 }
@@ -151,7 +151,7 @@ const automaticWorkOrderStatuses = new Set(['scheduled', 'in_progress', 'complet
 async function recalculateWorkOrderStatus(connection: PoolConnection, detailId: number | string, forceAutomatic = false) {
   const [details] = await connection.query<(RowDataPacket & { workOrderStatus: string })[]>(
     `SELECT work_order_status AS workOrderStatus
-     FROM documents_pm_detail
+     FROM pm_equipment
      WHERE id = ? AND is_deleted = 0
      LIMIT 1 FOR UPDATE`,
     [detailId],
@@ -163,24 +163,24 @@ async function recalculateWorkOrderStatus(connection: PoolConnection, detailId: 
     `SELECT
        (
          EXISTS(
-           SELECT 1 FROM documents_pm_detail_items item
-           WHERE item.pm_detail_id = ? AND item.section = 'result' AND item.is_deleted = 0
+           SELECT 1 FROM pm_equipment_items item
+           WHERE item.pm_equipment_id = ? AND item.section = 'result' AND item.is_deleted = 0
              AND TRIM(COALESCE(item.item_content, '')) <> ''
          )
          OR EXISTS(
-           SELECT 1 FROM documents_pm_detail_uploads upload
-           WHERE upload.pm_detail_id = ? AND upload.image_phase = 'after' AND upload.is_deleted = 0
+           SELECT 1 FROM pm_equipment_uploads upload
+           WHERE upload.pm_equipment_id = ? AND upload.image_phase = 'after' AND upload.is_deleted = 0
          )
        ) AS hasCompletedData,
        (
          EXISTS(
-           SELECT 1 FROM documents_pm_detail_items item
-           WHERE item.pm_detail_id = ? AND item.section IN ('cause', 'action') AND item.is_deleted = 0
+           SELECT 1 FROM pm_equipment_items item
+           WHERE item.pm_equipment_id = ? AND item.section IN ('cause', 'action') AND item.is_deleted = 0
              AND TRIM(COALESCE(item.item_content, '')) <> ''
          )
          OR EXISTS(
-           SELECT 1 FROM documents_pm_detail_uploads upload
-           WHERE upload.pm_detail_id = ? AND upload.image_phase = 'before' AND upload.is_deleted = 0
+           SELECT 1 FROM pm_equipment_uploads upload
+           WHERE upload.pm_equipment_id = ? AND upload.image_phase = 'before' AND upload.is_deleted = 0
          )
        ) AS hasProgressData`,
     [detailId, detailId, detailId, detailId],
@@ -189,7 +189,7 @@ async function recalculateWorkOrderStatus(connection: PoolConnection, detailId: 
 
   if (nextStatus === 'completed') {
     await connection.execute(
-      `UPDATE documents_pm_detail
+      `UPDATE pm_equipment
        SET work_order_status = 'completed',
            work_started_at = COALESCE(work_started_at, CURRENT_TIMESTAMP),
            work_completed_at = COALESCE(work_completed_at, CURRENT_TIMESTAMP)
@@ -198,7 +198,7 @@ async function recalculateWorkOrderStatus(connection: PoolConnection, detailId: 
     )
   } else if (nextStatus === 'in_progress') {
     await connection.execute(
-      `UPDATE documents_pm_detail
+      `UPDATE pm_equipment
        SET work_order_status = 'in_progress',
            work_started_at = COALESCE(work_started_at, CURRENT_TIMESTAMP),
            work_completed_at = NULL
@@ -207,7 +207,7 @@ async function recalculateWorkOrderStatus(connection: PoolConnection, detailId: 
     )
   } else {
     await connection.execute(
-      `UPDATE documents_pm_detail
+      `UPDATE pm_equipment
        SET work_order_status = 'scheduled', work_started_at = NULL, work_completed_at = NULL
        WHERE id = ?`,
       [detailId],
@@ -216,51 +216,51 @@ async function recalculateWorkOrderStatus(connection: PoolConnection, detailId: 
   return nextStatus
 }
 
-export async function findItems(documentId: number | string, detailId: number | string) {
+export async function findItems(projectId: number | string, detailId: number | string) {
   const [rows] = await db.query<PmDetailItemRow[]>(
     `SELECT item.id, item.section, item.item_no AS itemNo, item.item_content AS itemContent
-     FROM documents_pm_detail_items item
-     INNER JOIN documents_pm_detail detail ON detail.id = item.pm_detail_id
-     INNER JOIN documents_pm_projects project ON project.id = detail.pm_project_id
-     INNER JOIN documents document ON document.id = project.document_id
-     WHERE project.document_id = ? AND detail.id = ? AND document.deleted_at IS NULL
+     FROM pm_equipment_items item
+     INNER JOIN pm_equipment detail ON detail.id = item.pm_equipment_id
+     INNER JOIN pm_projects project ON project.id = detail.pm_project_id
+     INNER JOIN projects root_project ON root_project.id = project.project_id
+     WHERE project.project_id = ? AND detail.id = ? AND root_project.deleted_at IS NULL
        AND project.is_deleted = 0 AND detail.is_deleted = 0 AND item.is_deleted = 0
      ORDER BY FIELD(item.section, 'cause', 'action', 'result'), item.item_no`,
-    [documentId, detailId],
+    [projectId, detailId],
   )
   return rows
 }
 
-export async function saveItems(documentId: number | string, detailId: number | string, items: Array<{ section: string; itemNo: number; itemContent: string | null }>, operatorIds: number[], statusMode: 'automatic' | 'on_hold' | 'waiting_parts', userId: number | null) {
+export async function saveItems(projectId: number | string, detailId: number | string, items: Array<{ section: string; itemNo: number; itemContent: string | null }>, operatorIds: number[], statusMode: 'automatic' | 'on_hold' | 'waiting_parts', userId: number | null) {
   const connection = await db.getConnection()
   try {
     await connection.beginTransaction()
     const [details] = await connection.query<(RowDataPacket & { id: number })[]>(
-      `SELECT detail.id FROM documents_pm_detail detail
-       INNER JOIN documents_pm_projects project ON project.id = detail.pm_project_id
-       INNER JOIN documents document ON document.id = project.document_id
-       WHERE project.document_id = ? AND detail.id = ? AND document.deleted_at IS NULL
+      `SELECT detail.id FROM pm_equipment detail
+       INNER JOIN pm_projects project ON project.id = detail.pm_project_id
+       INNER JOIN projects root_project ON root_project.id = project.project_id
+       WHERE project.project_id = ? AND detail.id = ? AND root_project.deleted_at IS NULL
          AND project.is_deleted = 0 AND detail.is_deleted = 0
        LIMIT 1 FOR UPDATE`,
-      [documentId, detailId],
+      [projectId, detailId],
     )
     if (!details[0]) { await connection.rollback(); return null }
 
     await connection.execute(
-      'UPDATE documents_pm_detail_items SET item_content = NULL, updated_by = ? WHERE pm_detail_id = ? AND is_deleted = 0',
+      'UPDATE pm_equipment_items SET item_content = NULL, updated_by = ? WHERE pm_equipment_id = ? AND is_deleted = 0',
       [userId, detailId],
     )
     for (const item of items) {
       await connection.execute(
-        `INSERT INTO documents_pm_detail_items
-          (pm_detail_id, section, item_no, item_content, created_by, updated_by, is_deleted)
+        `INSERT INTO pm_equipment_items
+          (pm_equipment_id, section, item_no, item_content, created_by, updated_by, is_deleted)
          VALUES (?, ?, ?, ?, ?, ?, 0)
          ON DUPLICATE KEY UPDATE item_content = VALUES(item_content), updated_by = VALUES(updated_by)`,
         [detailId, item.section, item.itemNo, item.itemContent, userId, userId],
       )
     }
     await connection.execute(
-      `UPDATE documents_pm_detail
+      `UPDATE pm_equipment
        SET operator_1_id = ?, operator_2_id = ?, operator_3_id = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [operatorIds[0] ?? null, operatorIds[1] ?? null, operatorIds[2] ?? null, userId, detailId],
@@ -269,12 +269,12 @@ export async function saveItems(documentId: number | string, detailId: number | 
       await recalculateWorkOrderStatus(connection, detailId, true)
     } else {
       await connection.execute(
-        'UPDATE documents_pm_detail SET work_order_status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        'UPDATE pm_equipment SET work_order_status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         [statusMode, userId, detailId],
       )
     }
     await connection.commit()
-    return findItems(documentId, detailId)
+    return findItems(projectId, detailId)
   } catch (error) {
     await connection.rollback()
     throw error
@@ -283,25 +283,25 @@ export async function saveItems(documentId: number | string, detailId: number | 
   }
 }
 
-export async function attachImages(documentId: number | string, detailId: number | string, referenceFiles: Express.Multer.File[], beforeFiles: Express.Multer.File[], afterFiles: Express.Multer.File[], userId: number | null) {
+export async function attachImages(projectId: number | string, detailId: number | string, referenceFiles: Express.Multer.File[], beforeFiles: Express.Multer.File[], afterFiles: Express.Multer.File[], userId: number | null) {
   const connection = await db.getConnection()
   try {
     await connection.beginTransaction()
     const [details] = await connection.query<(RowDataPacket & { id: number })[]>(
       `SELECT detail.id
-       FROM documents_pm_detail detail
-       INNER JOIN documents_pm_projects project ON project.id = detail.pm_project_id
-       INNER JOIN documents document ON document.id = project.document_id
-       WHERE project.document_id = ? AND detail.id = ? AND document.deleted_at IS NULL
+       FROM pm_equipment detail
+       INNER JOIN pm_projects project ON project.id = detail.pm_project_id
+       INNER JOIN projects root_project ON root_project.id = project.project_id
+       WHERE project.project_id = ? AND detail.id = ? AND root_project.deleted_at IS NULL
          AND project.is_deleted = 0 AND detail.is_deleted = 0
-       LIMIT 1 FOR UPDATE`, [documentId, detailId],
+       LIMIT 1 FOR UPDATE`, [projectId, detailId],
     )
     if (!details[0]) { await connection.rollback(); return null }
 
     const saveFiles = async (files: Express.Multer.File[], phase: 'reference' | 'before' | 'after') => {
       const [existing] = await connection.query<(RowDataPacket & { sortOrder: number })[]>(
-        `SELECT sort_order AS sortOrder FROM documents_pm_detail_uploads
-         WHERE pm_detail_id = ? AND image_phase = ? AND is_deleted = 0
+        `SELECT sort_order AS sortOrder FROM pm_equipment_uploads
+         WHERE pm_equipment_id = ? AND image_phase = ? AND is_deleted = 0
          ORDER BY sort_order FOR UPDATE`, [detailId, phase],
       )
       const occupied = new Set(existing.map((row) => row.sortOrder))
@@ -313,8 +313,8 @@ export async function attachImages(documentId: number | string, detailId: number
         const sortOrder = available[index]
         if (!sortOrder) throw new Error(`No ${phase} image slot is available`)
         const [result] = await connection.execute<ResultSetHeader>(
-          `INSERT INTO documents_pm_detail_uploads
-            (pm_detail_id, image_phase, sort_order, stored_name, original_name, mime_type, file_size,
+          `INSERT INTO pm_equipment_uploads
+            (pm_equipment_id, image_phase, sort_order, stored_name, original_name, mime_type, file_size,
              storage_driver, storage_path, uploaded_by, is_deleted)
            VALUES (?, ?, ?, ?, ?, ?, ?, 'local_disk', ?, ?, 0)`,
           [detailId, phase, sortOrder, file.filename, file.originalname, file.mimetype, file.size, `equipment-images/${file.filename}`, userId],
@@ -328,7 +328,7 @@ export async function attachImages(documentId: number | string, detailId: number
     const beforeIds = await saveFiles(beforeFiles, 'before')
     const afterIds = await saveFiles(afterFiles, 'after')
     await connection.execute(
-      'UPDATE documents_pm_detail SET updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE pm_equipment SET updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [userId, detailId],
     )
     await recalculateWorkOrderStatus(connection, detailId)
@@ -342,46 +342,46 @@ export async function attachImages(documentId: number | string, detailId: number
   }
 }
 
-export async function findImage(documentId: number | string, detailId: number | string, uploadId: number | string) {
+export async function findImage(projectId: number | string, detailId: number | string, uploadId: number | string) {
   const [rows] = await db.query<(RowDataPacket & { storagePath: string; mimeType: string; originalName: string })[]>(
     `SELECT upload.storage_path AS storagePath, upload.mime_type AS mimeType, upload.original_name AS originalName
-     FROM documents_pm_detail_uploads upload
-     INNER JOIN documents_pm_detail detail ON detail.id = upload.pm_detail_id
-     INNER JOIN documents_pm_projects project ON project.id = detail.pm_project_id
-     INNER JOIN documents document ON document.id = project.document_id
-     WHERE upload.id = ? AND project.document_id = ? AND upload.pm_detail_id = ?
+     FROM pm_equipment_uploads upload
+     INNER JOIN pm_equipment detail ON detail.id = upload.pm_equipment_id
+     INNER JOIN pm_projects project ON project.id = detail.pm_project_id
+     INNER JOIN projects root_project ON root_project.id = project.project_id
+     WHERE upload.id = ? AND project.project_id = ? AND upload.pm_equipment_id = ?
        AND upload.is_deleted = 0 AND detail.is_deleted = 0 AND project.is_deleted = 0
-       AND document.deleted_at IS NULL LIMIT 1`, [uploadId, documentId, detailId],
+       AND root_project.deleted_at IS NULL LIMIT 1`, [uploadId, projectId, detailId],
   )
   return rows[0] ?? null
 }
 
-export async function softDeleteImage(documentId: number | string, detailId: number | string, uploadId: number | string, userId: number | null) {
+export async function softDeleteImage(projectId: number | string, detailId: number | string, uploadId: number | string, userId: number | null) {
   const connection = await db.getConnection()
   try {
     await connection.beginTransaction()
     const [details] = await connection.query<(RowDataPacket & { id: number })[]>(
       `SELECT detail.id
-       FROM documents_pm_detail detail
-       INNER JOIN documents_pm_projects project ON project.id = detail.pm_project_id
-       INNER JOIN documents document ON document.id = project.document_id
-       WHERE project.document_id = ? AND detail.id = ? AND document.deleted_at IS NULL
+       FROM pm_equipment detail
+       INNER JOIN pm_projects project ON project.id = detail.pm_project_id
+       INNER JOIN projects root_project ON root_project.id = project.project_id
+       WHERE project.project_id = ? AND detail.id = ? AND root_project.deleted_at IS NULL
          AND project.is_deleted = 0 AND detail.is_deleted = 0
        LIMIT 1 FOR UPDATE`,
-      [documentId, detailId],
+      [projectId, detailId],
     )
     if (!details[0]) { await connection.rollback(); return null }
 
     const [result] = await connection.execute<ResultSetHeader>(
-      `UPDATE documents_pm_detail_uploads
+      `UPDATE pm_equipment_uploads
        SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = ?
-       WHERE id = ? AND pm_detail_id = ? AND is_deleted = 0`,
+       WHERE id = ? AND pm_equipment_id = ? AND is_deleted = 0`,
       [userId, uploadId, detailId],
     )
     if (!result.affectedRows) { await connection.rollback(); return false }
 
     await connection.execute(
-      'UPDATE documents_pm_detail SET updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE pm_equipment SET updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [userId, detailId],
     )
     await recalculateWorkOrderStatus(connection, detailId)

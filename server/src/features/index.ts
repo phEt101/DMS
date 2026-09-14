@@ -2,8 +2,8 @@ import { Router } from "express";
 import { authRouter } from "./auth/routes/auth.routes.js";
 import { activityRouter } from "./settings/activity/routes/activity.routes.js";
 import { dashboardRouter } from "./dashboard/routes/dashboard.routes.js";
-import { documentsRouter } from "./documents/routes/documents.routes.js";
-import { documentTypesRouter } from "./documents/routes/document-types.routes.js";
+import { projectsRouter } from "./projects/routes/projects.routes.js";
+import { projectTypesRouter } from "./projects/routes/project-types.routes.js";
 import { healthRouter } from "./health/routes/health.routes.js";
 import { reportsRouter } from "./reports/routes/reports.routes.js";
 import { rolesRouter } from "./settings/access/roles/routes/roles.routes.js";
@@ -21,8 +21,8 @@ apiRouter.use("/auth", authRouter);
 
 apiRouter.use(asyncHandler(requireAuth));
 
-apiRouter.use("/document-types", documentTypesRouter);
-apiRouter.use("/documents", documentsRouter);
+apiRouter.use("/project-types", projectTypesRouter);
+apiRouter.use("/projects", projectsRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/roles", rolesRouter);
 apiRouter.use("/departments", departmentsRouter);
