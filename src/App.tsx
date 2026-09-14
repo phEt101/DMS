@@ -48,13 +48,13 @@ function firstAccessiblePage(user: AuthUser): PageKey | null {
 
 function pageFromPath(pathname: string): PageKey {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
-  if (/^\/documents\/\d+$/.test(normalized)) return 'documents'
+  if (/^\/documents\/[A-Za-z0-9_-]{43}$/.test(normalized)) return 'documents'
   return (Object.entries(pathByPage).find(([, path]) => path === normalized)?.[0] as PageKey | undefined) ?? 'dashboard'
 }
 
 function pathMatchesPage(pathname: string, page: PageKey) {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
-  return normalized === pathByPage[page] || (page === 'documents' && /^\/documents\/\d+$/.test(normalized))
+  return normalized === pathByPage[page] || (page === 'documents' && /^\/documents\/[A-Za-z0-9_-]{43}$/.test(normalized))
 }
 
 export default function App() {

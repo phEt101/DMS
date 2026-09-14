@@ -62,14 +62,14 @@ export function DocumentList({
 }: {
   documents: DocItem[];
   viewMode: "grid" | "list";
-  selectedId: number | null;
-  onSelect: (id: number) => void;
-  onOpen: (id: number) => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onOpen: (id: string) => void;
   onEdit: (document: DocItem) => void;
   onDelete: (document: DocItem) => void;
 }) {
   const singleClickTimer = useRef<number | null>(null);
-  const lastTouch = useRef<{ documentId: number; time: number } | null>(null);
+  const lastTouch = useRef<{ documentId: string; time: number } | null>(null);
   useEffect(
     () => () => {
       if (singleClickTimer.current !== null)
@@ -78,7 +78,7 @@ export function DocumentList({
     [],
   );
 
-  const selectLater = (id: number) => {
+  const selectLater = (id: string) => {
     if (singleClickTimer.current !== null)
       window.clearTimeout(singleClickTimer.current);
     singleClickTimer.current = window.setTimeout(() => {
@@ -86,13 +86,13 @@ export function DocumentList({
       singleClickTimer.current = null;
     }, 220);
   };
-  const openNow = (id: number) => {
+  const openNow = (id: string) => {
     if (singleClickTimer.current !== null)
       window.clearTimeout(singleClickTimer.current);
     singleClickTimer.current = null;
     onOpen(id);
   };
-  const touchOpen = (id: number, pointerType: string) => {
+  const touchOpen = (id: string, pointerType: string) => {
     if (pointerType !== "touch" && pointerType !== "pen") return;
     const now = Date.now();
     if (
@@ -103,7 +103,7 @@ export function DocumentList({
       openNow(id);
     } else lastTouch.current = { documentId: id, time: now };
   };
-  const interactionProps = (id: number) => ({
+  const interactionProps = (id: string) => ({
     onClick: (event: React.MouseEvent<HTMLElement>) => {
       if (event.currentTarget.contains(event.target as Node)) selectLater(id);
     },
@@ -127,10 +127,10 @@ export function DocumentList({
       <div className="dms-card-grid">
         {documents.map((document) => (
           <article
-            key={document.id}
-            className={`dms-doc-card ${selectedId === document.id ? "is-selected" : ""}`}
+            key={document.encryptedId}
+            className={`dms-doc-card ${selectedId === document.encryptedId ? "is-selected" : ""}`}
             role="button"
-            {...interactionProps(document.id)}
+            {...interactionProps(document.encryptedId)}
           >
             <div className="dms-card-head">
               <div className="dms-doc-icon-pill">
@@ -179,9 +179,9 @@ export function DocumentList({
         <tbody>
           {documents.map((document) => (
             <tr
-              key={document.id}
-              className={selectedId === document.id ? "is-selected" : ""}
-              {...interactionProps(document.id)}
+              key={document.encryptedId}
+              className={selectedId === document.encryptedId ? "is-selected" : ""}
+              {...interactionProps(document.encryptedId)}
             >
               <td>
                 <div className="dms-table-document">

@@ -31,11 +31,11 @@ export function DocumentMainList(props: {
   onFiltersChange: (filters: DocumentFilters) => void;
   viewMode: "grid" | "list";
   onViewModeChange: (mode: "grid" | "list") => void;
-  selectedId: number | null;
+  selectedId: string | null;
   loading: boolean;
   error: string | null;
-  onSelect: (id: number) => void;
-  onOpen: (id: number) => void;
+  onSelect: (id: string) => void;
+  onOpen: (id: string) => void;
   onEdit: (document: DocItem) => void;
   onDelete: (document: DocItem) => void;
   page: number;

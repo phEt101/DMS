@@ -9,7 +9,7 @@ export function DocumentSidePanel({
 }: {
   document: DocItem;
   onClose: () => void;
-  onOpen: (id: number) => void;
+  onOpen: (id: string) => void;
 }) {
   const collaborators = [
     { name: document.projectManagerName, role: "ผู้จัดการโครงการ" },
@@ -35,7 +35,7 @@ export function DocumentSidePanel({
         <button
           type="button"
           className="dms-preview-open"
-          onClick={() => onOpen(document.id)}
+          onClick={() => onOpen(document.encryptedId)}
         >
           Open
         </button>

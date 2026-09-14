@@ -1,8 +1,10 @@
 import { db } from '../../../config/database.js'
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise'
+import { createDocumentPublicId, createTemporaryDocumentPublicId } from '../services/document-public-id.service.js'
 
 interface DocumentRow extends RowDataPacket {
   id: number
+  encryptedId: string
   documentTypeId: number | null
   projectName: string | null
   projectDescription: string | null
@@ -73,6 +75,7 @@ function buildConditions(options: FindOptions) {
 
 const selectFields = `
   d.id,
+  d.encrypted_id AS encryptedId,
   d.document_type_id AS documentTypeId,
   pm.projects_name AS projectName,
   pm.project_description AS projectDescription,
@@ -89,7 +92,7 @@ const selectFields = `
   pm.updated_at AS updatedAt,
   d.deleted_at AS deletedAt,
   u.name AS uploadedBy,
-  COALESCE(SUM(CASE WHEN du.is_deleted = 0 THEN du.file_size ELSE 0 END), 0) AS sizeBytes,
+  COALESCE(files.sizeBytes, 0) AS sizeBytes,
   pmu.name AS lastModifiedBy,
   ops.operatorNames AS operatorNames
 `
@@ -128,11 +131,18 @@ export async function findAll(options: FindOptions = {}) {
        ) operator_rows
        GROUP BY pm_project_id
      ) ops ON ops.pm_project_id = pm.id
-     LEFT JOIN document_uploads du ON du.document_id = d.id AND du.is_deleted = 0
+     LEFT JOIN (
+       SELECT project.document_id, SUM(upload.file_size) AS sizeBytes
+       FROM documents_pm_detail_uploads upload
+       INNER JOIN documents_pm_detail detail ON detail.id = upload.pm_detail_id AND detail.is_deleted = 0
+       INNER JOIN documents_pm_projects project ON project.id = detail.pm_project_id AND project.is_deleted = 0
+       WHERE upload.is_deleted = 0
+       GROUP BY project.document_id
+     ) files ON files.document_id = d.id
      WHERE ${conditions.join(' AND ')}
-     GROUP BY d.id, d.document_type_id, pm.projects_name, pm.project_description, pm.project_status, pm.site_address,
+     GROUP BY d.id, d.encrypted_id, d.document_type_id, pm.projects_name, pm.project_description, pm.project_status, pm.site_address,
        pm.site_lat, pm.site_lon, pm.planned_start_date, pm.planned_end_date, d.project_manager_name, d.customer_name, d.status,
-       d.created_at, pm.updated_at, d.deleted_at, u.name, pmu.name, ops.operatorNames
+       d.created_at, pm.updated_at, d.deleted_at, u.name, pmu.name, ops.operatorNames, files.sizeBytes
      ORDER BY COALESCE(pm.updated_at, d.updated_at, d.created_at) ${sortOrder === 'asc' ? 'ASC' : 'DESC'}
      LIMIT ? OFFSET ?`,
     values,
@@ -155,7 +165,7 @@ export async function countAll(options: Omit<FindOptions, 'limit' | 'offset' | '
   return Number(rows[0]?.total ?? 0)
 }
 
-export async function findById(id: number | string) {
+async function findOne(column: 'id' | 'encrypted_id', value: number | string) {
   const [rows] = await db.query<DocumentRow[]>(
     `SELECT ${selectFields}
      FROM documents d
@@ -184,32 +194,61 @@ export async function findById(id: number | string) {
        ) operator_rows
        GROUP BY pm_project_id
      ) ops ON ops.pm_project_id = pm.id
-     LEFT JOIN document_uploads du ON du.document_id = d.id AND du.is_deleted = 0
-     WHERE d.id = ?
-     GROUP BY d.id, d.document_type_id, pm.projects_name, pm.project_description, pm.project_status, pm.site_address,
+     LEFT JOIN (
+       SELECT project.document_id, SUM(upload.file_size) AS sizeBytes
+       FROM documents_pm_detail_uploads upload
+       INNER JOIN documents_pm_detail detail ON detail.id = upload.pm_detail_id AND detail.is_deleted = 0
+       INNER JOIN documents_pm_projects project ON project.id = detail.pm_project_id AND project.is_deleted = 0
+       WHERE upload.is_deleted = 0
+       GROUP BY project.document_id
+     ) files ON files.document_id = d.id
+     WHERE d.${column} = ?
+     GROUP BY d.id, d.encrypted_id, d.document_type_id, pm.projects_name, pm.project_description, pm.project_status, pm.site_address,
        pm.site_lat, pm.site_lon, pm.planned_start_date, pm.planned_end_date, d.project_manager_name, d.customer_name, d.status,
-       d.created_at, pm.updated_at, d.deleted_at, u.name, pmu.name, ops.operatorNames
+       d.created_at, pm.updated_at, d.deleted_at, u.name, pmu.name, ops.operatorNames, files.sizeBytes
      LIMIT 1`,
-    [id],
+    [value],
   )
 
   return rows[0] ?? null
 }
 
+export function findById(id: number | string) {
+  return findOne('id', id)
+}
+
+export function findByEncryptedId(encryptedId: string) {
+  return findOne('encrypted_id', encryptedId)
+}
+
 export async function create(input: DocumentInput) {
-  const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO documents
-      (document_type_id, project_manager_name, customer_name, created_by, updated_by, status)
-     VALUES (?, ?, ?, ?, ?, 'draft')`,
-    [
-      input.documentTypeId ?? null,
-      input.projectManagerName ?? null,
-      input.customerName ?? null,
-      input.uploadedBy ?? null,
-      input.uploadedBy ?? null,
-    ],
-  )
-  const document = await findById(result.insertId)
+  const connection = await db.getConnection()
+  let documentId: number
+  try {
+    await connection.beginTransaction()
+    const [result] = await connection.execute<ResultSetHeader>(
+      `INSERT INTO documents
+        (encrypted_id, document_type_id, project_manager_name, customer_name, created_by, updated_by, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'draft')`,
+      [
+        createTemporaryDocumentPublicId(),
+        input.documentTypeId ?? null,
+        input.projectManagerName ?? null,
+        input.customerName ?? null,
+        input.uploadedBy ?? null,
+        input.uploadedBy ?? null,
+      ],
+    )
+    documentId = result.insertId
+    await connection.execute('UPDATE documents SET encrypted_id = ? WHERE id = ?', [createDocumentPublicId(documentId), documentId])
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
+  const document = await findById(documentId)
   if (!document) throw new Error('Created document could not be loaded')
   return document
 }
@@ -258,8 +297,11 @@ export async function trash(id: number | string, deletedBy: number | null) {
        WHERE document_id = ? AND is_deleted = 0`, [deletedBy, id],
     )
     await connection.execute(
-      `UPDATE document_uploads SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = ?
-       WHERE document_id = ? AND is_deleted = 0`, [deletedBy, id],
+      `UPDATE documents_pm_detail_uploads upload
+       JOIN documents_pm_detail detail ON detail.id = upload.pm_detail_id
+       JOIN documents_pm_projects project ON project.id = detail.pm_project_id
+       SET upload.is_deleted = 1, upload.deleted_at = CURRENT_TIMESTAMP, upload.deleted_by = ?
+       WHERE project.document_id = ? AND upload.is_deleted = 0`, [deletedBy, id],
     )
     await connection.commit()
     return true
@@ -293,7 +335,13 @@ export async function restore(id: number | string) {
        JOIN documents_pm_projects project ON project.id = detail.pm_project_id
        SET item.is_deleted = 0, item.deleted_at = NULL, item.deleted_by = NULL WHERE project.document_id = ? AND item.is_deleted = 1`, [id],
     )
-    await connection.execute(`UPDATE document_uploads SET is_deleted = 0, deleted_at = NULL, deleted_by = NULL WHERE document_id = ? AND is_deleted = 1`, [id])
+    await connection.execute(
+      `UPDATE documents_pm_detail_uploads upload
+       JOIN documents_pm_detail detail ON detail.id = upload.pm_detail_id
+       JOIN documents_pm_projects project ON project.id = detail.pm_project_id
+       SET upload.is_deleted = 0, upload.deleted_at = NULL, upload.deleted_by = NULL
+       WHERE project.document_id = ? AND upload.is_deleted = 1`, [id],
+    )
     await connection.commit()
     return true
   } catch (error) {

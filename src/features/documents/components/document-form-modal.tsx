@@ -50,7 +50,7 @@ export function DocumentFormModal({
             {documentType ? (
               <PmDocumentForm
                 mode={editingDocument ? "edit" : "create"}
-                documentId={editingDocument?.id}
+                documentId={editingDocument?.encryptedId}
                 documentTypeId={documentType.id}
                 initialValues={
                   editingDocument

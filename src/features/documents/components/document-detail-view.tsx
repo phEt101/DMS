@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import * as RadixMenu from "@radix-ui/react-dropdown-menu";
 import L from "leaflet";
 import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { FaArrowLeft, FaArrowsRotate, FaCalendarDays, FaCheck, FaEllipsis, FaLocationDot, FaPen, FaPlus, FaTrashCan } from "react-icons/fa6";
+import { FaArrowLeft, FaArrowsRotate, FaCalendarDays, FaCheck, FaEllipsis, FaEye, FaImage, FaLocationDot, FaPen, FaPlus, FaTrashCan, FaXmark } from "react-icons/fa6";
 import { PmEquipmentFormPreview } from "./pm-equipment-form-preview";
 import { PmEquipmentDetailForm } from "./pm-equipment-detail-form";
-import { listPmEquipment, type PmEquipment } from "../services/documentsService";
+import { listPmEquipment, pmEquipmentImageUrl, type PmEquipment } from "../services/documentsService";
 
 type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "cancelled";
 const PROJECT_STATUS_OPTIONS: Array<{ value: ProjectStatus; label: string }> = [
@@ -33,7 +34,7 @@ const projectMarkerIcon = L.divIcon({
 });
 
 interface DocumentDetail {
-  id: number;
+  encryptedId: string;
   name: string;
   projectDescription: string;
   projectStatus: string | null;
@@ -72,10 +73,13 @@ export function DocumentDetailView({
     "overview",
   );
   const [equipmentFormOpen, setEquipmentFormOpen] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState<PmEquipment | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<PmEquipment | null>(null);
+  const [equipmentDetailMode, setEquipmentDetailMode] = useState<"view" | "edit">("view");
   const [equipment, setEquipment] = useState<PmEquipment[]>([]);
   const [equipmentLoading, setEquipmentLoading] = useState(true);
   const [equipmentError, setEquipmentError] = useState("");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const latitude = Number.parseFloat(document.latitude);
   const longitude = Number.parseFloat(document.longitude);
   const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
@@ -84,12 +88,12 @@ export function DocumentDetailView({
     let active = true;
     setEquipmentLoading(true);
     setEquipmentError("");
-    listPmEquipment(document.id)
+    listPmEquipment(document.encryptedId)
       .then((response) => { if (active) setEquipment(response.data); })
       .catch((error) => { if (active) setEquipmentError(error instanceof Error ? error.message : "โหลดข้อมูลอุปกรณ์ไม่สำเร็จ"); })
       .finally(() => { if (active) setEquipmentLoading(false); });
     return () => { active = false; };
-  }, [document.id]);
+  }, [document.encryptedId]);
 
   return (
     <section className="dms-document-view">
@@ -154,6 +158,7 @@ export function DocumentDetailView({
           onClick={() => setActiveTab("equipment")}
         >
           อุปกรณ์
+          {!equipmentLoading && <span className="dms-document-tab-count">{equipment.length}</span>}
         </button>
       </div>
 
@@ -219,7 +224,7 @@ export function DocumentDetailView({
         <div className="dms-document-equipment-section">
           <div className="dms-document-equipment-head">
             <h2>อุปกรณ์</h2>
-            <button type="button" className="dms-create-btn dms-add-equipment-btn" onClick={() => setEquipmentFormOpen(true)}>
+            <button type="button" className="dms-create-btn dms-add-equipment-btn" onClick={() => { setEditingEquipment(null); setEquipmentFormOpen(true); }}>
               <FaPlus /> เพิ่มอุปกรณ์
             </button>
           </div>
@@ -228,17 +233,21 @@ export function DocumentDetailView({
             : equipment.length === 0 ? <div className="dms-document-view-card dms-document-equipment-empty"><p>ยังไม่มีข้อมูลอุปกรณ์ในโครงการนี้</p></div>
             : <div className="dms-document-equipment-list">{equipment.map((item) => {
               const operatorNames = [item.operator1Name, item.operator2Name, item.operator3Name].filter(Boolean);
+              const referenceImageIds = (item.referenceImageIds ?? "").split(",").filter(Boolean).map(Number);
               return <article key={item.id} className="dms-document-equipment-card">
-                <header className="dms-equipment-card-header"><div><h3>{item.equipmentName}</h3><p>{item.equipmentModel || "ไม่ระบุรุ่น"}</p></div><span className="dms-equipment-status">{WORK_ORDER_STATUS_LABELS[item.workOrderStatus] ?? item.workOrderStatus}</span></header>
-                <div className="dms-equipment-card-detail"><small>ผู้ดำเนินการ</small><strong>{operatorNames.length ? operatorNames.join(" • ") : "ยังไม่กำหนด"}</strong></div>
+                <header className="dms-equipment-card-header"><div><h3>{item.equipmentName}</h3><p>{item.equipmentModel || "ไม่ระบุรุ่น"}</p></div><span className={`dms-equipment-status is-${item.workOrderStatus}`}>{WORK_ORDER_STATUS_LABELS[item.workOrderStatus] ?? item.workOrderStatus}</span></header>
+                <div className={`dms-equipment-card-images ${referenceImageIds.length === 0 ? "is-empty" : referenceImageIds.length === 1 ? "is-single" : `is-multiple has-${referenceImageIds.length}`}`}>{referenceImageIds.length === 0 ? <span><FaImage /> ยังไม่มีภาพอุปกรณ์</span> : referenceImageIds.map((imageId, imageIndex) => <button type="button" className={imageIndex === 0 ? "is-main" : ""} key={imageId} aria-label={`ดูภาพ ${item.equipmentName} รูปที่ ${imageIndex + 1}`} onClick={(event) => setPreviewImage(event.currentTarget.querySelector("img")?.currentSrc ?? null)}><img src={pmEquipmentImageUrl(document.encryptedId, item.id, imageId)} alt={`ภาพ ${item.equipmentName} รูปที่ ${imageIndex + 1}`} /></button>)}</div>
+                <div className="dms-equipment-card-detail"><small>อาการขัดข้อง</small><strong>{item.faultSymptom || "—"}</strong></div>
                 <div className="dms-equipment-card-detail"><small>หมายเหตุ</small><strong>{item.remarks || "—"}</strong></div>
-                <footer className="dms-equipment-card-actions"><button type="button" onClick={() => setSelectedEquipment(item)}><FaPen /> กรอกรายละเอียด</button></footer>
+                <div className="dms-equipment-card-detail"><small>ผู้ดำเนินการ</small><strong className="dms-equipment-operator-list">{operatorNames.length ? operatorNames.map((name) => <span key={name}>{name}</span>) : <span>ยังไม่กำหนด</span>}</strong></div>
+                <footer className="dms-equipment-card-actions"><button type="button" className="is-view" onClick={() => { setEquipmentDetailMode("view"); setSelectedEquipment(item); }}><FaEye /> ดูข้อมูล</button><button type="button" className="is-basic-edit" onClick={() => { setEditingEquipment(item); setEquipmentFormOpen(true); }}><FaPen /> แก้ไขข้อมูลอุปกรณ์</button><button type="button" className="is-work-detail" onClick={() => { setEquipmentDetailMode("edit"); setSelectedEquipment(item); }}><FaPen /> {item.workOrderStatus === "completed" ? "แก้ไขผลการทำงาน" : "บันทึกผลการทำงาน"}</button></footer>
               </article>;
             })}</div>}
         </div>
       )}
-      <PmEquipmentFormPreview open={equipmentFormOpen} documentId={document.id} onOpenChange={setEquipmentFormOpen} onSaved={(created) => setEquipment((current) => [created, ...current])} />
-      <PmEquipmentDetailForm open={selectedEquipment !== null} documentId={document.id} equipment={selectedEquipment} onOpenChange={(open) => { if (!open) setSelectedEquipment(null); }} onSaved={(ids, names, beforeIds, afterIds) => { if (!selectedEquipment) return; setEquipment((current) => current.map((item) => item.id === selectedEquipment.id ? { ...item, operator1Id: ids[0] ?? null, operator1Name: names[0] ?? null, operator2Id: ids[1] ?? null, operator2Name: names[1] ?? null, operator3Id: ids[2] ?? null, operator3Name: names[2] ?? null, beforeImageIds: beforeIds.join(",") || null, afterImageIds: afterIds.join(",") || null } : item)); }} />
+      <PmEquipmentFormPreview open={equipmentFormOpen} documentId={document.encryptedId} equipment={editingEquipment} onOpenChange={(open) => { setEquipmentFormOpen(open); if (!open) setEditingEquipment(null); }} onSaved={(saved) => setEquipment((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current])} />
+      <PmEquipmentDetailForm readOnly={equipmentDetailMode === "view"} open={selectedEquipment !== null} documentId={document.encryptedId} equipment={selectedEquipment} onOpenChange={(open) => { if (!open) setSelectedEquipment(null); }} onSaved={(saved) => setEquipment((current) => current.map((item) => item.id === saved.id ? saved : item))} />
+      {previewImage && createPortal(<div className="dms-image-lightbox" role="dialog" aria-modal="true" aria-label="ตัวอย่างรูปอุปกรณ์ขนาดใหญ่" onClick={() => setPreviewImage(null)}><button type="button" aria-label="ปิดรูปภาพ" onClick={() => setPreviewImage(null)}><FaXmark /></button><img src={previewImage} alt="ตัวอย่างรูปอุปกรณ์ขนาดใหญ่" onClick={(event) => event.stopPropagation()} /></div>, globalThis.document.body)}
     </section>
   );
 }

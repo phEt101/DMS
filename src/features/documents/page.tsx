@@ -24,7 +24,7 @@ export interface ApiDocumentType {
   isActive: boolean;
 }
 export interface ApiDocumentItem {
-  id: number;
+  encryptedId: string;
   documentTypeId: number;
   projectName: string | null;
   projectDescription: string | null;
@@ -46,7 +46,7 @@ export interface ApiDocumentItem {
   operatorNames: string | null;
 }
 export interface DocItem {
-  id: number;
+  encryptedId: string;
   documentTypeId: number;
   name: string;
   projectDescription: string;
@@ -101,8 +101,8 @@ export function getInitials(name: string | null | undefined) {
   );
 }
 function documentIdFromPath(path: string) {
-  const match = path.match(/^\/documents\/(\d+)\/?$/);
-  return match ? Number(match[1]) : null;
+  const match = path.match(/^\/documents\/([A-Za-z0-9_-]{43})\/?$/);
+  return match?.[1] ?? null;
 }
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
@@ -131,13 +131,13 @@ function mapDocument(d: ApiDocumentItem): DocItem {
         ? "done"
         : "planning");
   return {
-    id: d.id,
+    encryptedId: d.encryptedId,
     documentTypeId: d.documentTypeId,
     name:
       d.projectName?.trim() ||
       d.projectManagerName?.trim() ||
       d.customerName?.trim() ||
-      `Document #${d.id}`,
+      "Document",
     projectDescription: d.projectDescription ?? "",
     projectStatus: d.projectStatus,
     siteAddress: d.siteAddress ?? "",
@@ -175,7 +175,7 @@ export default function DocumentsPage({
 }) {
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filters, setFilters] = useState<DocumentFilters>(
@@ -186,7 +186,7 @@ export default function DocumentsPage({
   const [modalOpen, setModalOpen] = useState(false);
   const [typeId, setTypeId] = useState<number | null>(null);
   const [editing, setEditing] = useState<DocItem | null>(null);
-  const [fullId, setFullId] = useState<number | null>(() =>
+  const [fullId, setFullId] = useState<string | null>(() =>
     documentIdFromPath(location.pathname),
   );
   const [fullDoc, setFullDoc] = useState<DocItem | null>(null);
@@ -292,7 +292,7 @@ export default function DocumentsPage({
       stop = true;
     };
   }, [fullId, refresh]);
-  const openFull = (id: number) => {
+  const openFull = (id: string) => {
     setSelectedId(null);
     setFullId(id);
     history.pushState({}, "", `/documents/${id}`);
@@ -309,7 +309,7 @@ export default function DocumentsPage({
   const remove = async (d: DocItem) => {
     if (!confirm(`ยืนยันการลบโครงการ “${d.name}” ?`)) return false;
     try {
-      await moveDocumentToTrash(d.id);
+      await moveDocumentToTrash(d.encryptedId);
       setSelectedId(null);
       setRefresh((v) => v + 1);
       showToast("ย้ายโครงการไปยังถังขยะแล้ว", "success");
@@ -324,7 +324,7 @@ export default function DocumentsPage({
   };
   const updateProjectStatus = async (document: DocItem, status: NonNullable<ApiDocumentItem["projectStatus"]>) => {
     try {
-      await updatePmProjectStatus(document.id, status);
+      await updatePmProjectStatus(document.encryptedId, status);
       setRefresh((value) => value + 1);
       showToast("เปลี่ยนสถานะโครงการแล้ว", "success");
     } catch (error) {
@@ -357,7 +357,7 @@ export default function DocumentsPage({
       <DocumentFormModal open={modalOpen} documentType={selectedType} selectedTypeId={fullDoc.documentTypeId} editingDocument={editing} onOpenChange={(open) => open ? setModalOpen(true) : closeModal()} onSaved={() => setRefresh((value) => value + 1)} />
     </>;
   }
-  const selected = documents.find((d) => d.id === selectedId) ?? null;
+  const selected = documents.find((d) => d.encryptedId === selectedId) ?? null;
   const selectedType = types.find((t) => t.id === typeId) ?? null;
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   return (

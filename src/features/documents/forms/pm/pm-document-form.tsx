@@ -18,7 +18,7 @@ interface PmDocumentFormValues {
 
 interface PmDocumentFormProps {
   mode: "create" | "edit";
-  documentId?: number;
+  documentId?: string;
   documentTypeId: number;
   initialValues?: Partial<PmDocumentFormValues>;
   onClose: () => void;
