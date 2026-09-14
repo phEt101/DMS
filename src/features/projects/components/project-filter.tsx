@@ -2,16 +2,16 @@ import { useState } from "react";
 import * as RadixSelect from "@radix-ui/react-select";
 import { FaFilter } from "react-icons/fa6";
 
-export interface DocumentFilters {
+export interface ProjectFilters {
   status: "" | "draft" | "approved" | "archived" | "trash";
-  documentTypeId: string;
+  projectTypeId: string;
   dateFrom: string;
   dateTo: string;
 }
 
-export const EMPTY_DOCUMENT_FILTERS: DocumentFilters = {
+export const EMPTY_PROJECT_FILTERS: ProjectFilters = {
   status: "",
-  documentTypeId: "",
+  projectTypeId: "",
   dateFrom: "",
   dateTo: "",
 };
@@ -72,14 +72,14 @@ function FilterSelect({
   );
 }
 
-export function DocumentFilter({
+export function ProjectFilter({
   filters,
-  documentTypes,
+  projectTypes,
   onApply,
 }: {
-  filters: DocumentFilters;
-  documentTypes: Array<{ id: number; name: string }>;
-  onApply: (filters: DocumentFilters) => void;
+  filters: ProjectFilters;
+  projectTypes: Array<{ id: number; name: string }>;
+  onApply: (filters: ProjectFilters) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(filters);
@@ -95,13 +95,13 @@ export function DocumentFilter({
           setOpen((value) => !value);
         }}
         aria-expanded={open}
-        aria-controls="documents-filter-panel"
+        aria-controls="projects-filter-panel"
       >
         <FaFilter /> Filter{activeCount ? ` (${activeCount})` : ""}
       </button>
       {open && (
         <form
-          id="documents-filter-panel"
+          id="projects-filter-panel"
           className="dms-filter-panel"
           onSubmit={(event) => {
             event.preventDefault();
@@ -123,7 +123,7 @@ export function DocumentFilter({
               onChange={(status) =>
                 setDraft((value) => ({
                   ...value,
-                  status: status as DocumentFilters["status"],
+                  status: status as ProjectFilters["status"],
                 }))
               }
             />
@@ -131,15 +131,15 @@ export function DocumentFilter({
           <label className="dms-filter-field">
             <span>ประเภทเอกสาร</span>
             <FilterSelect
-              value={draft.documentTypeId}
+              value={draft.projectTypeId}
               ariaLabel="ประเภทเอกสาร"
               allLabel="ทุกประเภท"
-              options={documentTypes.map((type) => ({
+              options={projectTypes.map((type) => ({
                 value: String(type.id),
                 label: type.name,
               }))}
-              onChange={(documentTypeId) =>
-                setDraft((value) => ({ ...value, documentTypeId }))
+              onChange={(projectTypeId) =>
+                setDraft((value) => ({ ...value, projectTypeId }))
               }
             />
           </label>
@@ -178,8 +178,8 @@ export function DocumentFilter({
               type="button"
               className="dms-filter-reset"
               onClick={() => {
-                setDraft(EMPTY_DOCUMENT_FILTERS);
-                onApply(EMPTY_DOCUMENT_FILTERS);
+            setDraft(EMPTY_PROJECT_FILTERS);
+            onApply(EMPTY_PROJECT_FILTERS);
                 setOpen(false);
               }}
             >

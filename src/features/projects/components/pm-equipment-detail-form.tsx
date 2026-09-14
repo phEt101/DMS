@@ -22,7 +22,7 @@ import {
   type PmEquipment,
   type PmEquipmentItem,
   type PmEquipmentItemSection,
-} from "../services/documentsService";
+} from "../services/projectsService";
 
 const sections: Array<{
   value: PmEquipmentItemSection;
@@ -60,14 +60,14 @@ const statusModeLabels: Record<StatusMode, string> = {
 export function PmEquipmentDetailForm({
   open,
   readOnly = false,
-  documentId,
+  projectId,
   equipment,
   onOpenChange,
   onSaved,
 }: {
   open: boolean;
   readOnly?: boolean;
-  documentId: string;
+  projectId: string;
   equipment: PmEquipment | null;
   onOpenChange: (open: boolean) => void;
   onSaved: (equipment: PmEquipment) => void;
@@ -114,7 +114,7 @@ export function PmEquipmentDetailForm({
       ].filter((id): id is number => id !== null),
     );
     Promise.all([
-      listPmEquipmentItems(documentId, equipment.id),
+      listPmEquipmentItems(projectId, equipment.id),
       listUsers({ status: "active", limit: 100 }),
     ])
       .then(([itemsResponse, usersResponse]) => {
@@ -145,7 +145,7 @@ export function PmEquipmentDetailForm({
     return () => {
       active = false;
     };
-  }, [documentId, equipment, open]);
+  }, [projectId, equipment, open]);
 
   useEffect(() => {
     if (!previewImage) return;
@@ -242,7 +242,7 @@ export function PmEquipmentDetailForm({
       setSaving(true);
       setMessage("");
       const savedDetails = await savePmEquipmentItems(
-        documentId,
+        projectId,
         equipment.id,
         items,
         operatorIds,
@@ -251,7 +251,7 @@ export function PmEquipmentDetailForm({
       let savedEquipment = savedDetails.equipment;
       for (const imageId of pendingDeletedImageIds) {
         const deleted = await deletePmEquipmentImage(
-          documentId,
+          projectId,
           equipment.id,
           imageId,
         );
@@ -260,7 +260,7 @@ export function PmEquipmentDetailForm({
       const uploaded =
         beforeImages.length || afterImages.length
           ? await uploadPmEquipmentImages(
-              documentId,
+              projectId,
               equipment.id,
               beforeImages,
               afterImages,
@@ -565,7 +565,7 @@ export function PmEquipmentDetailForm({
                         <div className="dms-equipment-image-list">
                           {group.existing.map((id) => {
                             const source = pmEquipmentImageUrl(
-                              documentId,
+                              projectId,
                               equipment!.id,
                               id,
                             );

@@ -42,10 +42,10 @@
       "title": "System overview",
       "subtitle": "Summarize recent activity and system status"
     },
-    "documents": {
-      "kicker": "All Documents",
-      "title": "Document list",
-      "subtitle": "Manage every document from this page"
+    "projects": {
+      "kicker": "All Projects",
+      "title": "Project list",
+      "subtitle": "Manage every project from this page"
     },
     "report": {
       "kicker": "Report",
@@ -137,7 +137,7 @@
       "permissionsFor": "Permissions for",
       "permissionModules": {
         "dashboard": "Dashboard",
-        "documents": "Documents",
+        "projects": "Projects",
         "reports": "Reports",
         "trash": "Trash",
         "users": "Users",
@@ -178,7 +178,7 @@
         "departments": "Departments",
         "modules": "Modules",
         "permissions": "Permissions",
-        "documents": "Documents",
+        "projects": "Projects",
         "reports": "Reports",
         "trash": "Trash",
         "activity_logs": "Activity log",
@@ -265,7 +265,7 @@
     "brand": "Document management System",
     "items": {
       "dashboard": "Dashboard",
-      "documents": "All Documents",
+      "projects": "All Projects",
       "report": "Report",
       "trash": "Trash"
     }

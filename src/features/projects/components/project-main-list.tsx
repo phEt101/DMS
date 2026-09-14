@@ -10,25 +10,25 @@ import {
 } from "react-icons/fa6";
 import { PaginationFooter } from "../../../components/pagination-footer";
 import type { Translations } from "../../../locales";
-import type { ApiDocumentType, DocItem, DocumentTypeId } from "../page";
+import type { ApiProjectType, ProjectItem, ProjectTypeId } from "../page";
 import { formatBytes } from "../page";
-import { DocumentFilter, type DocumentFilters } from "./document-filter";
-import { DocumentList } from "./document-list";
+import { ProjectFilter, type ProjectFilters } from "./project-filter";
+import { ProjectList } from "./project-list";
 
-export function DocumentMainList(props: {
+export function ProjectMainList(props: {
   translations: Translations;
   search: string;
   onSearch: (value: string) => void;
-  documents: DocItem[];
+  projects: ProjectItem[];
   total: number;
-  documentTypes: ApiDocumentType[];
+  projectTypes: ApiProjectType[];
   typesLoading: boolean;
   typesError: string | null;
-  onCreate: (id: DocumentTypeId) => void;
+  onCreate: (id: ProjectTypeId) => void;
   sortOrder: "asc" | "desc";
   onToggleSort: () => void;
-  filters: DocumentFilters;
-  onFiltersChange: (filters: DocumentFilters) => void;
+  filters: ProjectFilters;
+  onFiltersChange: (filters: ProjectFilters) => void;
   viewMode: "grid" | "list";
   onViewModeChange: (mode: "grid" | "list") => void;
   selectedId: string | null;
@@ -36,8 +36,8 @@ export function DocumentMainList(props: {
   error: string | null;
   onSelect: (id: string) => void;
   onOpen: (id: string) => void;
-  onEdit: (document: DocItem) => void;
-  onDelete: (document: DocItem) => void;
+  onEdit: (project: ProjectItem) => void;
+  onDelete: (project: ProjectItem) => void;
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
@@ -46,11 +46,11 @@ export function DocumentMainList(props: {
   const p = props;
   return (
     <section className="dms-col-main">
-      <p className="dms-kicker">Documents</p>
+      <p className="dms-kicker">Projects</p>
       <div className="dms-title-row">
         <div className="dms-title-block">
-          <h1>Document list</h1>
-          <div className="dms-subtitle">จัดการเอกสารทั้งหมดจากหน้านี้</div>
+          <h1>Project list</h1>
+          <div className="dms-subtitle">จัดการโครงการทั้งหมดจากหน้านี้</div>
         </div>
         <div className="dms-title-search-row">
           <div className="dms-search-wrap">
@@ -59,7 +59,7 @@ export function DocumentMainList(props: {
               type="text"
               value={p.search}
               onChange={(event) => p.onSearch(event.target.value)}
-              placeholder="Search documents"
+              placeholder="Search projects"
             />
           </div>
           <div className="dms-stats-group">
@@ -70,8 +70,8 @@ export function DocumentMainList(props: {
             <div className="dms-stats-pill">
               <FaFolderOpen />
               {formatBytes(
-                p.documents.reduce(
-                  (sum, document) => sum + document.sizeBytes,
+                p.projects.reduce(
+                  (sum, project) => sum + project.sizeBytes,
                   0,
                 ),
               )}
@@ -108,12 +108,12 @@ export function DocumentMainList(props: {
                     {p.typesError}
                   </span>
                 </div>
-              ) : !p.documentTypes.length ? (
+              ) : !p.projectTypes.length ? (
                 <div className="dms-create-dropdown-state">
                   <span>ยังไม่มีประเภทเอกสารเปิดใช้งาน</span>
                 </div>
               ) : (
-                p.documentTypes.map((type) => (
+                p.projectTypes.map((type) => (
                   <RadixMenu.Item
                     key={type.id}
                     className="dms-create-dropdown-item"
@@ -141,9 +141,9 @@ export function DocumentMainList(props: {
             <FaArrowDownWideShort />
             Last Modified
           </button>
-          <DocumentFilter
+          <ProjectFilter
             filters={p.filters}
-            documentTypes={p.documentTypes}
+            projectTypes={p.projectTypes}
             onApply={p.onFiltersChange}
           />
           <div className="dms-view-toggle">
@@ -167,12 +167,12 @@ export function DocumentMainList(props: {
         </div>
       </div>
       {p.loading ? (
-        <div className="dms-document-list-state">กำลังโหลดเอกสาร...</div>
+        <div className="dms-project-list-state">กำลังโหลดโครงการ...</div>
       ) : p.error ? (
-        <div className="dms-document-list-state is-error">{p.error}</div>
+        <div className="dms-project-list-state is-error">{p.error}</div>
       ) : (
-        <DocumentList
-          documents={p.documents}
+        <ProjectList
+          projects={p.projects}
           viewMode={p.viewMode}
           selectedId={p.selectedId}
           onSelect={p.onSelect}
@@ -192,9 +192,9 @@ export function DocumentMainList(props: {
         />
       )}
       {p.total === 0 && (
-        <div className="dms-document-empty">
+        <div className="dms-project-empty">
           <FaFolderOpen />
-          <div>ไม่พบเอกสารที่ตรงกับคำค้นหาหรือตัวกรอง</div>
+          <div>ไม่พบโครงการที่ตรงกับคำค้นหาหรือตัวกรอง</div>
         </div>
       )}
     </section>

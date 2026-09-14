@@ -19,7 +19,7 @@ import type { Translations } from "../locales";
 
 const icons = {
   dashboard: FaTableCellsLarge,
-  documents: FaFileLines,
+  projects: FaFileLines,
   report: FaChartColumn,
   trash: FaTrashCan,
   settings: FaGear,
@@ -34,7 +34,7 @@ function Icon({ name }: { name: keyof typeof icons }) {
 
 type SidebarItem =
   | "dashboard"
-  | "documents"
+  | "projects"
   | "report"
   | "trash"
   | "settings-user"
@@ -57,7 +57,7 @@ export default function Sidebar({
   mobileOpen = false,
   onClose,
   onToggle,
-  activeItem = "documents",
+  activeItem = "projects",
   onNavigate,
 }: {
   translations: Translations;
@@ -109,7 +109,7 @@ export default function Sidebar({
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((module) => {
       const mainKey = module.name === "reports" ? "report" : module.name;
-      const key = ["dashboard", "documents", "report", "trash"].includes(mainKey)
+      const key = ["dashboard", "projects", "report", "trash"].includes(mainKey)
         ? mainKey as SidebarItem
         : `settings-${module.name}` as SidebarItem;
       const localizedLabel = sidebarTranslations[module.name as keyof typeof sidebarTranslations];
@@ -124,7 +124,7 @@ export default function Sidebar({
     });
 
   const mainItems = moduleItems.filter((item) =>
-    ["dashboard", "documents", "report", "trash"].includes(item.key),
+    ["dashboard", "projects", "report", "trash"].includes(item.key),
   );
   const accessItems = moduleItems.filter((item) => sidebarModuleKeys.has(item.key));
   const canViewUsers = Boolean(user && canViewModule(user, "users"));
@@ -197,7 +197,7 @@ export default function Sidebar({
                   <item.icon className="nav-icon" size={17} aria-hidden="true" />
                 )}
                 <span>{item.label}</span>
-                {item.key === "documents" && <b className="item-count">11</b>}
+                {item.key === "projects" && <b className="item-count">11</b>}
               </button>
             );
           })}

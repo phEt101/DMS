@@ -1,16 +1,16 @@
 import { useEffect, useRef } from "react";
 import * as RadixMenu from "@radix-ui/react-dropdown-menu";
 import { FaEllipsis, FaFileLines, FaPen, FaTrashCan } from "react-icons/fa6";
-import type { DocItem } from "../page";
+import type { ProjectItem } from "../page";
 
-function DocumentMenu({
-  document,
+function ProjectMenu({
+  project,
   onEdit,
   onDelete,
 }: {
-  document: DocItem;
-  onEdit: (document: DocItem) => void;
-  onDelete: (document: DocItem) => void;
+  project: ProjectItem;
+  onEdit: (project: ProjectItem) => void;
+  onDelete: (project: ProjectItem) => void;
 }) {
   return (
     <RadixMenu.Root>
@@ -18,7 +18,7 @@ function DocumentMenu({
         <button
           type="button"
           className="dms-card-menu"
-          aria-label={`จัดการ ${document.name}`}
+          aria-label={`จัดการ ${project.name}`}
           onClick={(event) => event.stopPropagation()}
         >
           <FaEllipsis />
@@ -33,14 +33,14 @@ function DocumentMenu({
         >
           <RadixMenu.Item
             className="dms-card-menu-item"
-            onSelect={() => onEdit(document)}
+            onSelect={() => onEdit(project)}
           >
             <FaPen />
             แก้ไข
           </RadixMenu.Item>
           <RadixMenu.Item
             className="dms-card-menu-item is-danger"
-            onSelect={() => onDelete(document)}
+            onSelect={() => onDelete(project)}
           >
             <FaTrashCan />
             ลบ
@@ -51,8 +51,8 @@ function DocumentMenu({
   );
 }
 
-export function DocumentList({
-  documents,
+export function ProjectList({
+  projects,
   viewMode,
   selectedId,
   onSelect,
@@ -60,16 +60,16 @@ export function DocumentList({
   onEdit,
   onDelete,
 }: {
-  documents: DocItem[];
+  projects: ProjectItem[];
   viewMode: "grid" | "list";
   selectedId: string | null;
   onSelect: (id: string) => void;
   onOpen: (id: string) => void;
-  onEdit: (document: DocItem) => void;
-  onDelete: (document: DocItem) => void;
+  onEdit: (project: ProjectItem) => void;
+  onDelete: (project: ProjectItem) => void;
 }) {
   const singleClickTimer = useRef<number | null>(null);
-  const lastTouch = useRef<{ documentId: string; time: number } | null>(null);
+  const lastTouch = useRef<{ projectId: string; time: number } | null>(null);
   useEffect(
     () => () => {
       if (singleClickTimer.current !== null)
@@ -96,12 +96,12 @@ export function DocumentList({
     if (pointerType !== "touch" && pointerType !== "pen") return;
     const now = Date.now();
     if (
-      lastTouch.current?.documentId === id &&
+      lastTouch.current?.projectId === id &&
       now - lastTouch.current.time <= 350
     ) {
       lastTouch.current = null;
       openNow(id);
-    } else lastTouch.current = { documentId: id, time: now };
+    } else lastTouch.current = { projectId: id, time: now };
   };
   const interactionProps = (id: string) => ({
     onClick: (event: React.MouseEvent<HTMLElement>) => {
@@ -125,37 +125,37 @@ export function DocumentList({
   if (viewMode === "grid")
     return (
       <div className="dms-card-grid">
-        {documents.map((document) => (
+        {projects.map((project) => (
           <article
-            key={document.encryptedId}
-            className={`dms-doc-card ${selectedId === document.encryptedId ? "is-selected" : ""}`}
+            key={project.encryptedId}
+            className={`dms-project-card ${selectedId === project.encryptedId ? "is-selected" : ""}`}
             role="button"
-            {...interactionProps(document.encryptedId)}
+            {...interactionProps(project.encryptedId)}
           >
             <div className="dms-card-head">
-              <div className="dms-doc-icon-pill">
+              <div className="dms-project-icon-pill">
                 <FaFileLines />
               </div>
-              <div className="dms-document-actions">
-                <span className={`dms-card-status is-${document.status}`}>
-                  {document.statusLabel}
+              <div className="dms-project-actions">
+                <span className={`dms-card-status is-${project.status}`}>
+                  {project.statusLabel}
                 </span>
-                <DocumentMenu
-                  document={document}
+                <ProjectMenu
+                  project={project}
                   onEdit={onEdit}
                   onDelete={onDelete}
                 />
               </div>
             </div>
-            <h3 className="dms-card-name">{document.name}</h3>
+            <h3 className="dms-card-name">{project.name}</h3>
             <div className="dms-card-foot">
               <div className="dms-card-owner">
-                <div className="dms-avatar">{document.ownerInitials}</div>
-                <span className="dms-owner-name">{document.ownerName}</span>
+                <div className="dms-avatar">{project.ownerInitials}</div>
+                <span className="dms-owner-name">{project.ownerName}</span>
               </div>
               <div className="dms-card-meta">
-                <span className="dms-card-size">{document.size}</span>
-                <span className="dms-card-date">{document.updatedAt}</span>
+                <span className="dms-card-size">{project.size}</span>
+                <span className="dms-card-date">{project.updatedAt}</span>
               </div>
             </div>
           </article>
@@ -164,11 +164,11 @@ export function DocumentList({
     );
 
   return (
-    <div className="dms-doc-table-wrap">
-      <table className="dms-doc-table">
+    <div className="dms-project-table-wrap">
+      <table className="dms-project-table">
         <thead>
           <tr>
-            <th scope="col">ชื่อเอกสาร</th>
+            <th scope="col">ชื่อโครงการ</th>
             <th scope="col">ผู้รับผิดชอบ</th>
             <th scope="col">ขนาด</th>
             <th scope="col">แก้ไขล่าสุด</th>
@@ -177,36 +177,36 @@ export function DocumentList({
           </tr>
         </thead>
         <tbody>
-          {documents.map((document) => (
+          {projects.map((project) => (
             <tr
-              key={document.encryptedId}
-              className={selectedId === document.encryptedId ? "is-selected" : ""}
-              {...interactionProps(document.encryptedId)}
+              key={project.encryptedId}
+              className={selectedId === project.encryptedId ? "is-selected" : ""}
+              {...interactionProps(project.encryptedId)}
             >
               <td>
                 <div className="dms-table-document">
-                  <span className="dms-doc-icon-pill">
+                  <span className="dms-project-icon-pill">
                     <FaFileLines />
                   </span>
-                  <span>{document.name}</span>
+                  <span>{project.name}</span>
                 </div>
               </td>
               <td>
                 <div className="dms-card-owner">
-                  <span className="dms-avatar">{document.ownerInitials}</span>
-                  <span className="dms-owner-name">{document.ownerName}</span>
+                  <span className="dms-avatar">{project.ownerInitials}</span>
+                  <span className="dms-owner-name">{project.ownerName}</span>
                 </div>
               </td>
-              <td className="dms-table-nowrap">{document.size}</td>
-              <td className="dms-table-nowrap">{document.updatedAt}</td>
+              <td className="dms-table-nowrap">{project.size}</td>
+              <td className="dms-table-nowrap">{project.updatedAt}</td>
               <td>
-                <span className={`dms-card-status is-${document.status}`}>
-                  {document.statusLabel}
+                <span className={`dms-card-status is-${project.status}`}>
+                  {project.statusLabel}
                 </span>
               </td>
               <td className="dms-table-menu-cell">
-                <DocumentMenu
-                  document={document}
+                <ProjectMenu
+                  project={project}
                   onEdit={onEdit}
                   onDelete={onDelete}
                 />

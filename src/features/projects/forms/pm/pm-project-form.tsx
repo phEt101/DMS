@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useToast } from "../../../../components/toast-provider";
-import { createDocument, updateDocument } from "../../services/documentsService";
+import { createProject, updateProject } from "../../services/projectsService";
 import { PmLocationPicker } from "./pm-location-picker";
 
-interface PmDocumentFormValues {
+interface PmProjectFormValues {
   projectName: string;
   customerName: string;
   projectManager: string;
@@ -16,25 +16,25 @@ interface PmDocumentFormValues {
   plannedEndDate: string;
 }
 
-interface PmDocumentFormProps {
+interface PmProjectFormProps {
   mode: "create" | "edit";
-  documentId?: string;
-  documentTypeId: number;
-  initialValues?: Partial<PmDocumentFormValues>;
+  projectId?: string;
+  projectTypeId: number;
+  initialValues?: Partial<PmProjectFormValues>;
   onClose: () => void;
   onSaved: () => void;
 }
 
 const REQUIRED_FIELD_MESSAGE = "กรุณาระบุข้อมูล";
 
-export function PmDocumentForm({
+export function PmProjectForm({
   mode,
-  documentId,
-  documentTypeId,
+  projectId,
+  projectTypeId,
   initialValues,
   onClose,
   onSaved,
-}: PmDocumentFormProps) {
+}: PmProjectFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useToast();
 
@@ -45,7 +45,7 @@ export function PmDocumentForm({
     watch,
     setFocus,
     formState: { errors },
-  } = useForm<PmDocumentFormValues>({
+  } = useForm<PmProjectFormValues>({
     defaultValues: {
       projectName: initialValues?.projectName ?? "",
       customerName: initialValues?.customerName ?? "",
@@ -65,8 +65,8 @@ export function PmDocumentForm({
   const onSubmit = handleSubmit(
     async (values) => {
       try {
-        if (!documentTypeId) {
-          throw new Error("ไม่พบประเภทเอกสารสำหรับการบันทึก");
+        if (!projectTypeId) {
+          throw new Error("ไม่พบประเภทโครงการสำหรับการบันทึก");
         }
 
         setIsSubmitting(true);
@@ -74,7 +74,7 @@ export function PmDocumentForm({
       const payload = {
         projectName: values.projectName.trim(),
         description: values.projectDescription.trim() || null,
-        documentTypeId,
+        projectTypeId,
         projectManagerName: values.projectManager.trim() || "System",
         customerName: values.customerName.trim() || null,
         siteAddress: values.siteAddress.trim() || null,
@@ -85,10 +85,10 @@ export function PmDocumentForm({
       };
 
         if (mode === "edit") {
-          if (!documentId) throw new Error("ไม่พบเอกสารที่ต้องการแก้ไข");
-          await updateDocument(documentId, payload);
+          if (!projectId) throw new Error("ไม่พบโครงการที่ต้องการแก้ไข");
+          await updateProject(projectId, payload);
         } else {
-          await createDocument(payload);
+          await createProject(payload);
         }
 
         showToast(mode === "edit" ? "แก้ไขโครงการ PM สำเร็จ" : "บันทึกโครงการ PM สำเร็จ", "success");

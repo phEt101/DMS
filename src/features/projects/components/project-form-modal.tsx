@@ -1,20 +1,20 @@
 import * as RadixDialog from "@radix-ui/react-dialog";
 import { FaPlus, FaXmark } from "react-icons/fa6";
-import { PmDocumentForm } from "../forms/pm/pm-document-form";
-import type { ApiDocumentType, DocItem, DocumentTypeId } from "../page";
+import { PmProjectForm } from "../forms/pm/pm-project-form";
+import type { ApiProjectType, ProjectItem, ProjectTypeId } from "../page";
 
-export function DocumentFormModal({
+export function ProjectFormModal({
   open,
-  documentType,
+  projectType,
   selectedTypeId,
-  editingDocument,
+  editingProject,
   onOpenChange,
   onSaved,
 }: {
   open: boolean;
-  documentType: ApiDocumentType | null;
-  selectedTypeId: DocumentTypeId | null;
-  editingDocument: DocItem | null;
+  projectType: ApiProjectType | null;
+  selectedTypeId: ProjectTypeId | null;
+  editingProject: ProjectItem | null;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
@@ -27,15 +27,15 @@ export function DocumentFormModal({
           onInteractOutside={(event) => event.preventDefault()}
         >
           <RadixDialog.Title className="dms-modal-title">
-            {editingDocument ? "แก้ไข" : "สร้าง"}:{" "}
-            {documentType?.name ?? "เอกสาร"}
+            {editingProject ? "แก้ไข" : "สร้าง"}:{" "}
+            {projectType?.name ?? "โครงการ"}
           </RadixDialog.Title>
           <RadixDialog.Description className="dms-modal-subtitle">
-            {documentType
-              ? editingDocument
+            {projectType
+              ? editingProject
                 ? "แก้ไขข้อมูลโครงการ PM"
                 : "กรอกข้อมูลสำหรับสร้างโครงการ PM"
-              : "กำลังเตรียมข้อมูลประเภทเอกสาร"}
+              : "กำลังเตรียมข้อมูลประเภทโครงการ"}
           </RadixDialog.Description>
           <RadixDialog.Close asChild>
             <button
@@ -47,29 +47,29 @@ export function DocumentFormModal({
             </button>
           </RadixDialog.Close>
           <div className="dms-create-doc-body">
-            {documentType ? (
-              <PmDocumentForm
-                mode={editingDocument ? "edit" : "create"}
-                documentId={editingDocument?.encryptedId}
-                documentTypeId={documentType.id}
+            {projectType ? (
+              <PmProjectForm
+                mode={editingProject ? "edit" : "create"}
+                projectId={editingProject?.encryptedId}
+                projectTypeId={projectType.id}
                 initialValues={
-                  editingDocument
+                  editingProject
                     ? {
-                        projectName: editingDocument.name,
+                        projectName: editingProject.name,
                         customerName:
-                          editingDocument.customerName === "—"
+                          editingProject.customerName === "—"
                             ? ""
-                            : editingDocument.customerName,
+                            : editingProject.customerName,
                         projectManager:
-                          editingDocument.projectManagerName === "—"
+                          editingProject.projectManagerName === "—"
                             ? ""
-                            : editingDocument.projectManagerName,
-                        siteAddress: editingDocument.siteAddress,
-                        latitude: editingDocument.latitude,
-                        longitude: editingDocument.longitude,
-                        projectDescription: editingDocument.projectDescription,
-                        plannedStartDate: editingDocument.plannedStartDate,
-                        plannedEndDate: editingDocument.plannedEndDate,
+                            : editingProject.projectManagerName,
+                        siteAddress: editingProject.siteAddress,
+                        latitude: editingProject.latitude,
+                        longitude: editingProject.longitude,
+                        projectDescription: editingProject.projectDescription,
+                        plannedStartDate: editingProject.plannedStartDate,
+                        plannedEndDate: editingProject.plannedEndDate,
                       }
                     : undefined
                 }
@@ -80,7 +80,7 @@ export function DocumentFormModal({
               <div className="dms-create-doc-placeholder is-form">
                 <FaPlus className="dms-create-placeholder-icon" />
                 <div className="dms-create-doc-type-summary">
-                  ประเภท: <strong>ยังไม่พบข้อมูลประเภทเอกสาร</strong>
+                  ประเภท: <strong>ยังไม่พบข้อมูลประเภทโครงการ</strong>
                   <span className="dms-pill-id">#ID {selectedTypeId}</span>
                 </div>
                 <p className="dms-create-doc-hint">

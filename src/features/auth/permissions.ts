@@ -2,7 +2,7 @@ import type { AuthUser } from "./types/auth.types";
 
 export const viewPermissionByModule: Record<string, string> = {
   dashboard: "เข้าถึงเมนูแดชบอร์ด",
-  documents: "เข้าถึงเมนูเอกสาร",
+  projects: "เข้าถึงเมนูโครงการ",
   reports: "เข้าถึงเมนูรายงาน",
   trash: "เข้าถึงเมนูถังขยะ",
   users: "เข้าถึงเมนูผู้ใช้งาน",
@@ -15,7 +15,7 @@ export const viewPermissionByModule: Record<string, string> = {
 
 const legacyViewPermissionsByModule: Record<string, string[]> = {
   dashboard: ["ดูแดชบอร์ด"],
-  documents: ["ดูเอกสาร"],
+  projects: ["ดูโครงการ"],
   reports: ["ดูรายงาน"],
   trash: ["ดูถังขยะ"],
   users: ["ดูผู้ใช้งาน"],

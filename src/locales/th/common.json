@@ -42,10 +42,10 @@
       "title": "ภาพรวมระบบ",
       "subtitle": "สรุปสถานะงานและกิจกรรมล่าสุด"
     },
-    "documents": {
-      "kicker": "เอกสารทั้งหมด",
-      "title": "รายการเอกสาร",
-      "subtitle": "จัดการเอกสารทั้งหมดจากหน้านี้"
+    "projects": {
+      "kicker": "โครงการทั้งหมด",
+      "title": "รายการโครงการ",
+      "subtitle": "จัดการโครงการทั้งหมดจากหน้านี้"
     },
     "report": {
       "kicker": "รายงาน",
@@ -132,7 +132,7 @@
       "permissionsFor": "สิทธิ์ของบทบาท",
       "permissionModules": {
         "dashboard": "แดชบอร์ด",
-        "documents": "เอกสาร",
+        "projects": "โครงการ",
         "reports": "รายงาน",
         "trash": "ขยะ",
         "users": "ผู้ใช้",
@@ -173,7 +173,7 @@
         "departments": "จัดการแผนก",
         "modules": "จัดการโมดูล",
         "permissions": "จัดการสิทธิ์",
-        "documents": "เอกสาร",
+        "projects": "โครงการ",
         "reports": "รายงาน",
         "trash": "ถังขยะ",
         "activity_logs": "บันทึกกิจกรรม",
@@ -260,7 +260,7 @@
     "brand": "ระบบจัดการเอกสาร",
     "items": {
       "dashboard": "แดชบอร์ด",
-      "documents": "เอกสารทั้งหมด",
+      "projects": "โครงการทั้งหมด",
       "report": "รายงาน",
       "trash": "ถังขยะ"
     }

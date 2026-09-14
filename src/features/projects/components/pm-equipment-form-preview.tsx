@@ -9,17 +9,17 @@ import {
   updatePmEquipment,
   uploadPmEquipmentImages,
   type PmEquipment,
-} from "../services/documentsService";
+} from "../services/projectsService";
 
 export function PmEquipmentFormPreview({
   open,
-  documentId,
+  projectId,
   equipment = null,
   onOpenChange,
   onSaved,
 }: {
   open: boolean;
-  documentId: string;
+  projectId: string;
   equipment?: PmEquipment | null;
   onOpenChange: (open: boolean) => void;
   onSaved: (equipment: PmEquipment) => void;
@@ -62,16 +62,16 @@ export function PmEquipmentFormPreview({
         remarks: remarks.trim(),
       };
       const response = persistedEquipment
-        ? await updatePmEquipment(documentId, persistedEquipment.id, input)
-        : await createPmEquipment(documentId, input);
+        ? await updatePmEquipment(projectId, persistedEquipment.id, input)
+        : await createPmEquipment(projectId, input);
       let savedEquipment = response.data;
       for (const imageId of pendingDeletedImageIds) {
-        const deleted = await deletePmEquipmentImage(documentId, response.data.id, imageId);
+        const deleted = await deletePmEquipmentImage(projectId, response.data.id, imageId);
         savedEquipment = deleted.equipment;
       }
       const uploaded = referenceImages.length
         ? await uploadPmEquipmentImages(
-            documentId,
+            projectId,
             response.data.id,
             [],
             [],
@@ -193,7 +193,7 @@ export function PmEquipmentFormPreview({
                 <div className="dms-equipment-reference-list">
                   {existingReferenceIds.map((id) => {
                     const source = pmEquipmentImageUrl(
-                      documentId,
+                      projectId,
                       persistedEquipment!.id,
                       id,
                     );

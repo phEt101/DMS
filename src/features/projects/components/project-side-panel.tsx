@@ -1,32 +1,32 @@
 import { FaXmark } from "react-icons/fa6";
-import type { DocItem } from "../page";
+import type { ProjectItem } from "../page";
 import { getInitials } from "../page";
 
-export function DocumentSidePanel({
-  document,
+export function ProjectSidePanel({
+  project,
   onClose,
   onOpen,
 }: {
-  document: DocItem;
+  project: ProjectItem;
   onClose: () => void;
   onOpen: (id: string) => void;
 }) {
   const collaborators = [
-    { name: document.projectManagerName, role: "ผู้จัดการโครงการ" },
-    { name: document.customerName, role: "ลูกค้า" },
-    ...document.operatorNames.map((name) => ({ name, role: "ผู้ดำเนินการ" })),
+    { name: project.projectManagerName, role: "ผู้จัดการโครงการ" },
+    { name: project.customerName, role: "ลูกค้า" },
+    ...project.operatorNames.map((name) => ({ name, role: "ผู้ดำเนินการ" })),
   ].filter((person) => person.name && person.name !== "—");
   const metadata = [
-    ["Size", document.size],
-    ["Created", document.createdAt],
-    ["Created By", document.uploadedBy],
-    ["Last Modified", document.updatedAt],
-    ["Updated By", document.lastModifiedBy],
+    ["Size", project.size],
+    ["Created", project.createdAt],
+    ["Created By", project.uploadedBy],
+    ["Last Modified", project.updatedAt],
+    ["Updated By", project.lastModifiedBy],
   ];
   return (
     <aside className="dms-col-side">
       <div className="dms-side-head">
-        <h3>DOCUMENT DETAILS</h3>
+        <h3>PROJECT DETAILS</h3>
         <button type="button" className="dms-side-close" onClick={onClose}>
           <FaXmark />
         </button>
@@ -35,15 +35,15 @@ export function DocumentSidePanel({
         <button
           type="button"
           className="dms-preview-open"
-          onClick={() => onOpen(document.encryptedId)}
+          onClick={() => onOpen(project.encryptedId)}
         >
           Open
         </button>
       </div>
       <div className="dms-side-title-row">
-        <h2 className="dms-side-name">{document.name}</h2>
-        <span className={`dms-card-status is-${document.status}`}>
-          {document.statusLabel}
+        <h2 className="dms-side-name">{project.name}</h2>
+        <span className={`dms-card-status is-${project.status}`}>
+          {project.statusLabel}
         </span>
       </div>
       <div className="dms-meta-list">

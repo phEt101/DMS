@@ -116,5 +116,5 @@ export type UserFeatureCopy = FeatureCopy & {
   deleteRoleConfirm: string
   deleteRoleError: string
   permissionsFor: string
-  permissionModules: Record<'dashboard' | 'documents' | 'reports' | 'trash' | 'users' | 'roles' | 'departments' | 'permissions' | 'modules' | 'activity_logs', string>
+  permissionModules: Record<'dashboard' | 'projects' | 'reports' | 'trash' | 'users' | 'roles' | 'departments' | 'permissions' | 'modules' | 'activity_logs', string>
 }

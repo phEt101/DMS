@@ -8,11 +8,11 @@ import { buildPages } from './routes/appRoutes'
 import type { AuthUser } from './features/auth/types/auth.types'
 import { canViewModule } from './features/auth/permissions'
 
-type PageKey = 'dashboard' | 'documents' | 'report' | 'trash' | 'settings-user' | 'settings-roles' | 'settings-departments' | 'settings-permissions' | 'settings-modules' | 'settings-activity'
+type PageKey = 'dashboard' | 'projects' | 'report' | 'trash' | 'settings-user' | 'settings-roles' | 'settings-departments' | 'settings-permissions' | 'settings-modules' | 'settings-activity'
 
 const pathByPage: Record<PageKey, string> = {
   dashboard: '/dashboard',
-  documents: '/documents',
+  projects: '/projects',
   report: '/reports',
   trash: '/trash',
   'settings-user': '/settings/users',
@@ -25,7 +25,7 @@ const pathByPage: Record<PageKey, string> = {
 
 const moduleByPage: Record<PageKey, string> = {
   dashboard: 'dashboard',
-  documents: 'documents',
+  projects: 'projects',
   report: 'reports',
   trash: 'trash',
   'settings-user': 'users',
@@ -48,13 +48,13 @@ function firstAccessiblePage(user: AuthUser): PageKey | null {
 
 function pageFromPath(pathname: string): PageKey {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
-  if (/^\/documents\/[A-Za-z0-9_-]{43}$/.test(normalized)) return 'documents'
+  if (/^\/projects\/[A-Za-z0-9_-]{43}$/.test(normalized)) return 'projects'
   return (Object.entries(pathByPage).find(([, path]) => path === normalized)?.[0] as PageKey | undefined) ?? 'dashboard'
 }
 
 function pathMatchesPage(pathname: string, page: PageKey) {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
-  return normalized === pathByPage[page] || (page === 'documents' && /^\/documents\/[A-Za-z0-9_-]{43}$/.test(normalized))
+  return normalized === pathByPage[page] || (page === 'projects' && /^\/projects\/[A-Za-z0-9_-]{43}$/.test(normalized))
 }
 
 export default function App() {

@@ -1,5 +1,5 @@
 import DashboardPage from '../features/dashboard/page'
-import DocumentsPage from '../features/documents/page'
+import ProjectsPage from '../features/projects/page'
 import ReportPage from '../features/report/page'
 import TrashPage from '../features/trash/page'
 import SettingsAccessPage from '../features/settings/access/page'
@@ -10,7 +10,7 @@ import type { Language, Translations } from '../locales'
 export function buildPages(translations: Translations, language: Language) {
   return {
     dashboard: <DashboardPage translations={translations} />,
-    documents: <DocumentsPage translations={translations} />,
+    projects: <ProjectsPage translations={translations} />,
     report: <ReportPage translations={translations} />,
     trash: <TrashPage translations={translations} />,
     'settings-user': <SettingsUsersPage translations={translations} />,
