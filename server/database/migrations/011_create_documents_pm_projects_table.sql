@@ -1,6 +1,6 @@
-CREATE TABLE IF NOT EXISTS documents_pm_projects (
+CREATE TABLE IF NOT EXISTS pm_projects (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'รหัสโครงการ PM',
-  document_id BIGINT UNSIGNED NOT NULL COMMENT 'รหัสเอกสารหลักของโครงการ PM',
+  project_id BIGINT UNSIGNED NOT NULL COMMENT 'รหัสโครงการหลักของโครงการ PM',
   contract_no VARCHAR(100) NULL COMMENT 'เลขที่สัญญา เช่น BSV-2569-0087',
   site_title VARCHAR(200) NULL COMMENT 'ชื่อทางการของสถานที่',
   site_name VARCHAR(191) NULL COMMENT 'ชื่อย่อของสถานที่ที่ใช้ภายในทีม',
@@ -24,22 +24,22 @@ CREATE TABLE IF NOT EXISTS documents_pm_projects (
   deleted_at TIMESTAMP NULL COMMENT 'วันที่และเวลาที่ลบแบบ soft delete; NULL=ยังไม่ถูกลบ',
   is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'สถานะลบแบบ soft delete: 0=ใช้งาน, 1=ลบแล้ว',
   PRIMARY KEY (id),
-  UNIQUE KEY documents_pm_projects_document_id_is_deleted_unique (document_id, is_deleted),
-  UNIQUE KEY documents_pm_projects_contract_no_is_deleted_unique (contract_no, is_deleted),
-  KEY documents_pm_projects_site_name_index (site_name),
-  KEY documents_pm_projects_projects_name_index (projects_name),
-  KEY documents_pm_projects_project_status_index (project_status),
-  KEY documents_pm_projects_planned_start_date_index (planned_start_date),
-  KEY documents_pm_projects_actual_start_date_index (actual_start_date),
-  KEY documents_pm_projects_is_deleted_index (is_deleted),
-  KEY documents_pm_projects_deleted_at_index (deleted_at),
-  CONSTRAINT documents_pm_projects_document_fk FOREIGN KEY (document_id)
-    REFERENCES documents (id) ON DELETE CASCADE,
-  CONSTRAINT documents_pm_projects_created_by_fk FOREIGN KEY (created_by)
+  UNIQUE KEY pm_projects_project_id_is_deleted_unique (project_id, is_deleted),
+  UNIQUE KEY pm_projects_contract_no_is_deleted_unique (contract_no, is_deleted),
+  KEY pm_projects_site_name_index (site_name),
+  KEY pm_projects_projects_name_index (projects_name),
+  KEY pm_projects_project_status_index (project_status),
+  KEY pm_projects_planned_start_date_index (planned_start_date),
+  KEY pm_projects_actual_start_date_index (actual_start_date),
+  KEY pm_projects_is_deleted_index (is_deleted),
+  KEY pm_projects_deleted_at_index (deleted_at),
+  CONSTRAINT pm_projects_project_fk FOREIGN KEY (project_id)
+    REFERENCES projects (id) ON DELETE CASCADE,
+  CONSTRAINT pm_projects_created_by_fk FOREIGN KEY (created_by)
     REFERENCES users (id) ON DELETE SET NULL,
-  CONSTRAINT documents_pm_projects_updated_by_fk FOREIGN KEY (updated_by)
+  CONSTRAINT pm_projects_updated_by_fk FOREIGN KEY (updated_by)
     REFERENCES users (id) ON DELETE SET NULL,
-  CONSTRAINT documents_pm_projects_deleted_by_fk FOREIGN KEY (deleted_by)
+  CONSTRAINT pm_projects_deleted_by_fk FOREIGN KEY (deleted_by)
     REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='รายละเอียดโครงการบำรุงรักษาเชิงป้องกัน';
