@@ -1,32 +1,36 @@
 import { FaXmark } from "react-icons/fa6";
-import type { ProjectItem } from "../page";
+import type { CommonTranslations, ProjectTranslations, ProjectItem } from "../page";
 import { getInitials } from "../page";
 
 export function ProjectSidePanel({
+  projectTranslations,
+  commonTranslations,
   project,
   onClose,
   onOpen,
 }: {
+  projectTranslations: ProjectTranslations;
+  commonTranslations: CommonTranslations;
   project: ProjectItem;
   onClose: () => void;
   onOpen: (id: string) => void;
 }) {
   const collaborators = [
-    { name: project.projectManagerName, role: "ผู้จัดการโครงการ" },
-    { name: project.customerName, role: "ลูกค้า" },
-    ...project.operatorNames.map((name) => ({ name, role: "ผู้ดำเนินการ" })),
+    { name: project.projectManagerName, role: projectTranslations.detail.managerRole },
+    { name: project.customerName, role: projectTranslations.detail.customerRole },
+    ...project.operatorNames.map((name) => ({ name, role: projectTranslations.detail.operatorRole })),
   ].filter((person) => person.name && person.name !== "—");
   const metadata = [
-    ["Size", project.size],
-    ["Created", project.createdAt],
-    ["Created By", project.uploadedBy],
-    ["Last Modified", project.updatedAt],
-    ["Updated By", project.lastModifiedBy],
+    [projectTranslations.detail.size, project.size],
+    [projectTranslations.detail.created, project.createdAt],
+    [projectTranslations.detail.createdBy, project.uploadedBy],
+    [commonTranslations.labels.lastModified, project.updatedAt],
+    [projectTranslations.detail.updatedBy, project.lastModifiedBy],
   ];
   return (
     <aside className="dms-col-side">
       <div className="dms-side-head">
-        <h3>PROJECT DETAILS</h3>
+        <h3>{projectTranslations.detail.details}</h3>
         <button type="button" className="dms-side-close" onClick={onClose}>
           <FaXmark />
         </button>
@@ -37,7 +41,7 @@ export function ProjectSidePanel({
           className="dms-preview-open"
           onClick={() => onOpen(project.encryptedId)}
         >
-          Open
+          {projectTranslations.detail.open}
         </button>
       </div>
       <div className="dms-side-title-row">
@@ -55,7 +59,7 @@ export function ProjectSidePanel({
         ))}
       </div>
       <div className="dms-section-head">
-        <h4>ผู้มีส่วนร่วม</h4>
+        <h4>{projectTranslations.detail.contributors}</h4>
       </div>
       <div className="dms-people-list">
         {collaborators.length ? (

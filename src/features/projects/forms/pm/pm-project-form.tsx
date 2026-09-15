@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { useToast } from "../../../../components/toast-provider";
 import { createProject, updateProject } from "../../services/projectsService";
 import { PmLocationPicker } from "./pm-location-picker";
+import type { CommonTranslations, ProjectTranslations } from "../../page";
 
 interface PmProjectFormValues {
   projectName: string;
@@ -17,6 +18,8 @@ interface PmProjectFormValues {
 }
 
 interface PmProjectFormProps {
+  projectTranslations: ProjectTranslations;
+  commonTranslations: CommonTranslations;
   mode: "create" | "edit";
   projectId?: string;
   projectTypeId: number;
@@ -25,9 +28,9 @@ interface PmProjectFormProps {
   onSaved: () => void;
 }
 
-const REQUIRED_FIELD_MESSAGE = "กรุณาระบุข้อมูล";
-
 export function PmProjectForm({
+  projectTranslations,
+  commonTranslations,
   mode,
   projectId,
   projectTypeId,
@@ -66,7 +69,7 @@ export function PmProjectForm({
     async (values) => {
       try {
         if (!projectTypeId) {
-          throw new Error("ไม่พบประเภทโครงการสำหรับการบันทึก");
+          throw new Error(projectTranslations.projectForm.typeMissing);
         }
 
         setIsSubmitting(true);
@@ -85,19 +88,19 @@ export function PmProjectForm({
       };
 
         if (mode === "edit") {
-          if (!projectId) throw new Error("ไม่พบโครงการที่ต้องการแก้ไข");
+          if (!projectId) throw new Error(projectTranslations.projectForm.projectMissing);
           await updateProject(projectId, payload);
         } else {
           await createProject(payload);
         }
 
-        showToast(mode === "edit" ? "แก้ไขโครงการ PM สำเร็จ" : "บันทึกโครงการ PM สำเร็จ", "success");
+        showToast(mode === "edit" ? projectTranslations.projectForm.updated : projectTranslations.projectForm.created, "success");
         onSaved();
         onClose();
       } catch (error) {
         console.error("Failed to create PM document", error);
         showToast(
-          error instanceof Error ? error.message : "บันทึกโครงการ PM ไม่สำเร็จ",
+          error instanceof Error ? error.message : projectTranslations.projectForm.saveError,
           "error",
         );
       } finally {
@@ -111,7 +114,7 @@ export function PmProjectForm({
         errors.siteAddress?.message ??
         errors.plannedStartDate?.message ??
         errors.plannedEndDate?.message ??
-        "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน";
+        projectTranslations.projectForm.requiredSummary;
 
       const firstErrorField =
         errors.projectName ? "projectName" :
@@ -133,7 +136,7 @@ export function PmProjectForm({
       <div className="dms-pm-create-grid">
         <label className="dms-form-field">
           <span className="dms-form-label">
-            ชื่อโครงการ  <span className="dms-form-required">*</span>
+            {projectTranslations.projectForm.projectName} <span className="dms-form-required">*</span>
             {errors.projectName ? (
               <span className="dms-form-error dms-form-error--inline">
                 {errors.projectName.message}
@@ -143,17 +146,17 @@ export function PmProjectForm({
           <input
             type="text"
             className="dms-form-input"
-            placeholder="เช่น ระบบกล้องวงจรปิดสำนักงานใหญ่"
+            placeholder={projectTranslations.projectForm.projectNamePlaceholder}
             autoComplete="off"
             {...register("projectName", {
-              required: REQUIRED_FIELD_MESSAGE,
+              required: projectTranslations.projectForm.required,
             })}
           />
         </label>
 
         <label className="dms-form-field">
           <span className="dms-form-label">
-            ลูกค้า / ผู้ว่าจ้าง <span className="dms-form-required">*</span>
+            {projectTranslations.projectForm.customer} <span className="dms-form-required">*</span>
             {errors.customerName ? (
               <span className="dms-form-error dms-form-error--inline">
                 {errors.customerName.message}
@@ -163,20 +166,20 @@ export function PmProjectForm({
           <input
             type="text"
             className="dms-form-input"
-            placeholder="ระบุชื่อลูกค้า / ผู้ว่าจ้าง"
+            placeholder={projectTranslations.projectForm.customerPlaceholder}
             autoComplete="off"
             {...register("customerName", {
-              required: REQUIRED_FIELD_MESSAGE,
+              required: projectTranslations.projectForm.required,
             })}
           />
         </label>
 
         <label className="dms-form-field">
-          <span className="dms-form-label">ผู้จัดการโครงการ</span>
+          <span className="dms-form-label">{projectTranslations.projectForm.projectManager}</span>
           <input
             type="text"
             className="dms-form-input"
-            placeholder="ระบุชื่อผู้จัดการโครงการ"
+            placeholder={projectTranslations.projectForm.projectManagerPlaceholder}
             autoComplete="off"
             {...register("projectManager")}
           />
@@ -184,7 +187,7 @@ export function PmProjectForm({
 
         <label className="dms-form-field dms-form-field--full">
           <span className="dms-form-label">
-            ที่อยู่ / สถานที่ <span className="dms-form-required">*</span>
+            {projectTranslations.projectForm.siteAddress} <span className="dms-form-required">*</span>
             {errors.siteAddress ? (
               <span className="dms-form-error dms-form-error--inline">
                 {errors.siteAddress.message}
@@ -193,10 +196,10 @@ export function PmProjectForm({
           </span>
           <textarea
             className="dms-form-input dms-form-textarea dms-form-textarea--sm"
-            placeholder="ระบุสถานที่ติดตั้ง / พื้นที่ดำเนินงาน"
+            placeholder={projectTranslations.projectForm.siteAddressPlaceholder}
             autoComplete="off"
             {...register("siteAddress", {
-              required: REQUIRED_FIELD_MESSAGE,
+              required: projectTranslations.projectForm.required,
             })}
           />
         </label>
@@ -204,11 +207,12 @@ export function PmProjectForm({
 
       <section className="dms-pm-create-section">
         <div className="dms-pm-create-section-head">
-          <h4>ตำแหน่งพิกัด</h4>
-          <p>ค้นหาสถานที่บนแผนที่หรือคลิกเลือกจุดหน้างานได้ในพื้นที่เดียวกัน</p>
+          <h4>{projectTranslations.projectForm.coordinates}</h4>
+          <p>{projectTranslations.projectForm.coordinatesHelp}</p>
         </div>
 
         <PmLocationPicker
+          projectTranslations={projectTranslations}
           latitude={latitude}
           longitude={longitude}
           onChange={({ latitude: nextLatitude, longitude: nextLongitude }) => {
@@ -224,10 +228,10 @@ export function PmProjectForm({
       <section className="dms-pm-create-section">
         <div className="dms-pm-create-grid">
           <label className="dms-form-field dms-form-field--full">
-            <span className="dms-form-label">รายละเอียดโครงการ</span>
+            <span className="dms-form-label">{projectTranslations.projectForm.description}</span>
             <textarea
               className="dms-form-input dms-form-textarea"
-              placeholder="อธิบายขอบเขตงาน / หมายเหตุสำคัญ / รายละเอียดหน้างาน"
+              placeholder={projectTranslations.projectForm.descriptionPlaceholder}
               autoComplete="off"
               {...register("projectDescription")}
             />
@@ -235,7 +239,7 @@ export function PmProjectForm({
 
           <label className="dms-form-field">
             <span className="dms-form-label">
-              วันที่วางแผนเริ่มดำเนินงาน <span className="dms-form-required">*</span>
+              {projectTranslations.projectForm.startDate} <span className="dms-form-required">*</span>
               {errors.plannedStartDate ? (
                 <span className="dms-form-error dms-form-error--inline">
                   {errors.plannedStartDate.message}
@@ -247,14 +251,14 @@ export function PmProjectForm({
               className="dms-form-input"
               autoComplete="off"
               {...register("plannedStartDate", {
-                required: REQUIRED_FIELD_MESSAGE,
+                required: projectTranslations.projectForm.required,
               })}
             />
           </label>
 
           <label className="dms-form-field">
             <span className="dms-form-label">
-              วันที่วางแผนเสร็จงาน <span className="dms-form-required">*</span>
+              {projectTranslations.projectForm.endDate} <span className="dms-form-required">*</span>
               {errors.plannedEndDate ? (
                 <span className="dms-form-error dms-form-error--inline">
                   {errors.plannedEndDate.message}
@@ -266,7 +270,7 @@ export function PmProjectForm({
               className="dms-form-input"
               autoComplete="off"
               {...register("plannedEndDate", {
-                required: REQUIRED_FIELD_MESSAGE,
+                required: projectTranslations.projectForm.required,
               })}
             />
           </label>
@@ -275,10 +279,10 @@ export function PmProjectForm({
 
       <div className="dms-pm-create-footer">
         <button type="button" className="dms-back-btn" onClick={onClose}>
-          ปิดหน้าต่าง
+          {projectTranslations.projectForm.close}
         </button>
         <button type="submit" className="dms-pm-submit-btn" disabled={isSubmitting}>
-          {isSubmitting ? "กำลังบันทึก..." : mode === "edit" ? "บันทึกการแก้ไข" : "บันทึกโครงการ"}
+          {isSubmitting ? commonTranslations.states.saving : mode === "edit" ? commonTranslations.actions.saveChanges : projectTranslations.projectForm.save}
         </button>
       </div>
     </form>

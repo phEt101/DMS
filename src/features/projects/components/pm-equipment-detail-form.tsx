@@ -23,26 +23,27 @@ import {
   type PmEquipmentWorkDetail,
   type PmEquipmentWorkDetailSection,
 } from "../services/projectsService";
+import type { CommonTranslations, ProjectTranslations } from "../page";
 
-const sections: Array<{
+const getSections = (projectTranslations: ProjectTranslations["workDetailForm"]): Array<{
   value: PmEquipmentWorkDetailSection;
   label: string;
   placeholder: string;
-}> = [
+}> => [
   {
     value: "cause",
-    label: "ผลการตรวจสอบ",
-    placeholder: "ระบุสาเหตุที่ตรวจพบจากการตรวจสอบ",
+    label: projectTranslations.cause,
+    placeholder: projectTranslations.causePlaceholder,
   },
   {
     value: "action",
-    label: "วิธีการซ่อมและแก้ไข",
-    placeholder: "ระบุวิธีดำเนินการแก้ไข",
+    label: projectTranslations.action,
+    placeholder: projectTranslations.actionPlaceholder,
   },
   {
     value: "result",
-    label: "ผลการตรวจซ่อม",
-    placeholder: "ระบุผลหลังดำเนินการ",
+    label: projectTranslations.result,
+    placeholder: projectTranslations.resultPlaceholder,
   },
 ];
 const emptyDetails = (): Record<PmEquipmentWorkDetailSection, string[]> => ({
@@ -51,11 +52,6 @@ const emptyDetails = (): Record<PmEquipmentWorkDetailSection, string[]> => ({
   result: [""],
 });
 type StatusMode = "automatic" | "on_hold" | "waiting_parts";
-const statusModeLabels: Record<StatusMode, string> = {
-  automatic: "ตามความคืบหน้าอัตโนมัติ",
-  on_hold: "ระงับ",
-  waiting_parts: "รออะไหล่",
-};
 
 export function PmEquipmentDetailForm({
   open,
@@ -64,6 +60,8 @@ export function PmEquipmentDetailForm({
   equipment,
   onOpenChange,
   onSaved,
+  projectTranslations,
+  commonTranslations,
 }: {
   open: boolean;
   readOnly?: boolean;
@@ -71,7 +69,15 @@ export function PmEquipmentDetailForm({
   equipment: PmEquipment | null;
   onOpenChange: (open: boolean) => void;
   onSaved: (equipment: PmEquipment) => void;
+  projectTranslations: ProjectTranslations["workDetailForm"];
+  commonTranslations: CommonTranslations;
 }) {
+  const sections = getSections(projectTranslations);
+  const statusModeLabels: Record<StatusMode, string> = {
+    automatic: projectTranslations.automatic,
+    on_hold: projectTranslations.onHold,
+    waiting_parts: projectTranslations.waitingParts,
+  };
   const [details, setDetails] = useState(emptyDetails);
   const [activeSection, setActiveSection] =
     useState<PmEquipmentWorkDetailSection>("cause");
@@ -136,7 +142,7 @@ export function PmEquipmentDetailForm({
       .catch((error) => {
         if (active)
           setMessage(
-            error instanceof Error ? error.message : "โหลดรายละเอียดไม่สำเร็จ",
+            error instanceof Error ? error.message : projectTranslations.loadError,
           );
       })
       .finally(() => {
@@ -145,7 +151,7 @@ export function PmEquipmentDetailForm({
     return () => {
       active = false;
     };
-  }, [projectId, equipment, open]);
+  }, [projectTranslations.loadError, projectId, equipment, open]);
 
   useEffect(() => {
     if (!previewImage) return;
@@ -271,7 +277,7 @@ export function PmEquipmentDetailForm({
       onOpenChange(false);
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "บันทึกรายละเอียดไม่สำเร็จ",
+        error instanceof Error ? error.message : projectTranslations.saveError,
       );
     } finally {
       setSaving(false);
@@ -287,36 +293,36 @@ export function PmEquipmentDetailForm({
           onInteractOutside={(event) => event.preventDefault()}
         >
           <Dialog.Title className="dms-modal-title">
-            {readOnly ? "ข้อมูลอุปกรณ์" : "กรอกรายละเอียด"}
+            {readOnly ? projectTranslations.viewTitle : projectTranslations.editTitle}
           </Dialog.Title>
           <Dialog.Description className="dms-modal-subtitle">
             {equipment?.equipmentName}
             {equipment?.equipmentModel ? ` • ${equipment.equipmentModel}` : ""}
           </Dialog.Description>
           <Dialog.Close asChild>
-            <button type="button" className="modal-close" aria-label="ปิด">
+            <button type="button" className="modal-close" aria-label={commonTranslations.actions.close}>
               <FaXmark />
             </button>
           </Dialog.Close>
           <div className="dms-equipment-detail-body">
             {equipment?.faultSymptom && (
               <div className="dms-equipment-detail-symptom">
-                <span>อาการขัดข้อง</span>
+                <span>{projectTranslations.faultSymptom}</span>
                 <p>{equipment.faultSymptom}</p>
               </div>
             )}
             {loading ? (
-              <p className="dms-equipment-detail-state">กำลังโหลด...</p>
+              <p className="dms-equipment-detail-state">{commonTranslations.states.loading}</p>
             ) : (
               <div className="dms-equipment-simple-form">
                 <div className="dms-equipment-detail-controls">
                 <div className="dms-equipment-simple-operators">
-                  <span>ผู้ดำเนินการ</span>
+                  <span>{projectTranslations.operators}</span>
                   {readOnly ? (
                     <div className="dms-equipment-read-value">
                       {selectedUsers.length
                         ? selectedUsers.map((user) => user.name).join(" • ")
-                        : "ยังไม่กำหนด"}
+                        : commonTranslations.states.unassigned}
                     </div>
                   ) : (
                     <>
@@ -331,7 +337,7 @@ export function PmEquipmentDetailForm({
                                 ? selectedUsers
                                     .map((user) => user.name)
                                     .join(", ")
-                                : "เลือกผู้ดำเนินการ"}
+                                : projectTranslations.selectOperators}
                             </span>
                             <FaChevronDown />
                           </button>
@@ -348,7 +354,7 @@ export function PmEquipmentDetailForm({
                                 setOperatorSearch(event.target.value)
                               }
                               onKeyDown={(event) => event.stopPropagation()}
-                              placeholder="ค้นหาผู้ใช้งาน"
+                              placeholder={projectTranslations.searchUsers}
                             />
                             {filteredUsers.map((user) => {
                               const selected = operatorIds.includes(user.id);
@@ -378,19 +384,19 @@ export function PmEquipmentDetailForm({
                           </DropdownMenu.Content>
                         </DropdownMenu.Portal>
                       </DropdownMenu.Root>
-                      <small>เลือกได้สูงสุด 3 คน</small>
+                      <small>{projectTranslations.operatorLimit}</small>
                     </>
                   )}
                 </div>
                 <div className="dms-equipment-simple-status">
-                  <span>สถานะการดำเนินงาน</span>
+                  <span>{projectTranslations.workStatus}</span>
                   {readOnly ? (
                     <div className="dms-equipment-read-value">
                       {equipment?.workOrderStatus === "on_hold"
-                        ? "ระงับ"
+                        ? projectTranslations.onHold
                         : equipment?.workOrderStatus === "waiting_parts"
-                          ? "รออะไหล่"
-                          : "ตามความคืบหน้าของข้อมูล"}
+                          ? projectTranslations.waitingParts
+                          : projectTranslations.automaticRead}
                     </div>
                   ) : (
                     <DropdownMenu.Root>
@@ -430,7 +436,7 @@ export function PmEquipmentDetailForm({
                   )}
                   {!readOnly && (
                     <small>
-                      โหมดอัตโนมัติจะคำนวณจากผลตรวจสอบ วิธีแก้ไข ผลตรวจซ่อม และรูปภาพ
+                      {projectTranslations.automaticHelp}
                     </small>
                   )}
                 </div>
@@ -465,11 +471,11 @@ export function PmEquipmentDetailForm({
                           )?.label
                         }
                       </h3>
-                      {!readOnly && <p>เพิ่มเฉพาะจำนวนรายการที่ต้องใช้</p>}
+                      {!readOnly && <p>{projectTranslations.itemHelp}</p>}
                     </div>
                     {!readOnly && (
                       <button type="button" onClick={addDetail}>
-                        + เพิ่มรายการ
+                        {projectTranslations.addItem}
                       </button>
                     )}
                   </div>
@@ -493,7 +499,7 @@ export function PmEquipmentDetailForm({
                         ))
                     ) : (
                       <p className="dms-equipment-empty-value">
-                        ยังไม่มีข้อมูล
+                        {commonTranslations.states.noData}
                       </p>
                     )
                   ) : (
@@ -523,7 +529,7 @@ export function PmEquipmentDetailForm({
                         {details[activeSection].length > 1 && (
                           <button
                             type="button"
-                            aria-label={`ลบรายการ ${index + 1}`}
+                            aria-label={projectTranslations.deleteItem.replace("{index}", String(index + 1))}
                             onClick={() => removeDetail(index)}
                           >
                             <FaXmark />
@@ -535,22 +541,22 @@ export function PmEquipmentDetailForm({
                 </section>
                 <section className="dms-equipment-images">
                   <div className="dms-equipment-detail-heading">
-                    <h3>รูปภาพ</h3>
-                    <small>ก่อนและหลัง อย่างละไม่เกิน 4 รูป</small>
+                    <h3>{projectTranslations.images}</h3>
+                    <small>{projectTranslations.imagesHelp}</small>
                   </div>
                   <div className="dms-equipment-image-groups">
                     {(
                       [
                         {
                           key: "before",
-                          label: "ก่อนดำเนินงาน",
+                          label: projectTranslations.before,
                           existing: existingBeforeIds,
                           files: beforeImages,
                           setFiles: setBeforeImages,
                         },
                         {
                           key: "after",
-                          label: "หลังดำเนินงาน",
+                          label: projectTranslations.after,
                           existing: existingAfterIds,
                           files: afterImages,
                           setFiles: setAfterImages,
@@ -577,7 +583,7 @@ export function PmEquipmentDetailForm({
                                 tabIndex={0}
                                 onClick={() => setPreviewImage(source)}
                               />
-                              {!readOnly && <button type="button" disabled={saving} aria-label="นำรูปภาพออก" onClick={() => setPendingDeletedImageIds((current) => [...current, id])}><FaXmark /></button>}
+                              {!readOnly && <button type="button" disabled={saving} aria-label={commonTranslations.actions.removeImage} onClick={() => setPendingDeletedImageIds((current) => [...current, id])}><FaXmark /></button>}
                             </div>;
                           })}
                           {group.files.map((file, index) => (
@@ -622,7 +628,7 @@ export function PmEquipmentDetailForm({
                             group.existing.length + group.files.length < 4 && (
                               <label className="dms-equipment-image-add">
                                 <FaPlus />
-                                <span>เพิ่มรูป</span>
+                                <span>{commonTranslations.actions.addImage}</span>
                                 <input
                                   type="file"
                                   accept="image/*"
@@ -641,7 +647,7 @@ export function PmEquipmentDetailForm({
                             )}
                           {readOnly && group.existing.length === 0 && (
                             <span className="dms-equipment-empty-image">
-                              <FaImage /> ไม่มีรูปภาพ
+                              <FaImage /> {projectTranslations.noImage}
                             </span>
                           )}
                         </div>
@@ -664,7 +670,7 @@ export function PmEquipmentDetailForm({
               disabled={saving}
               onClick={() => onOpenChange(false)}
             >
-              {readOnly ? "ปิด" : "ยกเลิก"}
+              {readOnly ? commonTranslations.actions.close : commonTranslations.actions.cancel}
             </button>
             {!readOnly && (
               <button
@@ -673,7 +679,7 @@ export function PmEquipmentDetailForm({
                 disabled={loading || saving}
                 onClick={() => void save()}
               >
-                {saving ? "กำลังบันทึก..." : "บันทึก"}
+                {saving ? commonTranslations.states.saving : commonTranslations.actions.save}
               </button>
             )}
           </div>
@@ -685,19 +691,19 @@ export function PmEquipmentDetailForm({
             className="dms-image-lightbox"
             role="dialog"
             aria-modal="true"
-            aria-label="ตัวอย่างรูปภาพขนาดใหญ่"
+            aria-label={projectTranslations.preview}
             onClick={() => setPreviewImage(null)}
           >
             <button
               type="button"
-              aria-label="ปิดรูปภาพ"
+              aria-label={commonTranslations.actions.closeImage}
               onClick={() => setPreviewImage(null)}
             >
               <FaXmark />
             </button>
             <img
               src={previewImage}
-              alt="ตัวอย่างรูปภาพขนาดใหญ่"
+              alt={projectTranslations.preview}
               onClick={(event) => event.stopPropagation()}
             />
           </div>,

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import * as RadixSelect from "@radix-ui/react-select";
 import { FaFilter } from "react-icons/fa6";
+import type { CommonTranslations, ProjectTranslations } from "../page";
 
 export interface ProjectFilters {
   status: "" | "draft" | "approved" | "archived" | "trash";
@@ -73,10 +74,14 @@ function FilterSelect({
 }
 
 export function ProjectFilter({
+  projectTranslations,
+  commonTranslations,
   filters,
   projectTypes,
   onApply,
 }: {
+  projectTranslations: ProjectTranslations;
+  commonTranslations: CommonTranslations;
   filters: ProjectFilters;
   projectTypes: Array<{ id: number; name: string }>;
   onApply: (filters: ProjectFilters) => void;
@@ -110,15 +115,15 @@ export function ProjectFilter({
           }}
         >
           <label className="dms-filter-field">
-            <span>สถานะ</span>
+            <span>{commonTranslations.labels.status}</span>
             <FilterSelect
               value={draft.status}
-              ariaLabel="สถานะ"
-              allLabel="ทุกสถานะ"
+              ariaLabel={commonTranslations.labels.status}
+              allLabel={projectTranslations.filter.allStatuses}
               options={[
-                { value: "draft", label: "วางแผน" },
-                { value: "approved", label: "เริ่มดำเนินงานตามแผนที่วาง" },
-                { value: "archived", label: "เสร็จสิ้น" },
+                { value: "draft", label: projectTranslations.status.planning },
+                { value: "approved", label: projectTranslations.status.active },
+                { value: "archived", label: projectTranslations.status.completed },
               ]}
               onChange={(status) =>
                 setDraft((value) => ({
@@ -129,11 +134,11 @@ export function ProjectFilter({
             />
           </label>
           <label className="dms-filter-field">
-            <span>ประเภทเอกสาร</span>
+            <span>{projectTranslations.filter.projectType}</span>
             <FilterSelect
               value={draft.projectTypeId}
-              ariaLabel="ประเภทเอกสาร"
-              allLabel="ทุกประเภท"
+              ariaLabel={projectTranslations.filter.projectType}
+              allLabel={projectTranslations.filter.allTypes}
               options={projectTypes.map((type) => ({
                 value: String(type.id),
                 label: type.name,
@@ -145,7 +150,7 @@ export function ProjectFilter({
           </label>
           <div className="dms-filter-date-row">
             <label className="dms-filter-field">
-              <span>วันที่แก้ไข ตั้งแต่</span>
+              <span>{projectTranslations.filter.dateFrom}</span>
               <input
                 type="date"
                 value={draft.dateFrom}
@@ -159,7 +164,7 @@ export function ProjectFilter({
               />
             </label>
             <label className="dms-filter-field">
-              <span>ถึงวันที่</span>
+              <span>{projectTranslations.filter.dateTo}</span>
               <input
                 type="date"
                 value={draft.dateTo}
@@ -183,10 +188,10 @@ export function ProjectFilter({
                 setOpen(false);
               }}
             >
-              ล้างตัวกรอง
+              {projectTranslations.filter.clear}
             </button>
             <button type="submit" className="dms-filter-apply">
-              ใช้ตัวกรอง
+              {projectTranslations.filter.apply}
             </button>
           </div>
         </form>

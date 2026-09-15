@@ -44,13 +44,14 @@ export function ProjectMainList(props: {
   onPageSizeChange: (size: number) => void;
 }) {
   const p = props;
+  const projectTranslations = p.translations.features.projects;
   return (
     <section className="dms-col-main">
-      <p className="dms-kicker">Projects</p>
+      <p className="dms-kicker">{projectTranslations.kicker}</p>
       <div className="dms-title-row">
         <div className="dms-title-block">
-          <h1>Project list</h1>
-          <div className="dms-subtitle">จัดการโครงการทั้งหมดจากหน้านี้</div>
+          <h1>{projectTranslations.title}</h1>
+          <div className="dms-subtitle">{projectTranslations.subtitle}</div>
         </div>
         <div className="dms-title-search-row">
           <div className="dms-search-wrap">
@@ -59,13 +60,13 @@ export function ProjectMainList(props: {
               type="text"
               value={p.search}
               onChange={(event) => p.onSearch(event.target.value)}
-              placeholder="Search projects"
+              placeholder={projectTranslations.searchPlaceholder}
             />
           </div>
           <div className="dms-stats-group">
             <div className="dms-stats-pill">
               <FaFileLines />
-              {p.total} Files
+              {p.total} {projectTranslations.projectCount}
             </div>
             <div className="dms-stats-pill">
               <FaFolderOpen />
@@ -84,7 +85,7 @@ export function ProjectMainList(props: {
           <RadixMenu.Trigger asChild>
             <button className="dms-create-btn" type="button">
               <FaPlus />
-              สร้างโครงการใหม่
+              {projectTranslations.createProject}
             </button>
           </RadixMenu.Trigger>
           <RadixMenu.Portal>
@@ -97,12 +98,12 @@ export function ProjectMainList(props: {
               {p.typesLoading ? (
                 <div className="dms-create-dropdown-state">
                   <div className="dms-create-dropdown-spinner" />
-                  <span>กำลังโหลดประเภทเอกสาร…</span>
+                  <span>{projectTranslations.loadingTypes}</span>
                 </div>
               ) : p.typesError ? (
                 <div className="dms-create-dropdown-state is-error">
                   <span className="dms-create-dropdown-error-title">
-                    ไม่สามารถโหลดรายการได้
+                    {projectTranslations.dropdownLoadError}
                   </span>
                   <span className="dms-create-dropdown-error-desc">
                     {p.typesError}
@@ -110,7 +111,7 @@ export function ProjectMainList(props: {
                 </div>
               ) : !p.projectTypes.length ? (
                 <div className="dms-create-dropdown-state">
-                  <span>ยังไม่มีประเภทเอกสารเปิดใช้งาน</span>
+                  <span>{projectTranslations.noActiveTypes}</span>
                 </div>
               ) : (
                 p.projectTypes.map((type) => (
@@ -136,12 +137,14 @@ export function ProjectMainList(props: {
             type="button"
             className={`dms-tool-btn ${p.sortOrder === "asc" ? "is-active" : ""}`}
             onClick={p.onToggleSort}
-            title={p.sortOrder === "desc" ? "ใหม่ไปเก่า" : "เก่าไปใหม่"}
+            title={p.sortOrder === "desc" ? projectTranslations.sortNewest : projectTranslations.sortOldest}
           >
             <FaArrowDownWideShort />
-            Last Modified
+            {p.translations.common.labels.lastModified}
           </button>
           <ProjectFilter
+            projectTranslations={projectTranslations}
+            commonTranslations={p.translations.common}
             filters={p.filters}
             projectTypes={p.projectTypes}
             onApply={p.onFiltersChange}
@@ -151,7 +154,7 @@ export function ProjectMainList(props: {
               type="button"
               className={`dms-view-toggle-btn ${p.viewMode === "grid" ? "is-active" : ""}`}
               onClick={() => p.onViewModeChange("grid")}
-              title="Grid view"
+              title={projectTranslations.gridView}
             >
               <FaTableCellsLarge />
             </button>
@@ -159,7 +162,7 @@ export function ProjectMainList(props: {
               type="button"
               className={`dms-view-toggle-btn ${p.viewMode === "list" ? "is-active" : ""}`}
               onClick={() => p.onViewModeChange("list")}
-              title="List view"
+              title={projectTranslations.listView}
             >
               <FaList />
             </button>
@@ -167,11 +170,13 @@ export function ProjectMainList(props: {
         </div>
       </div>
       {p.loading ? (
-        <div className="dms-project-list-state">กำลังโหลดโครงการ...</div>
+        <div className="dms-project-list-state">{projectTranslations.loadingProjects}</div>
       ) : p.error ? (
         <div className="dms-project-list-state is-error">{p.error}</div>
       ) : (
         <ProjectList
+          projectTranslations={projectTranslations}
+          commonTranslations={p.translations.common}
           projects={p.projects}
           viewMode={p.viewMode}
           selectedId={p.selectedId}
@@ -194,7 +199,7 @@ export function ProjectMainList(props: {
       {p.total === 0 && (
         <div className="dms-project-empty">
           <FaFolderOpen />
-          <div>ไม่พบโครงการที่ตรงกับคำค้นหาหรือตัวกรอง</div>
+          <div>{projectTranslations.emptyProjects}</div>
         </div>
       )}
     </section>

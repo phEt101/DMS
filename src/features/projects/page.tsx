@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Translations } from "../../locales";
+import type { Language, Translations } from "../../locales";
 import { request } from "../../services/api";
 import { useToast } from "../../components/toast-provider";
 import { moveProjectToTrash, updatePmProjectStatus } from "./services/projectsService";
@@ -17,6 +17,8 @@ import { ProjectFormModal } from "./components/project-form-modal";
 
 export type DocStatus = "planning" | "active" | "on_hold" | "done" | "cancelled";
 export type ProjectTypeId = number;
+export type ProjectTranslations = Translations["features"]["projects"];
+export type CommonTranslations = Translations["common"];
 export interface ApiProjectType {
   id: number;
   name: string;
@@ -72,13 +74,6 @@ export interface ProjectItem {
   lastModifiedBy: string;
 }
 
-const STATUS_LABEL: Record<DocStatus, string> = {
-  planning: "วางแผน",
-  active: "เริ่มดำเนินงานตามแผนที่วาง",
-  on_hold: "ระงับ",
-  done: "เสร็จสิ้น",
-  cancelled: "ยกเลิก",
-};
 export function formatBytes(value: number | string | null | undefined) {
   const bytes = Number(value ?? 0);
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
@@ -105,12 +100,12 @@ function projectIdFromPath(path: string) {
   const match = path.match(/^\/projects\/([A-Za-z0-9_-]{43})\/?$/);
   return match?.[1] ?? null;
 }
-function formatDate(value: string | null | undefined) {
+function formatDate(value: string | null | undefined, locale: string) {
   if (!value) return "—";
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "—"
-    : date.toLocaleString("th-TH", {
+    : date.toLocaleString(locale, {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -118,7 +113,7 @@ function formatDate(value: string | null | undefined) {
         minute: "2-digit",
       });
 }
-function mapProject(d: ApiProjectItem): ProjectItem {
+function mapProject(d: ApiProjectItem, statusLabels: Record<DocStatus, string>, locale: string): ProjectItem {
   const owner =
     d.projectManagerName?.trim() ||
     d.uploadedBy?.trim() ||
@@ -147,7 +142,7 @@ function mapProject(d: ApiProjectItem): ProjectItem {
     plannedStartDate: d.plannedStartDate?.slice(0, 10) ?? "",
     plannedEndDate: d.plannedEndDate?.slice(0, 10) ?? "",
     status,
-    statusLabel: STATUS_LABEL[status],
+    statusLabel: statusLabels[status],
     size: formatBytes(d.sizeBytes),
     sizeBytes: Number(d.sizeBytes ?? 0),
     ownerName: owner,
@@ -163,17 +158,28 @@ function mapProject(d: ApiProjectItem): ProjectItem {
       ),
     ),
     uploadedBy: d.uploadedBy?.trim() || "—",
-    createdAt: formatDate(d.createdAt),
-    updatedAt: formatDate(d.updatedAt ?? d.createdAt),
+    createdAt: formatDate(d.createdAt, locale),
+    updatedAt: formatDate(d.updatedAt ?? d.createdAt, locale),
     lastModifiedBy: d.lastModifiedBy ?? "—",
   };
 }
 
 export default function ProjectsPage({
   translations,
+  language,
 }: {
   translations: Translations;
+  language: Language;
 }) {
+  const projectTranslations = translations.features.projects;
+  const locale = language === "th" ? "th-TH" : "en-US";
+  const statusLabels: Record<DocStatus, string> = {
+    planning: projectTranslations.status.planning,
+    active: projectTranslations.status.active,
+    on_hold: projectTranslations.status.onHold,
+    done: projectTranslations.status.completed,
+    cancelled: projectTranslations.status.cancelled,
+  };
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -213,7 +219,7 @@ export default function ProjectsPage({
       } catch (e) {
         if (!stop)
           setTypesError(
-            e instanceof Error ? e.message : "โหลดประเภทโครงการไม่สำเร็จ",
+            e instanceof Error ? e.message : projectTranslations.loadTypesError,
           );
       } finally {
         if (!stop) setTypesLoading(false);
@@ -222,7 +228,7 @@ export default function ProjectsPage({
     return () => {
       stop = true;
     };
-  }, []);
+  }, [language]);
   useEffect(() => {
     let stop = false;
     (async () => {
@@ -245,12 +251,12 @@ export default function ProjectsPage({
           pagination?: { total?: number };
         };
         if (!stop) {
-          setProjects((p.data ?? []).map(mapProject));
+          setProjects((p.data ?? []).map((project) => mapProject(project, statusLabels, locale)));
           setTotal(Number(p.pagination?.total ?? 0));
         }
       } catch (e) {
         if (!stop)
-          setError(e instanceof Error ? e.message : "โหลดโครงการไม่สำเร็จ");
+          setError(e instanceof Error ? e.message : projectTranslations.loadProjectsError);
       } finally {
         if (!stop) setLoading(false);
       }
@@ -258,7 +264,7 @@ export default function ProjectsPage({
     return () => {
       stop = true;
     };
-  }, [page, pageSize, search, filters, sortOrder, refresh]);
+  }, [page, pageSize, search, filters, sortOrder, refresh, language]);
   useEffect(() => {
     const sync = () => setFullId(projectIdFromPath(location.pathname));
     addEventListener("popstate", sync);
@@ -280,11 +286,11 @@ export default function ProjectsPage({
         };
         if (!stop)
           p.data
-            ? setFullProject(mapProject(p.data))
-            : setFullError("ไม่พบโครงการ");
+            ? setFullProject(mapProject(p.data, statusLabels, locale))
+            : setFullError(projectTranslations.projectNotFound);
       } catch (e) {
         if (!stop)
-          setFullError(e instanceof Error ? e.message : "โหลดโครงการไม่สำเร็จ");
+          setFullError(e instanceof Error ? e.message : projectTranslations.loadProjectsError);
       } finally {
         if (!stop) setFullLoading(false);
       }
@@ -292,7 +298,7 @@ export default function ProjectsPage({
     return () => {
       stop = true;
     };
-  }, [fullId, refresh]);
+  }, [fullId, refresh, language]);
   const openFull = (id: string) => {
     setSelectedId(null);
     setFullId(id);
@@ -308,16 +314,16 @@ export default function ProjectsPage({
     setEditing(null);
   };
   const remove = async (d: ProjectItem) => {
-    if (!confirm(`ยืนยันการลบโครงการ “${d.name}” ?`)) return false;
+    if (!confirm(projectTranslations.deleteConfirm.replace("{name}", d.name))) return false;
     try {
       await moveProjectToTrash(d.encryptedId);
       setSelectedId(null);
       setRefresh((v) => v + 1);
-      showToast("ย้ายโครงการไปยังถังขยะแล้ว", "success");
+      showToast(projectTranslations.trashedSuccess, "success");
       return true;
     } catch (e) {
       showToast(
-        e instanceof Error ? e.message : "ไม่สามารถลบโครงการได้",
+        e instanceof Error ? e.message : projectTranslations.deleteError,
         "error",
       );
       return false;
@@ -327,35 +333,38 @@ export default function ProjectsPage({
     try {
       await updatePmProjectStatus(project.encryptedId, status);
       setRefresh((value) => value + 1);
-      showToast("เปลี่ยนสถานะโครงการแล้ว", "success");
+      showToast(projectTranslations.statusChanged, "success");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "ไม่สามารถเปลี่ยนสถานะโครงการได้", "error");
+      showToast(error instanceof Error ? error.message : projectTranslations.statusChangeError, "error");
     }
   };
   if (fullId !== null) {
     if (fullLoading && !fullProject)
-      return <ProjectDetailState onBack={closeFull} />;
+      return <ProjectDetailState projectTranslations={projectTranslations} onBack={closeFull} />;
     if (fullError || !fullProject)
       return (
         <ProjectDetailState
-          error={fullError ?? "ไม่พบโครงการ"}
+          error={fullError ?? projectTranslations.projectNotFound}
+          projectTranslations={projectTranslations}
           onBack={closeFull}
         />
       );
     const selectedType = types.find((type) => type.id === fullProject.projectTypeId) ?? null;
     return <>
       <ProjectDetailView
+        projectTranslations={projectTranslations}
+        commonTranslations={translations.common}
         project={fullProject}
         projectTypeName={
           types.find((t) => t.id === fullProject.projectTypeId)?.name ??
-          `ประเภท #${fullProject.projectTypeId}`
+          projectTranslations.typeFallback.replace("{id}", String(fullProject.projectTypeId))
         }
         onBack={closeFull}
         onEdit={() => { setEditing(fullProject); setTypeId(fullProject.projectTypeId); setModalOpen(true); }}
         onDelete={async () => { if (await remove(fullProject)) closeFull(); }}
         onStatusChange={(status) => void updateProjectStatus(fullProject, status)}
       />
-      <ProjectFormModal open={modalOpen} projectType={selectedType} selectedTypeId={fullProject.projectTypeId} editingProject={editing} onOpenChange={(open) => open ? setModalOpen(true) : closeModal()} onSaved={() => setRefresh((value) => value + 1)} />
+      <ProjectFormModal projectTranslations={projectTranslations} commonTranslations={translations.common} open={modalOpen} projectType={selectedType} selectedTypeId={fullProject.projectTypeId} editingProject={editing} onOpenChange={(open) => open ? setModalOpen(true) : closeModal()} onSaved={() => setRefresh((value) => value + 1)} />
     </>;
   }
   const selected = projects.find((project) => project.encryptedId === selectedId) ?? null;
@@ -413,12 +422,16 @@ export default function ProjectsPage({
       />
       {selected && (
         <ProjectSidePanel
+          projectTranslations={projectTranslations}
+          commonTranslations={translations.common}
           project={selected}
           onClose={() => setSelectedId(null)}
           onOpen={openFull}
         />
       )}
       <ProjectFormModal
+        projectTranslations={projectTranslations}
+        commonTranslations={translations.common}
         open={modalOpen}
         projectType={selectedType}
         selectedTypeId={typeId}

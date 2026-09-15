@@ -10,7 +10,7 @@ import type { Language, Translations } from '../locales'
 export function buildPages(translations: Translations, language: Language) {
   return {
     dashboard: <DashboardPage translations={translations} />,
-    projects: <ProjectsPage translations={translations} />,
+    projects: <ProjectsPage translations={translations} language={language} />,
     report: <ReportPage translations={translations} />,
     trash: <TrashPage translations={translations} />,
     'settings-user': <SettingsUsersPage translations={translations} />,

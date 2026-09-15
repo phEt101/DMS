@@ -5,8 +5,10 @@ import { FaLocationCrosshairs, FaMagnifyingGlass, FaXmark } from "react-icons/fa
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { OpenStreetMapProvider } from "leaflet-geosearch";
 import "leaflet/dist/leaflet.css";
+import type { ProjectTranslations } from "../../page";
 
 interface PmLocationPickerProps {
+  projectTranslations: ProjectTranslations;
   latitude: string;
   longitude: string;
   onChange: (coords: { latitude: string; longitude: string }) => void;
@@ -82,6 +84,7 @@ function MapBridge({
 }
 
 export function PmLocationPicker({
+  projectTranslations,
   latitude,
   longitude,
   onChange,
@@ -140,12 +143,12 @@ export function PmLocationPicker({
         setResults(nextResults.slice(0, 5));
         setIsResultsOpen(true);
         if (nextResults.length === 0) {
-          setSearchError("ไม่พบสถานที่ที่ค้นหา");
+          setSearchError(projectTranslations.projectForm.locationNotFound);
         }
       } catch {
         if (requestIdRef.current !== currentRequestId) return;
         setResults([]);
-        setSearchError("ค้นหาสถานที่ไม่สำเร็จ");
+        setSearchError(projectTranslations.projectForm.locationSearchError);
         setIsResultsOpen(true);
       } finally {
         if (requestIdRef.current === currentRequestId) {
@@ -157,7 +160,7 @@ export function PmLocationPicker({
     return () => {
       window.clearTimeout(timer);
     };
-  }, [provider, query]);
+  }, [projectTranslations, provider, query]);
 
   function selectSearchResult(result: SearchResultItem) {
     const nextLatitude = result.y.toFixed(6);
@@ -200,7 +203,7 @@ export function PmLocationPicker({
             <input
               type="text"
               className="dms-pm-map-search-input"
-              placeholder="ค้นหาสถานที่บนแผนที่"
+              placeholder={projectTranslations.projectForm.mapSearch}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onFocus={() => {
@@ -215,7 +218,7 @@ export function PmLocationPicker({
                 type="button"
                 className="dms-pm-map-search-clear"
                 onClick={clearSearch}
-                aria-label="ล้างคำค้นหา"
+                aria-label={projectTranslations.projectForm.clearSearch}
               >
                 <FaXmark />
               </button>
@@ -224,12 +227,12 @@ export function PmLocationPicker({
 
           {(isResultsOpen || isSearching) && (results.length > 0 || searchError || query.trim().length >= 2) ? (
             <div className="dms-pm-map-search-results">
-              {isSearching ? <div className="dms-pm-map-search-state">กำลังค้นหาสถานที่...</div> : null}
+              {isSearching ? <div className="dms-pm-map-search-state">{projectTranslations.projectForm.searching}</div> : null}
               {!isSearching && searchError ? (
                 <div className="dms-pm-map-search-state is-error">{searchError}</div>
               ) : null}
               {!isSearching && !searchError && results.length === 0 ? (
-                <div className="dms-pm-map-search-state">ไม่พบสถานที่ที่ค้นหา</div>
+                <div className="dms-pm-map-search-state">{projectTranslations.projectForm.locationNotFound}</div>
               ) : null}
               {!isSearching && results.length > 0 ? (
                 <div className="dms-pm-map-search-list">

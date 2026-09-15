@@ -1,13 +1,17 @@
 import { useEffect, useRef } from "react";
 import * as RadixMenu from "@radix-ui/react-dropdown-menu";
 import { FaEllipsis, FaFileLines, FaPen, FaTrashCan } from "react-icons/fa6";
-import type { ProjectItem } from "../page";
+import type { CommonTranslations, ProjectTranslations, ProjectItem } from "../page";
 
 function ProjectMenu({
+  projectTranslations,
+  commonTranslations,
   project,
   onEdit,
   onDelete,
 }: {
+  projectTranslations: ProjectTranslations;
+  commonTranslations: CommonTranslations;
   project: ProjectItem;
   onEdit: (project: ProjectItem) => void;
   onDelete: (project: ProjectItem) => void;
@@ -18,7 +22,7 @@ function ProjectMenu({
         <button
           type="button"
           className="dms-card-menu"
-          aria-label={`จัดการ ${project.name}`}
+          aria-label={projectTranslations.manageProject.replace("{name}", project.name)}
           onClick={(event) => event.stopPropagation()}
         >
           <FaEllipsis />
@@ -36,14 +40,14 @@ function ProjectMenu({
             onSelect={() => onEdit(project)}
           >
             <FaPen />
-            แก้ไข
+            {commonTranslations.actions.edit}
           </RadixMenu.Item>
           <RadixMenu.Item
             className="dms-card-menu-item is-danger"
             onSelect={() => onDelete(project)}
           >
             <FaTrashCan />
-            ลบ
+            {commonTranslations.actions.delete}
           </RadixMenu.Item>
         </RadixMenu.Content>
       </RadixMenu.Portal>
@@ -52,6 +56,8 @@ function ProjectMenu({
 }
 
 export function ProjectList({
+  projectTranslations,
+  commonTranslations,
   projects,
   viewMode,
   selectedId,
@@ -60,6 +66,8 @@ export function ProjectList({
   onEdit,
   onDelete,
 }: {
+  projectTranslations: ProjectTranslations;
+  commonTranslations: CommonTranslations;
   projects: ProjectItem[];
   viewMode: "grid" | "list";
   selectedId: string | null;
@@ -141,6 +149,8 @@ export function ProjectList({
                   {project.statusLabel}
                 </span>
                 <ProjectMenu
+                  projectTranslations={projectTranslations}
+                  commonTranslations={commonTranslations}
                   project={project}
                   onEdit={onEdit}
                   onDelete={onDelete}
@@ -168,12 +178,12 @@ export function ProjectList({
       <table className="dms-project-table">
         <thead>
           <tr>
-            <th scope="col">ชื่อโครงการ</th>
-            <th scope="col">ผู้รับผิดชอบ</th>
-            <th scope="col">ขนาด</th>
-            <th scope="col">แก้ไขล่าสุด</th>
-            <th scope="col">สถานะ</th>
-            <th scope="col" aria-label="จัดการ" />
+            <th scope="col">{projectTranslations.nameColumn}</th>
+            <th scope="col">{projectTranslations.ownerColumn}</th>
+            <th scope="col">{projectTranslations.sizeColumn}</th>
+            <th scope="col">{commonTranslations.labels.lastModified}</th>
+            <th scope="col">{commonTranslations.labels.status}</th>
+            <th scope="col" aria-label={projectTranslations.manageColumn} />
           </tr>
         </thead>
         <tbody>
@@ -206,6 +216,8 @@ export function ProjectList({
               </td>
               <td className="dms-table-menu-cell">
                 <ProjectMenu
+                  projectTranslations={projectTranslations}
+                  commonTranslations={commonTranslations}
                   project={project}
                   onEdit={onEdit}
                   onDelete={onDelete}

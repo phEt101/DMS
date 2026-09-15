@@ -10,6 +10,7 @@ import {
   uploadPmEquipmentImages,
   type PmEquipment,
 } from "../services/projectsService";
+import type { CommonTranslations, ProjectTranslations } from "../page";
 
 export function PmEquipmentFormPreview({
   open,
@@ -17,12 +18,16 @@ export function PmEquipmentFormPreview({
   equipment = null,
   onOpenChange,
   onSaved,
+  projectTranslations,
+  commonTranslations,
 }: {
   open: boolean;
   projectId: string;
   equipment?: PmEquipment | null;
   onOpenChange: (open: boolean) => void;
   onSaved: (equipment: PmEquipment) => void;
+  projectTranslations: ProjectTranslations["equipmentForm"];
+  commonTranslations: CommonTranslations;
 }) {
   const [equipmentName, setEquipmentName] = useState("");
   const [equipmentModel, setEquipmentModel] = useState("");
@@ -84,7 +89,7 @@ export function PmEquipmentFormPreview({
       onOpenChange(false);
     } catch (error) {
       setSaveError(
-        error instanceof Error ? error.message : "บันทึกอุปกรณ์ไม่สำเร็จ",
+        error instanceof Error ? error.message : projectTranslations.saveError,
       );
     } finally {
       setSaving(false);
@@ -107,13 +112,13 @@ export function PmEquipmentFormPreview({
       4 - existingReferenceIds.length - referenceImages.length,
     );
     if (!available) {
-      setSaveError("แนบภาพอุปกรณ์ได้สูงสุด 4 รูป");
+      setSaveError(projectTranslations.maxImages);
       return;
     }
     if (validImages.length !== selected.length) {
-      setSaveError("รองรับเฉพาะไฟล์รูปภาพขนาดไม่เกิน 10 MB ต่อรูป");
+      setSaveError(projectTranslations.invalidImage);
     } else if (validImages.length > available) {
-      setSaveError(`เพิ่มได้อีกไม่เกิน ${available} รูป`);
+      setSaveError(projectTranslations.remainingImages.replace("{count}", String(available)));
     } else {
       setSaveError("");
     }
@@ -132,15 +137,15 @@ export function PmEquipmentFormPreview({
           onInteractOutside={(event) => event.preventDefault()}
         >
           <Dialog.Title className="dms-modal-title">
-            {equipment ? "แก้ไขอุปกรณ์" : "เพิ่มอุปกรณ์"}
+            {equipment ? projectTranslations.editTitle : projectTranslations.addTitle}
           </Dialog.Title>
           <Dialog.Description className="dms-modal-subtitle">
             {equipment
-              ? "แก้ไขข้อมูลพื้นฐานของอุปกรณ์"
-              : "ข้อมูลอุปกรณ์ภายในโครงการ PM"}
+              ? projectTranslations.editSubtitle
+              : projectTranslations.addSubtitle}
           </Dialog.Description>
           <Dialog.Close asChild>
-            <button type="button" className="modal-close" aria-label="ปิด">
+            <button type="button" className="modal-close" aria-label={commonTranslations.actions.close}>
               <FaXmark />
             </button>
           </Dialog.Close>
@@ -148,47 +153,44 @@ export function PmEquipmentFormPreview({
             <div className="dms-equipment-form-grid">
               <label className="dms-equipment-field">
                 <span>
-                  ชื่ออุปกรณ์ <b>*</b>
+                  {projectTranslations.name} <b>*</b>
                 </span>
                 <input
                   value={equipmentName}
                   onChange={(event) => setEquipmentName(event.target.value)}
-                  placeholder="ระบุชื่ออุปกรณ์"
+                  placeholder={projectTranslations.namePlaceholder}
                 />
               </label>
               <label className="dms-equipment-field">
-                <span>รุ่น / Model</span>
+                <span>{projectTranslations.model}</span>
                 <input
                   value={equipmentModel}
                   onChange={(event) => setEquipmentModel(event.target.value)}
-                  placeholder="ระบุรุ่นอุปกรณ์"
+                  placeholder={projectTranslations.modelPlaceholder}
                 />
               </label>
               <label className="dms-equipment-field is-full">
-                <span>อาการขัดข้อง</span>
+                <span>{projectTranslations.faultSymptom}</span>
                 <textarea
                   value={faultSymptom}
                   onChange={(event) => setFaultSymptom(event.target.value)}
                   rows={3}
-                  placeholder="ระบุอาการขัดข้องหรืออาการที่ผู้แจ้งพบ"
+                  placeholder={projectTranslations.faultPlaceholder}
                 />
               </label>
               <label className="dms-equipment-field is-full">
-                <span>หมายเหตุ</span>
+                <span>{projectTranslations.remarks}</span>
                 <textarea
                   value={remarks}
                   onChange={(event) => setRemarks(event.target.value)}
                   rows={4}
-                  placeholder="ระบุตำแหน่งติดตั้งหรือรายละเอียดเพิ่มเติมเกี่ยวกับอุปกรณ์"
+                  placeholder={projectTranslations.remarksPlaceholder}
                 />
               </label>
               <section className="dms-equipment-reference-images is-full">
                 <div>
-                  <strong>ภาพอุปกรณ์และจุดติดตั้ง</strong>
-                  <small>
-                    ใช้ระบุตัวอุปกรณ์และตำแหน่งติดตั้ง แนบได้สูงสุด 4 รูป
-                    รูปละไม่เกิน 10 MB
-                  </small>
+                  <strong>{projectTranslations.images}</strong>
+                  <small>{projectTranslations.imagesHelp}</small>
                 </div>
                 <div className="dms-equipment-reference-list">
                   {existingReferenceIds.map((id) => {
@@ -200,12 +202,12 @@ export function PmEquipmentFormPreview({
                     return <div key={id}>
                       <img
                         src={source}
-                        alt="ภาพอุปกรณ์และจุดติดตั้ง"
+                        alt={projectTranslations.imageAlt}
                         role="button"
                         tabIndex={0}
                         onClick={() => setPreviewImage(source)}
                       />
-                      <button type="button" disabled={saving} aria-label="นำรูปภาพออก" onClick={() => setPendingDeletedImageIds((current) => [...current, id])}><FaXmark /></button>
+                      <button type="button" disabled={saving} aria-label={commonTranslations.actions.removeImage} onClick={() => setPendingDeletedImageIds((current) => [...current, id])}><FaXmark /></button>
                     </div>;
                   })}
                   {referenceImages.map((file, index) => {
@@ -221,7 +223,7 @@ export function PmEquipmentFormPreview({
                         />
                         <button
                           type="button"
-                          aria-label={`ลบรูป ${file.name}`}
+                          aria-label={projectTranslations.deleteImage.replace("{name}", file.name)}
                           onClick={() =>
                             setReferenceImages((current) =>
                               current.filter(
@@ -243,7 +245,7 @@ export function PmEquipmentFormPreview({
                       onClick={() => referenceInputRef.current?.click()}
                     >
                       <FaPlus />
-                      <span>เพิ่มรูป</span>
+                      <span>{commonTranslations.actions.addImage}</span>
                     </button>
                   )}
                   <input
@@ -276,7 +278,7 @@ export function PmEquipmentFormPreview({
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
-              ยกเลิก
+              {commonTranslations.actions.cancel}
             </button>
             <button
               type="button"
@@ -285,10 +287,10 @@ export function PmEquipmentFormPreview({
               onClick={() => void saveEquipment()}
             >
               {saving
-                ? "กำลังบันทึก..."
+                ? commonTranslations.states.saving
                 : equipment
-                  ? "บันทึกการแก้ไข"
-                  : "บันทึกอุปกรณ์"}
+                  ? commonTranslations.actions.saveChanges
+                  : projectTranslations.save}
             </button>
           </div>
         </Dialog.Content>
@@ -299,19 +301,19 @@ export function PmEquipmentFormPreview({
             className="dms-image-lightbox"
             role="dialog"
             aria-modal="true"
-            aria-label="ตัวอย่างรูปภาพขนาดใหญ่"
+            aria-label={projectTranslations.preview}
             onClick={() => setPreviewImage(null)}
           >
             <button
               type="button"
-              aria-label="ปิดรูปภาพ"
+              aria-label={commonTranslations.actions.closeImage}
               onClick={() => setPreviewImage(null)}
             >
               <FaXmark />
             </button>
             <img
               src={previewImage}
-              alt="ตัวอย่างรูปภาพขนาดใหญ่"
+              alt={projectTranslations.preview}
               onClick={(event) => event.stopPropagation()}
             />
           </div>,
