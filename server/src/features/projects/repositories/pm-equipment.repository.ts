@@ -1,4 +1,5 @@
 import { db } from '../../../config/database.js'
+import path from 'node:path'
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 
 export interface PmDetailRow extends RowDataPacket {
@@ -139,7 +140,7 @@ export async function update(projectId: number | string, detailId: number | stri
   return result.affectedRows ? findById(Number(detailId)) : null
 }
 
-export interface PmDetailItemRow extends RowDataPacket {
+export interface PmEquipmentWorkDetailRow extends RowDataPacket {
   id: number
   section: 'cause' | 'action' | 'result'
   itemNo: number
@@ -163,7 +164,7 @@ async function recalculateWorkOrderStatus(connection: PoolConnection, detailId: 
     `SELECT
        (
          EXISTS(
-           SELECT 1 FROM pm_equipment_items item
+           SELECT 1 FROM pm_equipment_work_details item
            WHERE item.pm_equipment_id = ? AND item.section = 'result' AND item.is_deleted = 0
              AND TRIM(COALESCE(item.item_content, '')) <> ''
          )
@@ -174,7 +175,7 @@ async function recalculateWorkOrderStatus(connection: PoolConnection, detailId: 
        ) AS hasCompletedData,
        (
          EXISTS(
-           SELECT 1 FROM pm_equipment_items item
+           SELECT 1 FROM pm_equipment_work_details item
            WHERE item.pm_equipment_id = ? AND item.section IN ('cause', 'action') AND item.is_deleted = 0
              AND TRIM(COALESCE(item.item_content, '')) <> ''
          )
@@ -216,10 +217,10 @@ async function recalculateWorkOrderStatus(connection: PoolConnection, detailId: 
   return nextStatus
 }
 
-export async function findItems(projectId: number | string, detailId: number | string) {
-  const [rows] = await db.query<PmDetailItemRow[]>(
+export async function findWorkDetails(projectId: number | string, detailId: number | string) {
+  const [rows] = await db.query<PmEquipmentWorkDetailRow[]>(
     `SELECT item.id, item.section, item.item_no AS itemNo, item.item_content AS itemContent
-     FROM pm_equipment_items item
+     FROM pm_equipment_work_details item
      INNER JOIN pm_equipment detail ON detail.id = item.pm_equipment_id
      INNER JOIN pm_projects project ON project.id = detail.pm_project_id
      INNER JOIN projects root_project ON root_project.id = project.project_id
@@ -231,7 +232,7 @@ export async function findItems(projectId: number | string, detailId: number | s
   return rows
 }
 
-export async function saveItems(projectId: number | string, detailId: number | string, items: Array<{ section: string; itemNo: number; itemContent: string | null }>, operatorIds: number[], statusMode: 'automatic' | 'on_hold' | 'waiting_parts', userId: number | null) {
+export async function saveWorkDetails(projectId: number | string, detailId: number | string, workDetails: Array<{ section: string; itemNo: number; itemContent: string | null }>, operatorIds: number[], statusMode: 'automatic' | 'on_hold' | 'waiting_parts', userId: number | null) {
   const connection = await db.getConnection()
   try {
     await connection.beginTransaction()
@@ -247,12 +248,12 @@ export async function saveItems(projectId: number | string, detailId: number | s
     if (!details[0]) { await connection.rollback(); return null }
 
     await connection.execute(
-      'UPDATE pm_equipment_items SET item_content = NULL, updated_by = ? WHERE pm_equipment_id = ? AND is_deleted = 0',
+      'UPDATE pm_equipment_work_details SET item_content = NULL, updated_by = ? WHERE pm_equipment_id = ? AND is_deleted = 0',
       [userId, detailId],
     )
-    for (const item of items) {
+    for (const item of workDetails) {
       await connection.execute(
-        `INSERT INTO pm_equipment_items
+        `INSERT INTO pm_equipment_work_details
           (pm_equipment_id, section, item_no, item_content, created_by, updated_by, is_deleted)
          VALUES (?, ?, ?, ?, ?, ?, 0)
          ON DUPLICATE KEY UPDATE item_content = VALUES(item_content), updated_by = VALUES(updated_by)`,
@@ -274,7 +275,7 @@ export async function saveItems(projectId: number | string, detailId: number | s
       )
     }
     await connection.commit()
-    return findItems(projectId, detailId)
+    return findWorkDetails(projectId, detailId)
   } catch (error) {
     await connection.rollback()
     throw error
@@ -317,7 +318,17 @@ export async function attachImages(projectId: number | string, detailId: number 
             (pm_equipment_id, image_phase, sort_order, stored_name, original_name, mime_type, file_size,
              storage_driver, storage_path, uploaded_by, is_deleted)
            VALUES (?, ?, ?, ?, ?, ?, ?, 'local_disk', ?, ?, 0)`,
-          [detailId, phase, sortOrder, file.filename, file.originalname, file.mimetype, file.size, `equipment-images/${file.filename}`, userId],
+          [
+            detailId,
+            phase,
+            sortOrder,
+            file.filename,
+            file.originalname,
+            file.mimetype,
+            file.size,
+            path.relative(path.resolve(process.cwd(), 'storage'), file.path).split(path.sep).join('/'),
+            userId,
+          ],
         )
         ids.push(result.insertId)
       }

@@ -279,7 +279,7 @@ export async function trash(id: number | string, deletedBy: number | null) {
     )
     if (!result.affectedRows) { await connection.rollback(); return false }
     await connection.execute(
-      `UPDATE pm_equipment_items item
+      `UPDATE pm_equipment_work_details item
        JOIN pm_equipment detail ON detail.id = item.pm_equipment_id
        JOIN pm_projects project ON project.id = detail.pm_project_id
        SET item.is_deleted = 1, item.deleted_at = CURRENT_TIMESTAMP, item.deleted_by = ?
@@ -331,7 +331,7 @@ export async function restore(id: number | string) {
        SET detail.is_deleted = 0, detail.deleted_at = NULL, detail.deleted_by = NULL WHERE project.project_id = ? AND detail.is_deleted = 1`, [id],
     )
     await connection.execute(
-      `UPDATE pm_equipment_items item JOIN pm_equipment detail ON detail.id = item.pm_equipment_id
+      `UPDATE pm_equipment_work_details item JOIN pm_equipment detail ON detail.id = item.pm_equipment_id
        JOIN pm_projects project ON project.id = detail.pm_project_id
        SET item.is_deleted = 0, item.deleted_at = NULL, item.deleted_by = NULL WHERE project.project_id = ? AND item.is_deleted = 1`, [id],
     )

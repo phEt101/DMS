@@ -4,6 +4,7 @@ import type { RowDataPacket } from 'mysql2/promise'
 interface ProjectTypeRow extends RowDataPacket {
   id: number
   name: string
+  slug: string
   departmentId: number | null
   isActive: boolean
   createdAt: Date
@@ -15,6 +16,7 @@ export async function getActiveTypes(): Promise<ProjectTypeRow[]> {
     `SELECT
        id,
        name,
+       slug,
        department_id AS departmentId,
        is_active AS isActive,
        created_at AS createdAt,

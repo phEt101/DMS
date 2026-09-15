@@ -251,32 +251,32 @@ export const equipmentPatch: RequestHandler = async (req, res) => {
   res.json({ data })
 }
 
-export const equipmentItemsIndex: RequestHandler = async (req, res) => {
+export const equipmentWorkDetailsIndex: RequestHandler = async (req, res) => {
   const project = await projectFromRoute(req.params.encryptedId)
   if (!project) return res.status(404).json({ message: 'Project not found' })
   const projectId = project.id
   const equipmentId = routeParam(req.params.equipmentId)
-  const data = await pmEquipment.findItems(projectId, equipmentId)
+  const data = await pmEquipment.findWorkDetails(projectId, equipmentId)
   res.json({ data })
 }
 
-export const equipmentItemsSave: RequestHandler = async (req, res) => {
+export const equipmentWorkDetailsSave: RequestHandler = async (req, res) => {
   const project = await projectFromRoute(req.params.encryptedId)
   if (!project) return res.status(404).json({ message: 'Project not found' })
   const projectId = project.id
   const equipmentId = routeParam(req.params.equipmentId)
   const allowedSections = new Set(['cause', 'action', 'result'])
-  if (!Array.isArray(req.body?.items)) throw httpError(400, 'items is required')
-  const items = req.body.items.map((item: Record<string, unknown>) => ({
+  if (!Array.isArray(req.body?.workDetails)) throw httpError(400, 'workDetails is required')
+  const workDetails = req.body.workDetails.map((item: Record<string, unknown>) => ({
     section: String(item.section ?? ''),
     itemNo: Number(item.itemNo),
     itemContent: typeof item.itemContent === 'string' && item.itemContent.trim() ? item.itemContent.trim() : null,
   }))
-  if (items.some((item: { section: string; itemNo: number }) => !allowedSections.has(item.section) || !Number.isInteger(item.itemNo) || item.itemNo < 1 || item.itemNo > 255)) {
-    throw httpError(400, 'Invalid equipment detail item')
+  if (workDetails.some((item: { section: string; itemNo: number }) => !allowedSections.has(item.section) || !Number.isInteger(item.itemNo) || item.itemNo < 1 || item.itemNo > 255)) {
+    throw httpError(400, 'Invalid equipment work detail')
   }
-  const keys = items.map((item: { section: string; itemNo: number }) => `${item.section}:${item.itemNo}`)
-  if (new Set(keys).size !== keys.length) throw httpError(400, 'Duplicate equipment detail item')
+  const keys = workDetails.map((item: { section: string; itemNo: number }) => `${item.section}:${item.itemNo}`)
+  if (new Set(keys).size !== keys.length) throw httpError(400, 'Duplicate equipment work detail')
   const rawOperatorIds = Array.isArray(req.body?.operatorIds) ? req.body.operatorIds : []
   const operatorIds = rawOperatorIds.map(Number)
   if (operatorIds.some((id: number) => !Number.isInteger(id) || id <= 0) || operatorIds.length > 3 || new Set(operatorIds).size !== operatorIds.length) {
@@ -285,9 +285,9 @@ export const equipmentItemsSave: RequestHandler = async (req, res) => {
   const allowedStatusModes = ['automatic', 'on_hold', 'waiting_parts'] as const
   const statusMode = allowedStatusModes.find((value) => value === req.body?.statusMode)
   if (!statusMode) throw httpError(400, 'statusMode must be automatic, on_hold, or waiting_parts')
-  const data = await pmEquipment.saveItems(projectId, equipmentId, items, operatorIds, statusMode, req.user?.id ?? null)
+  const data = await pmEquipment.saveWorkDetails(projectId, equipmentId, workDetails, operatorIds, statusMode, req.user?.id ?? null)
   if (!data) return res.status(404).json({ message: 'Equipment not found' })
-  await logActivity({ userId: req.user?.id, module: 'projects', action: 'equipment_details_updated', entityType: 'pm_equipment', entityId: equipmentId, ipAddress: req.ip })
+  await logActivity({ userId: req.user?.id, module: 'projects', action: 'equipment_work_details_updated', entityType: 'pm_equipment', entityId: equipmentId, ipAddress: req.ip })
   res.json({ data, equipment: await pmEquipment.findById(Number(equipmentId)) })
 }
 

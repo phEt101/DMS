@@ -55,15 +55,15 @@ export function updatePmEquipment(projectId: string, equipmentId: number, data: 
   return request(`/projects/${projectId}/equipment/${equipmentId}`, { method: 'PATCH', body: JSON.stringify(data) }) as Promise<{ data: PmEquipment }>
 }
 
-export type PmEquipmentItemSection = 'cause' | 'action' | 'result'
-export interface PmEquipmentItem { id?: number; section: PmEquipmentItemSection; itemNo: number; itemContent: string | null }
+export type PmEquipmentWorkDetailSection = 'cause' | 'action' | 'result'
+export interface PmEquipmentWorkDetail { id?: number; section: PmEquipmentWorkDetailSection; itemNo: number; itemContent: string | null }
 
-export function listPmEquipmentItems(projectId: string, equipmentId: number) {
-  return request(`/projects/${projectId}/equipment/${equipmentId}/items`) as Promise<{ data: PmEquipmentItem[] }>
+export function listPmEquipmentWorkDetails(projectId: string, equipmentId: number) {
+  return request(`/projects/${projectId}/equipment/${equipmentId}/work-details`) as Promise<{ data: PmEquipmentWorkDetail[] }>
 }
 
-export function savePmEquipmentItems(projectId: string, equipmentId: number, items: PmEquipmentItem[], operatorIds: number[], statusMode: 'automatic' | 'on_hold' | 'waiting_parts') {
-  return request(`/projects/${projectId}/equipment/${equipmentId}/items`, { method: 'PUT', body: JSON.stringify({ items, operatorIds, statusMode }) }) as Promise<{ data: PmEquipmentItem[]; equipment: PmEquipment }>
+export function savePmEquipmentWorkDetails(projectId: string, equipmentId: number, workDetails: PmEquipmentWorkDetail[], operatorIds: number[], statusMode: 'automatic' | 'on_hold' | 'waiting_parts') {
+  return request(`/projects/${projectId}/equipment/${equipmentId}/work-details`, { method: 'PUT', body: JSON.stringify({ workDetails, operatorIds, statusMode }) }) as Promise<{ data: PmEquipmentWorkDetail[]; equipment: PmEquipment }>
 }
 
 export function uploadPmEquipmentImages(projectId: string, equipmentId: number, beforeImages: File[], afterImages: File[], referenceImages: File[] = []) {

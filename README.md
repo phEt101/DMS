@@ -186,7 +186,7 @@ docker compose run --rm api npm run db:seed
 The migration files live in `server/database/migrations`. The runner creates the `boswell_dms` database when needed, then creates
 `users`, `departments`, `roles`, `permissions`, `role_permissions`,
 `project_types`, `projects`, `pm_projects`, `pm_equipment`,
-`pm_equipment_items`, `pm_equipment_uploads`, `activity_logs`, and
+`pm_equipment_work_details`, `pm_equipment_uploads`, `activity_logs`, and
 `schema_migrations`. Docker injects the MySQL connection from the root `.env`; never commit that
 file. SQL and TypeScript seeders belong in `server/database/seeders`, while development/test
 factories belong in `server/database/factories`. The API is mounted under `/boswell-api/v1`, with `GET /boswell-api/v1/health` available for

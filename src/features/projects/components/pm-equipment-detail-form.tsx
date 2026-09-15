@@ -15,17 +15,17 @@ import {
 } from "../../settings/users/services/users.service";
 import {
   deletePmEquipmentImage,
-  listPmEquipmentItems,
+  listPmEquipmentWorkDetails,
   pmEquipmentImageUrl,
-  savePmEquipmentItems,
+  savePmEquipmentWorkDetails,
   uploadPmEquipmentImages,
   type PmEquipment,
-  type PmEquipmentItem,
-  type PmEquipmentItemSection,
+  type PmEquipmentWorkDetail,
+  type PmEquipmentWorkDetailSection,
 } from "../services/projectsService";
 
 const sections: Array<{
-  value: PmEquipmentItemSection;
+  value: PmEquipmentWorkDetailSection;
   label: string;
   placeholder: string;
 }> = [
@@ -45,7 +45,7 @@ const sections: Array<{
     placeholder: "ระบุผลหลังดำเนินการ",
   },
 ];
-const emptyDetails = (): Record<PmEquipmentItemSection, string[]> => ({
+const emptyDetails = (): Record<PmEquipmentWorkDetailSection, string[]> => ({
   cause: [""],
   action: [""],
   result: [""],
@@ -74,8 +74,8 @@ export function PmEquipmentDetailForm({
 }) {
   const [details, setDetails] = useState(emptyDetails);
   const [activeSection, setActiveSection] =
-    useState<PmEquipmentItemSection>("cause");
-  const [loadedItems, setLoadedItems] = useState<PmEquipmentItem[]>([]);
+    useState<PmEquipmentWorkDetailSection>("cause");
+  const [loadedWorkDetails, setLoadedItems] = useState<PmEquipmentWorkDetail[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [operatorIds, setOperatorIds] = useState<number[]>([]);
   const [operatorSearch, setOperatorSearch] = useState("");
@@ -114,7 +114,7 @@ export function PmEquipmentDetailForm({
       ].filter((id): id is number => id !== null),
     );
     Promise.all([
-      listPmEquipmentItems(projectId, equipment.id),
+      listPmEquipmentWorkDetails(projectId, equipment.id),
       listUsers({ status: "active", limit: 100 }),
     ])
       .then(([itemsResponse, usersResponse]) => {
@@ -130,7 +130,7 @@ export function PmEquipmentDetailForm({
                 .map((item) => item.itemContent ?? "");
               return [value, values.length ? values : [""]];
             }),
-          ) as Record<PmEquipmentItemSection, string[]>,
+          ) as Record<PmEquipmentWorkDetailSection, string[]>,
         );
       })
       .catch((error) => {
@@ -224,9 +224,9 @@ export function PmEquipmentDetailForm({
 
   const save = async () => {
     if (!equipment || saving) return;
-    const items = sections.flatMap(({ value }) => {
+    const workDetails = sections.flatMap(({ value }) => {
       const lines = details[value].map((line) => line.trim());
-      const previousCount = loadedItems
+      const previousCount = loadedWorkDetails
         .filter((item) => item.section === value)
         .reduce((highest, item) => Math.max(highest, item.itemNo), 0);
       return Array.from(
@@ -241,14 +241,14 @@ export function PmEquipmentDetailForm({
     try {
       setSaving(true);
       setMessage("");
-      const savedDetails = await savePmEquipmentItems(
+      const savedResponse = await savePmEquipmentWorkDetails(
         projectId,
         equipment.id,
-        items,
+        workDetails,
         operatorIds,
         statusMode,
       );
-      let savedEquipment = savedDetails.equipment;
+      let savedEquipment = savedResponse.equipment;
       for (const imageId of pendingDeletedImageIds) {
         const deleted = await deletePmEquipmentImage(
           projectId,

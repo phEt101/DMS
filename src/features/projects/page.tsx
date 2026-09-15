@@ -20,6 +20,7 @@ export type ProjectTypeId = number;
 export interface ApiProjectType {
   id: number;
   name: string;
+  slug: string;
   departmentId: number | null;
   isActive: boolean;
 }
