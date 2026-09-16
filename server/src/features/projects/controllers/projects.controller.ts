@@ -52,6 +52,31 @@ function publicProject<T extends { id: number }>(project: T) {
   return data
 }
 
+function comparableProjectValue(value: unknown) {
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+  return value === undefined || value === '' ? null : value
+}
+
+function projectChanges(before: Record<string, unknown>, after: Record<string, unknown>) {
+  const fields = [
+    'projectName',
+    'projectDescription',
+    'projectTypeId',
+    'projectManagerName',
+    'customerName',
+    'siteAddress',
+    'siteLat',
+    'siteLon',
+    'plannedStartDate',
+    'plannedEndDate',
+  ]
+  return fields.flatMap((field) => {
+    const from = comparableProjectValue(before[field])
+    const to = comparableProjectValue(after[field])
+    return String(from ?? '') === String(to ?? '') ? [] : [{ field, from, to }]
+  })
+}
+
 export const index: RequestHandler = async (req, res) => {
   const page = positiveInteger(req.query.page, 1)
   const limit = positiveInteger(req.query.limit, 50, 100)
@@ -126,7 +151,20 @@ export const store: RequestHandler = async (req, res) => {
     })
   }
 
-  await logActivity({ userId: req.user?.id, module: 'projects', action: 'created', entityType: 'project', entityId: project.id, ipAddress: req.ip })
+  await logActivity({
+    userId: req.user?.id,
+    module: 'projects',
+    action: 'created',
+    entityType: 'project',
+    entityId: project.id,
+    details: {
+      name: typeof body.projectName === 'string' ? body.projectName.trim() : null,
+      projectTypeId,
+      projectManagerName: typeof body.projectManagerName === 'string' ? body.projectManagerName.trim() : null,
+      customerName: typeof body.customerName === 'string' ? body.customerName.trim() : null,
+    },
+    ipAddress: req.ip,
+  })
   res.status(201).json({ data: publicProject(project) })
 }
 
@@ -157,7 +195,16 @@ export const patch: RequestHandler = async (req, res) => {
   })
   const data = await projects.findById(id)
   if (!data) throw new Error('Updated project could not be loaded')
-  await logActivity({ userId: req.user?.id, module: 'projects', action: 'updated', entityType: 'project', entityId: data.id, ipAddress: req.ip })
+  const changes = projectChanges(project, data)
+  await logActivity({
+    userId: req.user?.id,
+    module: 'projects',
+    action: 'updated',
+    entityType: 'project',
+    entityId: data.id,
+    details: { name: data.projectName ?? project.projectName, changes },
+    ipAddress: req.ip,
+  })
   res.json({ data: publicProject(data) })
 }
 
@@ -166,7 +213,15 @@ export const destroy: RequestHandler = async (req, res) => {
   if (!project) return res.status(404).json({ message: 'Project not found' })
   const id = project.id
   if (!await projects.trash(id, req.user?.id ?? null)) return res.status(404).json({ message: 'Project not found' })
-  await logActivity({ userId: req.user?.id, module: 'trash', action: 'trashed', entityType: 'project', entityId: id, ipAddress: req.ip })
+  await logActivity({
+    userId: req.user?.id,
+    module: 'projects',
+    action: 'deleted',
+    entityType: 'project',
+    entityId: id,
+    details: { name: project.projectName },
+    ipAddress: req.ip,
+  })
   res.status(204).end()
 }
 
@@ -175,7 +230,6 @@ export const restore: RequestHandler = async (req, res) => {
   if (!project) return res.status(404).json({ message: 'Deleted project not found' })
   const id = project.id
   if (!await projects.restore(id)) return res.status(404).json({ message: 'Deleted project not found' })
-  await logActivity({ userId: req.user?.id, module: 'trash', action: 'restored', entityType: 'project', entityId: id, ipAddress: req.ip })
   const restored = await projects.findById(id)
   res.json({ data: restored ? publicProject(restored) : null })
 }
@@ -190,7 +244,6 @@ export const updateProjectStatus: RequestHandler = async (req, res) => {
   if (!await pmProjects.updateStatusByProjectId(id, status, req.user?.id ?? null)) {
     return res.status(404).json({ message: 'PM project not found' })
   }
-  await logActivity({ userId: req.user?.id, module: 'projects', action: `project_status_${status}`, entityType: 'project', entityId: id, ipAddress: req.ip })
   const updated = await projects.findById(id)
   res.json({ data: updated ? publicProject(updated) : null })
 }
@@ -228,7 +281,6 @@ export const equipmentStore: RequestHandler = async (req, res) => {
   })
   if (!data) return res.status(404).json({ message: 'PM project not found' })
 
-  await logActivity({ userId: req.user?.id, module: 'projects', action: 'equipment_created', entityType: 'pm_equipment', entityId: data.id, ipAddress: req.ip })
   res.status(201).json({ data })
 }
 
@@ -247,7 +299,6 @@ export const equipmentPatch: RequestHandler = async (req, res) => {
     userId: req.user?.id ?? null,
   })
   if (!data) return res.status(404).json({ message: 'Equipment not found' })
-  await logActivity({ userId: req.user?.id, module: 'projects', action: 'equipment_updated', entityType: 'pm_equipment', entityId: equipmentId, ipAddress: req.ip })
   res.json({ data })
 }
 
@@ -287,7 +338,6 @@ export const equipmentWorkDetailsSave: RequestHandler = async (req, res) => {
   if (!statusMode) throw httpError(400, 'statusMode must be automatic, on_hold, or waiting_parts')
   const data = await pmEquipment.saveWorkDetails(projectId, equipmentId, workDetails, operatorIds, statusMode, req.user?.id ?? null)
   if (!data) return res.status(404).json({ message: 'Equipment not found' })
-  await logActivity({ userId: req.user?.id, module: 'projects', action: 'equipment_work_details_updated', entityType: 'pm_equipment', entityId: equipmentId, ipAddress: req.ip })
   res.json({ data, equipment: await pmEquipment.findById(Number(equipmentId)) })
 }
 
@@ -335,6 +385,5 @@ export const equipmentImageDestroy: RequestHandler = async (req, res) => {
   const deleted = await pmEquipment.softDeleteImage(projectId, equipmentId, uploadId, req.user?.id ?? null)
   if (deleted === null) return res.status(404).json({ message: 'Equipment not found' })
   if (!deleted) return res.status(404).json({ message: 'Image not found' })
-  await logActivity({ userId: req.user?.id, module: 'projects', action: 'equipment_image_deleted', entityType: 'pm_equipment_upload', entityId: uploadId, ipAddress: req.ip })
   res.json({ equipment: await pmEquipment.findById(Number(equipmentId)) })
 }

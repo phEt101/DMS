@@ -403,6 +403,23 @@
         "activated": "Activated user",
         "deactivated": "Deactivated user"
       },
+      "projectActions": {
+        "created": "Created project",
+        "updated": "Updated project",
+        "deleted": "Deleted project"
+      },
+      "projectFields": {
+        "projectName": "Project name",
+        "projectDescription": "Project description",
+        "projectTypeId": "Project type",
+        "projectManagerName": "Project manager",
+        "customerName": "Customer",
+        "siteAddress": "Project location",
+        "siteLat": "Latitude",
+        "siteLon": "Longitude",
+        "plannedStartDate": "Planned start date",
+        "plannedEndDate": "Planned end date"
+      },
       "roleActions": {
         "created": "Created role",
         "updated": "Updated role",

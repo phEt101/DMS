@@ -403,6 +403,23 @@
         "activated": "เปิดการใช้งานผู้ใช้งาน",
         "deactivated": "ปิดการใช้งานผู้ใช้งาน"
       },
+      "projectActions": {
+        "created": "สร้างโครงการ",
+        "updated": "แก้ไขโครงการ",
+        "deleted": "ลบโครงการ"
+      },
+      "projectFields": {
+        "projectName": "ชื่อโครงการ",
+        "projectDescription": "รายละเอียดโครงการ",
+        "projectTypeId": "ประเภทโครงการ",
+        "projectManagerName": "ผู้จัดการโครงการ",
+        "customerName": "ลูกค้า",
+        "siteAddress": "สถานที่โครงการ",
+        "siteLat": "ละติจูด",
+        "siteLon": "ลองจิจูด",
+        "plannedStartDate": "วันที่เริ่มตามแผน",
+        "plannedEndDate": "วันที่สิ้นสุดตามแผน"
+      },
       "roleActions": {
         "created": "เพิ่มบทบาท",
         "updated": "แก้ไขบทบาท",
