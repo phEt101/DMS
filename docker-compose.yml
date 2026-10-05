@@ -27,6 +27,7 @@ services:
       DB_USER: ${SHARED_DB_USER:-shared_app}
       DB_PASSWORD: ${SHARED_DB_PASSWORD:-shared_app_secret}
       DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-10}
+      PROJECT_PUBLIC_ID_SECRET: ${PROJECT_PUBLIC_ID_SECRET:?PROJECT_PUBLIC_ID_SECRET must be set}
     command: ["sh", "-c", "npm run db:migrate && npm start"]
     expose:
       - "3000"

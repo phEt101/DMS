@@ -23,6 +23,8 @@ RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/database/migrations ./database/migrations
 
+RUN mkdir -p /app/storage/projects && chown -R node:node /app
+
 USER node
 EXPOSE 3000
 
