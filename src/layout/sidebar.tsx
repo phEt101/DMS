@@ -16,6 +16,7 @@ import type { IconType } from "react-icons";
 import { useAuth } from "../features/auth/hooks/use-auth";
 import { canViewModule } from "../features/auth/permissions";
 import type { Translations } from "../locales";
+import type { PageKey } from '../routes/pageTypes'
 
 const icons = {
   dashboard: FaTableCellsLarge,
@@ -35,6 +36,7 @@ function Icon({ name }: { name: keyof typeof icons }) {
 type SidebarItem =
   | "dashboard"
   | "projects"
+  | "projects-cm"
   | "report"
   | "trash"
   | "settings-user"
@@ -51,6 +53,8 @@ const sidebarModuleKeys = new Set<SidebarItem>([
   "settings-modules",
 ]);
 
+
+
 export default function Sidebar({
   translations,
   collapsed = false,
@@ -65,12 +69,14 @@ export default function Sidebar({
   mobileOpen?: boolean;
   onClose?: () => void;
   onToggle?: () => void;
-  activeItem?: SidebarItem;
-  onNavigate?: (item: SidebarItem) => void;
+  activeItem?: PageKey;
+  onNavigate?: (item: PageKey) => void;
 }) {
   const { user } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [accessOpen, setAccessOpen] = useState(true);
+  const [projectsOpen, setProjectsOpen] = useState(true);
+  const projectsGroupRef = useRef<HTMLDivElement>(null);
   const settingsGroupRef = useRef<HTMLDivElement>(null);
   const sidebarTranslations = translations.sidebar;
 
@@ -96,6 +102,28 @@ export default function Sidebar({
     };
   }, [settingsOpen]);
 
+  useEffect(() => {
+    if (!projectsOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!projectsGroupRef.current?.contains(event.target as Node)) {
+        setProjectsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProjectsOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [projectsOpen]);
+
   const grantedModules = [...new Map(
     (user?.permissions ?? []).map((permission) => [permission.module, {
       name: permission.module,
@@ -104,7 +132,7 @@ export default function Sidebar({
     }]),
   ).values()];
 
-  const moduleItems = grantedModules
+  const moduleItems: Array<{ key: SidebarItem; label: string; icon?: IconType }> = grantedModules
     .filter((module) => Boolean(user && canViewModule(user, module.name)))
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((module) => {
@@ -186,6 +214,45 @@ export default function Sidebar({
         </div>
         <nav className="sidebar-nav" aria-label={sidebarTranslations.navigation}>
           {mainItems.map((item) => {
+            if (item.key === 'projects') {
+              return (
+                <div className="nav-group" key={item.key} ref={projectsGroupRef}>
+                  <button
+                    className={`nav-item nav-button projects-toggle ${activeItem === item.key ? 'is-active' : ''}`}
+                    onClick={() => setProjectsOpen((v) => !v)}
+                    title={collapsed ? item.label : undefined}
+                    aria-expanded={projectsOpen}
+                  >
+                    {item.icon && <item.icon className="nav-icon" size={17} aria-hidden="true" />}
+                    <span>{item.label}</span>
+                    <i className={projectsOpen ? 'is-rotated' : ''}>⌄</i>
+                  </button>
+                  {projectsOpen && (
+                    <div className="subnav">
+                      <strong className="subnav-title">{item.label}</strong>
+                      <button
+                        className={`nav-item nav-button ${activeItem === 'projects' ? 'is-active' : ''}`}
+                        onClick={() => onNavigate?.('projects')}
+                      >
+                        <span>PM</span>
+                      </button>
+                      <button
+                        className={`nav-item nav-button ${activeItem === 'projects-cm' ? 'is-active' : ''}`}
+                        onClick={() => onNavigate?.('projects-cm')}
+                      >
+                        <span>CM</span>
+                      </button>
+                      <button
+                        className={`nav-item nav-button ${activeItem === 'survey' ? 'is-active' : ''}`}
+                        onClick={() => onNavigate?.('survey')}
+                      >
+                        <span>Survey</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            }
             return (
               <button
                 className={`nav-item nav-button ${activeItem === item.key ? "is-active" : ""}`}
@@ -197,7 +264,7 @@ export default function Sidebar({
                   <item.icon className="nav-icon" size={17} aria-hidden="true" />
                 )}
                 <span>{item.label}</span>
-                {item.key === "projects" && <b className="item-count">11</b>}
+                {item.key === ("projects" as SidebarItem) && <b className="item-count">11</b>}
               </button>
             );
           })}

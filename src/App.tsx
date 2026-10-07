@@ -6,13 +6,15 @@ import Topbar from './layout/topbar'
 import { getLocale } from './locales'
 import { buildPages } from './routes/appRoutes'
 import type { AuthUser } from './features/auth/types/auth.types'
+import type { PageKey } from './routes/pageTypes'
 import { canViewModule } from './features/auth/permissions'
-
-type PageKey = 'dashboard' | 'projects' | 'report' | 'trash' | 'settings-user' | 'settings-roles' | 'settings-departments' | 'settings-permissions' | 'settings-modules' | 'settings-activity'
 
 const pathByPage: Record<PageKey, string> = {
   dashboard: '/dashboard',
   projects: '/projects',
+  'projects-cm': '/projects/cm',
+  'projects-cm-create': '/projects/cm/create',
+  survey: '/survey',
   report: '/reports',
   trash: '/trash',
   'settings-user': '/settings/users',
@@ -26,6 +28,9 @@ const pathByPage: Record<PageKey, string> = {
 const moduleByPage: Record<PageKey, string> = {
   dashboard: 'dashboard',
   projects: 'projects',
+  'projects-cm': 'projects',
+  'projects-cm-create': 'projects',
+  survey: 'survey',
   report: 'reports',
   trash: 'trash',
   'settings-user': 'users',
@@ -49,12 +54,15 @@ function firstAccessiblePage(user: AuthUser): PageKey | null {
 function pageFromPath(pathname: string): PageKey {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
   if (/^\/projects\/[A-Za-z0-9_-]{43}$/.test(normalized)) return 'projects'
+  if (/^\/projects\/cm\/[A-Za-z0-9_-]+$/.test(normalized)) return 'projects-cm'
   return (Object.entries(pathByPage).find(([, path]) => path === normalized)?.[0] as PageKey | undefined) ?? 'dashboard'
 }
 
 function pathMatchesPage(pathname: string, page: PageKey) {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
-  return normalized === pathByPage[page] || (page === 'projects' && /^\/projects\/[A-Za-z0-9_-]{43}$/.test(normalized))
+  return normalized === pathByPage[page]
+    || (page === 'projects' && /^\/projects\/[A-Za-z0-9_-]{43}$/.test(normalized))
+    || (page === 'projects-cm' && /^\/projects\/cm\/[A-Za-z0-9_-]+$/.test(normalized))
 }
 
 export default function App() {

@@ -1,389 +1,389 @@
-import * as projects from '../repositories/projects.repository.js'
-import * as pmProjects from '../repositories/pm-projects.repository.js'
-import * as pmEquipment from '../repositories/pm-equipment.repository.js'
-import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
-import { httpError } from '../../../middleware/errors.js'
-import { equipmentStorageDirectory } from '../middleware/equipment-images.middleware.js'
-import { unlink } from 'node:fs/promises'
-import type { RequestHandler } from 'express'
-import { isProjectPublicId } from '../services/project-public-id.service.js'
+  import * as projects from '../repositories/projects.repository.js'
+  import * as pmProjects from '../repositories/pm-projects.repository.js'
+  import * as pmEquipment from '../repositories/pm-equipment.repository.js'
+  import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
+  import { httpError } from '../../../middleware/errors.js'
+  import { equipmentStorageDirectory } from '../middleware/equipment-images.middleware.js'
+  import { unlink } from 'node:fs/promises'
+  import type { RequestHandler } from 'express'
+  import { isProjectPublicId } from '../services/project-public-id.service.js'
 
-function positiveInteger(value: unknown, fallback: number, maximum = Number.MAX_SAFE_INTEGER) {
-  const number = Number.parseInt(String(value ?? ''), 10)
-  return Number.isFinite(number) && number > 0 ? Math.min(number, maximum) : fallback
-}
-
-function requireNonEmptyString(body: Record<string, unknown>, field: string, message: string) {
-  if (typeof body[field] !== 'string' || !body[field].trim()) {
-    throw httpError(400, message)
-  }
-}
-
-function validatePmDates(body: Record<string, unknown>) {
-  const startDate = typeof body.plannedStartDate === 'string' ? body.plannedStartDate.trim() : ''
-  const endDate = typeof body.plannedEndDate === 'string' ? body.plannedEndDate.trim() : ''
-
-  if (!startDate) {
-    throw httpError(400, 'plannedStartDate is required')
+  function positiveInteger(value: unknown, fallback: number, maximum = Number.MAX_SAFE_INTEGER) {
+    const number = Number.parseInt(String(value ?? ''), 10)
+    return Number.isFinite(number) && number > 0 ? Math.min(number, maximum) : fallback
   }
 
-  if (!endDate) {
-    throw httpError(400, 'plannedEndDate is required')
+  function requireNonEmptyString(body: Record<string, unknown>, field: string, message: string) {
+    if (typeof body[field] !== 'string' || !body[field].trim()) {
+      throw httpError(400, message)
+    }
   }
 
-  if (startDate > endDate) {
-    throw httpError(400, 'plannedStartDate must be before or equal to plannedEndDate')
-  }
-}
+  function validatePmDates(body: Record<string, unknown>) {
+    const startDate = typeof body.plannedStartDate === 'string' ? body.plannedStartDate.trim() : ''
+    const endDate = typeof body.plannedEndDate === 'string' ? body.plannedEndDate.trim() : ''
 
-function routeParam(value: string | string[] | undefined): string {
-  if (typeof value !== 'string') throw httpError(400, 'Invalid route parameter')
-  return value
-}
+    if (!startDate) {
+      throw httpError(400, 'plannedStartDate is required')
+    }
 
-async function projectFromRoute(value: string | string[] | undefined) {
-  const encryptedId = routeParam(value)
-  if (!isProjectPublicId(encryptedId)) return null
-  return projects.findByEncryptedId(encryptedId)
-}
+    if (!endDate) {
+      throw httpError(400, 'plannedEndDate is required')
+    }
 
-function publicProject<T extends { id: number }>(project: T) {
-  const { id: _internalId, ...data } = project
-  return data
-}
-
-function comparableProjectValue(value: unknown) {
-  if (value instanceof Date) return value.toISOString().slice(0, 10)
-  return value === undefined || value === '' ? null : value
-}
-
-function projectChanges(before: Record<string, unknown>, after: Record<string, unknown>) {
-  const fields = [
-    'projectName',
-    'projectDescription',
-    'projectTypeId',
-    'projectManagerName',
-    'customerName',
-    'siteAddress',
-    'siteLat',
-    'siteLon',
-    'plannedStartDate',
-    'plannedEndDate',
-  ]
-  return fields.flatMap((field) => {
-    const from = comparableProjectValue(before[field])
-    const to = comparableProjectValue(after[field])
-    return String(from ?? '') === String(to ?? '') ? [] : [{ field, from, to }]
-  })
-}
-
-export const index: RequestHandler = async (req, res) => {
-  const page = positiveInteger(req.query.page, 1)
-  const limit = positiveInteger(req.query.limit, 50, 100)
-  const search = typeof req.query.search === 'string' ? req.query.search.trim() : ''
-  const allowedStatuses = ['draft', 'approved', 'archived'] as const
-  const requestedStatus = typeof req.query.status === 'string' ? req.query.status : ''
-  const status = allowedStatuses.find((value) => value === requestedStatus)
-  const requestedTypeId = Number(req.query.projectTypeId)
-  const projectTypeId = Number.isInteger(requestedTypeId) && requestedTypeId > 0 ? requestedTypeId : undefined
-  const datePattern = /^\d{4}-\d{2}-\d{2}$/
-  const dateFrom = typeof req.query.dateFrom === 'string' && datePattern.test(req.query.dateFrom) ? req.query.dateFrom : undefined
-  const dateTo = typeof req.query.dateTo === 'string' && datePattern.test(req.query.dateTo) ? req.query.dateTo : undefined
-  const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc'
-  const filters = { search, status, projectTypeId, dateFrom, dateTo }
-  const [data, total] = await Promise.all([
-    projects.findAll({ ...filters, sortOrder, limit, offset: (page - 1) * limit }),
-    projects.countAll(filters),
-  ])
-  res.json({
-    data: data.map(publicProject),
-    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-  })
-}
-
-export const trashIndex: RequestHandler = async (_req, res) => {
-  const data = await projects.findAll({ deleted: true })
-  res.json({ data: data.map(publicProject) })
-}
-
-export const show: RequestHandler = async (req, res) => {
-  const data = await projectFromRoute(req.params.encryptedId)
-  if (!data) return res.status(404).json({ message: 'Project not found' })
-  res.json({ data: publicProject(data) })
-}
-
-export const store: RequestHandler = async (req, res) => {
-  const body = { ...req.body }
-  requireNonEmptyString(body, 'siteAddress', 'siteAddress is required')
-  validatePmDates(body)
-
-  const projectTypeId = Number(body.projectTypeId ?? body.project_type_id ?? 0)
-  if (!Number.isFinite(projectTypeId) || projectTypeId <= 0) {
-    throw httpError(400, 'projectTypeId is required')
+    if (startDate > endDate) {
+      throw httpError(400, 'plannedStartDate must be before or equal to plannedEndDate')
+    }
   }
 
-  const project = await projects.create({
-    projectTypeId,
-    projectManagerName: typeof body.projectManagerName === 'string' ? body.projectManagerName.trim() : null,
-    customerName: typeof body.customerName === 'string' ? body.customerName.trim() : null,
-    uploadedBy: req.user?.id ?? null,
-  })
+  function routeParam(value: string | string[] | undefined): string {
+    if (typeof value !== 'string') throw httpError(400, 'Invalid route parameter')
+    return value
+  }
 
-  const hasPmProjectPayload =
-    typeof body.siteAddress === 'string' ||
-    typeof body.latitude === 'string' ||
-    typeof body.longitude === 'string' ||
-    typeof body.plannedStartDate === 'string' ||
-    typeof body.plannedEndDate === 'string'
+  async function projectFromRoute(value: string | string[] | undefined) {
+    const encryptedId = routeParam(value)
+    if (!isProjectPublicId(encryptedId)) return null
+    return projects.findByEncryptedId(encryptedId)
+  }
 
-  if (hasPmProjectPayload) {
-    await pmProjects.create({
-      projectId: project.id,
-      projectsName: typeof body.projectName === 'string' ? body.projectName.trim() : null,
-      projectDescription: typeof body.description === 'string' ? body.description.trim() : null,
-      siteAddress: typeof body.siteAddress === 'string' ? body.siteAddress.trim() : null,
-      siteLat: body.latitude ?? null,
-      siteLon: body.longitude ?? null,
-      plannedStartDate: typeof body.plannedStartDate === 'string' ? body.plannedStartDate : null,
-      plannedEndDate: typeof body.plannedEndDate === 'string' ? body.plannedEndDate : null,
-      createdBy: req.user?.id ?? null,
-      updatedBy: req.user?.id ?? null,
+  function publicProject<T extends { id: number }>(project: T) {
+    const { id: _internalId, ...data } = project
+    return data
+  }
+
+  function comparableProjectValue(value: unknown) {
+    if (value instanceof Date) return value.toISOString().slice(0, 10)
+    return value === undefined || value === '' ? null : value
+  }
+
+  function projectChanges(before: Record<string, unknown>, after: Record<string, unknown>) {
+    const fields = [
+      'projectName',
+      'projectDescription',
+      'projectTypeId',
+      'projectManagerName',
+      'customerName',
+      'siteAddress',
+      'siteLat',
+      'siteLon',
+      'plannedStartDate',
+      'plannedEndDate',
+    ]
+    return fields.flatMap((field) => {
+      const from = comparableProjectValue(before[field])
+      const to = comparableProjectValue(after[field])
+      return String(from ?? '') === String(to ?? '') ? [] : [{ field, from, to }]
     })
   }
 
-  await logActivity({
-    userId: req.user?.id,
-    module: 'projects',
-    action: 'created',
-    entityType: 'project',
-    entityId: project.id,
-    details: {
-      name: typeof body.projectName === 'string' ? body.projectName.trim() : null,
+  export const index: RequestHandler = async (req, res) => {
+    const page = positiveInteger(req.query.page, 1)
+    const limit = positiveInteger(req.query.limit, 50, 100)
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : ''
+    const allowedStatuses = ['draft', 'approved', 'archived'] as const
+    const requestedStatus = typeof req.query.status === 'string' ? req.query.status : ''
+    const status = allowedStatuses.find((value) => value === requestedStatus)
+    const requestedTypeId = Number(req.query.projectTypeId)
+    const projectTypeId = Number.isInteger(requestedTypeId) && requestedTypeId > 0 ? requestedTypeId : undefined
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/
+    const dateFrom = typeof req.query.dateFrom === 'string' && datePattern.test(req.query.dateFrom) ? req.query.dateFrom : undefined
+    const dateTo = typeof req.query.dateTo === 'string' && datePattern.test(req.query.dateTo) ? req.query.dateTo : undefined
+    const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc'
+    const filters = { search, status, projectTypeId, dateFrom, dateTo }
+    const [data, total] = await Promise.all([
+      projects.findAll({ ...filters, sortOrder, limit, offset: (page - 1) * limit }),
+      projects.countAll(filters),
+    ])
+    res.json({
+      data: data.map(publicProject),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    })
+  }
+
+  export const trashIndex: RequestHandler = async (_req, res) => {
+    const data = await projects.findAll({ deleted: true })
+    res.json({ data: data.map(publicProject) })
+  }
+
+  export const show: RequestHandler = async (req, res) => {
+    const data = await projectFromRoute(req.params.encryptedId)
+    if (!data) return res.status(404).json({ message: 'Project not found' })
+    res.json({ data: publicProject(data) })
+  }
+
+  export const store: RequestHandler = async (req, res) => {
+    const body = { ...req.body }
+    requireNonEmptyString(body, 'siteAddress', 'siteAddress is required')
+    validatePmDates(body)
+
+    const projectTypeId = Number(body.projectTypeId ?? body.project_type_id ?? 0)
+    if (!Number.isFinite(projectTypeId) || projectTypeId <= 0) {
+      throw httpError(400, 'projectTypeId is required')
+    }
+
+    const project = await projects.create({
       projectTypeId,
       projectManagerName: typeof body.projectManagerName === 'string' ? body.projectManagerName.trim() : null,
       customerName: typeof body.customerName === 'string' ? body.customerName.trim() : null,
-    },
-    ipAddress: req.ip,
-  })
-  res.status(201).json({ data: publicProject(project) })
-}
+      uploadedBy: req.user?.id ?? null,
+    })
 
-export const patch: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  const id = project.id
-  const body = { ...req.body }
-  requireNonEmptyString(body, 'siteAddress', 'siteAddress is required')
-  validatePmDates(body)
+    const hasPmProjectPayload =
+      typeof body.siteAddress === 'string' ||
+      typeof body.latitude === 'string' ||
+      typeof body.longitude === 'string' ||
+      typeof body.plannedStartDate === 'string' ||
+      typeof body.plannedEndDate === 'string'
 
-  await projects.update(id, {
-    projectTypeId: body.projectTypeId as number | string | null,
-    projectManagerName: typeof body.projectManagerName === 'string' ? body.projectManagerName.trim() : null,
-    customerName: typeof body.customerName === 'string' ? body.customerName.trim() : null,
-    uploadedBy: req.user?.id ?? null,
-  })
-  await pmProjects.updateByProjectId({
-    projectId: Number(id),
-    projectsName: typeof body.projectName === 'string' ? body.projectName.trim() : null,
-    projectDescription: typeof body.description === 'string' ? body.description.trim() : null,
-    siteAddress: typeof body.siteAddress === 'string' ? body.siteAddress.trim() : null,
-    siteLat: body.latitude as number | string | null,
-    siteLon: body.longitude as number | string | null,
-    plannedStartDate: typeof body.plannedStartDate === 'string' ? body.plannedStartDate : null,
-    plannedEndDate: typeof body.plannedEndDate === 'string' ? body.plannedEndDate : null,
-    updatedBy: req.user?.id ?? null,
-  })
-  const data = await projects.findById(id)
-  if (!data) throw new Error('Updated project could not be loaded')
-  const changes = projectChanges(project, data)
-  await logActivity({
-    userId: req.user?.id,
-    module: 'projects',
-    action: 'updated',
-    entityType: 'project',
-    entityId: data.id,
-    details: { name: data.projectName ?? project.projectName, changes },
-    ipAddress: req.ip,
-  })
-  res.json({ data: publicProject(data) })
-}
+    if (hasPmProjectPayload) {
+      await pmProjects.create({
+        projectId: project.id,
+        projectsName: typeof body.projectName === 'string' ? body.projectName.trim() : null,
+        projectDescription: typeof body.description === 'string' ? body.description.trim() : null,
+        siteAddress: typeof body.siteAddress === 'string' ? body.siteAddress.trim() : null,
+        siteLat: body.latitude ?? null,
+        siteLon: body.longitude ?? null,
+        plannedStartDate: typeof body.plannedStartDate === 'string' ? body.plannedStartDate : null,
+        plannedEndDate: typeof body.plannedEndDate === 'string' ? body.plannedEndDate : null,
+        createdBy: req.user?.id ?? null,
+        updatedBy: req.user?.id ?? null,
+      })
+    }
 
-export const destroy: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  const id = project.id
-  if (!await projects.trash(id, req.user?.id ?? null)) return res.status(404).json({ message: 'Project not found' })
-  await logActivity({
-    userId: req.user?.id,
-    module: 'projects',
-    action: 'deleted',
-    entityType: 'project',
-    entityId: id,
-    details: { name: project.projectName },
-    ipAddress: req.ip,
-  })
-  res.status(204).end()
-}
-
-export const restore: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Deleted project not found' })
-  const id = project.id
-  if (!await projects.restore(id)) return res.status(404).json({ message: 'Deleted project not found' })
-  const restored = await projects.findById(id)
-  res.json({ data: restored ? publicProject(restored) : null })
-}
-
-export const updateProjectStatus: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  const id = project.id
-  const allowedStatuses = ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as const
-  const status = allowedStatuses.find((value) => value === req.body?.status)
-  if (!status) throw httpError(400, 'Invalid project status')
-  if (!await pmProjects.updateStatusByProjectId(id, status, req.user?.id ?? null)) {
-    return res.status(404).json({ message: 'PM project not found' })
-  }
-  const updated = await projects.findById(id)
-  res.json({ data: updated ? publicProject(updated) : null })
-}
-
-export const equipmentIndex: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  res.json({ data: await pmEquipment.findAllByProjectId(project.id) })
-}
-
-export const equipmentStore: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  const projectId = project.id
-  const body = { ...req.body } as Record<string, unknown>
-  requireNonEmptyString(body, 'equipmentName', 'equipmentName is required')
-
-  const rawOperatorIds = Array.isArray(body.operatorIds) ? body.operatorIds : []
-  const operatorIds = rawOperatorIds.map(Number)
-  if (operatorIds.some((id) => !Number.isInteger(id) || id <= 0)) {
-    throw httpError(400, 'operatorIds must contain valid user IDs')
-  }
-  if (operatorIds.length > 3 || new Set(operatorIds).size !== operatorIds.length) {
-    throw httpError(400, 'operatorIds must contain no more than 3 unique users')
+    await logActivity({
+      userId: req.user?.id,
+      module: 'projects',
+      action: 'created',
+      entityType: 'project',
+      entityId: project.id,
+      details: {
+        name: typeof body.projectName === 'string' ? body.projectName.trim() : null,
+        projectTypeId,
+        projectManagerName: typeof body.projectManagerName === 'string' ? body.projectManagerName.trim() : null,
+        customerName: typeof body.customerName === 'string' ? body.customerName.trim() : null,
+      },
+      ipAddress: req.ip,
+    })
+    res.status(201).json({ data: publicProject(project) })
   }
 
-  const data = await pmEquipment.create({
-    projectId,
-    equipmentName: String(body.equipmentName).trim(),
-    equipmentModel: typeof body.equipmentModel === 'string' && body.equipmentModel.trim() ? body.equipmentModel.trim() : null,
-    faultSymptom: typeof body.faultSymptom === 'string' && body.faultSymptom.trim() ? body.faultSymptom.trim() : null,
-    remarks: typeof body.remarks === 'string' && body.remarks.trim() ? body.remarks.trim() : null,
-    operatorIds,
-    userId: req.user?.id ?? null,
-  })
-  if (!data) return res.status(404).json({ message: 'PM project not found' })
-
-  res.status(201).json({ data })
-}
-
-export const equipmentPatch: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  const projectId = project.id
-  const equipmentId = routeParam(req.params.equipmentId)
-  const body = { ...req.body } as Record<string, unknown>
-  requireNonEmptyString(body, 'equipmentName', 'equipmentName is required')
-  const data = await pmEquipment.update(projectId, equipmentId, {
-    equipmentName: String(body.equipmentName).trim(),
-    equipmentModel: typeof body.equipmentModel === 'string' && body.equipmentModel.trim() ? body.equipmentModel.trim() : null,
-    faultSymptom: typeof body.faultSymptom === 'string' && body.faultSymptom.trim() ? body.faultSymptom.trim() : null,
-    remarks: typeof body.remarks === 'string' && body.remarks.trim() ? body.remarks.trim() : null,
-    userId: req.user?.id ?? null,
-  })
-  if (!data) return res.status(404).json({ message: 'Equipment not found' })
-  res.json({ data })
-}
-
-export const equipmentWorkDetailsIndex: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  const projectId = project.id
-  const equipmentId = routeParam(req.params.equipmentId)
-  const data = await pmEquipment.findWorkDetails(projectId, equipmentId)
-  res.json({ data })
-}
-
-export const equipmentWorkDetailsSave: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  const projectId = project.id
-  const equipmentId = routeParam(req.params.equipmentId)
-  const allowedSections = new Set(['cause', 'action', 'result'])
-  if (!Array.isArray(req.body?.workDetails)) throw httpError(400, 'workDetails is required')
-  const workDetails = req.body.workDetails.map((item: Record<string, unknown>) => ({
-    section: String(item.section ?? ''),
-    itemNo: Number(item.itemNo),
-    itemContent: typeof item.itemContent === 'string' && item.itemContent.trim() ? item.itemContent.trim() : null,
-  }))
-  if (workDetails.some((item: { section: string; itemNo: number }) => !allowedSections.has(item.section) || !Number.isInteger(item.itemNo) || item.itemNo < 1 || item.itemNo > 255)) {
-    throw httpError(400, 'Invalid equipment work detail')
-  }
-  const keys = workDetails.map((item: { section: string; itemNo: number }) => `${item.section}:${item.itemNo}`)
-  if (new Set(keys).size !== keys.length) throw httpError(400, 'Duplicate equipment work detail')
-  const rawOperatorIds = Array.isArray(req.body?.operatorIds) ? req.body.operatorIds : []
-  const operatorIds = rawOperatorIds.map(Number)
-  if (operatorIds.some((id: number) => !Number.isInteger(id) || id <= 0) || operatorIds.length > 3 || new Set(operatorIds).size !== operatorIds.length) {
-    throw httpError(400, 'operatorIds must contain no more than 3 unique user IDs')
-  }
-  const allowedStatusModes = ['automatic', 'on_hold', 'waiting_parts'] as const
-  const statusMode = allowedStatusModes.find((value) => value === req.body?.statusMode)
-  if (!statusMode) throw httpError(400, 'statusMode must be automatic, on_hold, or waiting_parts')
-  const data = await pmEquipment.saveWorkDetails(projectId, equipmentId, workDetails, operatorIds, statusMode, req.user?.id ?? null)
-  if (!data) return res.status(404).json({ message: 'Equipment not found' })
-  res.json({ data, equipment: await pmEquipment.findById(Number(equipmentId)) })
-}
-
-export const equipmentImagesStore: RequestHandler = async (req, res) => {
-  const equipmentId = routeParam(req.params.equipmentId)
-  const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>
-  const referenceFiles = files.referenceImages ?? []
-  const beforeFiles = files.beforeImages ?? []
-  const afterFiles = files.afterImages ?? []
-  if (!referenceFiles.length && !beforeFiles.length && !afterFiles.length) throw httpError(400, 'At least one image is required')
-  const uploadedFiles = [...referenceFiles, ...beforeFiles, ...afterFiles]
-  try {
+  export const patch: RequestHandler = async (req, res) => {
     const project = await projectFromRoute(req.params.encryptedId)
-    if (!project) {
-      await Promise.allSettled(uploadedFiles.map((file) => unlink(file.path)))
-      return res.status(404).json({ message: 'Project not found' })
-    }
-    const projectId = project.id
-    const data = await pmEquipment.attachImages(projectId, equipmentId, referenceFiles, beforeFiles, afterFiles, req.user?.id ?? null)
-    if (!data) {
-      await Promise.allSettled(uploadedFiles.map((file) => unlink(file.path)))
-      return res.status(404).json({ message: 'Equipment not found' })
-    }
-    res.status(201).json({ data, equipment: await pmEquipment.findById(Number(equipmentId)) })
-  } catch (error) {
-    await Promise.allSettled(uploadedFiles.map((file) => unlink(file.path)))
-    throw error
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const id = project.id
+    const body = { ...req.body }
+    requireNonEmptyString(body, 'siteAddress', 'siteAddress is required')
+    validatePmDates(body)
+
+    await projects.update(id, {
+      projectTypeId: body.projectTypeId as number | string | null,
+      projectManagerName: typeof body.projectManagerName === 'string' ? body.projectManagerName.trim() : null,
+      customerName: typeof body.customerName === 'string' ? body.customerName.trim() : null,
+      uploadedBy: req.user?.id ?? null,
+    })
+    await pmProjects.updateByProjectId({
+      projectId: Number(id),
+      projectsName: typeof body.projectName === 'string' ? body.projectName.trim() : null,
+      projectDescription: typeof body.description === 'string' ? body.description.trim() : null,
+      siteAddress: typeof body.siteAddress === 'string' ? body.siteAddress.trim() : null,
+      siteLat: body.latitude as number | string | null,
+      siteLon: body.longitude as number | string | null,
+      plannedStartDate: typeof body.plannedStartDate === 'string' ? body.plannedStartDate : null,
+      plannedEndDate: typeof body.plannedEndDate === 'string' ? body.plannedEndDate : null,
+      updatedBy: req.user?.id ?? null,
+    })
+    const data = await projects.findById(id)
+    if (!data) throw new Error('Updated project could not be loaded')
+    const changes = projectChanges(project, data)
+    await logActivity({
+      userId: req.user?.id,
+      module: 'projects',
+      action: 'updated',
+      entityType: 'project',
+      entityId: data.id,
+      details: { name: data.projectName ?? project.projectName, changes },
+      ipAddress: req.ip,
+    })
+    res.json({ data: publicProject(data) })
   }
-}
 
-export const equipmentImageShow: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  const image = await pmEquipment.findImage(project.id, routeParam(req.params.equipmentId), routeParam(req.params.uploadId))
-  if (!image) return res.status(404).json({ message: 'Image not found' })
-  res.type(image.mimeType).sendFile(image.storagePath, { root: equipmentStorageDirectory })
-}
+  export const destroy: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const id = project.id
+    if (!await projects.trash(id, req.user?.id ?? null)) return res.status(404).json({ message: 'Project not found' })
+    await logActivity({
+      userId: req.user?.id,
+      module: 'projects',
+      action: 'deleted',
+      entityType: 'project',
+      entityId: id,
+      details: { name: project.projectName },
+      ipAddress: req.ip,
+    })
+    res.status(204).end()
+  }
 
-export const equipmentImageDestroy: RequestHandler = async (req, res) => {
-  const project = await projectFromRoute(req.params.encryptedId)
-  if (!project) return res.status(404).json({ message: 'Project not found' })
-  const projectId = project.id
-  const equipmentId = routeParam(req.params.equipmentId)
-  const uploadId = routeParam(req.params.uploadId)
-  const deleted = await pmEquipment.softDeleteImage(projectId, equipmentId, uploadId, req.user?.id ?? null)
-  if (deleted === null) return res.status(404).json({ message: 'Equipment not found' })
-  if (!deleted) return res.status(404).json({ message: 'Image not found' })
-  res.json({ equipment: await pmEquipment.findById(Number(equipmentId)) })
-}
+  export const restore: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Deleted project not found' })
+    const id = project.id
+    if (!await projects.restore(id)) return res.status(404).json({ message: 'Deleted project not found' })
+    const restored = await projects.findById(id)
+    res.json({ data: restored ? publicProject(restored) : null })
+  }
+
+  export const updateProjectStatus: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const id = project.id
+    const allowedStatuses = ['planning', 'active', 'on_hold', 'completed', 'cancelled'] as const
+    const status = allowedStatuses.find((value) => value === req.body?.status)
+    if (!status) throw httpError(400, 'Invalid project status')
+    if (!await pmProjects.updateStatusByProjectId(id, status, req.user?.id ?? null)) {
+      return res.status(404).json({ message: 'PM project not found' })
+    }
+    const updated = await projects.findById(id)
+    res.json({ data: updated ? publicProject(updated) : null })
+  }
+
+  export const equipmentIndex: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    res.json({ data: await pmEquipment.findAllByProjectId(project.id) })
+  }
+
+  export const equipmentStore: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const projectId = project.id
+    const body = { ...req.body } as Record<string, unknown>
+    requireNonEmptyString(body, 'equipmentName', 'equipmentName is required')
+
+    const rawOperatorIds = Array.isArray(body.operatorIds) ? body.operatorIds : []
+    const operatorIds = rawOperatorIds.map(Number)
+    if (operatorIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+      throw httpError(400, 'operatorIds must contain valid user IDs')
+    }
+    if (operatorIds.length > 3 || new Set(operatorIds).size !== operatorIds.length) {
+      throw httpError(400, 'operatorIds must contain no more than 3 unique users')
+    }
+
+    const data = await pmEquipment.create({
+      projectId,
+      equipmentName: String(body.equipmentName).trim(),
+      equipmentModel: typeof body.equipmentModel === 'string' && body.equipmentModel.trim() ? body.equipmentModel.trim() : null,
+      faultSymptom: typeof body.faultSymptom === 'string' && body.faultSymptom.trim() ? body.faultSymptom.trim() : null,
+      remarks: typeof body.remarks === 'string' && body.remarks.trim() ? body.remarks.trim() : null,
+      operatorIds,
+      userId: req.user?.id ?? null,
+    })
+    if (!data) return res.status(404).json({ message: 'PM project not found' })
+
+    res.status(201).json({ data })
+  }
+
+  export const equipmentPatch: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const projectId = project.id
+    const equipmentId = routeParam(req.params.equipmentId)
+    const body = { ...req.body } as Record<string, unknown>
+    requireNonEmptyString(body, 'equipmentName', 'equipmentName is required')
+    const data = await pmEquipment.update(projectId, equipmentId, {
+      equipmentName: String(body.equipmentName).trim(),
+      equipmentModel: typeof body.equipmentModel === 'string' && body.equipmentModel.trim() ? body.equipmentModel.trim() : null,
+      faultSymptom: typeof body.faultSymptom === 'string' && body.faultSymptom.trim() ? body.faultSymptom.trim() : null,
+      remarks: typeof body.remarks === 'string' && body.remarks.trim() ? body.remarks.trim() : null,
+      userId: req.user?.id ?? null,
+    })
+    if (!data) return res.status(404).json({ message: 'Equipment not found' })
+    res.json({ data })
+  }
+
+  export const equipmentWorkDetailsIndex: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const projectId = project.id
+    const equipmentId = routeParam(req.params.equipmentId)
+    const data = await pmEquipment.findWorkDetails(projectId, equipmentId)
+    res.json({ data })
+  }
+
+  export const equipmentWorkDetailsSave: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const projectId = project.id
+    const equipmentId = routeParam(req.params.equipmentId)
+    const allowedSections = new Set(['cause', 'action', 'result'])
+    if (!Array.isArray(req.body?.workDetails)) throw httpError(400, 'workDetails is required')
+    const workDetails = req.body.workDetails.map((item: Record<string, unknown>) => ({
+      section: String(item.section ?? ''),
+      itemNo: Number(item.itemNo),
+      itemContent: typeof item.itemContent === 'string' && item.itemContent.trim() ? item.itemContent.trim() : null,
+    }))
+    if (workDetails.some((item: { section: string; itemNo: number }) => !allowedSections.has(item.section) || !Number.isInteger(item.itemNo) || item.itemNo < 1 || item.itemNo > 255)) {
+      throw httpError(400, 'Invalid equipment work detail')
+    }
+    const keys = workDetails.map((item: { section: string; itemNo: number }) => `${item.section}:${item.itemNo}`)
+    if (new Set(keys).size !== keys.length) throw httpError(400, 'Duplicate equipment work detail')
+    const rawOperatorIds = Array.isArray(req.body?.operatorIds) ? req.body.operatorIds : []
+    const operatorIds = rawOperatorIds.map(Number)
+    if (operatorIds.some((id: number) => !Number.isInteger(id) || id <= 0) || operatorIds.length > 3 || new Set(operatorIds).size !== operatorIds.length) {
+      throw httpError(400, 'operatorIds must contain no more than 3 unique user IDs')
+    }
+    const allowedStatusModes = ['automatic', 'on_hold', 'waiting_parts'] as const
+    const statusMode = allowedStatusModes.find((value) => value === req.body?.statusMode)
+    if (!statusMode) throw httpError(400, 'statusMode must be automatic, on_hold, or waiting_parts')
+    const data = await pmEquipment.saveWorkDetails(projectId, equipmentId, workDetails, operatorIds, statusMode, req.user?.id ?? null)
+    if (!data) return res.status(404).json({ message: 'Equipment not found' })
+    res.json({ data, equipment: await pmEquipment.findById(Number(equipmentId)) })
+  }
+
+  export const equipmentImagesStore: RequestHandler = async (req, res) => {
+    const equipmentId = routeParam(req.params.equipmentId)
+    const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>
+    const referenceFiles = files.referenceImages ?? []
+    const beforeFiles = files.beforeImages ?? []
+    const afterFiles = files.afterImages ?? []
+    if (!referenceFiles.length && !beforeFiles.length && !afterFiles.length) throw httpError(400, 'At least one image is required')
+    const uploadedFiles = [...referenceFiles, ...beforeFiles, ...afterFiles]
+    try {
+      const project = await projectFromRoute(req.params.encryptedId)
+      if (!project) {
+        await Promise.allSettled(uploadedFiles.map((file) => unlink(file.path)))
+        return res.status(404).json({ message: 'Project not found' })
+      }
+      const projectId = project.id
+      const data = await pmEquipment.attachImages(projectId, equipmentId, referenceFiles, beforeFiles, afterFiles, req.user?.id ?? null)
+      if (!data) {
+        await Promise.allSettled(uploadedFiles.map((file) => unlink(file.path)))
+        return res.status(404).json({ message: 'Equipment not found' })
+      }
+      res.status(201).json({ data, equipment: await pmEquipment.findById(Number(equipmentId)) })
+    } catch (error) {
+      await Promise.allSettled(uploadedFiles.map((file) => unlink(file.path)))
+      throw error
+    }
+  }
+
+  export const equipmentImageShow: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const image = await pmEquipment.findImage(project.id, routeParam(req.params.equipmentId), routeParam(req.params.uploadId))
+    if (!image) return res.status(404).json({ message: 'Image not found' })
+    res.type(image.mimeType).sendFile(image.storagePath, { root: equipmentStorageDirectory })
+  }
+
+  export const equipmentImageDestroy: RequestHandler = async (req, res) => {
+    const project = await projectFromRoute(req.params.encryptedId)
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    const projectId = project.id
+    const equipmentId = routeParam(req.params.equipmentId)
+    const uploadId = routeParam(req.params.uploadId)
+    const deleted = await pmEquipment.softDeleteImage(projectId, equipmentId, uploadId, req.user?.id ?? null)
+    if (deleted === null) return res.status(404).json({ message: 'Equipment not found' })
+    if (!deleted) return res.status(404).json({ message: 'Image not found' })
+    res.json({ equipment: await pmEquipment.findById(Number(equipmentId)) })
+  }
