@@ -3,34 +3,134 @@ import * as RadixDialog from '@radix-ui/react-dialog'
 import SurveyForm from './components/survey-form'
 import SurveyDetail from './components/survey-detail'
 import type { Survey } from './types'
-import { loadSurveys, deleteSurvey } from './storage'
+import {
+  listSurveys as apiListSurveys,
+  deleteSurveyApi,
+  getSurvey,
+} from '../../../services/surveys.api'
 import { FaMagnifyingGlass } from 'react-icons/fa6'
 import { PaginationFooter } from '../../../components/pagination-footer'
 
+/** แปลงเฉพาะวันที่ เช่น 2026-10-08 -> 08/10/2569 (ไม่มีค่า = คืนสตริงว่าง) */
+function formatThaiDate(value?: string | Date | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return new Intl.DateTimeFormat('th-TH', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
+
+const FILE_URL = (id: unknown) => `/boswell-api/v1/surveys/files/${id}`
+
+/** Map API response (list + detail) -> Survey */
+function mapSurvey(r: any): Survey {
+  const loc = r.location
+  return {
+    id: String(r.id),
+    surveyNo: r.surveyNo ?? r.survey_no ?? null,
+    createdAt: r.createdAt ?? r.created_at,
+    updatedAt: r.updatedAt ?? r.updated_at,
+    status: r.status,
+    surveyDate: r.surveyDate ?? r.survey_date ?? '',
+    projectName: r.projectName ?? r.project_name ?? '',
+    province: r.province ?? loc?.province ?? loc?.province_name ?? undefined,
+    district: r.district ?? loc?.district ?? loc?.district_name ?? undefined,
+    subdistrict: r.subdistrict ?? loc?.subdistrict ?? loc?.subdistrict_name ?? undefined,
+    floors: r.floors ?? undefined,
+    contacts: Array.isArray(r.contacts) ? r.contacts : undefined,
+    contact1: r.contact1 ?? r.contacts?.[0] ?? undefined,
+    contact2: r.contact2 ?? r.contacts?.[1] ?? undefined,
+    visitType: r.visitType ?? r.visit_type ?? '',
+    signPhoto: r.signPhoto ?? (r.sign_photo_file_id ? FILE_URL(r.sign_photo_file_id) : null),
+    fcpBrand: r.fcpBrand ?? r.fcp?.brand ?? null,
+    fcpModel: r.fcpModel ?? r.fcp?.model ?? null,
+    fcpType: r.fcpType ?? r.fcp?.type ?? r.fcp?.panel_type ?? null,
+    fcpMaterial: r.fcpMaterial ?? r.fcp?.material ?? r.fcp?.cabinet_material ?? null,
+    fcpStatus: r.fcpStatus ?? r.fcp?.status ?? r.fcp?.power_status ?? '',
+    fcpOverview: r.fcpOverview ?? (r.fcp?.overview_file_id ? FILE_URL(r.fcp.overview_file_id) : null),
+    fcpNameplate: r.fcpNameplate ?? (r.fcp?.nameplate_file_id ? FILE_URL(r.fcp.nameplate_file_id) : null),
+    fcpInside: r.fcpInside ?? (r.fcp?.inside_file_id ? FILE_URL(r.fcp.inside_file_id) : null),
+    equipment: (r.equipment || []).map((eq: any) => {
+      const flag = eq.isPresent ?? eq.is_present
+      const isPresent = flag === true || flag === 1 || flag === '1' || flag === 'true' || eq.status === 'yes'
+      const equipmentTypeId = eq.equipmentTypeId ?? eq.equipment_type_id
+      const typeName = eq.type_name ?? eq.typeName ?? undefined
+      const customName = eq.customName ?? eq.custom_name ?? undefined
+      return {
+        id: eq.id ? String(eq.id) : undefined,
+        equipmentTypeId: equipmentTypeId ? String(equipmentTypeId) : undefined,
+        typeName,
+        customName,
+        isPresent,
+        // detail + form ใช้ status ('yes' | 'no') จึงต้อง map จาก isPresent ด้วย
+        status: isPresent ? 'yes' : 'no',
+        // ชื่อ: name -> custom name -> ชื่อประเภทอุปกรณ์จาก DB
+        name: eq.name ?? customName ?? typeName ?? undefined,
+        model: eq.model ?? undefined,
+        qty: eq.qty ?? eq.quantity ?? undefined,
+        photo: eq.photo ?? (eq.photo_file_id ? FILE_URL(eq.photo_file_id) : null),
+      }
+    }) as any,
+    notes: r.notes ?? '',
+    location: loc
+      ? {
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          address: loc.address ?? loc.address_line ?? null,
+          province: loc.province ?? loc.province_name ?? null,
+          district: loc.district ?? loc.district_name ?? null,
+          subdistrict: loc.subdistrict ?? loc.subdistrict_name ?? null,
+          postalCode: loc.postalCode ?? loc.postal_code ?? null,
+          postalCodeId: loc.postalCodeId ?? loc.postal_code_id ?? null,
+          country: loc.country ?? loc.country_code ?? 'TH',
+        }
+      : undefined,
+  } as Survey
+}
+
 export default function SurveyPage() {
-  const [surveys, setSurveys] = useState<Survey[]>(() => loadSurveys())
+  const [surveys, setSurveys] = useState<Survey[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Survey | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailSurvey, setDetailSurvey] = useState<Survey | null>(null)
 
-  // list controls (search / filter / pagination)
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"" | "draft" | "submitted">("")
+  // list controls
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'' | 'draft' | 'submitted'>('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
-  useEffect(() => { setSurveys(loadSurveys()) }, [])
-
-  const handleSaved = (s: Survey) => {
-    setSurveys((prev) => {
-      const idx = prev.findIndex((x) => x.id === s.id)
-      if (idx >= 0) { const copy = [...prev]; copy[idx] = s; return copy }
-      return [s, ...prev]
-    })
+  const reload = async () => {
+    const res: any = await apiListSurveys()
+    if (Array.isArray(res)) setSurveys(res.map(mapSurvey))
   }
 
-  // derived filtered list
+  /** Load survey list */
+  useEffect(() => {
+    let mounted = true
+    apiListSurveys().then(
+      (res: any) => {
+        if (mounted && Array.isArray(res)) setSurveys(res.map(mapSurvey))
+      },
+      (err) => {
+        console.error('listSurveys failed', err)
+        if (mounted) setSurveys([])
+      }
+    )
+    return () => { mounted = false }
+  }, [])
+
+  /** Refresh list after save */
+  const handleSaved = (_s: Survey) => {
+    reload().catch((e) => console.error('refresh after save failed', e))
+  }
+
+  /** Search + filter */
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     return surveys.filter((s) => {
@@ -46,21 +146,83 @@ export default function SurveyPage() {
   const pageStart = (pageSafe - 1) * pageSize
   const pageItems = filtered.slice(pageStart, pageStart + pageSize)
 
+  /** Open survey detail */
+  async function openDetailById(id: string) {
+    try {
+      const res: any = await getSurvey(id)
+      if (!res) { alert('Survey not found'); return }
+      setDetailSurvey(mapSurvey(res))
+      setDetailOpen(true)
+    } catch (e) {
+      console.error('fetch detail failed', e)
+      alert('Failed to load survey detail')
+    }
+  }
+
+  /** Open survey for editing */
+  async function openEditById(id: string) {
+    try {
+      const res: any = await getSurvey(id)
+      if (!res) { alert('Survey not found'); return }
+      setEditing(mapSurvey(res))
+      setModalOpen(true)
+    } catch (err) {
+      console.error('fetch for edit failed', err)
+      alert('Failed to load survey for editing')
+    }
+  }
+
+  /** Delete survey */
+  async function handleDeleteById(id: string) {
+    try {
+      if (!confirm('Delete survey?')) return
+      await deleteSurveyApi(id)
+      await reload()
+    } catch (err) {
+      console.error('delete failed', err)
+      alert('Delete failed')
+    }
+  }
+
   return (
     <section className="feature-page">
+      {/* PAGE HEADER */}
       <div className="dms-title-row">
-        <div className="dms-title-block"><h1>Fire Alarm Survey</h1><div className="dms-subtitle">Field technician checklist</div></div>
-        <div className="dms-title-search-row"><div className="dms-create-actions"><button className="dms-create-btn" onClick={() => { setEditing(null); setModalOpen(true) }}>New Survey</button></div></div>
+        <div className="dms-title-block">
+          <h1>Fire Alarm Survey</h1>
+          <div className="dms-subtitle">Field technician checklist</div>
+        </div>
+        <div className="dms-title-search-row">
+          <div className="dms-create-actions">
+            <button
+              className="dms-create-btn"
+              onClick={() => { setEditing(null); setModalOpen(true) }}
+            >
+              New Survey
+            </button>
+          </div>
+        </div>
       </div>
 
+      {/* SEARCH / FILTER */}
       <div style={{ marginTop: 12 }}>
         <div className="dms-title-search-row">
           <div className="dms-search-wrap">
             <FaMagnifyingGlass className="dms-search-icon" />
-            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="ค้นหา ชื่อโครงการ" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              placeholder="ค้นหา ชื่อโครงการ"
+            />
           </div>
+
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as any); setPage(1) }} className="dms-filter-select-trigger">
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value as '' | 'draft' | 'submitted'); setPage(1) }}
+              className="dms-filter-select-trigger"
+            >
               <option value="">สถานะทั้งหมด</option>
               <option value="draft">Draft</option>
               <option value="submitted">Submitted</option>
@@ -71,6 +233,7 @@ export default function SurveyPage() {
           </div>
         </div>
 
+        {/* SURVEY LIST */}
         {total === 0 ? (
           <div className="dms-project-empty"><div>No surveys found</div></div>
         ) : (
@@ -78,30 +241,45 @@ export default function SurveyPage() {
             {pageItems.map((s) => (
               <article
                 key={s.id}
-                className={`dms-project-card ${s.status === 'draft' ? '' : ''}`}
+                className="dms-project-card"
                 role="button"
                 tabIndex={0}
-                onClick={() => { setDetailSurvey(s); setDetailOpen(true) }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailSurvey(s); setDetailOpen(true) } }}
+                onClick={() => openDetailById(s.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    openDetailById(s.id)
+                  }
+                }}
               >
                 <div className="dms-card-head">
                   <div className="dms-project-icon-pill">🔎</div>
                   <div className="dms-project-actions">
                     <span className={`dms-card-status is-${s.status}`}>{s.status}</span>
                     <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
-                      <button className="dms-tool-btn" onClick={(e) => { e.stopPropagation(); setEditing(s); setModalOpen(true) }}>แก้ไข</button>
-                      <button className="dms-tool-btn is-danger" onClick={(e) => { e.stopPropagation(); if (confirm('Delete survey?')) { deleteSurvey(s.id); setSurveys(loadSurveys()) } }}>ลบ</button>
+                      <button
+                        className="dms-tool-btn"
+                        onClick={(e) => { e.stopPropagation(); openEditById(s.id) }}
+                      >แก้ไข</button>
+                      <button
+                        className="dms-tool-btn is-danger"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteById(s.id) }}
+                      >ลบ</button>
                     </div>
                   </div>
                 </div>
+
                 <h3 className="dms-card-name">{s.projectName || '(no name)'}</h3>
+
                 <div className="dms-card-foot">
                   <div>
-                    <div className="dms-card-meta"><span className="dms-card-date">{s.surveyDate}</span></div>
-                    <div style={{ marginTop: 6 }}>{s.province || '-'}</div>
+                    <div className="dms-card-meta">
+                      <span className="dms-card-date">{formatThaiDate(s.surveyDate)}</span>
+                    </div>
+                    {s.province ? <div style={{ marginTop: 6 }}>{s.province}</div> : null}
                   </div>
                   <div className="dms-card-meta">
-                    <div>{s.fcpBrand ? `${s.fcpBrand} ${s.fcpModel || ''}` : '-'}</div>
+                    {s.fcpBrand ? <div>{`${s.fcpBrand} ${s.fcpModel || ''}`.trim()}</div> : null}
                   </div>
                 </div>
               </article>
@@ -109,6 +287,7 @@ export default function SurveyPage() {
           </div>
         )}
 
+        {/* PAGINATION */}
         {total > 0 && (
           <PaginationFooter
             page={pageSafe}
@@ -121,6 +300,7 @@ export default function SurveyPage() {
         )}
       </div>
 
+      {/* CREATE / EDIT MODAL */}
       <RadixDialog.Root open={modalOpen} onOpenChange={setModalOpen}>
         <RadixDialog.Portal>
           <RadixDialog.Overlay className="modal-backdrop" />
@@ -131,12 +311,17 @@ export default function SurveyPage() {
               <button className="modal-close" aria-label="Close">×</button>
             </RadixDialog.Close>
             <div className="dms-create-doc-body">
-              <SurveyForm initial={editing ?? undefined} onSaved={(s) => { handleSaved(s); setModalOpen(false) }} onClose={() => setModalOpen(false)} />
+              <SurveyForm
+                initial={editing ?? undefined}
+                onSaved={(s) => { handleSaved(s); setModalOpen(false) }}
+                onClose={() => setModalOpen(false)}
+              />
             </div>
           </RadixDialog.Content>
         </RadixDialog.Portal>
       </RadixDialog.Root>
 
+      {/* DETAIL MODAL */}
       <RadixDialog.Root open={detailOpen} onOpenChange={setDetailOpen}>
         <RadixDialog.Portal>
           <RadixDialog.Overlay className="modal-backdrop" />
@@ -147,7 +332,15 @@ export default function SurveyPage() {
               <button className="modal-close" aria-label="Close">×</button>
             </RadixDialog.Close>
             <div className="dms-create-doc-body">
-              {detailSurvey ? <SurveyDetail survey={detailSurvey} onClose={() => setDetailOpen(false)} onEdit={(s) => { setDetailOpen(false); setEditing(s); setModalOpen(true) }} /> : <div>Loading...</div>}
+              {detailSurvey ? (
+                <SurveyDetail
+                  survey={detailSurvey}
+                  onClose={() => setDetailOpen(false)}
+                  onEdit={(s) => { setDetailOpen(false); setEditing(s); setModalOpen(true) }}
+                />
+              ) : (
+                <div>Loading...</div>
+              )}
             </div>
           </RadixDialog.Content>
         </RadixDialog.Portal>

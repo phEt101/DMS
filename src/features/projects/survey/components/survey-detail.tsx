@@ -22,6 +22,9 @@ const VISIT_TYPE: Record<string, string> = {
 const FCP_STATUS: Record<string, string> = { on: 'เปิดใช้งาน', off: 'ปิดอยู่' }
 const SURVEY_STATUS: Record<string, string> = { draft: 'แบบร่าง', submitted: 'ส่งแล้ว' }
 
+const isEmpty = (v: unknown) =>
+  v === undefined || v === null || v === '' || (typeof v === 'number' && Number.isNaN(v))
+
 // สไตล์ของค่าที่แสดง (read-only) ให้หน้าตาคล้ายช่องกรอกในฟอร์ม
 const valueBox: React.CSSProperties = {
   background: '#f6f7f9',
@@ -34,12 +37,13 @@ const valueBox: React.CSSProperties = {
   wordBreak: 'break-word',
 }
 
+/** ไม่มีข้อมูล = ไม่แสดงช่องนั้นเลย (ไม่มี "-") */
 function Field({ label, value, full }: { label: string; value?: React.ReactNode; full?: boolean }) {
-  const empty = value === undefined || value === null || value === ''
+  if (isEmpty(value)) return null
   return (
     <div className={`dms-form-field${full ? ' dms-form-field--full' : ''}`}>
       <span className="dms-form-label">{label}</span>
-      <div style={{ ...valueBox, color: empty ? '#9ca3af' : 'inherit' }}>{empty ? '-' : value}</div>
+      <div style={valueBox}>{value}</div>
     </div>
   )
 }
@@ -63,26 +67,30 @@ function PhotoTile({ src, caption, onOpen }: { src: string; caption: string; onO
       style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: 0, background: '#fff', cursor: 'zoom-in', overflow: 'hidden', textAlign: 'left' }}
     >
       <img src={src} alt={caption} style={{ display: 'block', width: '100%', height: 120, objectFit: 'cover' }} />
-      <div style={{ padding: '6px 10px', fontSize: 12, color: '#555' }}>{caption}</div>
+      {caption ? <div style={{ padding: '6px 10px', fontSize: 12, color: '#555' }}>{caption}</div> : null}
     </button>
   )
 }
 
-export default function SurveyDetail({ survey, onClose, onEdit }: { survey: Survey; onClose: () => void; onEdit: (s: Survey) => void }) {
+export default function SurveyDetail({ survey, onClose: _onClose, onEdit }: { survey: Survey; onClose: () => void; onEdit: (s: Survey) => void }) {
   const [preview, setPreview] = useState<string | null>(null)
 
-  const equipment = survey.equipment ?? []
-  const haveCount = equipment.filter((e) => e.status === 'yes').length
+  const equipment = (survey.equipment ?? []) as any[]
+  const isYes = (e: any) => e.status === 'yes' || e.isPresent === true
+  const haveCount = equipment.filter(isYes).length
 
   const photos: { src: string; caption: string }[] = []
   if (survey.signPhoto) photos.push({ src: survey.signPhoto, caption: 'ป้ายชื่ออาคาร' })
   if (survey.fcpOverview) photos.push({ src: survey.fcpOverview, caption: 'FCP ทั้งตู้' })
   if (survey.fcpNameplate) photos.push({ src: survey.fcpNameplate, caption: 'ป้ายชื่อ / แผงยี่ห้อ' })
   if (survey.fcpInside) photos.push({ src: survey.fcpInside, caption: 'ภายในตู้ / สายไฟ' })
-  equipment.forEach((e) => { if (e.photo) photos.push({ src: e.photo as string, caption: e.name }) })
+  equipment.forEach((e) => { if (e.photo) photos.push({ src: e.photo as string, caption: e.name ?? '' }) })
 
   const loc = survey.location
   const hasCoord = !!loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number'
+
+  const hasFcp = [survey.fcpBrand, survey.fcpModel, survey.fcpType, survey.fcpMaterial, survey.fcpStatus].some((v) => !isEmpty(v))
+  const hasAddress = !!loc && [loc.address, loc.subdistrict, loc.district, loc.province, loc.postalCode, loc.country].some((v) => !isEmpty(v))
 
   return (
     <div>
@@ -91,8 +99,11 @@ export default function SurveyDetail({ survey, onClose, onEdit }: { survey: Surv
         <div>
           <h2 style={{ margin: 0 }}>{survey.projectName || '(ไม่มีชื่อโครงการ)'}</h2>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-            <small className="dms-card-date">วันที่สำรวจ {survey.surveyDate || '-'}</small>
-            <span className={`dms-card-status is-${survey.status}`}>{SURVEY_STATUS[survey.status] ?? survey.status}</span>
+            {survey.surveyDate ? <small className="dms-card-date">วันที่สำรวจ {survey.surveyDate}</small> : null}
+            {(() => {
+              const statusKey = survey.status ?? ''
+              return statusKey ? <span className={`dms-card-status is-${statusKey}`}>{String(SURVEY_STATUS[statusKey] ?? statusKey)}</span> : null
+            })()}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -109,7 +120,7 @@ export default function SurveyDetail({ survey, onClose, onEdit }: { survey: Surv
         <Field label="ชื่อโครงการ / อาคาร" value={survey.projectName} full />
         <div className="dms-pm-create-grid">
           <Field label="จังหวัด" value={survey.province} />
-          <Field label="จำนวนชั้น" value={typeof survey.floors === 'number' && !Number.isNaN(survey.floors) ? survey.floors : undefined} />
+          <Field label="จำนวนชั้น" value={survey.floors} />
         </div>
         <div className="dms-pm-create-grid">
           <Field label="ผู้ติดต่อ (ชื่อ)" value={survey.contact1?.name} />
@@ -125,14 +136,14 @@ export default function SurveyDetail({ survey, onClose, onEdit }: { survey: Surv
       </section>
 
       {/* ตำแหน่งโครงการ */}
-      {loc ? (
+      {loc && (hasCoord || hasAddress) ? (
         <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
           <h3>ตำแหน่งโครงการ</h3>
           {hasCoord ? (
             <div style={{ height: 280, borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
-              <MapContainer center={[loc.latitude, loc.longitude]} zoom={16} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+              <MapContainer center={[loc.latitude as number, loc.longitude as number]} zoom={16} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
                 <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <Marker position={[loc.latitude, loc.longitude]} icon={DefaultIcon} />
+                <Marker position={[loc.latitude as number, loc.longitude as number]} icon={DefaultIcon} />
               </MapContainer>
             </div>
           ) : null}
@@ -147,7 +158,7 @@ export default function SurveyDetail({ survey, onClose, onEdit }: { survey: Surv
           </div>
           <div className="dms-pm-create-grid">
             <Field label="ประเทศ" value={loc.country} />
-            <Field label="Latitude / Longitude" value={hasCoord ? `${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}` : undefined} />
+            <Field label="Latitude / Longitude" value={hasCoord ? `${(loc.latitude as number).toFixed(6)}, ${(loc.longitude as number).toFixed(6)}` : undefined} />
           </div>
           {hasCoord ? (
             <div style={{ marginTop: 8 }}>
@@ -158,43 +169,46 @@ export default function SurveyDetail({ survey, onClose, onEdit }: { survey: Surv
       ) : null}
 
       {/* FCP */}
-      <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
-        <h3>Fire Alarm Control Panel (FCP)</h3>
-        <div className="dms-pm-create-grid">
-          <Field label="ยี่ห้อ FCP" value={survey.fcpBrand} />
-          <Field label="รุ่น" value={survey.fcpModel} />
-        </div>
-        <div className="dms-pm-create-grid">
-          <Field label="ประเภท" value={survey.fcpType} />
-          <Field label="วัสดุตู้" value={survey.fcpMaterial} />
-        </div>
-        <Field label="Status" value={FCP_STATUS[survey.fcpStatus ?? ''] ?? survey.fcpStatus} />
-      </section>
+      {hasFcp ? (
+        <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
+          <h3>Fire Alarm Control Panel (FCP)</h3>
+          <div className="dms-pm-create-grid">
+            <Field label="ยี่ห้อ FCP" value={survey.fcpBrand} />
+            <Field label="รุ่น" value={survey.fcpModel} />
+          </div>
+          <div className="dms-pm-create-grid">
+            <Field label="ประเภท" value={survey.fcpType} />
+            <Field label="วัสดุตู้" value={survey.fcpMaterial} />
+          </div>
+          <Field label="Status" value={FCP_STATUS[survey.fcpStatus ?? ''] ?? survey.fcpStatus} />
+        </section>
+      ) : null}
 
       {/* Equipment */}
-      <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <h3 style={{ margin: 0 }}>Equipment Checklist</h3>
-          {equipment.length > 0 ? <small className="dms-form-help">มี {haveCount} / {equipment.length} รายการ</small> : null}
-        </div>
-        {equipment.length > 0 ? (
+      {equipment.length > 0 ? (
+        <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <h3 style={{ margin: 0 }}>Equipment Checklist</h3>
+            <small className="dms-form-help">มี {haveCount} / {equipment.length} รายการ</small>
+          </div>
           <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-            {equipment.map((e) => {
-              const yes = e.status === 'yes'
+            {equipment.map((e, i) => {
+              const yes = isYes(e)
+              const key = e.id ? String(e.id) : (e.name ? `${e.name}-${i}` : `equip-${i}`)
+              const details = [
+                !isEmpty(e.model) ? `Model: ${e.model}` : null,
+                !isEmpty(e.qty) ? `จำนวน: ${e.qty}` : null,
+              ].filter(Boolean).join(' · ')
               return (
-                <div key={e.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: 10, background: yes ? '#fff' : '#fafafa' }}>
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: 10, background: yes ? '#fff' : '#fafafa' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: yes ? 'inherit' : '#6b7280' }}>{e.name || '-'}</div>
-                    {yes ? (
-                      <div style={{ fontSize: 13, color: '#555', marginTop: 2 }}>
-                        Model: {e.model || '-'} · จำนวน: {typeof e.qty === 'number' && !Number.isNaN(e.qty) ? e.qty : '-'}
-                      </div>
-                    ) : null}
+                    {e.name ? <div style={{ fontWeight: 600, color: yes ? 'inherit' : '#6b7280' }}>{e.name}</div> : null}
+                    {yes && details ? <div style={{ fontSize: 13, color: '#555', marginTop: 2 }}>{details}</div> : null}
                   </div>
                   {yes && e.photo ? (
                     <img
                       src={e.photo as string}
-                      alt={e.name}
+                      alt={e.name ?? ''}
                       onClick={() => setPreview(e.photo as string)}
                       style={{ width: 56, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }}
                     />
@@ -204,24 +218,26 @@ export default function SurveyDetail({ survey, onClose, onEdit }: { survey: Surv
               )
             })}
           </div>
-        ) : <div style={{ ...valueBox, color: '#9ca3af', marginTop: 10 }}>-</div>}
-      </section>
+        </section>
+      ) : null}
 
       {/* Photos */}
-      <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
-        <h3>รูปถ่าย {photos.length > 0 ? `(${photos.length})` : ''}</h3>
-        {photos.length > 0 ? (
+      {photos.length > 0 ? (
+        <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
+          <h3>รูปถ่าย ({photos.length})</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-            {photos.map((p, i) => <PhotoTile key={i} src={p.src} caption={p.caption} onOpen={setPreview} />)}
+            {photos.map((p, i) => <PhotoTile key={p.src ? p.src : `photo-${i}`} src={p.src} caption={p.caption} onOpen={setPreview} />)}
           </div>
-        ) : <div style={{ ...valueBox, color: '#9ca3af' }}>ไม่มีรูปถ่าย</div>}
-      </section>
+        </section>
+      ) : null}
 
       {/* Notes */}
-      <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
-        <h3>Notes</h3>
-        <div style={{ ...valueBox, whiteSpace: 'pre-wrap', color: survey.notes ? 'inherit' : '#9ca3af' }}>{survey.notes || '-'}</div>
-      </section>
+      {survey.notes ? (
+        <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
+          <h3>Notes</h3>
+          <div style={{ ...valueBox, whiteSpace: 'pre-wrap' }}>{survey.notes}</div>
+        </section>
+      ) : null}
 
       {/* ดูรูปเต็ม */}
       {preview ? (
