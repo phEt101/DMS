@@ -107,9 +107,11 @@ export default function SurveyForm({ initial, onSaved, onClose }: { initial?: Su
     const f = e.target.files?.[0]
     if (!f) return
     const b = await toBase64(f)
-    const arr = watch('equipment') || []
+    const prev = watch('equipment') || []
+    const arr = [...prev]
     arr[idx] = { ...arr[idx], photo: b }
-    setValue('equipment', arr)
+    const clean = arr.map((it: any) => ({ ...it, qty: Number.isFinite(Number(it.qty)) ? Number(it.qty) : undefined }))
+    setValue('equipment', clean)
   }
 
   const removeSurveyPhoto = (key: keyof Survey) => {
@@ -117,9 +119,11 @@ export default function SurveyForm({ initial, onSaved, onClose }: { initial?: Su
   }
 
   const removeEquipmentPhoto = (idx: number) => {
-    const arr = watch('equipment') || []
+    const prev = watch('equipment') || []
+    const arr = [...prev]
     arr[idx] = { ...arr[idx], photo: null }
-    setValue('equipment', arr)
+    const clean = arr.map((it: any) => ({ ...it, qty: Number.isFinite(Number(it.qty)) ? Number(it.qty) : undefined }))
+    setValue('equipment', clean)
   }
 
   // Camera capture state
@@ -219,6 +223,122 @@ export default function SurveyForm({ initial, onSaved, onClose }: { initial?: Su
   const [geoError, setGeoError] = useState<string | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
   const [lastSearched, setLastSearched] = useState<string>('')
+
+  // Location lists from backend (seeded postal_codes)
+  const [provinces, setProvinces] = useState<string[] | null>(null)
+  const [districts, setDistricts] = useState<string[] | null>(null)
+  const [subdistricts, setSubdistricts] = useState<string[] | null>(null)
+
+  // helper functions to load cascaded lists using central request helper
+  const loadDistrictsFor = async (prov: string) => {
+    try {
+      const { request } = await import('../../../../services/api')
+      const json = await request(`/postal-codes/districts?province=${encodeURIComponent(prov)}`)
+      console.debug('[survey] districts loaded for', prov, json)
+      const list = Array.isArray(json) ? json : []
+      setDistricts(list)
+      return list
+    } catch (err) {
+      console.error('[survey] loadDistrictsFor failed', err)
+      const apiPrefix = import.meta.env.VITE_API_URL ?? '/boswell-api/v1'
+      try {
+        const res = await fetch(`${apiPrefix}/postal-codes/districts?province=${encodeURIComponent(prov)}`, { credentials: 'include' })
+        if (!res.ok) throw new Error(`status:${res.status}`)
+        const json = await res.json()
+        const list = Array.isArray(json) ? json : []
+        setDistricts(list)
+        return list
+      } catch (e) {
+        console.error('[survey] fallback loadDistrictsFor failed', e)
+        setDistricts([])
+        return []
+      }
+    }
+  }
+
+  const loadSubdistrictsFor = async (prov: string, dist: string) => {
+    try {
+      const { request } = await import('../../../../services/api')
+      const json = await request(`/postal-codes/subdistricts?province=${encodeURIComponent(prov)}&district=${encodeURIComponent(dist)}`)
+      console.debug('[survey] subdistricts loaded for', prov, dist, json)
+      const list = Array.isArray(json) ? json : []
+      setSubdistricts(list)
+      return list
+    } catch (err) {
+      console.error('[survey] loadSubdistrictsFor failed', err)
+      const apiPrefix = import.meta.env.VITE_API_URL ?? '/boswell-api/v1'
+      try {
+        const res = await fetch(`${apiPrefix}/postal-codes/subdistricts?province=${encodeURIComponent(prov)}&district=${encodeURIComponent(dist)}`, { credentials: 'include' })
+        if (!res.ok) throw new Error(`status:${res.status}`)
+        const json = await res.json()
+        const list = Array.isArray(json) ? json : []
+        setSubdistricts(list)
+        return list
+      } catch (e) {
+        console.error('[survey] fallback loadSubdistrictsFor failed', e)
+        setSubdistricts([])
+        return []
+      }
+    }
+  }
+
+  const loadPostalCodeFor = async (prov: string, dist: string, sub: string) => {
+    try {
+      const { request } = await import('../../../../services/api')
+      const json = await request(`/postal-codes/postal-code?province=${encodeURIComponent(prov)}&district=${encodeURIComponent(dist)}&subdistrict=${encodeURIComponent(sub)}`)
+      console.debug('[survey] postal-code loaded for', prov, dist, sub, json)
+      if (json && json.postalCode) {
+        setValue('location', { ...(locationValue ?? {}), postalCode: json.postalCode, subdistrict: sub } as any)
+      }
+    } catch (err) {
+      console.error('[survey] loadPostalCodeFor failed', err)
+      const apiPrefix = import.meta.env.VITE_API_URL ?? '/boswell-api/v1'
+      try {
+        const res = await fetch(`${apiPrefix}/postal-codes/postal-code?province=${encodeURIComponent(prov)}&district=${encodeURIComponent(dist)}&subdistrict=${encodeURIComponent(sub)}`, { credentials: 'include' })
+        if (!res.ok) throw new Error(`status:${res.status}`)
+        const json = await res.json()
+        if (json && json.postalCode) setValue('location', { ...(locationValue ?? {}), postalCode: json.postalCode, subdistrict: sub } as any)
+      } catch (e) {
+        console.error('[survey] fallback loadPostalCodeFor failed', e)
+      }
+    }
+  }
+
+  // load provinces once
+  useEffect(() => {
+    let mounted = true
+    // use central request helper to include credentials and API prefix
+    import('../../../../services/api').then(({ request }) => {
+      request('/postal-codes/provinces')
+        .then((json) => {
+          console.debug('[survey] provinces response', json)
+          if (mounted) setProvinces(Array.isArray(json) ? json : [])
+        })
+        .catch((err) => {
+          console.error('[survey] request /postal-codes/provinces failed', err)
+          // fallback: try direct fetch to help debug network/auth issues
+          try {
+            const apiPrefix = import.meta.env.VITE_API_URL ?? '/boswell-api/v1'
+            fetch(`${apiPrefix}/postal-codes/provinces`, { credentials: 'include' })
+              .then((r) => r.ok ? r.json() : r.text().then((t) => { throw new Error(`status:${r.status} body:${t}`) }))
+              .then((json) => {
+                console.debug('[survey] fallback provinces response', json)
+                if (mounted) setProvinces(Array.isArray(json) ? json : [])
+              })
+              .catch((err2) => {
+                console.error('[survey] fallback provinces fetch failed', err2)
+                if (mounted) setProvinces([])
+              })
+          } catch (e) {
+            if (mounted) setProvinces([])
+          }
+        })
+    }).catch((err) => {
+      console.error('[survey] import request helper failed', err)
+      if (mounted) setProvinces([])
+    })
+    return () => { mounted = false }
+  }, [])
 
   // Render camera overlay if active
   const CameraOverlay = () => {
@@ -390,16 +510,82 @@ export default function SurveyForm({ initial, onSaved, onClose }: { initial?: Su
       addr.postcode,
     ].filter(Boolean).join(' ') || rev?.display_name || ''
 
-    setValue('location', {
+    // Preserve existing location where possible; set latitude/longitude/address/country and province
+    const prev = (locationValue ?? {}) as any
+    const base = {
+      ...prev,
       latitude: Number(tempPos.lat),
       longitude: Number(tempPos.lng),
       address,
-      subdistrict,
-      district,
-      province,
-      postalCode: addr.postcode || '',
       country: addr.country || 'ประเทศไทย',
-    })
+    } as any
+
+    // Set province (do not clear province when missing)
+    const provinceVal = province || (prev && prev.province) || ''
+    setValue('location', { ...base, province: provinceVal } as any)
+
+    // Load districts for this province so user can select if reverse geocode lacked district
+    const districtsList = provinceVal ? await loadDistrictsFor(provinceVal) : []
+
+    // Helper to clear lower levels
+    const clearLower = (loc: any) => ({ ...loc, district: '', subdistrict: '', postalCode: '' })
+
+    // Decide district
+    const geoDistrict = district || ''
+    const prevDistrict = (prev && prev.district) || ''
+
+    if (geoDistrict) {
+      // if geocoded district matches DB options, set it and proceed
+      if (districtsList.includes(geoDistrict)) {
+        setValue('location', { ...base, province: provinceVal, district: geoDistrict } as any)
+        // load subdistricts and decide subdistrict
+        const subList = await loadSubdistrictsFor(provinceVal, geoDistrict)
+        const geoSub = subdistrict || ''
+        if (geoSub && subList.includes(geoSub)) {
+          setValue('location', { ...base, province: provinceVal, district: geoDistrict, subdistrict: geoSub, postalCode: addr.postcode || '' } as any)
+          // if postal code missing, fetch from DB
+          if (!addr.postcode) await loadPostalCodeFor(provinceVal, geoDistrict, geoSub)
+        } else {
+          // geocoded subdistrict absent or not matching DB — keep district selected, let user select subdistrict
+          setValue('location', { ...base, province: provinceVal, district: geoDistrict, subdistrict: prev.subdistrict || '', postalCode: prev.postalCode || '' } as any)
+          // ensure subdistrict options are loaded (already via loadSubdistrictsFor)
+        }
+      } else {
+        // geocoded district not in DB — do not set it; keep previous if valid
+        if (prevDistrict && districtsList.includes(prevDistrict)) {
+          // keep prevDistrict and load subdistricts
+          setValue('location', { ...base, province: provinceVal, district: prevDistrict } as any)
+          const subList = await loadSubdistrictsFor(provinceVal, prevDistrict)
+          const prevSub = prev.subdistrict || ''
+          if (prevSub && subList.includes(prevSub)) {
+            setValue('location', { ...base, province: provinceVal, district: prevDistrict, subdistrict: prevSub } as any)
+            if (!prev.postalCode) await loadPostalCodeFor(provinceVal, prevDistrict, prevSub)
+          } else {
+            setValue('location', { ...base, province: provinceVal, district: prevDistrict, subdistrict: '', postalCode: '' } as any)
+          }
+        } else {
+          // clear lower levels but keep province
+          setValue('location', clearLower({ ...base, province: provinceVal }) as any)
+        }
+      }
+    } else {
+      // No geocoded district — keep prev if it belongs to this province; otherwise clear district/subdistrict/postalCode but leave province
+      if (prevDistrict && districtsList.includes(prevDistrict)) {
+        // keep prevDistrict and load subdistricts
+        setValue('location', { ...base, province: provinceVal, district: prevDistrict } as any)
+        const subList = await loadSubdistrictsFor(provinceVal, prevDistrict)
+        const prevSub = prev.subdistrict || ''
+        if (prevSub && subList.includes(prevSub)) {
+          setValue('location', { ...base, province: provinceVal, district: prevDistrict, subdistrict: prevSub } as any)
+          if (!prev.postalCode && prevSub) await loadPostalCodeFor(provinceVal, prevDistrict, prevSub)
+        } else {
+          setValue('location', { ...base, province: provinceVal, district: prevDistrict, subdistrict: '', postalCode: '' } as any)
+        }
+      } else {
+        // no prev or prev not valid for this province: clear district/subdistrict/postalCode but keep province
+        setValue('location', clearLower({ ...base, province: provinceVal }) as any)
+      }
+    }
   }
 
   const showDropdown =
@@ -411,21 +597,16 @@ export default function SurveyForm({ initial, onSaved, onClose }: { initial?: Su
       <section className="dms-pm-create-section">
         <h3>ข้อมูลโครงการ</h3>
         <label className="dms-form-field">
-          <span className="dms-form-label">วันที่สำรวจ</span>
-          <input className="dms-form-input" type="date" {...register('surveyDate')} />
+          <span className="dms-form-label">วันที่สำรวจ <span className="required-mark" style={{ color: 'red' }}>*</span></span>
+          <input className="dms-form-input" type="date" {...register('surveyDate', { required: true })} />
           <small className="dms-form-help">วันที่ทำการสำรวจ (เลือกวันที่)</small>
         </label>
         <label className="dms-form-field">
-          <span className="dms-form-label">ชื่อโครงการ / อาคาร</span>
+          <span className="dms-form-label">ชื่อโครงการ / อาคาร <span className="required-mark" style={{ color: 'red' }}>*</span></span>
           <input className="dms-form-input" placeholder="เช่น อาคารสำนักงานใหญ่" {...register('projectName', { required: true })} />
           <small className="dms-form-help">ชื่ออาคารหรือโครงการที่เข้าตรวจ</small>
         </label>
         <div className="dms-pm-create-grid">
-          <label className="dms-form-field">
-            <span className="dms-form-label">จังหวัด</span>
-            <input className="dms-form-input" placeholder="เช่น กรุงเทพมหานคร" {...register('province')} />
-            <small className="dms-form-help">จังหวัดที่ตั้งอาคาร</small>
-          </label>
           <label className="dms-form-field">
             <span className="dms-form-label">จำนวนชั้น</span>
             <input className="dms-form-input" type="number" placeholder="เช่น 5" {...register('floors', { valueAsNumber: true })} />
@@ -435,20 +616,20 @@ export default function SurveyForm({ initial, onSaved, onClose }: { initial?: Su
 
         <div className="dms-pm-create-grid">
           <label className="dms-form-field">
-            <span className="dms-form-label">ผู้ติดต่อ (ชื่อ)</span>
-            <input className="dms-form-input" placeholder="เช่น นายสมชาย ใจดี" {...register('contact1.name')} />
+            <span className="dms-form-label">ผู้ติดต่อ (ชื่อ) <span className="required-mark" style={{ color: 'red' }}>*</span></span>
+            <input className="dms-form-input" placeholder="เช่น นายสมชาย ใจดี" {...register('contact1.name', { required: true })} />
             <small className="dms-form-help">ชื่อผู้ประสานงานหน้างาน</small>
           </label>
           <label className="dms-form-field">
-            <span className="dms-form-label">ผู้ติดต่อ (โทรศัพท์)</span>
-            <input className="dms-form-input" placeholder="เช่น 0812345678" {...register('contact1.phone')} />
+            <span className="dms-form-label">ผู้ติดต่อ (โทรศัพท์) <span className="required-mark" style={{ color: 'red' }}>*</span></span>
+            <input className="dms-form-input" placeholder="เช่น 0812345678" {...register('contact1.phone', { required: true })} />
             <small className="dms-form-help">หมายเลขที่ติดต่อได้</small>
           </label>
         </div>
         <div className="dms-pm-create-grid">
           <label className="dms-form-field">
-            <span className="dms-form-label">ตำแหน่ง</span>
-            <input className="dms-form-input" placeholder="เช่น หัวหน้างาน" {...register('contact1.position')} />
+            <span className="dms-form-label">ตำแหน่ง <span className="required-mark" style={{ color: 'red' }}>*</span></span>
+            <input className="dms-form-input" placeholder="เช่น หัวหน้างาน" {...register('contact1.position', { required: true })} />
             <small className="dms-form-help">ตำแหน่งของผู้ติดต่อ</small>
           </label>
           <label className="dms-form-field">
@@ -560,21 +741,100 @@ export default function SurveyForm({ initial, onSaved, onClose }: { initial?: Su
             <span className="dms-form-label">ที่อยู่</span>
             <input className="dms-form-input" placeholder="ที่อยู่" value={locationValue?.address ?? ''} onChange={(e) => setValue('location', { ...(locationValue ?? {}), address: e.target.value } as any)} />
           </label>
-          <div className="dms-pm-create-grid">
-            <label className="dms-form-field">
-              <span className="dms-form-label">ตำบล/แขวง</span>
-              <input className="dms-form-input" placeholder="ตำบล/แขวง" value={locationValue?.subdistrict ?? ''} onChange={(e) => setValue('location', { ...(locationValue ?? {}), subdistrict: e.target.value } as any)} />
-            </label>
-            <label className="dms-form-field">
-              <span className="dms-form-label">อำเภอ/เขต</span>
-              <input className="dms-form-input" placeholder="อำเภอ/เขต" value={locationValue?.district ?? ''} onChange={(e) => setValue('location', { ...(locationValue ?? {}), district: e.target.value } as any)} />
-            </label>
-          </div>
+
+          {/* Order: จังหวัด -> อำเภอ/เขต -> ตำบล/แขวง -> รหัสไปรษณีย์ */}
           <div className="dms-pm-create-grid">
             <label className="dms-form-field">
               <span className="dms-form-label">จังหวัด</span>
-              <input className="dms-form-input" placeholder="จังหวัด" value={locationValue?.province ?? ''} onChange={(e) => setValue('location', { ...(locationValue ?? {}), province: e.target.value } as any)} />
+              <select className="dms-form-input" value={locationValue?.province ?? ''} onChange={(e) => {
+                const v = e.target.value
+                // clear dependent fields when province changes
+                setValue('location', { ...(locationValue ?? {}), province: v, district: '', subdistrict: '', postalCode: '' } as any)
+                setDistricts([])
+                setSubdistricts([])
+                if (v) {
+                  import('../../../../services/api').then(({ request }) =>
+                    request(`/postal-codes/districts?province=${encodeURIComponent(v)}`)
+                      .then((json) => { console.debug('[survey] districts response for', v, json); setDistricts(Array.isArray(json) ? json : []) })
+                      .catch((err) => {
+                        console.error('[survey] request districts failed', err)
+                        // fallback direct fetch for debugging
+                        const apiPrefix = import.meta.env.VITE_API_URL ?? '/boswell-api/v1'
+                        fetch(`${apiPrefix}/postal-codes/districts?province=${encodeURIComponent(v)}`, { credentials: 'include' })
+                          .then((r) => r.ok ? r.json() : r.text().then((t) => { throw new Error(`status:${r.status} body:${t}`) }))
+                          .then((json) => { console.debug('[survey] fallback districts', json); setDistricts(Array.isArray(json) ? json : []) })
+                          .catch((e) => { console.error('[survey] fallback districts failed', e); setDistricts([]) })
+                      })
+                  ).catch((err) => { console.error('[survey] import request helper failed for districts', err); setDistricts([]) })
+                }
+              }}>
+                <option value="">เลือกจังหวัด</option>
+                {(provinces || []).map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
             </label>
+
+            <label className="dms-form-field">
+              <span className="dms-form-label">อำเภอ/เขต</span>
+              <select className="dms-form-input" value={locationValue?.district ?? ''} onChange={(e) => {
+                const v = e.target.value
+                // clear dependent fields when district changes
+                setValue('location', { ...(locationValue ?? {}), district: v, subdistrict: '', postalCode: '' } as any)
+                setSubdistricts([])
+                const prov = (locationValue?.province || '').trim()
+                // prefer using prov from state; if empty, can't fetch
+                if (prov && v) {
+                  import('../../../../services/api').then(({ request }) =>
+                    request(`/postal-codes/subdistricts?province=${encodeURIComponent(prov)}&district=${encodeURIComponent(v)}`)
+                      .then((json) => { console.debug('[survey] subdistricts response for', prov, v, json); setSubdistricts(Array.isArray(json) ? json : []) })
+                      .catch((err) => {
+                        console.error('[survey] request subdistricts failed', err)
+                        const apiPrefix = import.meta.env.VITE_API_URL ?? '/boswell-api/v1'
+                        fetch(`${apiPrefix}/postal-codes/subdistricts?province=${encodeURIComponent(prov)}&district=${encodeURIComponent(v)}`, { credentials: 'include' })
+                          .then((r) => r.ok ? r.json() : r.text().then((t) => { throw new Error(`status:${r.status} body:${t}`) }))
+                          .then((json) => { console.debug('[survey] fallback subdistricts', json); setSubdistricts(Array.isArray(json) ? json : []) })
+                          .catch((e) => { console.error('[survey] fallback subdistricts failed', e); setSubdistricts([]) })
+                      })
+                  ).catch((err) => { console.error('[survey] import request helper failed for subdistricts', err); setSubdistricts([]) })
+                }
+              }} disabled={!districts || districts.length === 0}>
+                <option value="">เลือกอำเภอ/เขต</option>
+                {(districts || []).map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="dms-pm-create-grid">
+            <label className="dms-form-field">
+              <span className="dms-form-label">ตำบล/แขวง</span>
+              <select className="dms-form-input" value={locationValue?.subdistrict ?? ''} onChange={(e) => {
+                const v = e.target.value
+                setValue('location', { ...(locationValue ?? {}), subdistrict: v } as any)
+                const prov = (locationValue?.province || '').trim()
+                const dist = (locationValue?.district || '').trim()
+                if (prov && dist && v) {
+                  import('../../../../services/api').then(({ request }) =>
+                    request(`/postal-codes/postal-code?province=${encodeURIComponent(prov)}&district=${encodeURIComponent(dist)}&subdistrict=${encodeURIComponent(v)}`)
+                      .then((json) => {
+                        console.debug('[survey] postal-code response', prov, dist, v, json)
+                        if (json && json.postalCode) {
+                          setValue('location', { ...(locationValue ?? {}), postalCode: json.postalCode, subdistrict: v } as any)
+                        }
+                      }).catch((err) => {
+                        console.error('[survey] request postal-code failed', err)
+                        const apiPrefix = import.meta.env.VITE_API_URL ?? '/boswell-api/v1'
+                        fetch(`${apiPrefix}/postal-codes/postal-code?province=${encodeURIComponent(prov)}&district=${encodeURIComponent(dist)}&subdistrict=${encodeURIComponent(v)}`, { credentials: 'include' })
+                          .then((r) => r.ok ? r.json() : r.text().then((t) => { throw new Error(`status:${r.status} body:${t}`) }))
+                          .then((json) => { console.debug('[survey] fallback postal-code', json); if (json && json.postalCode) setValue('location', { ...(locationValue ?? {}), postalCode: json.postalCode, subdistrict: v } as any) })
+                          .catch((e) => { console.error('[survey] fallback postal-code failed', e) })
+                      })
+                  ).catch((err) => { console.error('[survey] import request helper failed for postal-code', err) })
+                }
+              }} disabled={!subdistricts || subdistricts.length === 0}>
+                <option value="">เลือกตำบล/แขวง</option>
+                {(subdistricts || []).map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+
             <label className="dms-form-field">
               <span className="dms-form-label">รหัสไปรษณีย์</span>
               <input className="dms-form-input" placeholder="รหัสไปรษณีย์" value={locationValue?.postalCode ?? ''} onChange={(e) => setValue('location', { ...(locationValue ?? {}), postalCode: e.target.value } as any)} />
@@ -683,10 +943,30 @@ export default function SurveyForm({ initial, onSaved, onClose }: { initial?: Su
       <section className="dms-pm-create-section">
         <h3>Equipment Checklist</h3>
         {equipment.map((item, idx) => (
-          <div key={item.name} className="dms-pm-create-grid" style={{ marginBottom: 8 }}>
-            <div>
-              <label className="dms-form-label">{item.name}</label>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <div key={idx} className="dms-pm-create-grid" style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {( (item as any).isCustom || !item.name || item.name === 'อื่นๆ') ? (
+                <div style={{ flex: 1 }}>
+                  <label className="dms-form-field" style={{ margin: 0 }}>
+                    <span className="dms-form-label">อื่นๆ</span>
+                    <input className="dms-form-input" placeholder="ระบุอุปกรณ์" {...register(`equipment.${idx}.name` as const)} />
+                  </label>
+                </div>
+              ) : (
+                <label className="dms-form-label" style={{ margin: 0 }}>{item.name}</label>
+              )}
+              {((item as any).isCustom || !item.name || item.name === 'อื่นๆ') ? (
+                <button type="button" className="dms-back-btn" onClick={() => {
+                  const prevArr = watch('equipment') || []
+                  const arr = [...prevArr]
+                  arr.splice(idx, 1)
+                  const clean = arr.map((it: any) => ({ ...it, qty: Number.isFinite(Number(it.qty)) ? Number(it.qty) : undefined }))
+                  setValue('equipment', clean)
+                }}>ลบ</button>
+              ) : null}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 <label className="dms-form-field" style={{ margin: 0 }}>
                   <input type="radio" {...register(`equipment.${idx}.status` as const)} value="no" defaultChecked={item.status === 'no'} /> ไม่มี
                 </label>
@@ -694,37 +974,46 @@ export default function SurveyForm({ initial, onSaved, onClose }: { initial?: Su
                   <input type="radio" {...register(`equipment.${idx}.status` as const)} value="yes" defaultChecked={item.status === 'yes'} /> มี
                 </label>
               </div>
+              {equipment[idx]?.status === 'yes' && (
+                <div>
+                  <label className="dms-form-field">
+                    <span className="dms-form-label">Model</span>
+                    <input className="dms-form-input" placeholder="เช่น GA-200" {...register(`equipment.${idx}.model` as const)} />
+                    <small className="dms-form-help">หมายเลขรุ่นของอุปกรณ์ (ถ้ามี)</small>
+                  </label>
+                  <label className="dms-form-field">
+                    <span className="dms-form-label">Quantity</span>
+                    <input className="dms-form-input" type="number" placeholder="เช่น 4" {...register(`equipment.${idx}.qty` as const, { valueAsNumber: true })} />
+                    <small className="dms-form-help">จำนวนชิ้นของอุปกรณ์</small>
+                  </label>
+                  <label className="dms-form-field">
+                    <span className="dms-form-label">Photo</span>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input style={{ display: 'none' }} id={`equip-photo-${idx}`} type="file" accept="image/*" onChange={(e) => handleEquipmentFile(e, idx)} />
+                      <button type="button" className="dms-create-btn" onClick={() => openCamera(`equip-${idx}`)}>เปิดกล้อง</button>
+                      <button type="button" className="dms-create-btn" onClick={() => (document.getElementById(`equip-photo-${idx}`) as HTMLInputElement).click()}>เลือกรูป</button>
+                      {equipment[idx]?.photo ? (
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <img src={String(equipment[idx].photo)} alt="equip" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 6 }} />
+                          <button type="button" className="dms-back-btn" onClick={() => removeEquipmentPhoto(idx)}>ลบรูป</button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </label>
+                </div>
+              )}
             </div>
-            {equipment[idx]?.status === 'yes' && (
-              <div>
-                <label className="dms-form-field">
-                  <span className="dms-form-label">Model</span>
-                  <input className="dms-form-input" placeholder="เช่น GA-200" {...register(`equipment.${idx}.model` as const)} />
-                  <small className="dms-form-help">หมายเลขรุ่นของอุปกรณ์ (ถ้ามี)</small>
-                </label>
-                <label className="dms-form-field">
-                  <span className="dms-form-label">Quantity</span>
-                  <input className="dms-form-input" type="number" placeholder="เช่น 4" {...register(`equipment.${idx}.qty` as const, { valueAsNumber: true })} />
-                  <small className="dms-form-help">จำนวนชิ้นของอุปกรณ์</small>
-                </label>
-                <label className="dms-form-field">
-                  <span className="dms-form-label">Photo</span>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <input style={{ display: 'none' }} id={`equip-photo-${idx}`} type="file" accept="image/*" onChange={(e) => handleEquipmentFile(e, idx)} />
-                    <button type="button" className="dms-create-btn" onClick={() => openCamera(`equip-${idx}`)}>เปิดกล้อง</button>
-                    <button type="button" className="dms-create-btn" onClick={() => (document.getElementById(`equip-photo-${idx}`) as HTMLInputElement).click()}>เลือกรูป</button>
-                    {equipment[idx]?.photo ? (
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <img src={String(equipment[idx].photo)} alt="equip" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 6 }} />
-                        <button type="button" className="dms-back-btn" onClick={() => removeEquipmentPhoto(idx)}>ลบรูป</button>
-                      </div>
-                    ) : null}
-                  </div>
-                </label>
-              </div>
-            )}
           </div>
         ))}
+        <div style={{ marginTop: 8 }}>
+          <button type="button" className="dms-create-btn" onClick={() => {
+            const prevArr = watch('equipment') || []
+          // add a blank-name custom item so the UI shows an editable input immediately; mark isCustom so it remains editable after typing
+          const arr = [...prevArr, { name: '', status: 'yes', model: '', qty: undefined, photo: null, isCustom: true } as any]
+          const clean = arr.map((it: any) => ({ ...it, qty: Number.isFinite(Number(it.qty)) ? Number(it.qty) : undefined }))
+          setValue('equipment', clean)
+          }}>เพิ่ม อื่นๆ</button>
+        </div>
       </section>
 
       <section className="dms-pm-create-section">

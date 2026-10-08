@@ -11,6 +11,7 @@ import { usersRouter } from "./settings/users/routes/users.routes.js";
 import { departmentsRouter } from "./settings/access/departments/routes/departments.routes.js";
 import { permissionsRouter } from "./settings/access/permissions/routes/permissions.routes.js";
 import { modulesRouter } from "./settings/access/modules/routes/modules.routes.js";
+import { postalCodesRouter } from "./postal-codes/routes/postal-codes.routes.js";
 import { asyncHandler } from "../middleware/errors.js";
 import { requireAuth } from "./auth/middleware/require-auth.middleware.js";
 
@@ -22,6 +23,7 @@ apiRouter.use("/auth", authRouter);
 apiRouter.use(asyncHandler(requireAuth));
 
 apiRouter.use("/project-types", projectTypesRouter);
+apiRouter.use("/postal-codes", postalCodesRouter);
 apiRouter.use("/projects", projectsRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/roles", rolesRouter);
