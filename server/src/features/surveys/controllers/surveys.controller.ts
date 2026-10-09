@@ -231,7 +231,7 @@ export async function handleUpdateSurvey(req: Request, res: Response) {
     const finalSurveyDate = payload.surveyDate ?? existing.surveyDate ?? null
     const finalProjectName = payload.projectName ?? existing.projectName ?? null
     const finalFloors = payload.floors ?? existing.floors ?? null
-    const finalVisitType = mapVisitType(payload.visitType ?? payload.visit_type ?? existing.visitType ?? existing.visit_type ?? null)
+    const finalVisitType = mapVisitType(payload.visitType ?? payload.visit_type ?? existing.visitType ?? null)
     const finalStatus = payload.status ?? existing.status ?? 'draft'
     const finalNotes = payload.notes ?? existing.notes ?? null
     const finalSurveyedBy = payload.surveyedBy ?? existing.surveyedBy ?? null

@@ -158,6 +158,8 @@ export default function Sidebar({
   const canViewUsers = Boolean(user && canViewModule(user, "users"));
   const canViewActivity = Boolean(user && canViewModule(user, "activity_logs"));
   const hasSettingsItems = canViewUsers || accessItems.length > 0 || canViewActivity;
+  const hasActiveSettingsItem = activeItem.startsWith("settings-");
+  const hasActiveAccessItem = accessItems.some((item) => item.key === activeItem);
 
   return (
     <>
@@ -218,7 +220,7 @@ export default function Sidebar({
               return (
                 <div className="nav-group" key={item.key} ref={projectsGroupRef}>
                   <button
-                    className={`nav-item nav-button projects-toggle ${activeItem === item.key ? 'is-active' : ''}`}
+                    className={`nav-item nav-button projects-toggle ${['projects', 'projects-cm', 'survey'].includes(activeItem) ? 'has-active-child' : ''}`}
                     onClick={() => setProjectsOpen((v) => !v)}
                     title={collapsed ? item.label : undefined}
                     aria-expanded={projectsOpen}
@@ -271,7 +273,7 @@ export default function Sidebar({
           {hasSettingsItems && <div className="nav-divider" />}
           {hasSettingsItems && <div className="settings-group" ref={settingsGroupRef}>
             <button
-              className="nav-item nav-button settings-toggle"
+              className={`nav-item nav-button settings-toggle ${hasActiveSettingsItem ? "has-active-child" : ""}`}
               onClick={() => setSettingsOpen((open) => !open)}
               title={collapsed ? sidebarTranslations.settingsHint : undefined}
               aria-expanded={settingsOpen}
@@ -291,7 +293,7 @@ export default function Sidebar({
                   <span>{sidebarTranslations.user}</span>
                 </button>}
                 {accessItems.length > 0 && <button
-                  className="nav-item nav-button access-toggle"
+                  className={`nav-item nav-button access-toggle ${hasActiveAccessItem ? "has-active-child" : ""}`}
                   type="button"
                   aria-expanded={accessOpen}
                   onClick={() => setAccessOpen((open) => !open)}
