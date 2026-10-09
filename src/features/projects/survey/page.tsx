@@ -11,6 +11,8 @@ import {
   getSurvey,
 } from '../../../services/surveys.api'
 import { PaginationFooter } from '../../../components/pagination-footer'
+import ConfirmDialog from '../../../components/confirm-dialog'
+import { useToast } from '../../../components/toast-provider'
 import { FaEllipsis, FaFileLines, FaPen, FaTrashCan } from 'react-icons/fa6'
 
 /** แปลงเฉพาะวันที่ เช่น 2026-10-08 -> 08/10/2569 (ไม่มีค่า = คืนสตริงว่าง) */
@@ -207,14 +209,34 @@ export default function SurveyPage() {
   }
 
   /** Delete survey */
+  // delete flow: open confirm dialog first, then call API on confirm
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   async function handleDeleteById(id: string) {
+    // open confirmation modal
+    setDeleteTargetId(id)
+    setDeleteOpen(true)
+  }
+
+  const { showToast } = useToast()
+
+  async function performDelete() {
+    if (!deleteTargetId) return
+    setDeleteLoading(true)
     try {
-      if (!confirm('Delete survey?')) return
-      await deleteSurveyApi(id)
+      await deleteSurveyApi(deleteTargetId)
+      setDeleteOpen(false)
+      setDeleteTargetId(null)
       await reload()
-    } catch (err) {
+      showToast('Survey deleted', 'success')
+    } catch (err: any) {
       console.error('delete failed', err)
-      alert('Delete failed')
+      const msg = err?.message ?? String(err)
+      showToast(`Delete failed: ${msg}`, 'error')
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -379,6 +401,18 @@ export default function SurveyPage() {
         </RadixDialog.Root>
 
         {/* DETAIL MODAL */}
+
+        {/* Confirm delete dialog */}
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={(v) => { if (!v) { setDeleteTargetId(null); setDeleteOpen(false) } else setDeleteOpen(v) }}
+          title="Confirm delete"
+          description="ต้องการลบแบบสำรวจนี้จริงหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้"
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          loading={deleteLoading}
+          onConfirm={performDelete}
+        />
         <RadixDialog.Root open={detailOpen} onOpenChange={setDetailOpen}>
           <RadixDialog.Portal>
             <RadixDialog.Overlay className="modal-backdrop" />

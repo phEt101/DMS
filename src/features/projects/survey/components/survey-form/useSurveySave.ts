@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Survey } from '../../types'
 import { createSurvey, updateSurvey } from '../../../../../services/surveys.api'
 import { buildBodyPayload, buildFormData } from './buildPayload'
+import { useToast } from '../../../../../components/toast-provider'
 
 export function useSurveySave({
   filesMap,
@@ -13,6 +14,8 @@ export function useSurveySave({
   onClose: () => void
 }) {
   const [saving, setSaving] = useState(false)
+
+  const { showToast } = useToast()
 
   const onSave = async (values: Survey, submit = false) => {
     try {
@@ -58,6 +61,8 @@ export function useSurveySave({
             ? res.equipment.map((e: any) => ({ name: e.customName ?? '', status: e.isPresent ? 'yes' : 'no', model: e.model, qty: e.qty, photo: e.photo }))
             : values.equipment,
         })
+        // show success toast
+        showToast(submit ? 'Survey submitted' : 'Survey saved', 'success')
         onClose()
       } catch (err: any) {
         // surface server error to user and keep form open for correction
@@ -72,8 +77,8 @@ export function useSurveySave({
           bodyStr = String(body)
         }
         const serverMsg = bodyStr ?? err?.message ?? String(err)
-        // use alert for simplicity; replace with app toast if available
-        alert(`Save failed: ${serverMsg}`)
+        // use toast to surface error
+        showToast(`Save failed: ${serverMsg}`, 'error')
         return
       }
     } finally {
