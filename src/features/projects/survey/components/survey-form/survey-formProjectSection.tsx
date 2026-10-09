@@ -2,7 +2,7 @@ import type { UseFormReturn } from 'react-hook-form'
 import { useEffect } from 'react'
 import { formatDateForInput } from './utils'
 import type { Survey } from '../../types'
-import PhotoField from './PhotoField'
+import PhotoField from './survey-formPhotoField'
 import type { usePhotos } from './usePhotos'
 
 const Required = () => <span className="required-mark" style={{ color: 'red' }}>*</span>

@@ -1,6 +1,6 @@
 import type { UseFormReturn } from 'react-hook-form'
 import type { Survey } from '../../types'
-import PhotoField from './PhotoField'
+import PhotoField from './survey-formPhotoField'
 import type { usePhotos } from './usePhotos'
 import { cleanEquipment } from './utils'
 

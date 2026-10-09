@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import SurveyForm from './components/survey-form'
 import SurveyDetail from './components/survey-detail'
+import SurveyFilter, { type SurveyStatusFilter } from './components/survey-filter'
 import type { Survey } from './types'
 import {
   listSurveys as apiListSurveys,
   deleteSurveyApi,
   getSurvey,
 } from '../../../services/surveys.api'
-import { FaMagnifyingGlass } from 'react-icons/fa6'
 import { PaginationFooter } from '../../../components/pagination-footer'
 
 /** แปลงเฉพาะวันที่ เช่น 2026-10-08 -> 08/10/2569 (ไม่มีค่า = คืนสตริงว่าง) */
@@ -129,7 +129,7 @@ export default function SurveyPage() {
 
   // list controls
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'' | 'draft' | 'submitted'>('')
+  const [statusFilter, setStatusFilter] = useState<SurveyStatusFilter>('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
@@ -173,6 +173,9 @@ export default function SurveyPage() {
   const pageSafe = Math.max(1, Math.min(page, totalPages))
   const pageStart = (pageSafe - 1) * pageSize
   const pageItems = filtered.slice(pageStart, pageStart + pageSize)
+
+  const handleSearchChange = (value: string) => { setSearch(value); setPage(1) }
+  const handleStatusChange = (value: SurveyStatusFilter) => { setStatusFilter(value); setPage(1) }
 
   /** Open survey detail */
   async function openDetailById(id: string) {
@@ -233,146 +236,127 @@ export default function SurveyPage() {
         </div>
 
         <div style={{ marginTop: 12 }}>
-          <div className="dms-title-search-row">
-            <div className="dms-search-wrap">
-              <FaMagnifyingGlass className="dms-search-icon" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                placeholder="ค้นหา ชื่อโครงการ"
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as '' | 'draft' | 'submitted'); setPage(1) }}
-                className="dms-filter-select-trigger"
-              >
-                <option value="">สถานะทั้งหมด</option>
-                <option value="draft">Draft</option>
-                <option value="submitted">Submitted</option>
-              </select>
-              <div className="dms-stats-group">
-                <div className="dms-stats-pill">{total} records</div>
-              </div>
-            </div>
-          </div>
-
-        {/* SURVEY LIST */}
-        {total === 0 ? (
-          <div className="dms-project-empty"><div>No surveys found</div></div>
-        ) : (
-          <div className="dms-card-grid">
-            {pageItems.map((s) => (
-              <article
-                key={s.id}
-                className="dms-project-card"
-                role="button"
-                tabIndex={0}
-                onClick={() => openDetailById(s.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    openDetailById(s.id)
-                  }
-                }}
-              >
-                <div className="dms-card-head">
-                  <div className="dms-project-icon-pill">🔎</div>
-                  <div className="dms-project-actions">
-                    <span className={`dms-card-status is-${s.status}`}>{s.status}</span>
-                    <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
-                      <button
-                        className="dms-tool-btn"
-                        onClick={(e) => { e.stopPropagation(); openEditById(s.id) }}
-                      >แก้ไข</button>
-                      <button
-                        className="dms-tool-btn is-danger"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteById(s.id) }}
-                      >ลบ</button>
-                    </div>
-                  </div>
-                </div>
-
-                <h3 className="dms-card-name">{s.projectName || '(no name)'}</h3>
-
-                <div className="dms-card-foot">
-                  <div>
-                    <div className="dms-card-meta">
-                      <span className="dms-card-date">{formatThaiDate(s.surveyDate)}</span>
-                    </div>
-                    {s.province ? <div style={{ marginTop: 6 }}>{s.province}</div> : null}
-                  </div>
-                  <div className="dms-card-meta">
-                    {s.fcpBrand ? <div>{`${s.fcpBrand} ${s.fcpModel || ''}`.trim()}</div> : null}
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-
-        {/* PAGINATION */}
-        {total > 0 && (
-          <PaginationFooter
-            page={pageSafe}
-            pageSize={pageSize}
+          <SurveyFilter
+            search={search}
+            statusFilter={statusFilter}
             total={total}
-            labels={{ previous: 'Previous', next: 'Next', page: 'Page', perPage: 'per page' }}
-            onPageChange={(p: number) => setPage(Math.max(1, Math.min(p, totalPages)))}
-            onPageSizeChange={(s: number) => { setPageSize(s); setPage(1) }}
+            onSearchChange={handleSearchChange}
+            onStatusChange={handleStatusChange}
           />
-        )}
-      </div>
 
-      {/* CREATE / EDIT MODAL */}
-      <RadixDialog.Root open={modalOpen} onOpenChange={setModalOpen}>
-        <RadixDialog.Portal>
-          <RadixDialog.Overlay className="modal-backdrop" />
-          <RadixDialog.Content className="dms-modal dms-create-doc-modal">
-            <RadixDialog.Title className="dms-modal-title">Survey</RadixDialog.Title>
-            <RadixDialog.Description className="dms-modal-subtitle">Fire Alarm Checklist</RadixDialog.Description>
-            <RadixDialog.Close asChild>
-              <button className="modal-close" aria-label="Close">×</button>
-            </RadixDialog.Close>
-            <div className="dms-create-doc-body">
-              <SurveyForm
-                initial={editing ?? undefined}
-                onSaved={(s) => { handleSaved(s); setModalOpen(false) }}
-                onClose={() => setModalOpen(false)}
-              />
+          {/* SURVEY LIST */}
+          {total === 0 ? (
+            <div className="dms-project-empty"><div>No surveys found</div></div>
+          ) : (
+            <div className="dms-card-grid">
+              {pageItems.map((s) => (
+                <article
+                  key={s.id}
+                  className="dms-project-card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openDetailById(s.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      openDetailById(s.id)
+                    }
+                  }}
+                >
+                  <div className="dms-card-head">
+                    <div className="dms-project-icon-pill">🔎</div>
+                    <div className="dms-project-actions">
+                      <span className={`dms-card-status is-${s.status}`}>{s.status}</span>
+                      <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+                        <button
+                          className="dms-tool-btn"
+                          onClick={(e) => { e.stopPropagation(); openEditById(s.id) }}
+                        >แก้ไข</button>
+                        <button
+                          className="dms-tool-btn is-danger"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteById(s.id) }}
+                        >ลบ</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h3 className="dms-card-name">{s.projectName || '(no name)'}</h3>
+
+                  <div className="dms-card-foot">
+                    <div>
+                      <div className="dms-card-meta">
+                        <span className="dms-card-date">{formatThaiDate(s.surveyDate)}</span>
+                      </div>
+                      {s.province ? <div style={{ marginTop: 6 }}>{s.province}</div> : null}
+                    </div>
+                    <div className="dms-card-meta">
+                      {s.fcpBrand ? <div>{`${s.fcpBrand} ${s.fcpModel || ''}`.trim()}</div> : null}
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
-          </RadixDialog.Content>
-        </RadixDialog.Portal>
-      </RadixDialog.Root>
+          )}
 
-      {/* DETAIL MODAL */}
-      <RadixDialog.Root open={detailOpen} onOpenChange={setDetailOpen}>
-        <RadixDialog.Portal>
-          <RadixDialog.Overlay className="modal-backdrop" />
-          <RadixDialog.Content className="dms-modal dms-create-doc-modal">
-            <RadixDialog.Title className="dms-modal-title">Survey Detail</RadixDialog.Title>
-            <RadixDialog.Description className="dms-modal-subtitle">Read-only view</RadixDialog.Description>
-            <RadixDialog.Close asChild>
-              <button className="modal-close" aria-label="Close">×</button>
-            </RadixDialog.Close>
-            <div className="dms-create-doc-body">
-              {detailSurvey ? (
-                <SurveyDetail
-                  survey={detailSurvey}
-                  onClose={() => setDetailOpen(false)}
-                  onEdit={(s) => { setDetailOpen(false); setEditing(s); setModalOpen(true) }}
+          {/* PAGINATION */}
+          {total > 0 && (
+            <PaginationFooter
+              page={pageSafe}
+              pageSize={pageSize}
+              total={total}
+              labels={{ previous: 'Previous', next: 'Next', page: 'Page', perPage: 'per page' }}
+              onPageChange={(p: number) => setPage(Math.max(1, Math.min(p, totalPages)))}
+              onPageSizeChange={(s: number) => { setPageSize(s); setPage(1) }}
+            />
+          )}
+        </div>
+
+        {/* CREATE / EDIT MODAL */}
+        <RadixDialog.Root open={modalOpen} onOpenChange={setModalOpen}>
+          <RadixDialog.Portal>
+            <RadixDialog.Overlay className="modal-backdrop" />
+            <RadixDialog.Content className="dms-modal dms-create-doc-modal">
+              <RadixDialog.Title className="dms-modal-title">Survey</RadixDialog.Title>
+              <RadixDialog.Description className="dms-modal-subtitle">Fire Alarm Checklist</RadixDialog.Description>
+              <RadixDialog.Close asChild>
+                <button className="modal-close" aria-label="Close">×</button>
+              </RadixDialog.Close>
+              <div className="dms-create-doc-body">
+                <SurveyForm
+                  initial={editing ?? undefined}
+                  onSaved={(s) => { handleSaved(s); setModalOpen(false) }}
+                  onClose={() => setModalOpen(false)}
                 />
-              ) : (
-                <div>Loading...</div>
-              )}
-            </div>
-          </RadixDialog.Content>
-        </RadixDialog.Portal>
-      </RadixDialog.Root>
-    </section>
+              </div>
+            </RadixDialog.Content>
+          </RadixDialog.Portal>
+        </RadixDialog.Root>
+
+        {/* DETAIL MODAL */}
+        <RadixDialog.Root open={detailOpen} onOpenChange={setDetailOpen}>
+          <RadixDialog.Portal>
+            <RadixDialog.Overlay className="modal-backdrop" />
+            <RadixDialog.Content className="dms-modal dms-create-doc-modal">
+              <RadixDialog.Title className="dms-modal-title">Survey Detail</RadixDialog.Title>
+              <RadixDialog.Description className="dms-modal-subtitle">Read-only view</RadixDialog.Description>
+              <RadixDialog.Close asChild>
+                <button className="modal-close" aria-label="Close">×</button>
+              </RadixDialog.Close>
+              <div className="dms-create-doc-body">
+                {detailSurvey ? (
+                  <SurveyDetail
+                    survey={detailSurvey}
+                    onClose={() => setDetailOpen(false)}
+                    onEdit={(s) => { setDetailOpen(false); setEditing(s); setModalOpen(true) }}
+                  />
+                ) : (
+                  <div>Loading...</div>
+                )}
+              </div>
+            </RadixDialog.Content>
+          </RadixDialog.Portal>
+        </RadixDialog.Root>
+      </section>
     </ErrorBoundary>
   )
 }

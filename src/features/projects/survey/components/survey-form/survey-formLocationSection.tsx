@@ -1,4 +1,4 @@
-import MapPicker from './MapPicker'
+import MapPicker from './survey-formMapPicker'
 import type { LocationPicker } from './useLocationPicker'
 import type { PostalApi } from './usePostalCodes'
 

@@ -1,6 +1,6 @@
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import MapEvents from '../MapEvents'
+import MapEvents from './survey-mapevents'
 import { DefaultIcon } from './utils'
 import type { LocationPicker } from './useLocationPicker'
 
