@@ -11,7 +11,9 @@ import {
   getSurvey,
 } from '../../../services/surveys.api'
 import { PaginationFooter } from '../../../components/pagination-footer'
-import { FaEllipsis, FaPen, FaTrashCan } from 'react-icons/fa6'
+import ConfirmDialog from '../../../components/confirm-dialog'
+import { useToast } from '../../../components/toast-provider'
+import { FaEllipsis, FaFileLines, FaPen, FaTrashCan } from 'react-icons/fa6'
 
 /** แปลงเฉพาะวันที่ เช่น 2026-10-08 -> 08/10/2569 (ไม่มีค่า = คืนสตริงว่าง) */
 function formatThaiDate(value?: string | Date | null): string {
@@ -207,16 +209,56 @@ export default function SurveyPage() {
   }
 
   /** Delete survey */
+  // delete flow: open confirm dialog first, then call API on confirm
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   async function handleDeleteById(id: string) {
+    // open confirmation modal
+    setDeleteTargetId(id)
+    setDeleteOpen(true)
+  }
+
+  const { showToast } = useToast()
+
+  async function performDelete() {
+    if (!deleteTargetId) return
+    setDeleteLoading(true)
     try {
-      if (!confirm('Delete survey?')) return
-      await deleteSurveyApi(id)
+      await deleteSurveyApi(deleteTargetId)
+      setDeleteOpen(false)
+      setDeleteTargetId(null)
       await reload()
-    } catch (err) {
+      showToast('Survey deleted', 'success')
+    } catch (err: any) {
       console.error('delete failed', err)
-      alert('Delete failed')
+      const msg = err?.message ?? String(err)
+      showToast(`Delete failed: ${msg}`, 'error')
+    } finally {
+      setDeleteLoading(false)
     }
   }
+
+  const renderMenu = (id: string) => (
+    <RadixMenu.Root>
+      <RadixMenu.Trigger asChild>
+        <button type="button" className="dms-card-menu" aria-label="more" onClick={(e) => e.stopPropagation()}>
+          <FaEllipsis />
+        </button>
+      </RadixMenu.Trigger>
+      <RadixMenu.Portal>
+        <RadixMenu.Content className="dms-card-menu-content" sideOffset={6} align="end" onClick={(e) => e.stopPropagation()}>
+          <RadixMenu.Item className="dms-card-menu-item" onSelect={() => openEditById(id)}>
+            <FaPen /> แก้ไข
+          </RadixMenu.Item>
+          <RadixMenu.Item className="dms-card-menu-item is-danger" onSelect={() => handleDeleteById(id)}>
+            <FaTrashCan /> ลบ
+          </RadixMenu.Item>
+        </RadixMenu.Content>
+      </RadixMenu.Portal>
+    </RadixMenu.Root>
+  )
 
   return (
     <ErrorBoundary>
@@ -254,7 +296,7 @@ export default function SurveyPage() {
             <div className="dms-project-empty"><div>No surveys found</div></div>
           ) : (
             viewMode === 'grid' ? (
-              <div className="dms-card-grid">
+              <div className="dms-card-grid dms-survey-grid">
                 {pageItems.map((s) => (
                   <article
                     key={s.id}
@@ -270,34 +312,19 @@ export default function SurveyPage() {
                     }}
                   >
                     <div className="dms-card-head">
-                      <div className="dms-project-icon-pill">🔎</div>
+                      <div className="dms-project-icon-pill"><FaFileLines /></div>
                       <div className="dms-project-actions">
                         <span className={`dms-card-status is-${s.status}`}>{s.status}</span>
-                        <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
-                          <button
-                            className="dms-tool-btn"
-                            onClick={(e) => { e.stopPropagation(); openEditById(s.id) }}
-                          >แก้ไข</button>
-                          <button
-                            className="dms-tool-btn is-danger"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteById(s.id) }}
-                          >ลบ</button>
-                        </div>
+                        {renderMenu(s.id)}
                       </div>
                     </div>
 
                     <h3 className="dms-card-name">{s.projectName || '(no name)'}</h3>
 
                     <div className="dms-card-foot">
-                      <div>
-                        <div className="dms-card-meta">
-                          <span className="dms-card-date">{formatThaiDate(s.surveyDate)}</span>
-                        </div>
-                        {s.province ? <div style={{ marginTop: 6 }}>{s.province}</div> : null}
-                      </div>
-                      <div className="dms-card-meta">
-                        {s.fcpBrand ? <div>{`${s.fcpBrand} ${s.fcpModel || ''}`.trim()}</div> : null}
-                      </div>
+                      {s.surveyDate ? <div className="dms-card-meta dms-card-date">{formatThaiDate(s.surveyDate)}</div> : null}
+                      {s.province ? <div className="dms-card-line">{s.province}</div> : null}
+                      {s.fcpBrand ? <div className="dms-card-line">{`${s.fcpBrand} ${s.fcpModel || ''}`.trim()}</div> : null}
                     </div>
                   </article>
                 ))}
@@ -320,7 +347,7 @@ export default function SurveyPage() {
                       <tr key={s.id} role="button" tabIndex={0} onClick={() => openDetailById(s.id)}>
                         <td>
                           <div className="dms-table-document">
-                            <span className="dms-project-icon-pill">🔎</span>
+                            <span className="dms-project-icon-pill"><FaFileLines /></span>
                             <span>{s.projectName || '(no name)'}</span>
                           </div>
                         </td>
@@ -329,23 +356,7 @@ export default function SurveyPage() {
                         <td>{s.fcpBrand ? `${s.fcpBrand} ${s.fcpModel || ''}`.trim() : ''}</td>
                         <td><span className={`dms-card-status is-${s.status}`}>{s.status}</span></td>
                         <td className="dms-table-menu-cell">
-                          <RadixMenu.Root>
-                            <RadixMenu.Trigger asChild>
-                              <button type="button" className="dms-card-menu" aria-label="more" onClick={(e) => e.stopPropagation()}>
-                                <FaEllipsis />
-                              </button>
-                            </RadixMenu.Trigger>
-                            <RadixMenu.Portal>
-                              <RadixMenu.Content className="dms-card-menu-content" sideOffset={6} align="end" onClick={(e) => e.stopPropagation()}>
-                                <RadixMenu.Item className="dms-card-menu-item" onSelect={() => openEditById(s.id)}>
-                                  <FaPen /> แก้ไข
-                                </RadixMenu.Item>
-                                <RadixMenu.Item className="dms-card-menu-item is-danger" onSelect={() => handleDeleteById(s.id)}>
-                                  <FaTrashCan /> ลบ
-                                </RadixMenu.Item>
-                              </RadixMenu.Content>
-                            </RadixMenu.Portal>
-                          </RadixMenu.Root>
+                          {renderMenu(s.id)}
                         </td>
                       </tr>
                     ))}
@@ -390,6 +401,18 @@ export default function SurveyPage() {
         </RadixDialog.Root>
 
         {/* DETAIL MODAL */}
+
+        {/* Confirm delete dialog */}
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={(v) => { if (!v) { setDeleteTargetId(null); setDeleteOpen(false) } else setDeleteOpen(v) }}
+          title="Confirm delete"
+          description="ต้องการลบแบบสำรวจนี้จริงหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้"
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          loading={deleteLoading}
+          onConfirm={performDelete}
+        />
         <RadixDialog.Root open={detailOpen} onOpenChange={setDetailOpen}>
           <RadixDialog.Portal>
             <RadixDialog.Overlay className="modal-backdrop" />

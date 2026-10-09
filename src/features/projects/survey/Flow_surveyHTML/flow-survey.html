@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Survey Flow – Sale / Sale+Service</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1f2937;--mut:#6b7280;--bd:#e5e7eb;--ok:#1a56c4;--okbg:#e8f0fe;--no:#c62828;--nobg:#fdecea;--cm:#b45309;--cmbg:#fef3c7;--pm:#047857;--pmbg:#d1fae5;--cp:#6d28d9;--cpbg:#ede9fe;--line:#cbd5e1;--warn:#fff7ed;
+padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111418;--card:#1b2027;--tx:#e5e7eb;--mut:#9ca3af;--bd:#2d3540;--ok:#8ab4f8;--okbg:#1c2a44;--no:#f28b82;--nobg:#3a1f1f;--cm:#fcd34d;--cmbg:#3b2f10;--pm:#6ee7b7;--pmbg:#0f2f25;--cp:#c4b5fd;--cpbg:#2a2150;--line:#3b4554;--warn:#2b2218}}
+:root[data-theme="dark"]{--bg:#111418;--card:#1b2027;--tx:#e5e7eb;--mut:#9ca3af;--bd:#2d3540;--ok:#8ab4f8;--okbg:#1c2a44;--no:#f28b82;--nobg:#3a1f1f;--cm:#fcd34d;--cmbg:#3b2f10;--pm:#6ee7b7;--pmbg:#0f2f25;--cp:#c4b5fd;--cpbg:#2a2150;--line:#3b4554;--warn:#2b2218}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Noto Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 16px}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:10px 16px;border-radius:10px;font:inherit;font-weight:600;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ok);color:#fff;border-color:var(--ok)}
+:root[data-theme="dark"] .tab[aria-selected="true"]{color:#111}
+.panel{display:none}.panel.on{display:block}
+.note{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin-bottom:16px}
+.note b{color:var(--ok)}
+.flow{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px 14px;overflow-x:auto}
+.col{display:flex;flex-direction:column;align-items:center;gap:0;min-width:0}
+.n{width:100%;max-width:300px;border:1px solid var(--bd);border-radius:10px;padding:10px 12px;text-align:center;background:var(--bg);position:relative}
+.n small{display:block;color:var(--mut);font-size:12px;margin-top:2px}
+.n.start{background:var(--ok);color:#fff;border-color:var(--ok);font-weight:600}
+:root[data-theme="dark"] .n.start{color:#111}
+.n.svc{border-left:4px solid var(--cm)}
+.n.sale{border-left:4px solid var(--ok)}
+.n.warn{background:var(--warn);border-color:var(--no);text-align:left;font-size:13px}
+.n.warn ol{margin:4px 0 0;padding-left:18px}
+.arr{width:2px;height:16px;background:var(--line);position:relative}
+.arr:after{content:"";position:absolute;bottom:-1px;left:-4px;border:5px solid transparent;border-top:6px solid var(--line);border-bottom:0}
+.br{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;position:relative;padding-top:30px;margin-top:0}
+.br:before{content:"";position:absolute;top:0;left:25%;right:25%;height:2px;background:var(--line)}
+.br>.col{position:relative}
+.br>.col:before{content:"";position:absolute;top:-30px;left:50%;width:2px;height:30px;background:var(--line)}
+.lbl{position:absolute;top:-27px;left:50%;transform:translateX(-50%);padding:1px 10px;border-radius:999px;font-weight:600;font-size:12px;white-space:nowrap;z-index:1}
+.lbl.ok{background:var(--okbg);color:var(--ok)}.lbl.no{background:var(--nobg);color:var(--no)}
+.tag{display:inline-block;padding:1px 10px;border-radius:999px;font-weight:700;font-size:12px;margin-top:4px}
+.tag.cm{background:var(--cmbg);color:var(--cm)}.tag.pm{background:var(--pmbg);color:var(--pm)}.tag.cp{background:var(--cpbg);color:var(--cp)}.tag.new{background:var(--nobg);color:var(--no)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--mut);font-size:12px;margin:0 0 12px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+h2{font-size:17px;margin:28px 0 10px}
+.tw{overflow-x:auto;border:1px solid var(--bd);border-radius:12px;background:var(--card)}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--bd);vertical-align:top}
+th{background:var(--bg);font-size:12px;color:var(--mut)}
+tr:last-child td{border-bottom:0}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.st{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}
+.st .no{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--okbg);color:var(--ok);font-weight:700;font-size:12px;margin-bottom:6px}
+.st.done .no{background:var(--pmbg);color:var(--pm)}
+.st b{display:block}.st span{color:var(--mut);font-size:12.5px}
+code{background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:0 5px;font-size:12px}
+@media (max-width:640px){
+.br{grid-template-columns:1fr;padding-top:0;gap:26px}
+.br:before,.br>.col:before{display:none}
+.lbl{position:static;transform:none;margin-bottom:8px;display:inline-block}
+.br>.col{align-items:center}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Flow การประเมินงาน (Survey)</h1>
+<p class="sub">ออกแบบ flow ตาม Flowchart เดิม เพื่อต่อยอดจากฟอร์มหน้าแรก (ข้อมูลโครงการ / ตำแหน่ง / FCP / Equipment)</p>
+
+<div class="tabs" role="tablist">
+<button class="tab" role="tab" aria-selected="true" data-t="p1">1. Survey by Sale</button>
+<button class="tab" role="tab" aria-selected="false" data-t="p2">2. Survey by Sale + Service</button>
+</div>
+
+<div class="legend">
+<span><i style="background:var(--ok)"></i>งานฝั่ง Sale</span>
+<span><i style="background:var(--cm)"></i>งานฝั่ง Service (Boswell)</span>
+<span><span class="tag cm" style="margin:0">CM</span> แก้ไข</span>
+<span><span class="tag pm" style="margin:0">PM</span> บำรุงรักษา</span>
+<span><span class="tag cp" style="margin:0">CM&amp;PM</span> รวม</span>
+</div>
+
+<!-- ========== FLOW 1 ========== -->
+<section class="panel on" id="p1">
+<div class="note"><b>จุดเด่น:</b> Sale สำรวจคนเดียว ถ้าตู้มีปัญหาต้องถ่ายรูปส่งต่อ แล้ว<b>นัด Service เข้ามาตรวจซ้ำอีกครั้ง</b> จึงมีขั้น “ถ่ายรูป + ขอแบบ” และ “นัด Service” เพิ่มเข้ามา</div>
+<div class="flow"><div style="min-width:760px">
+<div class="col">
+<div class="n start">สำรวจตู้ FCP ว่าใช้งานได้ปกติ?</div>
+<div class="br">
+ <div class="col"><span class="lbl ok">ใช้ได้ปกติ</span>
+  <div class="n sale">ขอจำนวนหรือแบบ<small>หรือเลขที่แบบ (กรณีไม่มีแบบ)</small></div><div class="arr"></div>
+  <div class="n sale">ทำเสนอราคางาน ตรวจเช็ค พร้อม PM<br><span class="tag cp">CM&amp;PM</span></div>
+ </div>
+ <div class="col"><span class="lbl no">ใช้ไม่ได้</span>
+  <div class="n sale">ถ่ายรูปตู้ FCP ว่ายังใช้งานได้หรือไม่ พร้อมขอแบบ</div>
+  <div class="br">
+   <div class="col"><span class="lbl ok">ตู้ใช้ได้ปกติ</span>
+    <div class="n svc">นัด Service (Boswell) เข้ามาแก้ไข ตรวจดูว่ามีอะไรผิดปกติบ้าง<small>แล้วเสนอราคา</small><span class="tag cm">CM</span></div><div class="arr"></div>
+    <div class="n warn"><b style="color:var(--no)">สิ่งที่ผิดปกติ</b><ol><li>อุปกรณ์เสื่อมสภาพ</li><li>สายสัญญาณมีปัญหา</li><li>ปรับปรุงอาคารแล้วไม่ได้ติดตั้งระบบเข้าที่เดิม สายอาจขาดช่วง</li></ol></div><div class="arr"></div>
+    <div class="n">หลังแก้ไข (CM) เสนอราคา PM ต่อไป<br><span class="tag pm">PM</span></div>
+   </div>
+   <div class="col"><span class="lbl no">ตู้ใช้ไม่ได้ (เสีย)</span>
+    <div class="n sale">เสนอราคาเปลี่ยนตู้ใหม่ พร้อมติดตั้งและทดสอบระบบ</div><div class="arr"></div>
+    <div class="n svc">เปลี่ยนตู้และทดสอบแล้ว ระบบยังมีปัญหา<small>เสนอราคาแก้ไขให้เรียบร้อย</small><span class="tag cm">CM</span></div><div class="arr"></div>
+    <div class="n">หลังแก้ไข (CM) เสนอราคา PM ต่อไป<br><span class="tag pm">PM</span></div>
+   </div>
+  </div>
+ </div>
+</div>
+</div>
+</div></div>
+</section>
+
+<!-- ========== FLOW 2 ========== -->
+<section class="panel" id="p2">
+<div class="note"><b>จุดเด่น:</b> Sale และ Service ออกสำรวจ<b>พร้อมกัน</b> ช่างประเมินหน้างานได้ทันที จึงไม่ต้องนัดรอบสอง ตัดขั้น “ถ่ายรูปส่งต่อ” และ “นัด Service” ออก และบันทึกผลประเมินของช่างได้ในฟอร์มเดียว</div>
+<div class="flow"><div style="min-width:760px">
+<div class="col">
+<div class="n start">สำรวจตู้ FCP ว่าใช้งานได้ปกติ?</div>
+<div class="br">
+ <div class="col"><span class="lbl ok">ใช้ได้ปกติ</span>
+  <div class="n sale">ขอจำนวนหรือแบบ<small>หรือเลขที่แบบ (กรณีไม่มีแบบ)</small></div><div class="arr"></div>
+  <div class="n sale">ทำเสนอราคางาน ตรวจเช็ค พร้อม PM<br><span class="tag cp">CM&amp;PM</span></div>
+ </div>
+ <div class="col"><span class="lbl no">ใช้ไม่ได้</span>
+  <div class="n svc">ประเมินเรื่องตู้ FCP<small>โดยช่าง ณ หน้างาน</small></div>
+  <div class="br">
+   <div class="col"><span class="lbl ok">ตู้ใช้ได้ปกติ</span>
+    <div class="n svc">ตู้ใช้ได้ปกติ แต่ระบบแจ้งปัญหา อาจเกิดจากอุปกรณ์เสีย หรือสายสัญญาณมีปัญหา<small>ช่างประเมินเพื่อเสนอราคา</small></div><div class="arr"></div>
+    <div class="n sale">ทำเสนอราคางาน ตรวจเช็ค พร้อม PM<br><span class="tag cp">CM&amp;PM</span></div>
+   </div>
+   <div class="col"><span class="lbl no">ตู้ใช้ไม่ได้ (เสีย)</span>
+    <div class="n sale">เสนอราคาเปลี่ยนตู้ใหม่ พร้อมติดตั้ง</div><div class="arr"></div>
+    <div class="n svc">เสนอราคางานปรับปรุงแก้ไข เปลี่ยนอุปกรณ์ตู้ FCP พร้อมงานติดตั้ง<br><span class="tag cm">CM</span></div><div class="arr"></div>
+    <div class="n svc">หลังดำเนินการปรับปรุง ประเมินเสนอราคางาน PM</div><div class="arr"></div>
+    <div class="n sale">ทำเสนอราคางาน PM<br><span class="tag pm">PM</span></div>
+   </div>
+  </div>
+ </div>
+</div>
+</div>
+</div></div>
+</section>
+
+<h2>เปรียบเทียบ 2 Flow</h2>
+<div class="tw"><table>
+<tr><th></th><th>1. Survey by Sale</th><th>2. Survey by Sale + Service</th></tr>
+<tr><td>ผู้สำรวจ</td><td>Sale คนเดียว</td><td>Sale + ช่าง Service</td></tr>
+<tr><td>กรณีตู้ใช้ไม่ได้</td><td>ถ่ายรูป + ขอแบบ แล้วนัด Service มาตรวจรอบสอง</td><td>ช่างประเมินหน้างานทันที</td></tr>
+<tr><td>ข้อมูลที่ต้องกรอกเพิ่ม</td><td>รูปถ่ายตู้, วันนัด Service, สิ่งที่ผิดปกติ (3 ข้อ)</td><td>ผลประเมินของช่าง, ชื่อช่าง, สิ่งที่ผิดปกติ</td></tr>
+<tr><td>ผลลัพธ์ใบเสนอราคา</td><td>CM&amp;PM / CM → PM</td><td>CM&amp;PM / CM → PM</td></tr>
+<tr><td>ความเร็ว</td><td>ช้ากว่า (มีนัดรอบสอง)</td><td>เร็วกว่า (จบในการเข้าครั้งเดียว)</td></tr>
+</table></div>
+
+<h2>ต่อเข้ากับฟอร์มในแอป</h2>
+<p class="sub" style="margin-bottom:10px">เสนอเป็น wizard ที่ใช้หน้าแรกเดิมต่อได้เลย เพิ่ม 3 ส่วนใหม่</p>
+<div class="steps">
+<div class="st"><span class="no">0</span><b>เลือกประเภท Survey <span class="tag new">ใหม่</span></b><span>Sale / Sale+Service เก็บเป็น <code>surveyType</code> ตัดสินว่าจะเจอขั้นไหนต่อ</span></div>
+<div class="st done"><span class="no">1</span><b>ข้อมูลโครงการ</b><span>ฟอร์มหน้าแรกที่ทำไว้แล้ว (โครงการ, ที่ตั้ง, ผู้ติดต่อ)</span></div>
+<div class="st done"><span class="no">2</span><b>FCP และสถานะ</b><span>ใช้ <code>fcpStatus</code> เดิม (on/off) เป็นจุดแตกกิ่ง “ใช้ได้ปกติ / ใช้ไม่ได้”</span></div>
+<div class="st"><span class="no">3</span><b>ขั้นตามกิ่ง <span class="tag new">ใหม่</span></b><span>ปกติ: จำนวน/เลขที่แบบ<br>ไม่ปกติ: เลือก “ตู้ใช้ได้/เสีย” + รูป/ผลประเมินช่าง ตามประเภท Survey</span></div>
+<div class="st"><span class="no">4</span><b>สรุปผลและใบเสนอราคา <span class="tag new">ใหม่</span></b><span>ระบบสรุปงานที่ต้องเสนอ CM / PM / CM&amp;PM ให้อัตโนมัติ ก่อนกดส่ง</span></div>
+</div>
+
+<div class="note" style="margin-top:16px"><b>ข้อสังเกตจาก Flowchart เดิม (ควรยืนยัน)</b><br>
+• Flow 1: กิ่ง “ตู้ใช้ได้ปกติ” ใน Flowchart ไม่ได้ระบุว่าแก้ไขเสร็จแล้วจบที่ CM หรือต่อ PM ผมตีความว่าต่อด้วยเสนอ PM<br>
+• Flow 2: กิ่ง “ตู้ใช้ได้ปกติแต่ระบบแจ้งปัญหา” ปลายทางคือ CM&amp;PM เหมือนกิ่งปกติ ยืนยันด้วยว่าใช่หรือไม่<br>
+• ขั้นหลังแก้ไข (CM) ในทั้งสอง Flow ให้เป็นขั้น “ติดตามผล” หลังงานเสร็จ หรือเป็นส่วนหนึ่งของฟอร์ม Survey นี้</div>
+</div>
+
+<script>
+document.querySelectorAll('.tab').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.setAttribute('aria-selected',x===b)});
+    document.querySelectorAll('.panel').forEach(function(p){p.classList.toggle('on',p.id===b.dataset.t)});
+  });
+});
+</script>
+</body>
+</html>

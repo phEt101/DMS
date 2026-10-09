@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Survey Screens – Sale / Sale+Service</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eceff3;--card:#fff;--tx:#1f2937;--mut:#6b7280;--bd:#e5e7eb;--fld:#f6f7f9;--pri:#1a73e8;--pribg:#e8f0fe;--ok:#1e7e34;--okbg:#e6f4ea;--no:#c62828;--nobg:#fdecea;--cm:#b45309;--cmbg:#fef3c7;--pm:#047857;--pmbg:#d1fae5;--cp:#6d28d9;--cpbg:#ede9fe;--ph:#d1d5db;
+padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1014;--card:#1b2027;--tx:#e5e7eb;--mut:#9ca3af;--bd:#2d3540;--fld:#252c35;--pri:#8ab4f8;--pribg:#1c2a44;--ok:#81c995;--okbg:#17301f;--no:#f28b82;--nobg:#3a1f1f;--cm:#fcd34d;--cmbg:#3b2f10;--pm:#6ee7b7;--pmbg:#0f2f25;--cp:#c4b5fd;--cpbg:#2a2150;--ph:#3b4554}}
+:root[data-theme="dark"]{--bg:#0d1014;--card:#1b2027;--tx:#e5e7eb;--mut:#9ca3af;--bd:#2d3540;--fld:#252c35;--pri:#8ab4f8;--pribg:#1c2a44;--ok:#81c995;--okbg:#17301f;--no:#f28b82;--nobg:#3a1f1f;--cm:#fcd34d;--cmbg:#3b2f10;--pm:#6ee7b7;--pmbg:#0f2f25;--cp:#c4b5fd;--cpbg:#2a2150;--ph:#3b4554}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Noto Sans Thai",system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.45}
+.wrap{max-width:1200px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:21px;margin:0 0 4px}.sub{color:var(--mut);margin:0 0 14px}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.tab{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:9px 16px;border-radius:10px;font:inherit;font-weight:600;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--pri);color:#fff;border-color:var(--pri)}
+:root[data-theme="dark"] .tab[aria-selected="true"]{color:#111}
+.rail{display:flex;gap:18px;overflow-x:auto;padding:6px 4px 18px;align-items:flex-start}
+.item{flex:0 0 280px}
+.cap{font-weight:600;margin:0 0 8px;display:flex;gap:8px;align-items:center}
+.cap i{font-style:normal;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--pri);color:#fff;font-size:12px}
+:root[data-theme="dark"] .cap i{color:#111}
+.cap small{color:var(--mut);font-weight:400}
+.ph{width:280px;height:560px;background:var(--card);border:1px solid var(--bd);border-radius:26px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.hd{padding:12px 14px 8px;border-bottom:1px solid var(--bd)}
+.hd .r{display:flex;justify-content:space-between;align-items:center}
+.hd b{font-size:14px}
+.back{color:var(--mut);font-size:12px}
+.pill{font-size:11px;padding:1px 8px;border-radius:999px;font-weight:600}
+.pill.s{background:var(--pribg);color:var(--pri)}.pill.ss{background:var(--cmbg);color:var(--cm)}
+.prog{display:flex;gap:4px;margin-top:8px}.prog span{flex:1;height:4px;border-radius:2px;background:var(--bd)}.prog span.on{background:var(--pri)}
+.bd{flex:1;overflow:hidden;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.ft{padding:10px 14px;border-top:1px solid var(--bd);display:flex;gap:8px}
+.btn{flex:1;text-align:center;padding:10px;border-radius:10px;font-weight:600;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
+.btn.p{background:var(--pri);border-color:var(--pri);color:#fff}
+:root[data-theme="dark"] .btn.p{color:#111}
+h3{margin:0;font-size:14px}
+.lb{font-size:11.5px;color:var(--mut);margin-bottom:3px;display:block}
+.v{background:var(--fld);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;color:var(--mut)}
+.v.f{color:var(--tx)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt{border:1.5px solid var(--bd);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center}
+.opt.on{border-color:var(--pri);background:var(--pribg)}
+.opt .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:16px;background:var(--fld);flex:none}
+.opt b{display:block;font-size:13px}.opt span{color:var(--mut);font-size:11.5px}
+.opt.g{border-color:var(--ok)}.opt.g.on{background:var(--okbg)}
+.opt.r.on{border-color:var(--no);background:var(--nobg)}
+.rd{width:16px;height:16px;border-radius:50%;border:2px solid var(--ph);margin-left:auto;flex:none}
+.on>.rd{border:5px solid var(--pri)}.opt.r.on>.rd{border-color:var(--no)}.opt.g.on>.rd{border-color:var(--ok)}
+.ck{display:flex;gap:8px;align-items:flex-start;padding:7px 10px;border:1px solid var(--bd);border-radius:10px;background:var(--card)}
+.ck .bx{width:16px;height:16px;border-radius:4px;border:2px solid var(--ph);flex:none;margin-top:1px;display:grid;place-items:center;font-size:11px;color:#fff;line-height:1}
+.ck.on{border-color:var(--no);background:var(--nobg)}.ck.on .bx{background:var(--no);border-color:var(--no)}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pt{aspect-ratio:1;border:1.5px dashed var(--ph);border-radius:10px;display:grid;place-items:center;text-align:center;font-size:10.5px;color:var(--mut);padding:2px}
+.pt.has{border-style:solid;background:var(--fld)}
+.info{padding:8px 10px;border-radius:10px;background:var(--pribg);color:var(--pri);font-size:12px}
+.info.w{background:var(--cmbg);color:var(--cm)}
+.tag{display:inline-block;padding:0 9px;border-radius:999px;font-weight:700;font-size:11.5px}
+.tag.cm{background:var(--cmbg);color:var(--cm)}.tag.pm{background:var(--pmbg);color:var(--pm)}.tag.cp{background:var(--cpbg);color:var(--cp)}
+.q{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--bd);border-radius:10px}
+.q small{color:var(--mut);display:block}
+.tl{display:flex;flex-direction:column;gap:0;padding-left:6px}
+.tl>div{position:relative;padding:0 0 10px 18px;border-left:2px solid var(--bd)}
+.tl>div:last-child{border-left-color:transparent}
+.tl>div:before{content:"";position:absolute;left:-6px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--pri)}
+.tl b{display:block}.tl small{color:var(--mut)}
+.panel{display:none}.panel.on{display:block}
+.legend{color:var(--mut);margin:0 0 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>ออกแบบหน้าจอ Survey</h1>
+<p class="sub">ต่อจากฟอร์มหน้าแรก (ข้อมูลโครงการ) ใช้สไตล์เดิมของแอป เลื่อนซ้าย-ขวาเพื่อดูทุกหน้าจอ</p>
+<div class="tabs" role="tablist">
+<button class="tab" role="tab" aria-selected="true" data-t="f1">1. Survey by Sale</button>
+<button class="tab" role="tab" aria-selected="false" data-t="f2">2. Survey by Sale + Service</button>
+</div>
+<div class="panel on" id="f1"><p class="legend">6 หน้าจอ · ตู้ไม่ปกติ: Sale ถ่ายรูปแล้วนัด Service มาตรวจรอบสอง</p><div class="rail"></div></div>
+<div class="panel" id="f2"><p class="legend">6 หน้าจอ · ช่าง Service ไปพร้อม Sale ประเมินหน้างานได้ทันที ไม่ต้องนัดรอบสอง</p><div class="rail"></div></div>
+</div>
+
+<script>
+var F=function(l,v,f){return '<div><span class="lb">'+l+'</span><div class="v'+(f?' f':'')+'">'+v+'</div></div>'};
+var O=function(ic,t,s,cls,on){return '<div class="opt '+(cls||'')+(on?' on':'')+'"><div class="ic">'+ic+'</div><div><b>'+t+'</b><span>'+s+'</span></div><div class="rd"></div></div>'};
+var C=function(t,on){return '<div class="ck'+(on?' on':'')+'"><div class="bx">'+(on?'✓':'')+'</div><div>'+t+'</div></div>'};
+var P=function(t,has){return '<div class="pt'+(has?' has':'')+'">'+(has?'🖼':'＋')+'<br>'+t+'</div>'};
+var ABN=C('อุปกรณ์เสื่อมสภาพ',1)+C('สายสัญญาณมีปัญหา',1)+C('ปรับปรุงอาคารแล้วไม่ได้ติดตั้งระบบเข้าที่เดิม สายอาจขาดช่วง',0);
+var N=3; // total steps shown in progress
+function phone(type,step,total,title,body,next,backTxt){
+ var pr='';for(var i=1;i<=total;i++)pr+='<span class="'+(i<=step?'on':'')+'"></span>';
+ return '<div class="ph"><div class="hd"><div class="r"><span class="back">‹ '+(backTxt||'กลับ')+'</span><span class="pill '+(type==1?'s':'ss')+'">'+(type==1?'Sale':'Sale+Service')+'</span></div><div style="margin-top:6px"><b>'+title+'</b></div><div class="prog">'+pr+'</div></div><div class="bd">'+body+'</div><div class="ft"><div class="btn">ย้อนกลับ</div><div class="btn p">'+next+'</div></div></div>';
+}
+var tagCP='<span class="tag cp">CM&amp;PM</span>',tagCM='<span class="tag cm">CM</span>',tagPM='<span class="tag pm">PM</span>';
+var STATUS=function(t){return '<h3>สถานะตู้ FCP ตอนสำรวจ</h3>'+
+ F('โครงการ','อาคารตัวอย่าง ทาวเวอร์ · กรุงเทพฯ',1)+
+ O('✅','ใช้งานได้ปกติ','ตู้ทำงาน ไม่มีแจ้งปัญหา','g',1)+
+ O('⚠️','ใช้งานไม่ได้','ตู้มีปัญหาหรือแจ้งผิดปกติ','r',0)+
+ F('ยี่ห้อ FCP','เช่น Notifier, Siemens')+F('รุ่น','ระบุรุ่น')};
+var NORMAL=function(){return '<h3>ข้อมูลแบบ</h3><div class="info">ตู้ใช้งานได้ปกติ ขอแบบเพื่อทำใบเสนอราคาตรวจเช็คพร้อม PM</div>'+
+ O('📐','มีแบบ','ขอจำนวนอุปกรณ์จากแบบ','',1)+O('🔢','ไม่มีแบบ','ระบุเลขที่แบบ / นับหน้างาน','',0)+
+ '<div class="two">'+F('จำนวน Detector','120',1)+F('จำนวน Manual','18',1)+'</div>'+F('เลขที่แบบ','ระบุเลขที่แบบ')+'<div><span class="lb">แนบแบบ</span><div class="photos">'+P('แบบ.pdf',1)+P('เพิ่ม')+'</div></div>'};
+var SUM=function(rows,info){return '<h3>สรุปงานที่ต้องเสนอราคา</h3>'+rows+(info||'')+F('หมายเหตุ','พิมพ์หมายเหตุเพิ่มเติม')};
+var Q=function(t,s,tag){return '<div class="q"><div><b>'+t+'</b><small>'+s+'</small></div>'+tag+'</div>'};
+var TYPE=function(sel){return '<h3>เลือกประเภทการสำรวจ</h3><span class="lb" style="margin:-6px 0 0">ใครออกสำรวจครั้งนี้?</span>'+
+ O('🧑‍💼','Survey by Sale','Sale สำรวจคนเดียว ถ้าตู้มีปัญหานัด Service ตามภายหลัง','',sel==1)+
+ O('🤝','Survey by Sale + Service','Sale และช่างไปด้วยกัน ประเมินหน้างานทันที','',sel==2)+
+ '<div class="info">ข้อมูลโครงการ (ชื่อ / ที่ตั้ง / ผู้ติดต่อ) กรอกจากฟอร์มหน้าแรกที่ทำไว้แล้ว</div>'};
+
+var flows={
+f1:[
+ ['เลือกประเภท','เริ่มต้น',phone(1,1,5,'ประเภทการสำรวจ',TYPE(1),'ถัดไป','ยกเลิก')],
+ ['สถานะตู้ FCP','จุดแตกกิ่ง',phone(1,2,5,'ตู้ FCP',STATUS(),'ถัดไป')],
+ ['3A ตู้ใช้ปกติ','→ CM&PM',phone(1,3,5,'ขอแบบ',NORMAL(),'ดูสรุป')],
+ ['3B ตู้ใช้ไม่ได้','ถ่ายรูป + ขอแบบ',phone(1,3,5,'ตรวจสอบตู้ FCP',
+  '<div class="info w">Sale ถ่ายรูปตู้เพื่อให้ทีมประเมินว่ายังใช้งานได้หรือไม่</div><div><span class="lb">รูปตู้ FCP</span><div class="photos">'+P('ทั้งตู้',1)+P('ป้ายชื่อ',1)+P('ภายใน')+'</div></div>'+F('ขอแบบ / เลขที่แบบ','ระบุเลขที่แบบ')+
+  '<span class="lb" style="margin-bottom:-4px">ผลประเมินจากรูป</span>'+O('🔧','ตู้ยังใช้ได้','นัด Service เข้าตรวจ','g',1)+O('🆕','ตู้เสีย','เสนอเปลี่ยนตู้ใหม่','r',0),'ถัดไป')],
+ ['4 นัด Service','ตู้ใช้ได้ → CM',phone(1,4,5,'นัด Service (Boswell)',
+  '<div class="two">'+F('วันที่นัด','12/10/2569',1)+F('เวลา','09:30',1)+'</div>'+F('ช่าง / ทีม Service','เลือกทีม')+
+  '<span class="lb" style="margin-bottom:-4px">สิ่งที่ผิดปกติ (กรอกหลังช่างตรวจ)</span>'+ABN+F('บันทึกจากช่าง','พิมพ์ผลการตรวจ'),'ดูสรุป')],
+ ['5 สรุป','ผลลัพธ์ใบเสนอราคา',phone(1,5,5,'สรุป',SUM(
+  Q('แก้ไขตามที่ช่างตรวจ','อุปกรณ์เสื่อม · สายสัญญาณ',tagCM)+
+  Q('หลังแก้ไข เสนอ PM','บำรุงรักษาต่อเนื่อง',tagPM)+
+  '<div class="info w">ถ้าเปลี่ยนตู้ใหม่แล้วระบบยังมีปัญหา จะเสนอราคาแก้ไข (CM) เพิ่มอัตโนมัติ</div>'),'ส่งแบบสำรวจ')]
+],
+f2:[
+ ['เลือกประเภท','เริ่มต้น',phone(2,1,5,'ประเภทการสำรวจ',TYPE(2),'ถัดไป','ยกเลิก')],
+ ['สถานะตู้ FCP','จุดแตกกิ่ง',phone(2,2,5,'ตู้ FCP',STATUS(),'ถัดไป')],
+ ['3A ตู้ใช้ปกติ','→ CM&PM',phone(2,3,5,'ขอแบบ',NORMAL(),'ดูสรุป')],
+ ['3B ช่างประเมินตู้','ประเมินหน้างาน',phone(2,3,5,'ช่างประเมินตู้ FCP',
+  '<div class="info">ช่าง Service ประเมินพร้อม Sale ไม่ต้องนัดรอบสอง</div>'+F('ชื่อช่างผู้ประเมิน','เลือกช่าง')+
+  '<span class="lb" style="margin-bottom:-4px">ผลประเมิน</span>'+O('⚙️','ตู้ใช้ได้ แต่ระบบแจ้งปัญหา','อุปกรณ์เสีย / สายสัญญาณ','g',1)+O('🆕','ตู้ใช้ไม่ได้ (เสีย)','เสนอเปลี่ยนตู้ใหม่','r',0)+
+  '<div><span class="lb">รูปประกอบ</span><div class="photos">'+P('ทั้งตู้',1)+P('ป้ายชื่อ',1)+P('ภายใน')+'</div></div>','ถัดไป')],
+ ['4 สิ่งที่ผิดปกติ','ตู้ใช้ได้ → CM&PM',phone(2,4,5,'ผลตรวจของช่าง',
+  '<span class="lb" style="margin-bottom:-4px">สิ่งที่ผิดปกติ</span>'+ABN+F('ความเห็นช่าง','พิมพ์ความเห็นเพื่อประเมินราคา')+'<div class="info">ตู้เสีย จะแสดงขั้นเสนอราคาเปลี่ยนตู้แทน</div>','ดูสรุป')],
+ ['5 สรุป','ผลลัพธ์ใบเสนอราคา',phone(2,5,5,'สรุป',
+  '<h3>กรณีตู้ใช้งานไม่ได้ (เสีย)</h3><div class="tl"><div><b>เสนอราคาเปลี่ยนตู้ใหม่</b><small>พร้อมติดตั้ง</small></div><div><b>งานปรับปรุง เปลี่ยนอุปกรณ์</b>'+tagCM+'</div><div><b>ประเมินงาน PM หลังดำเนินการ</b></div><div><b>ทำใบเสนอราคา PM</b>'+tagPM+'</div></div>'+Q('กรณีตู้ใช้ได้ (ระบบแจ้งปัญหา)','ตรวจเช็คพร้อม PM',tagCP),'ส่งแบบสำรวจ')]
+]};
+Object.keys(flows).forEach(function(k){
+ var rail=document.querySelector('#'+k+' .rail');
+ rail.innerHTML=flows[k].map(function(s,i){return '<div class="item"><p class="cap"><i>'+(i+1)+'</i><span>'+s[0]+' <small>'+s[1]+'</small></span></p>'+s[2]+'</div>'}).join('');
+});
+document.querySelectorAll('.tab').forEach(function(b){b.addEventListener('click',function(){
+ document.querySelectorAll('.tab').forEach(function(x){x.setAttribute('aria-selected',x===b)});
+ document.querySelectorAll('.panel').forEach(function(p){p.classList.toggle('on',p.id===b.dataset.t)});
+});});
+</script>
+</body>
+</html>

@@ -19,7 +19,7 @@ export async function up(connection: Connection) {
      ON DUPLICATE KEY UPDATE
        name = VALUES(name),
        sort_order = VALUES(sort_order),
-       is_active = VALUES(is_active)`,
+       is_active = 1`,
     [EQUIPMENT_ROWS.map((r) => [r[0], r[1], r[2]])],
   )
 }

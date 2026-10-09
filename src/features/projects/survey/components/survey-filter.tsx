@@ -28,21 +28,18 @@ export default function SurveyFilter({
 
   return (
     <div className="dms-filter-wrap" style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-        <div className="dms-search-wrap" style={{ maxWidth: 420 }}>
+      <div className="dms-survey-filter-row">
+        <div className="dms-search-wrap">
           <FaMagnifyingGlass className="dms-search-icon" />
           <input
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="ค้นหา ชื่อโครงการ"
-            style={{ width: '100%' }}
           />
         </div>
 
-        <div style={{ flex: 1 }} />
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="dms-survey-filter-tools">
           <div style={{ display: 'inline-flex', gap: 6, padding: 6, borderRadius: 10, background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
             <button
               type="button"
