@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import * as RadixSelect from '@radix-ui/react-select'
-import { FaFilter, FaList, FaTableCellsLarge } from 'react-icons/fa6'
+import { FaFilter, FaList, FaTableCellsLarge, FaMagnifyingGlass } from 'react-icons/fa6'
 
 export type SurveyStatusFilter = '' | 'draft' | 'submitted'
 
@@ -28,39 +28,9 @@ export default function SurveyFilter({
 
   return (
     <div className="dms-filter-wrap" style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button
-          type="button"
-          className={`dms-tool-btn ${activeCount ? 'is-active' : ''}`}
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls="survey-filter-panel"
-        >
-          <FaFilter /> Filter{activeCount ? ` (${activeCount})` : ''}
-        </button>
-
-        <div style={{ display: 'inline-flex', gap: 6, padding: 6, borderRadius: 10, background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-          <button
-            type="button"
-            className={`dms-tool-btn ${viewMode === 'grid' ? 'is-active' : ''}`}
-            onClick={() => onViewModeChange('grid')}
-            aria-label="Grid view"
-          >
-            <FaTableCellsLarge />
-          </button>
-          <button
-            type="button"
-            className={`dms-tool-btn ${viewMode === 'list' ? 'is-active' : ''}`}
-            onClick={() => onViewModeChange('list')}
-            aria-label="List view"
-          >
-            <FaList />
-          </button>
-        </div>
-
-        <div style={{ flex: 1 }} />
-
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
         <div className="dms-search-wrap" style={{ maxWidth: 420 }}>
+          <FaMagnifyingGlass className="dms-search-icon" />
           <input
             type="text"
             value={search}
@@ -70,8 +40,41 @@ export default function SurveyFilter({
           />
         </div>
 
-        <div className="dms-stats-group">
-          <div className="dms-stats-pill">{total} records</div>
+        <div style={{ flex: 1 }} />
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'inline-flex', gap: 6, padding: 6, borderRadius: 10, background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+            <button
+              type="button"
+              className={`dms-tool-btn ${viewMode === 'grid' ? 'is-active' : ''}`}
+              onClick={() => onViewModeChange('grid')}
+              aria-label="Grid view"
+            >
+              <FaTableCellsLarge />
+            </button>
+            <button
+              type="button"
+              className={`dms-tool-btn ${viewMode === 'list' ? 'is-active' : ''}`}
+              onClick={() => onViewModeChange('list')}
+              aria-label="List view"
+            >
+              <FaList />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className={`dms-tool-btn ${draftStatus ? 'is-active' : ''}`}
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-controls="survey-filter-panel"
+          >
+            <FaFilter /> Filter{draftStatus ? ` (${draftStatus ? 1 : 0})` : ''}
+          </button>
+
+          <div className="dms-stats-group">
+            <div className="dms-stats-pill">{total} records</div>
+          </div>
         </div>
       </div>
 
