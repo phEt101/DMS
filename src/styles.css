@@ -1897,6 +1897,17 @@ a {
 /* =========================================================
    PROJECT MANAGEMENT UI (DMS Projects Page)
    ========================================================= */
+
+/* Survey page: header stacks on small screens */
+@media (max-width: 720px) {
+  .dms-title-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .dms-title-search-row { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .dms-create-actions, .dms-create-btn { width: 100%; }
+  .dms-project-table-wrap { display: none; }
+  .dms-project-empty { padding: 18px; }
+  .users-pagination { flex-direction: column; gap: 8px; }
+}
+
 .dms-project-view,
 .dms-project-view-state {
   width: calc(100% - 48px);
@@ -3930,3 +3941,96 @@ a {
     width: 100%;
   }
 }
+
+/* ===== Mobile fixes (วางไว้ท้ายสุดของไฟล์ CSS) ===== */
+@media (max-width: 640px) {
+
+  /* หัวหน้า: ปุ่ม New Survey เต็มความกว้าง */
+  .dms-title-row { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+  .dms-title-search-row, .dms-create-actions { width: 100% !important; }
+  .dms-create-actions .dms-create-btn { width: 100% !important; }
+
+  .dms-card-grid { grid-template-columns: 1fr !important; }
+  .dms-tool-btn { min-height: 36px; padding: 6px 10px; }
+
+  /* ตาราง (List view): เลื่อนซ้าย-ขวาแทนบีบตัวอักษร */
+  .dms-project-table-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .dms-project-table { min-width: 620px; }
+
+  /* Modal ฟอร์ม/รายละเอียด: เต็มจอ เลื่อนเฉพาะเนื้อหา */
+  .dms-modal.dms-create-doc-modal {
+    position: fixed !important; inset: 0 !important; transform: none !important; margin: 0 !important;
+    width: 100vw !important; max-width: 100vw !important;
+    height: 100dvh !important; max-height: 100dvh !important;
+    border-radius: 0 !important; padding: 14px !important;
+    display: flex !important; flex-direction: column !important;
+  }
+  .dms-modal-title, .dms-modal-subtitle { padding-right: 48px; } /* กันชนปุ่มปิด */
+  .modal-close { position: absolute !important; top: calc(10px + env(safe-area-inset-top, 0px)); right: 10px; width: 40px; height: 40px; z-index: 3; }
+  .dms-create-doc-body { flex: 1 1 auto !important; min-height: 0; overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+
+  /* ช่องกรอก: 1 คอลัมน์ ไม่ซูมอัตโนมัติบน iOS */
+  .dms-pm-create-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .dms-pm-create-section { padding: 12px !important; }
+  .survey-form input, .survey-form select, .survey-form textarea { font-size: 16px; max-width: 100%; }
+  .survey-form { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); } /* กันแถบปุ่มล่างบังช่องท้ายสุด */
+}
+/* ===== Survey list: search/filter row + cards ===== */
+.dms-survey-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  width: 100%;
+}
+.dms-survey-filter-row .dms-search-wrap {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 420px;
+}
+.dms-survey-filter-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-width: 0;
+}
+@media (max-width: 560px) {
+  .dms-survey-filter-row .dms-search-wrap { flex-basis: 100%; max-width: none; }
+  .dms-survey-filter-tools { margin-left: 0; width: 100%; justify-content: space-between; }
+}
+
+.dms-card-grid.dms-survey-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+}
+.dms-survey-grid .dms-project-card { min-width: 0; overflow: hidden; }
+.dms-survey-grid .dms-card-head { align-items: center; }
+.dms-survey-grid .dms-project-actions { flex: 0 0 auto; }
+.dms-survey-grid .dms-card-name {
+  margin: 0;
+  min-width: 0;
+  font-size: 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.dms-survey-grid .dms-card-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+}
+.dms-survey-grid .dms-card-foot > div {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: #475569;
+}
+.dms-survey-grid .dms-card-foot > .dms-card-meta { color: #94a3b8; font-weight: 700; font-size: 12px; text-align: left; flex-shrink: 1; }
