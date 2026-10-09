@@ -57,7 +57,7 @@ export const login: RequestHandler = async (req, res, next) => {
 
     res.cookie(authService.SESSION_COOKIE_NAME, result.token, {
       httpOnly: true,
-      secure: env.nodeEnv !== "development",
+      secure: env.cookieSecure,
       sameSite: "lax",
       expires: result.expiresAt,
       path: "/",
@@ -103,7 +103,7 @@ export const logout: RequestHandler = async (req, res) => {
 
   res.clearCookie(authService.SESSION_COOKIE_NAME, {
     httpOnly: true,
-    secure: env.nodeEnv !== "development",
+    secure: env.cookieSecure,
     sameSite: "lax",
     path: "/",
   });

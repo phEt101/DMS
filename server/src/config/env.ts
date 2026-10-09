@@ -5,8 +5,16 @@ function integer(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function boolean(value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined) return fallback
+  return value.toLowerCase() === 'true'
+}
+
+const nodeEnv = process.env.NODE_ENV ?? 'development'
+
 export const env = {
-  nodeEnv: process.env.NODE_ENV ?? 'development',
+  nodeEnv,
+  cookieSecure: boolean(process.env.COOKIE_SECURE, nodeEnv !== 'development'),
   trustProxy: integer(process.env.TRUST_PROXY, 0),
   port: integer(process.env.PORT, 3000),
   host: process.env.HOST ?? '127.0.0.1',

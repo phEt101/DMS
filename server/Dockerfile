@@ -10,6 +10,7 @@ COPY src ./src
 COPY scripts ./scripts
 COPY database/migrations ./database/migrations
 COPY database/seeders ./database/seeders
+COPY database/files ./database/files
 RUN npm run build
 
 FROM node:22-alpine
@@ -22,6 +23,7 @@ RUN npm ci --omit=dev
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/database/migrations ./database/migrations
+COPY --from=build /app/database/files ./dist/database/files
 
 RUN mkdir -p /app/storage/projects && chown -R node:node /app
 

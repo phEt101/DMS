@@ -43,7 +43,7 @@ function parseCsvLine(line: string): string[] {
 }
 
 async function readPostalCodeRows(): Promise<PostalCodeRow[]> {
-  const csvPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../file/MS_Post code_R2.csv')
+  const csvPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../files/MS_Post code_R2.csv')
   const csvContent = await fs.readFile(csvPath, 'utf8')
 
   const lines = csvContent.split(/\r?\n/).filter((line) => line.trim().length > 0)
