@@ -1,0 +1,87 @@
+{
+  "survey": {
+    "kicker": "Fire Alarm Survey",
+    "title": "Fire Alarm Survey",
+    "subtitle": "Field technician checklist",
+    "newSurvey": "New Survey",
+    "searchPlaceholder": "Search project name",
+    "records": "{count} records",
+    "emptyList": "No surveys found",
+    "view": { "grid": "Grid view", "list": "List view" },
+    "filter": { "label": "Filter", "statusLabel": "Status", "status": { "all": "All statuses", "draft": "Draft", "submitted": "Submitted", "planning": "Planned" }, "clear": "Clear", "apply": "Apply" },
+    "confirm": {
+      "deleteTitle": "Confirm delete",
+      "deleteDescription": "Delete this survey? This action cannot be undone.",
+      "deleteLabel": "Delete",
+      "cancelLabel": "Cancel"
+    },
+    "toast": {
+      "saved": "Survey saved",
+      "submitted": "Survey submitted",
+      "deleted": "Survey deleted",
+      "saveFailed": "Save failed: {msg}",
+      "deleteFailed": "Delete failed: {msg}"
+    },
+    "detail": {
+      "readOnly": "Read-only view",
+      "editLabel": "Edit",
+      "signPhotoLabel": "Signboard photo",
+      "surveyDateLabel": "Survey date",
+      "closeLabel": "Close",
+      "noProjectName": "(No project name)",
+      "has": "Yes",
+      "no": "No"
+    },
+    "status": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "planning": "Planned",
+      "active": "In progress",
+      "on_hold": "On hold",
+      "done": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "form": {
+      "section": {
+        "projectInfo": "Project information",
+        "location": "Project location",
+        "fcp": "Fire Alarm Control Panel (FCP)",
+        "equipment": "Equipment Checklist",
+        "notes": "Notes"
+      },
+      "field": {
+        "surveyDate": "Survey date",
+        "projectName": "Project / Building",
+        "floors": "Floors",
+        "contactName": "Contact (name)",
+        "contactPhone": "Contact (phone)",
+        "contactPosition": "Position",
+        "visitTypeLabel": "Visit type",
+        "model": "Model",
+        "qty": "Quantity",
+        "address": "Address",
+        "subdistrict": "Subdistrict",
+        "district": "District",
+        "province": "Province",
+        "postalCode": "Postal code",
+        "country": "Country",
+        "fcpBrand": "FCP brand",
+        "fcpModel": "Model",
+        "fcpType": "Type",
+        "fcpMaterial": "Cabinet material",
+        "latlng": "Latitude / Longitude"
+      },
+      "option": { "select": "Select", "on": "On", "off": "Off", "survey_by_sale": "Survey by Sale", "survey_by_sale_service": "Survey by Sale + Service", "other": "Other" },
+      "placeholder": { "projectName": "e.g. Head Office", "fcpBrand": "e.g. Notifier", "fcpType": "e.g. Addressable", "equipment": "Specify equipment", "model": "e.g. GA-200", "qty": "e.g. 4", "contactName": "e.g. John Doe", "contactPhone": "e.g. 0812345678", "contactPosition": "e.g. Site Supervisor", "searchLocation": "Search place / company / address", "address": "Address", "postalCode": "Postal code", "country": "Country", "latitude": "Latitude", "longitude": "Longitude", "selectProvince": "Select province", "selectDistrict": "Select district", "selectSubdistrict": "Select subdistrict", "floors": "e.g. 5" },
+      "help": { "surveyDate": "Select the date of survey", "contactName": "On-site contact person", "contactPhone": "Reachable phone number", "visitType": "Choose visit type", "fcpModel": "Model or serial on the nameplate", "fcpStatus": "On = powered, Off = powered off", "model": "Model number of the equipment (if any)", "qty": "Number of pieces", "equipmentCount": "Has {have} / {total} items", "floors": "Total number of floors" },
+      "photo": {
+        "sign": { "label": "Signboard photo", "help": "Capture the building sign clearly" },
+        "fcpOverview": { "label": "FCP overview photo", "help": "Capture the whole FCP cabinet" },
+        "fcpNameplate": { "label": "Nameplate / Brand", "help": "Capture brand and model clearly" },
+        "fcpInside": { "label": "Inside cabinet", "help": "Capture internal wiring and condition" },
+        "equipment": { "label": "Photo" }
+      },
+      "actions": { "chooseLocation": "Choose this location", "openInMaps": "Open in Google Maps", "addCustomEquipment": "Add other", "saveDraft": "Save draft", "submit": "Submit", "chooseFile": "Choose file", "remove": "Remove", "clearSearch": "Clear" }
+    }
+  }
+}

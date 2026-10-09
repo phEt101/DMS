@@ -7,76 +7,79 @@ export default function FcpSection({
   form,
   photos,
   openCamera,
+  translations,
 }: {
   form: UseFormReturn<Survey>
   photos: ReturnType<typeof usePhotos>
   openCamera: (target: string) => void
+  translations?: any
 }) {
   const { register, watch } = form
+  const t = translations?.features?.survey ?? {}
 
   return (
     <section className="dms-pm-create-section">
-      <h3>Fire Alarm Control Panel (FCP)</h3>
+      <h3>{t.form?.section?.fcp ?? 'Fire Alarm Control Panel (FCP)'}</h3>
       <div className="dms-pm-create-grid">
         <label className="dms-form-field">
-          <span className="dms-form-label">ยี่ห้อ FCP</span>
-          <input className="dms-form-input" placeholder="เช่น Notifier" {...register('fcpBrand')} />
-          <small className="dms-form-help">ยี่ห้อของตู้ควบคุมระบบแจ้งเหตุเพลิงไหม้</small>
+          <span className="dms-form-label">{t.form?.field?.fcpBrand ?? 'FCP brand'}</span>
+          <input className="dms-form-input" placeholder={t.form?.placeholder?.fcpBrand ?? 'e.g. Notifier'} {...register('fcpBrand')} />
+          <small className="dms-form-help">{t.form?.help?.fcpBrand ?? 'Brand of the FCP cabinet'}</small>
         </label>
         <label className="dms-form-field">
-          <span className="dms-form-label">รุ่น</span>
-          <input className="dms-form-input" placeholder="เช่น NFS2-3030" {...register('fcpModel')} />
-          <small className="dms-form-help">รุ่นหรือหมายเลขบน Nameplate</small>
+          <span className="dms-form-label">{t.form?.field?.model ?? 'Model'}</span>
+          <input className="dms-form-input" placeholder={t.form?.placeholder?.model ?? 'e.g. NFS2-3030'} {...register('fcpModel')} />
+          <small className="dms-form-help">{t.form?.help?.fcpModel ?? 'Model or serial on the nameplate'}</small>
         </label>
       </div>
       <div className="dms-pm-create-grid">
         <label className="dms-form-field">
-          <span className="dms-form-label">ประเภท</span>
-          <input className="dms-form-input" placeholder="เช่น Addressable" {...register('fcpType')} />
-          <small className="dms-form-help">ประเภทของระบบ FCP</small>
+          <span className="dms-form-label">{t.form?.field?.fcpType ?? 'Type'}</span>
+          <input className="dms-form-input" placeholder={t.form?.placeholder?.fcpType ?? 'e.g. Addressable'} {...register('fcpType')} />
+          <small className="dms-form-help">{t.form?.help?.fcpType ?? 'Type of FCP system'}</small>
         </label>
         <label className="dms-form-field">
-          <span className="dms-form-label">วัสดุตู้</span>
-          <input className="dms-form-input" placeholder="เช่น Metal" {...register('fcpMaterial')} />
-          <small className="dms-form-help">วัสดุของตู้ FCP (เช่น Metal, Plastic)</small>
+          <span className="dms-form-label">{t.form?.field?.fcpMaterial ?? 'Cabinet material'}</span>
+          <input className="dms-form-input" placeholder={t.form?.placeholder?.fcpMaterial ?? 'e.g. Metal'} {...register('fcpMaterial')} />
+          <small className="dms-form-help">{t.form?.help?.fcpMaterial ?? 'Material of the FCP cabinet (e.g., Metal, Plastic)'}</small>
         </label>
       </div>
       <label className="dms-form-field">
-        <span className="dms-form-label">Status</span>
+        <span className="dms-form-label">{t.form?.field?.fcpStatus ?? 'Status'}</span>
         <select className="dms-form-input" {...register('fcpStatus')}>
-          <option value="">เลือก</option>
-          <option value="on">On</option>
-          <option value="off">Off</option>
+          <option value="">{t.form?.option?.select ?? 'Select'}</option>
+          <option value="on">{t.form?.option?.on ?? 'On'}</option>
+          <option value="off">{t.form?.option?.off ?? 'Off'}</option>
         </select>
-        <small className="dms-form-help">On = เปิดใช้งาน, Off = ปิดอยู่</small>
+        <small className="dms-form-help">{t.form?.help?.fcpStatus ?? 'On = powered, Off = powered off'}</small>
       </label>
       <div className="dms-pm-create-grid">
         <PhotoField
-          label="FCP overview photo"
-          help="ถ่ายให้เห็นตู้ FCP ทั้งตู้"
-          alt="fcp"
-          value={watch('fcpOverview')}
-          onFile={(e) => photos.handleFile(e, 'fcpOverview')}
-          onOpenCamera={() => openCamera('fcpOverview')}
-          onRemove={() => photos.removeSurveyPhoto('fcpOverview')}
+        label={t.form?.photo?.fcpOverview?.label ?? 'FCP overview photo'}
+        help={t.form?.photo?.fcpOverview?.help ?? 'Capture the whole FCP cabinet'}
+        alt="fcp"
+        translations={translations}
+        value={watch('fcpOverview')}
+        onFile={(e) => photos.handleFile(e, 'fcpOverview')}
+        onRemove={() => photos.removeSurveyPhoto('fcpOverview')}
         />
         <PhotoField
-          label="ป้ายชื่อ / แผงยี่ห้อ"
-          help="ถ่ายให้เห็น Brand และ Model ชัดเจน"
-          alt="fcp-nameplate"
-          value={watch('fcpNameplate')}
-          onFile={(e) => photos.handleFile(e, 'fcpNameplate')}
-          onOpenCamera={() => openCamera('fcpNameplate')}
-          onRemove={() => photos.removeSurveyPhoto('fcpNameplate')}
+        label={t.form?.photo?.fcpNameplate?.label ?? 'Nameplate / Brand'}
+        help={t.form?.photo?.fcpNameplate?.help ?? 'Capture brand and model clearly'}
+        alt="fcp-nameplate"
+        translations={translations}
+        value={watch('fcpNameplate')}
+        onFile={(e) => photos.handleFile(e, 'fcpNameplate')}
+        onRemove={() => photos.removeSurveyPhoto('fcpNameplate')}
         />
         <PhotoField
-          label="ภายในตู้ / สายไฟ"
-          help="ถ่ายให้เห็นสภาพภายในตู้และการเดินสาย"
-          alt="fcp-inside"
-          value={watch('fcpInside')}
-          onFile={(e) => photos.handleFile(e, 'fcpInside')}
-          onOpenCamera={() => openCamera('fcpInside')}
-          onRemove={() => photos.removeSurveyPhoto('fcpInside')}
+        label={t.form?.photo?.fcpInside?.label ?? 'Inside cabinet'}
+        help={t.form?.photo?.fcpInside?.help ?? 'Capture internal wiring and condition'}
+        alt="fcp-inside"
+        translations={translations}
+        value={watch('fcpInside')}
+        onFile={(e) => photos.handleFile(e, 'fcpInside')}
+        onRemove={() => photos.removeSurveyPhoto('fcpInside')}
         />
       </div>
     </section>

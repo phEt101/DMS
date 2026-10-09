@@ -29,13 +29,25 @@ export function usePhotos({ watch, setValue }: FormApi) {
 
   const removeSurveyPhoto = (key: keyof Survey) => {
     setValue(String(key) as any, null)
+    // also remove pending File object so buildFormData won't include it
+    setFilesMap((m) => {
+      const copy = { ...m }
+      delete copy[String(key)]
+      return copy
+    })
   }
 
   const removeEquipmentPhoto = (idx: number) => {
     const arr = [...((watch('equipment') || []) as any[])]
     arr[idx] = { ...arr[idx], photo: null }
     setValue('equipment', cleanEquipment(arr))
+    // remove any queued file for this equipment index
+    setFilesMap((m) => {
+      const copy = { ...m }
+      delete copy[`equip-${idx}`]
+      return copy
+    })
   }
 
-  return { filesMap, handleFile, handleEquipmentFile, removeSurveyPhoto, removeEquipmentPhoto }
+  return { filesMap, setFilesMap, handleFile, handleEquipmentFile, removeSurveyPhoto, removeEquipmentPhoto }
 }

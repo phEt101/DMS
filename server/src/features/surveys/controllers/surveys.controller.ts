@@ -25,10 +25,37 @@ export async function handleDeleteSurvey(req: Request, res: Response) {
 
 // For create/update we accept multipart/form-data where a 'payload' field contains JSON string of survey data
 function mapVisitType(v: any) {
+  // Allowed DB enum values
+  const allowed = new Set(['survey_by_sale', 'survey_by_sale_service'])
   if (!v) return null
-  if (v === 'contact_new') return 'survey_by_sale'
-  if (v === 'ref_doc') return 'survey_by_sale_service'
-  return v
+  const s = String(v).trim().toLowerCase()
+  if (!s) return null
+  // map some known legacy keys
+  if (s === 'contact_new' || s === 'contact-new' || s === 'contact') return 'survey_by_sale'
+  if (s === 'ref_doc' || s === 'ref-doc' || s === 'ref') return 'survey_by_sale_service'
+  // accept already normalized enum values
+  if (allowed.has(s)) return s
+  // allow some common localized variants (Thai)
+  if (s === 'เยี่ยมขาย' || s === 'survey_by_sale_th' ) return 'survey_by_sale'
+  if (s === 'เยี่ยมขายและเซอร์วิส' || s === 'survey_by_sale_service_th') return 'survey_by_sale_service'
+  // unknown/unsupported value -> return null to avoid DB enum truncation
+  return null
+}
+
+// Normalize FCP power status to values allowed by the DB enum (currently 'on'|'off')
+function normalizeFcpPowerStatus(v: any): 'on' | 'off' | null {
+  if (v === null || v === undefined) return null
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase()
+    if (s === 'on' || s === 'powered' || s === '1' || s === 'true' || s === 'yes') return 'on'
+    if (s === 'off' || s === '0' || s === 'false' || s === 'no') return 'off'
+    return null
+  }
+  if (typeof v === 'number') {
+    return v === 1 ? 'on' : v === 0 ? 'off' : null
+  }
+  if (typeof v === 'boolean') return v ? 'on' : 'off'
+  return null
 }
 
 export async function handleCreateSurvey(req: Request, res: Response) {
@@ -55,8 +82,15 @@ export async function handleCreateSurvey(req: Request, res: Response) {
       // ensure survey_no exists (DB requires it). Use provided value or generate a unique temporary one.
     const surveyNo = payload.surveyNo ?? payload.survey_no ?? `SV-${new Date().getFullYear()}-${Date.now()}`
 
-    // normalize visitType to accept legacy values
-    const normalizedVisitType = mapVisitType(payload.visitType ?? payload.visit_type ?? null)
+    // normalize and validate visitType to accept legacy values but reject unsupported ones
+    const incomingVisitRaw = payload.visitType ?? payload.visit_type
+    const normalizedVisitType = incomingVisitRaw !== undefined ? mapVisitType(incomingVisitRaw) : mapVisitType(null)
+    if (incomingVisitRaw !== undefined && normalizedVisitType === null) {
+      // invalid visit type provided
+      await tx.rollback()
+      if (conn) conn.release()
+      return res.status(400).json({ error: 'validation failed', field: 'visitType', message: `invalid value: ${String(incomingVisitRaw)}` })
+    }
 
     // insert surveys first
     const [result] = await tx.query(`INSERT INTO surveys (survey_no, survey_date, project_name, floors, visit_type, status, notes, surveyed_by, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
@@ -91,6 +125,10 @@ export async function handleCreateSurvey(req: Request, res: Response) {
         const fid = (r as any).insertId
         if (!fileIdMap[key]) fileIdMap[key] = []
         fileIdMap[key].push(fid)
+        // if this is the sign photo, set surveys.sign_file_id to the newly inserted file id for easier lookup
+        if (purpose === 'sign') {
+          await tx.query(`UPDATE surveys SET sign_file_id = ? WHERE id = ?`, [fid, insertId])
+        }
       }
     }
 
@@ -125,13 +163,20 @@ export async function handleCreateSurvey(req: Request, res: Response) {
       const overviewId = fileIdMap['fcpOverview'] ? fileIdMap['fcpOverview'][0] : (f.overviewFileId ?? null)
       const nameplateId = fileIdMap['fcpNameplate'] ? fileIdMap['fcpNameplate'][0] : (f.nameplateFileId ?? null)
       const insideId = fileIdMap['fcpInside'] ? fileIdMap['fcpInside'][0] : (f.insideFileId ?? null)
+      const normalizedPower = normalizeFcpPowerStatus(f.status ?? null)
+      if (f.status && normalizedPower === null) {
+        // rollback transaction and return validation error for invalid enum
+        await tx.rollback()
+        if (conn) conn.release()
+        return res.status(400).json({ error: 'validation failed', field: 'fcp.status', message: `invalid value: ${String(f.status)}` })
+      }
       await tx.query(`INSERT INTO survey_fcp (survey_id, brand, model, panel_type, cabinet_material, power_status, overview_file_id, nameplate_file_id, inside_file_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
         insertId,
         f.brand ?? null,
         f.model ?? null,
         f.type ?? null,
         f.material ?? null,
-        f.status ?? null,
+        normalizedPower ?? null,
         overviewId,
         nameplateId,
         insideId,
@@ -224,6 +269,10 @@ export async function handleUpdateSurvey(req: Request, res: Response) {
         const fid = (r as any).insertId
         if (!fileIdMap[key]) fileIdMap[key] = []
         fileIdMap[key].push(fid)
+        // if this is the sign photo, update surveys.sign_file_id for easier lookup
+        if (purpose === 'sign') {
+          await tx.query(`UPDATE surveys SET sign_file_id = ? WHERE id = ?`, [fid, Number(req.params.id)])
+        }
       }
     }
 
@@ -231,7 +280,15 @@ export async function handleUpdateSurvey(req: Request, res: Response) {
     const finalSurveyDate = payload.surveyDate ?? existing.surveyDate ?? null
     const finalProjectName = payload.projectName ?? existing.projectName ?? null
     const finalFloors = payload.floors ?? existing.floors ?? null
-    const finalVisitType = mapVisitType(payload.visitType ?? payload.visit_type ?? existing.visitType ?? existing.visit_type ?? null)
+    // determine incoming visitType (if provided) and validate
+    const incomingVisitRaw = payload.visitType ?? payload.visit_type
+    const normalizedIncomingVisit = incomingVisitRaw !== undefined ? mapVisitType(incomingVisitRaw) : undefined
+    if (incomingVisitRaw !== undefined && normalizedIncomingVisit === null) {
+      await tx.rollback()
+      if (conn) conn.release()
+      return res.status(400).json({ error: 'validation failed', field: 'visitType', message: `invalid value: ${String(incomingVisitRaw)}` })
+    }
+  
     const finalStatus = payload.status ?? existing.status ?? 'draft'
     const finalNotes = payload.notes ?? existing.notes ?? null
     const finalSurveyedBy = payload.surveyedBy ?? existing.surveyedBy ?? null
@@ -241,7 +298,6 @@ export async function handleUpdateSurvey(req: Request, res: Response) {
       finalSurveyDate ?? null,
       finalProjectName ?? null,
       finalFloors ?? null,
-      finalVisitType ?? null,
       finalStatus ?? 'draft',
       finalNotes ?? null,
       finalSurveyedBy ?? null,
@@ -285,13 +341,19 @@ export async function handleUpdateSurvey(req: Request, res: Response) {
         const overviewId = fileIdMap['fcpOverview'] ? fileIdMap['fcpOverview'][0] : (f.overviewFileId ?? null)
         const nameplateId = fileIdMap['fcpNameplate'] ? fileIdMap['fcpNameplate'][0] : (f.nameplateFileId ?? null)
         const insideId = fileIdMap['fcpInside'] ? fileIdMap['fcpInside'][0] : (f.insideFileId ?? null)
+        const normalizedPower = normalizeFcpPowerStatus(f.status ?? null)
+        if (f.status && normalizedPower === null) {
+          await tx.rollback()
+          if (conn) conn.release()
+          return res.status(400).json({ error: 'validation failed', field: 'fcp.status', message: `invalid value: ${String(f.status)}` })
+        }
         await tx.query(`INSERT INTO survey_fcp (survey_id, brand, model, panel_type, cabinet_material, power_status, overview_file_id, nameplate_file_id, inside_file_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
           Number(req.params.id),
           f.brand ?? null,
           f.model ?? null,
           f.type ?? null,
           f.material ?? null,
-          f.status ?? null,
+          normalizedPower ?? null,
           overviewId,
           nameplateId,
           insideId,

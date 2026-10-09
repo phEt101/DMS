@@ -8,14 +8,18 @@ export function useSurveySave({
   filesMap,
   onSaved,
   onClose,
+  translations,
 }: {
   filesMap: Record<string, File | null>
   onSaved: (s: Survey) => void
   onClose: () => void
+  translations?: any
 }) {
   const [saving, setSaving] = useState(false)
 
   const { showToast } = useToast()
+
+  const t = translations?.features?.survey ?? {}
 
   const onSave = async (values: Survey, submit = false) => {
     try {
@@ -62,7 +66,7 @@ export function useSurveySave({
             : values.equipment,
         })
         // show success toast
-        showToast(submit ? 'Survey submitted' : 'Survey saved', 'success')
+        showToast(submit ? (t.toast?.submitted ?? 'Survey submitted') : (t.toast?.saved ?? 'Survey saved'), 'success')
         onClose()
       } catch (err: any) {
         // surface server error to user and keep form open for correction
@@ -78,7 +82,7 @@ export function useSurveySave({
         }
         const serverMsg = bodyStr ?? err?.message ?? String(err)
         // use toast to surface error
-        showToast(`Save failed: ${serverMsg}`, 'error')
+        showToast((t.toast?.saveFailed ?? 'Save failed: {msg}').replace('{msg}', serverMsg), 'error')
         return
       }
     } finally {

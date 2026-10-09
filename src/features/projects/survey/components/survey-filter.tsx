@@ -12,6 +12,8 @@ export default function SurveyFilter({
   onStatusChange,
   viewMode,
   onViewModeChange,
+  translations,
+  language,
 }: {
   search: string
   statusFilter: SurveyStatusFilter
@@ -20,11 +22,14 @@ export default function SurveyFilter({
   onStatusChange: (value: SurveyStatusFilter) => void
   viewMode: 'grid' | 'list'
   onViewModeChange: (mode: 'grid' | 'list') => void
+  translations?: any
+  language?: string
 }) {
   const [open, setOpen] = useState(false)
   const [draftStatus, setDraftStatus] = useState<SurveyStatusFilter>(statusFilter)
 
   const activeCount = draftStatus ? 1 : 0
+  const t = translations?.features?.survey ?? {}
 
   return (
     <div className="dms-filter-wrap" style={{ marginBottom: 12 }}>
@@ -35,7 +40,7 @@ export default function SurveyFilter({
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="ค้นหา ชื่อโครงการ"
+            placeholder={t.searchPlaceholder ?? 'Search project name'}
           />
         </div>
 
@@ -66,11 +71,11 @@ export default function SurveyFilter({
             aria-expanded={open}
             aria-controls="survey-filter-panel"
           >
-            <FaFilter /> Filter{draftStatus ? ` (${draftStatus ? 1 : 0})` : ''}
+            <FaFilter /> {t.filter?.label ?? 'Filter'}{draftStatus ? ` (${activeCount})` : ''}
           </button>
 
           <div className="dms-stats-group">
-            <div className="dms-stats-pill">{total} records</div>
+            <div className="dms-stats-pill">{(t.records ?? '{count} records').replace('{count}', String(total))}</div>
           </div>
         </div>
       </div>
@@ -83,16 +88,20 @@ export default function SurveyFilter({
           style={{ marginTop: 8 }}
         >
           <label className="dms-filter-field">
-            <span>สถานะ</span>
+            <span>{t.filter?.statusLabel ?? 'Status'}</span>
             <RadixSelect.Root value={draftStatus || 'all'} onValueChange={(v) => setDraftStatus(v === 'all' ? '' : (v as SurveyStatusFilter))}>
-              <RadixSelect.Trigger className="radix-pagination-trigger dms-filter-select-trigger" aria-label="สถานะ">
+              <RadixSelect.Trigger className="radix-pagination-trigger dms-filter-select-trigger" aria-label={t.filter?.statusLabel ?? 'Status'}>
                 <RadixSelect.Value />
                 <RadixSelect.Icon className="radix-pagination-icon" aria-hidden>⌄</RadixSelect.Icon>
               </RadixSelect.Trigger>
               <RadixSelect.Portal>
                 <RadixSelect.Content className="radix-pagination-content dms-filter-select-content" position="popper" sideOffset={6} align="start">
                   <RadixSelect.Viewport className="radix-pagination-viewport">
-                    {[{ value: 'all', label: 'สถานะทั้งหมด' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }].map((opt) => (
+                    {[
+                      { value: 'all', label: t.filter?.status?.all ?? 'All statuses' },
+                      { value: 'draft', label: t.status?.draft ?? 'Draft' },
+                      { value: 'submitted', label: t.status?.submitted ?? 'Submitted' },
+                    ].map((opt) => (
                       <RadixSelect.Item key={opt.value} value={opt.value} className="radix-pagination-item">
                         <RadixSelect.ItemIndicator className="radix-pagination-item-indicator">✓</RadixSelect.ItemIndicator>
                         <RadixSelect.ItemText className="radix-pagination-item-text">{opt.label}</RadixSelect.ItemText>
@@ -110,9 +119,9 @@ export default function SurveyFilter({
               className="dms-filter-reset"
               onClick={() => { setDraftStatus(''); onStatusChange(''); setOpen(false) }}
             >
-              ล้าง
+              {t.filter?.clear ?? 'Clear'}
             </button>
-            <button type="submit" className="dms-filter-apply">Apply</button>
+            <button type="submit" className="dms-filter-apply">{t.filter?.apply ?? 'Apply'}</button>
           </div>
         </form>
       )}

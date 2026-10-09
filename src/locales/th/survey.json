@@ -1,0 +1,87 @@
+{
+  "survey": {
+    "kicker": "แบบสำรวจระบบแจ้งเหตุเพลิงไหม้",
+    "title": "Survey ระบบแจ้งเหตุเพลิงไหม้",
+    "subtitle": "รายการตรวจสอบสำหรับช่างภาคสนาม",
+    "newSurvey": "สำรวจใหม่",
+    "searchPlaceholder": "ค้นหาชื่อโครงการ",
+    "records": "{count} รายการ",
+    "emptyList": "ไม่พบแบบสำรวจ",
+    "view": { "grid": "มุมมองการ์ด", "list": "มุมมองรายการ" },
+    "filter": { "label": "ตัวกรอง", "statusLabel": "สถานะ", "status": { "all": "ทุกสถานะ", "draft": "ร่าง", "submitted": "ส่งแล้ว", "planning": "วางแผน" }, "clear": "ล้าง", "apply": "ใช้" },
+    "confirm": {
+      "deleteTitle": "ยืนยันการลบ",
+      "deleteDescription": "ต้องการลบแบบสำรวจนี้หรือไม่ การกระทำนี้ไม่สามารถย้อนกลับได้",
+      "deleteLabel": "ลบ",
+      "cancelLabel": "ยกเลิก"
+    },
+    "toast": {
+      "saved": "บันทึกแบบสำเร็จ",
+      "submitted": "ส่งแบบสำเร็จ",
+      "deleted": "ลบแบบสำเร็จ",
+      "saveFailed": "บันทึกไม่สำเร็จ: {msg}",
+      "deleteFailed": "การลบไม่สำเร็จ: {msg}"
+    },
+    "detail": {
+      "readOnly": "มุมมองแบบอ่านอย่างเดียว",
+      "editLabel": "แก้ไข",
+      "signPhotoLabel": "รูปป้ายสถานที่",
+      "surveyDateLabel": "วันที่สำรวจ",
+      "closeLabel": "ปิด",
+      "noProjectName": "(ไม่มีชื่อโครงการ)",
+      "has": "มี",
+      "no": "ไม่มี"
+    },
+    "status": {
+      "draft": "ร่าง",
+      "submitted": "ส่งแล้ว",
+      "planning": "วางแผน",
+      "active": "กำลังดำเนินการ",
+      "on_hold": "ระงับชั่วคราว",
+      "done": "เสร็จสิ้น",
+      "cancelled": "ยกเลิก"
+    },
+    "form": {
+      "section": {
+        "projectInfo": "ข้อมูลโครงการ",
+        "location": "ตำแหน่งโครงการ",
+        "fcp": "ตู้ควบคุมสัญญาณแจ้งเหตุ (FCP)",
+        "equipment": "รายการอุปกรณ์",
+        "notes": "บันทึก"
+      },
+      "field": {
+        "surveyDate": "วันที่สำรวจ",
+        "projectName": "โครงการ / อาคาร",
+        "floors": "จำนวนชั้น",
+        "contactName": "ผู้ติดต่อ (ชื่อ)",
+        "contactPhone": "โทรศัพท์ผู้ติดต่อ",
+        "contactPosition": "ตำแหน่ง",
+        "visitTypeLabel": "ประเภทการเยี่ยม",
+        "model": "รุ่น",
+        "qty": "จำนวน",
+        "address": "ที่อยู่",
+        "subdistrict": "ตำบล/แขวง",
+        "district": "อำเภอ/เขต",
+        "province": "จังหวัด",
+        "postalCode": "รหัสไปรษณีย์",
+        "country": "ประเทศ",
+        "fcpBrand": "ยี่ห้อ FCP",
+        "fcpModel": "รุ่น",
+        "fcpType": "ประเภท",
+        "fcpMaterial": "วัสดุตู้",
+        "latlng": "Latitude / Longitude"
+      },
+      "option": { "select": "เลือก", "on": "เปิด", "off": "ปิด", "survey_by_sale": "สำรวจโดยเซลส์", "survey_by_sale_service": "สำรวจโดยเซลส์ + เซอร์วิส", "other": "อื่นๆ" },
+      "placeholder": { "projectName": "เช่น สำนักงานใหญ่", "fcpBrand": "เช่น Notifier", "fcpType": "เช่น Addressable", "equipment": "ระบุอุปกรณ์", "model": "เช่น GA-200", "qty": "เช่น 4", "contactName": "เช่น นายสมชาย ใจดี", "contactPhone": "เช่น 0812345678", "contactPosition": "เช่น หัวหน้าหน้างาน", "searchLocation": "ค้นหาสถานที่ / บริษัท / ที่อยู่", "address": "ที่อยู่", "postalCode": "รหัสไปรษณีย์", "country": "ประเทศ", "latitude": "Latitude", "longitude": "Longitude", "selectProvince": "เลือกจังหวัด", "selectDistrict": "เลือกอำเภอ/เขต", "selectSubdistrict": "เลือกตำบล/แขวง", "floors": "เช่น 5" },
+      "help": { "surveyDate": "เลือกวันที่สำรวจ", "contactName": "ผู้ติดต่อหน้างาน", "contactPhone": "หมายเลขที่ติดต่อได้", "visitType": "เลือกประเภทการเยี่ยม", "fcpModel": "รุ่นหรือหมายเลขประจำเครื่องบนแผ่นป้าย", "fcpStatus": "On = มีไฟ, Off = ไม่มีไฟ", "model": "หมายเลขรุ่นของอุปกรณ์ (ถ้ามี)", "qty": "จำนวนชิ้น", "equipmentCount": "มี {have} / {total} รายการ", "floors": "จำนวนชั้นทั้งหมด" },
+      "photo": {
+        "sign": { "label": "รูปป้ายสถานที่", "help": "ถ่ายป้ายอาคารให้ชัด" },
+        "fcpOverview": { "label": "ภาพรวม FCP", "help": "ถ่ายตู้ FCP ทั้งตู้" },
+        "fcpNameplate": { "label": "ป้ายชื่อ / ยี่ห้อ", "help": "ถ่ายยี่ห้อและรุ่นให้ชัด" },
+        "fcpInside": { "label": "ด้านในตู้", "help": "ถ่ายการเดินสายและสภาพภายใน" },
+        "equipment": { "label": "รูป" }
+      },
+      "actions": { "chooseLocation": "เลือกตำแหน่งนี้", "openInMaps": "เปิดใน Google Maps", "addCustomEquipment": "เพิ่มอื่นๆ", "saveDraft": "บันทึกร่าง", "submit": "ส่ง", "chooseFile": "เลือกไฟล์", "remove": "ลบ", "clearSearch": "ล้าง" }
+    }
+  }
+}

@@ -6,10 +6,13 @@
 export default function ActionBar({
   saving,
   onSaveDraft,
+  translations,
 }: {
   saving: boolean
   onSaveDraft: () => void
+  translations?: any
 }) {
+  const t = translations?.features?.survey ?? {}
   return (
     <div
       style={{
@@ -51,7 +54,7 @@ export default function ActionBar({
           cursor: saving ? 'not-allowed' : 'pointer',
         }}
       >
-        Save draft
+        {t.form?.actions?.saveDraft ?? 'Save draft'}
       </button>
 
       <button
@@ -78,7 +81,7 @@ export default function ActionBar({
           cursor: saving ? 'not-allowed' : 'pointer',
         }}
       >
-        Submit
+        {t.form?.actions?.submit ?? 'Submit'}
       </button>
     </div>
   )

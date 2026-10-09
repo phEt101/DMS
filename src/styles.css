@@ -2158,6 +2158,31 @@ a {
 .dms-equipment-status.is-in_progress { background: #dbeafe; color: #1d4ed8; }
 .dms-equipment-status.is-completed { background: #dcfce7; color: #15803d; }
 .dms-equipment-status.is-waiting_parts { background: #ede9fe; color: #6d28d9; }
+
+/* Survey card status badges */
+.dms-card-status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: none;
+  white-space: nowrap;
+}
+.dms-card-status.is-draft {
+  background: #f1f5f9; /* light gray */
+  color: #475569;     /* muted slate */
+}
+.dms-card-status.is-submitted {
+  background: #dbeafe; /* light blue */
+  color: #1d4ed8;      /* blue */
+}
+.dms-card-status.is-planning { background: #fce7f3; color: #be185d; }
+.dms-card-status.is-active { background: #dbeafe; color: #1d4ed8; }
+.dms-card-status.is-on_hold { background: #fef3c7; color: #b45309; }
+.dms-card-status.is-done { background: #dcfce7; color: #15803d; }
+.dms-card-status.is-cancelled { background: #fee2e2; color: #b91c1c; }
 .dms-equipment-status.is-on_hold { background: #ffedd5; color: #c2410c; }
 .dms-equipment-status.is-cancelled { background: #fee2e2; color: #b91c1c; }
 .dms-equipment-card-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; margin-top: auto; padding-top: 10px; border-top: 1px solid #eef2f7; }
@@ -4013,6 +4038,7 @@ a {
   font-size: 16px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;

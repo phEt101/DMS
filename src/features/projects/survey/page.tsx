@@ -16,6 +16,9 @@ import { useToast } from '../../../components/toast-provider'
 import { FaEllipsis, FaFileLines, FaPen, FaTrashCan } from 'react-icons/fa6'
 
 /** แปลงเฉพาะวันที่ เช่น 2026-10-08 -> 08/10/2569 (ไม่มีค่า = คืนสตริงว่าง) */
+
+// SURVEY_STATUS will be derived from translations at runtime
+
 function formatThaiDate(value?: string | Date | null): string {
   if (!value) return ''
   const date = new Date(value)
@@ -124,7 +127,9 @@ class ErrorBoundary extends React.Component<any, { error: Error | null, info?: a
   }
 }
 
-export default function SurveyPage() {
+import type { Language, Translations } from '../../../locales'
+
+export default function SurveyPage({ translations, language }: { translations: Translations, language: Language }) {
   const [surveys, setSurveys] = useState<Survey[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Survey | null>(null)
@@ -222,6 +227,9 @@ export default function SurveyPage() {
 
   const { showToast } = useToast()
 
+  const t = translations?.features?.survey ?? ({} as any)
+  const SURVEY_STATUS: Record<string, string> = (t.status as Record<string,string>) ?? { draft: 'Draft', submitted: 'Submitted', planning: 'Planned' }
+
   async function performDelete() {
     if (!deleteTargetId) return
     setDeleteLoading(true)
@@ -230,11 +238,11 @@ export default function SurveyPage() {
       setDeleteOpen(false)
       setDeleteTargetId(null)
       await reload()
-      showToast('Survey deleted', 'success')
+      showToast(t.toast?.deleted ?? 'Survey deleted', 'success')
     } catch (err: any) {
       console.error('delete failed', err)
       const msg = err?.message ?? String(err)
-      showToast(`Delete failed: ${msg}`, 'error')
+      showToast((t.toast?.deleteFailed ?? 'Delete failed: {msg}').replace('{msg}', msg), 'error')
     } finally {
       setDeleteLoading(false)
     }
@@ -250,10 +258,10 @@ export default function SurveyPage() {
       <RadixMenu.Portal>
         <RadixMenu.Content className="dms-card-menu-content" sideOffset={6} align="end" onClick={(e) => e.stopPropagation()}>
           <RadixMenu.Item className="dms-card-menu-item" onSelect={() => openEditById(id)}>
-            <FaPen /> แก้ไข
+            <FaPen /> {t.detail?.editLabel ?? 'Edit'}
           </RadixMenu.Item>
           <RadixMenu.Item className="dms-card-menu-item is-danger" onSelect={() => handleDeleteById(id)}>
-            <FaTrashCan /> ลบ
+            <FaTrashCan /> {t.confirm?.deleteLabel ?? 'Delete'}
           </RadixMenu.Item>
         </RadixMenu.Content>
       </RadixMenu.Portal>
@@ -265,8 +273,8 @@ export default function SurveyPage() {
       <section className="feature-page">
         <div className="dms-title-row">
           <div className="dms-title-block">
-            <h1>Fire Alarm Survey</h1>
-            <div className="dms-subtitle">Field technician checklist</div>
+          <h1>{t.title ?? 'Fire Alarm Survey'}</h1>
+          <div className="dms-subtitle">{t.subtitle ?? 'Field technician checklist'}</div>
           </div>
           <div className="dms-title-search-row">
             <div className="dms-create-actions">
@@ -274,7 +282,7 @@ export default function SurveyPage() {
                 className="dms-create-btn"
                 onClick={() => { setEditing(null); setModalOpen(true) }}
               >
-                New Survey
+              {t.newSurvey ?? 'New Survey'}
               </button>
             </div>
           </div>
@@ -289,11 +297,13 @@ export default function SurveyPage() {
             onStatusChange={handleStatusChange}
             viewMode={viewMode}
             onViewModeChange={(m) => setViewMode(m)}
+            translations={translations}
+            language={language}
           />
 
           {/* SURVEY LIST */}
           {total === 0 ? (
-            <div className="dms-project-empty"><div>No surveys found</div></div>
+            <div className="dms-project-empty"><div>{t.emptyList ?? 'No surveys found'}</div></div>
           ) : (
             viewMode === 'grid' ? (
               <div className="dms-card-grid dms-survey-grid">
@@ -314,7 +324,7 @@ export default function SurveyPage() {
                     <div className="dms-card-head">
                       <div className="dms-project-icon-pill"><FaFileLines /></div>
                       <div className="dms-project-actions">
-                        <span className={`dms-card-status is-${s.status}`}>{s.status}</span>
+                        <span className={`dms-card-status is-${s.status}`}>{SURVEY_STATUS[s.status ?? ''] ?? s.status}</span>
                         {renderMenu(s.id)}
                       </div>
                     </div>
@@ -354,7 +364,7 @@ export default function SurveyPage() {
                         <td>{s.province || ''}</td>
                         <td className="dms-table-nowrap">{formatThaiDate(s.surveyDate)}</td>
                         <td>{s.fcpBrand ? `${s.fcpBrand} ${s.fcpModel || ''}`.trim() : ''}</td>
-                        <td><span className={`dms-card-status is-${s.status}`}>{s.status}</span></td>
+                        <td><span className={`dms-card-status is-${s.status}`}>{SURVEY_STATUS[s.status ?? ''] ?? s.status}</span></td>
                         <td className="dms-table-menu-cell">
                           {renderMenu(s.id)}
                         </td>
@@ -384,8 +394,8 @@ export default function SurveyPage() {
           <RadixDialog.Portal>
             <RadixDialog.Overlay className="modal-backdrop" />
             <RadixDialog.Content className="dms-modal dms-create-doc-modal">
-              <RadixDialog.Title className="dms-modal-title">Survey</RadixDialog.Title>
-              <RadixDialog.Description className="dms-modal-subtitle">Fire Alarm Checklist</RadixDialog.Description>
+              <RadixDialog.Title className="dms-modal-title">{t.kicker ?? 'Survey'}</RadixDialog.Title>
+              <RadixDialog.Description className="dms-modal-subtitle">{t.subtitle ?? 'Fire Alarm Checklist'}</RadixDialog.Description>
               <RadixDialog.Close asChild>
                 <button className="modal-close" aria-label="Close">×</button>
               </RadixDialog.Close>
@@ -394,6 +404,8 @@ export default function SurveyPage() {
                   initial={editing ?? undefined}
                   onSaved={(s) => { handleSaved(s); setModalOpen(false) }}
                   onClose={() => setModalOpen(false)}
+                  translations={translations}
+                  language={language}
                 />
               </div>
             </RadixDialog.Content>
@@ -406,10 +418,10 @@ export default function SurveyPage() {
         <ConfirmDialog
           open={deleteOpen}
           onOpenChange={(v) => { if (!v) { setDeleteTargetId(null); setDeleteOpen(false) } else setDeleteOpen(v) }}
-          title="Confirm delete"
-          description="ต้องการลบแบบสำรวจนี้จริงหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้"
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
+          title={t.confirm?.deleteTitle ?? 'Confirm delete'}
+          description={t.confirm?.deleteDescription ?? 'Delete this survey? This action cannot be undone.'}
+          confirmLabel={t.confirm?.deleteLabel ?? 'Delete'}
+          cancelLabel={t.confirm?.cancelLabel ?? 'Cancel'}
           loading={deleteLoading}
           onConfirm={performDelete}
         />
@@ -428,6 +440,7 @@ export default function SurveyPage() {
                     survey={detailSurvey}
                     onClose={() => setDetailOpen(false)}
                     onEdit={(s) => { setDetailOpen(false); setEditing(s); setModalOpen(true) }}
+                    translations={translations}
                   />
                 ) : (
                   <div>Loading...</div>
