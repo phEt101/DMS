@@ -24,6 +24,13 @@ export async function handleDeleteSurvey(req: Request, res: Response) {
 }
 
 // For create/update we accept multipart/form-data where a 'payload' field contains JSON string of survey data
+function mapVisitType(v: any) {
+  if (!v) return null
+  if (v === 'contact_new') return 'survey_by_sale'
+  if (v === 'ref_doc') return 'survey_by_sale_service'
+  return v
+}
+
 export async function handleCreateSurvey(req: Request, res: Response) {
   const payload = req.body.payload ? JSON.parse(req.body.payload) : req.body
 
@@ -48,13 +55,16 @@ export async function handleCreateSurvey(req: Request, res: Response) {
       // ensure survey_no exists (DB requires it). Use provided value or generate a unique temporary one.
     const surveyNo = payload.surveyNo ?? payload.survey_no ?? `SV-${new Date().getFullYear()}-${Date.now()}`
 
+    // normalize visitType to accept legacy values
+    const normalizedVisitType = mapVisitType(payload.visitType ?? payload.visit_type ?? null)
+
     // insert surveys first
     const [result] = await tx.query(`INSERT INTO surveys (survey_no, survey_date, project_name, floors, visit_type, status, notes, surveyed_by, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
       surveyNo,
       payload.surveyDate || null,
       payload.projectName || null,
       payload.floors ?? null,
-      payload.visitType || null,
+      normalizedVisitType || null,
       payload.status || 'draft',
       payload.notes || null,
       payload.surveyedBy ?? null,
@@ -221,7 +231,7 @@ export async function handleUpdateSurvey(req: Request, res: Response) {
     const finalSurveyDate = payload.surveyDate ?? existing.surveyDate ?? null
     const finalProjectName = payload.projectName ?? existing.projectName ?? null
     const finalFloors = payload.floors ?? existing.floors ?? null
-    const finalVisitType = payload.visitType ?? existing.visitType ?? null
+    const finalVisitType = mapVisitType(payload.visitType ?? payload.visit_type ?? existing.visitType ?? existing.visit_type ?? null)
     const finalStatus = payload.status ?? existing.status ?? 'draft'
     const finalNotes = payload.notes ?? existing.notes ?? null
     const finalSurveyedBy = payload.surveyedBy ?? existing.surveyedBy ?? null

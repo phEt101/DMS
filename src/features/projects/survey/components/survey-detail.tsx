@@ -17,8 +17,8 @@ const DefaultIcon = L.icon({
 })
 
 const VISIT_TYPE: Record<string, string> = {
-  contact_new: 'ติดต่อเข้าพบใหม่',
-  ref_doc: 'อ้างอิงเอกสารที่เคยขาย',
+  survey_by_sale: 'Survey by Sale — Sale สำรวจคนเดียว',
+  survey_by_sale_service: 'Survey by Sale + Service — Sale และช่างไปด้วยกัน',
 }
 const FCP_STATUS: Record<string, string> = { on: 'เปิดใช้งาน', off: 'ปิดอยู่' }
 const SURVEY_STATUS: Record<string, string> = { draft: 'แบบร่าง', submitted: 'ส่งแล้ว' }

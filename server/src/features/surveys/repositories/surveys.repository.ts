@@ -51,6 +51,13 @@ export async function listSurveys(): Promise<any[]> {
   }))
 }
 
+function mapVisitType(v: any) {
+  if (!v) return null
+  if (v === 'contact_new') return 'survey_by_sale'
+  if (v === 'ref_doc') return 'survey_by_sale_service'
+  return v
+}
+
 export async function getSurveyById(id: number) {
   const conn = await db.getConnection()
   try {
@@ -133,7 +140,7 @@ export async function getSurveyById(id: number) {
       surveyDate: survey.survey_date,
       projectName: survey.project_name,
       floors: survey.floors,
-      visitType: survey.visit_type,
+      visitType: mapVisitType(survey.visit_type),
       status: survey.status,
       notes: survey.notes,
       surveyedBy: survey.surveyed_by,

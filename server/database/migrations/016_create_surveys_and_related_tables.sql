@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS surveys (
   survey_date DATE NOT NULL COMMENT 'วันที่สำรวจ',
   project_name VARCHAR(255) NOT NULL COMMENT 'ชื่อโครงการ/อาคาร',
   floors SMALLINT UNSIGNED NULL COMMENT 'จำนวนชั้นของอาคาร',
-  visit_type ENUM('contact_new','ref_doc') NULL COMMENT 'ประเภทการเยี่ยม: ติดต่อใหม่ / อ้างอิงเอกสารที่เคยขาย',
+  visit_type ENUM('survey_by_sale','survey_by_sale_service') NULL COMMENT 'ประเภทการเยี่ยม: Survey by Sale / Survey by Sale + Service',
   status ENUM('draft','submitted') NOT NULL DEFAULT 'draft' COMMENT 'สถานะแบบสำรวจ',
   notes TEXT NULL COMMENT 'หมายเหตุ',
   surveyed_by BIGINT UNSIGNED NULL COMMENT 'ผู้สำรวจ (FK users เมื่อมีตาราง users)',

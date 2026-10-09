@@ -70,8 +70,8 @@ export default function ProjectSection({
           <span className="dms-form-label">ประเภทการเยี่ยม</span>
           <select className="dms-form-input" {...register('visitType')}>
             <option value="">เลือก</option>
-            <option value="contact_new">ติดต่อเข้าพบใหม่</option>
-            <option value="ref_doc">อ้างอิงเอกสารที่เคยขาย</option>
+            <option value="survey_by_sale">Survey by Sale — Sale สำรวจคนเดียว ถ้าตู้มีปัญหานัด Service ตามภายหลัง</option>
+            <option value="survey_by_sale_service">Survey by Sale + Service — Sale และช่างไปด้วยกัน ประเมินหน้างานทันที</option>
           </select>
           <small className="dms-form-help">เลือกประเภทการเยี่ยมหน้างาน</small>
         </label>
