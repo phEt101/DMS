@@ -81,7 +81,7 @@ export async function getSurveyById(id: number) {
 
     // collect file ids to fetch storage paths (include sign photo if present)
     const fileIds: number[] = []
-    const [signFiles] = await conn.query<RowDataPacket[]>(`SELECT id FROM survey_files WHERE survey_id = ? AND purpose = 'sign' LIMIT 1`, [id])
+    const [signFiles] = await conn.query<RowDataPacket[]>(`SELECT id FROM survey_files WHERE survey_id = ? AND purpose = 'sign' ORDER BY id DESC LIMIT 1`, [id])
     if (signFiles[0] && signFiles[0].id) fileIds.push(signFiles[0].id)
 
     if (rawLocation && rawLocation.postal_code_id) fileIds.push(rawLocation.postal_code_id)
@@ -144,6 +144,7 @@ export async function getSurveyById(id: number) {
       contact1,
       contact2,
       location,
+      signPhoto: signFiles[0] && signFiles[0].id ? `/boswell-api/v1/surveys/files/${signFiles[0].id}` : null,
       fcpBrand: fcp ? fcp.brand : null,
       fcpModel: fcp ? fcp.model : null,
       fcpType: fcp ? fcp.type : null,

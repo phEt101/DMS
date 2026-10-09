@@ -26,6 +26,18 @@ export function cleanEquipment(arr: any[]) {
   return arr.map((it: any) => ({ ...it, qty: Number.isFinite(Number(it.qty)) ? Number(it.qty) : undefined }))
 }
 
+const COUNTRY_NAMES: Record<string, string> = {
+  TH: 'ประเทศไทย',
+  THA: 'ประเทศไทย',
+  THAILAND: 'ประเทศไทย',
+}
+
+/** แปลงรหัสประเทศจาก DB (เช่น TH) เป็นชื่อไทย ถ้าไม่รู้จักให้คืนค่าเดิม */
+export function formatCountry(c?: string | null): string | undefined {
+  if (!c) return undefined
+  return COUNTRY_NAMES[c.trim().toUpperCase()] ?? c
+}
+
 export const DEFAULT_EQUIPMENT_NAMES = [
   'Graphic Annunciator',
   'Smoke Detector',
@@ -37,6 +49,14 @@ export const DEFAULT_EQUIPMENT_NAMES = [
 ]
 
 const truthy = (v: any) => v === true || v === 1 || v === '1' || v === 'true' || v === 'yes'
+
+/** แปลงค่าไว้สำหรับ input[type=date] ให้เป็น YYYY-MM-DD หรือ undefined */
+export function formatDateForInput(v?: string | Date | null): string | undefined {
+  if (!v) return undefined
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return undefined
+  return d.toISOString().slice(0, 10)
+}
 
 /** ทำให้ข้อมูลที่โหลดจาก API พร้อมใช้ในฟอร์มแก้ไข (status / name / isCustom) */
 function normalizeInitial(s: Survey): Survey {
@@ -51,7 +71,13 @@ function normalizeInitial(s: Survey): Survey {
       isCustom: e.isCustom ?? !DEFAULT_EQUIPMENT_NAMES.includes(name),
     }
   })
-  return { ...s, equipment } as Survey
+  const location = s.location ? { ...s.location, country: formatCountry(s.location.country) } : s.location
+
+  // Ensure surveyDate is normalized to YYYY-MM-DD for input[type=date]
+  // formatDateForInput already returns YYYY-MM-DD or undefined for invalid values
+  const normalizedSurveyDate = formatDateForInput(s.surveyDate) ?? (typeof s.surveyDate === 'string' ? s.surveyDate.slice(0, 10) : undefined)
+
+  return { ...s, surveyDate: normalizedSurveyDate ?? '', equipment, location } as Survey
 }
 
 export function getDefaultValues(initial?: Survey | null): Survey {
@@ -89,13 +115,4 @@ export function getDefaultValues(initial?: Survey | null): Survey {
     ] as EquipmentItem[],
     notes: '',
   } as unknown as Survey
-}
-
-/** Normalize an ISO date or Date to yyyy-MM-dd for input[type=date] value */
-export function formatDateForInput(v?: string | Date | null): string | undefined {
-  if (!v) return undefined
-  const d = typeof v === 'string' ? new Date(v) : v
-  if (Number.isNaN(d.getTime())) return undefined
-  // yyyy-MM-dd
-  return d.toISOString().slice(0, 10)
 }

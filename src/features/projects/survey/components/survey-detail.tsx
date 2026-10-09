@@ -3,6 +3,7 @@ import * as RadixDialog from '@radix-ui/react-dialog'
 import type { Survey } from '../types'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import L from 'leaflet'
+import { formatCountry } from './survey-form/utils'
 import 'leaflet/dist/leaflet.css'
 
 const DefaultIcon = L.icon({
@@ -48,6 +49,13 @@ function Field({ label, value, full }: { label: string; value?: React.ReactNode;
   )
 }
 
+/** แสดงเฉพาะวันที่ (ตัดเวลาออก) รูปแบบ dd/mm/yyyy */
+function formatDate(v?: string | null) {
+  if (!v) return ''
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v))
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(v)
+}
+
 function Badge({ yes }: { yes: boolean }) {
   return (
     <span style={{
@@ -72,6 +80,14 @@ function PhotoTile({ src, caption, onOpen }: { src: string; caption: string; onO
   )
 }
 
+function PhotoGrid({ items, onOpen }: { items: { src: string; caption: string }[]; onOpen: (src: string) => void }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+      {items.map((p, i) => <PhotoTile key={p.src || `photo-${i}`} src={p.src} caption={p.caption} onOpen={onOpen} />)}
+    </div>
+  )
+}
+
 export default function SurveyDetail({ survey, onClose: _onClose, onEdit }: { survey: Survey; onClose: () => void; onEdit: (s: Survey) => void }) {
   const [preview, setPreview] = useState<string | null>(null)
 
@@ -79,17 +95,10 @@ export default function SurveyDetail({ survey, onClose: _onClose, onEdit }: { su
   const isYes = (e: any) => e.status === 'yes' || e.isPresent === true
   const haveCount = equipment.filter(isYes).length
 
-  const photos: { src: string; caption: string }[] = []
-  if (survey.signPhoto) photos.push({ src: survey.signPhoto, caption: 'ป้ายชื่ออาคาร' })
-  if (survey.fcpOverview) photos.push({ src: survey.fcpOverview, caption: 'FCP ทั้งตู้' })
-  if (survey.fcpNameplate) photos.push({ src: survey.fcpNameplate, caption: 'ป้ายชื่อ / แผงยี่ห้อ' })
-  if (survey.fcpInside) photos.push({ src: survey.fcpInside, caption: 'ภายในตู้ / สายไฟ' })
-  equipment.forEach((e) => { if (e.photo) photos.push({ src: e.photo as string, caption: e.name ?? '' }) })
-
   const loc = survey.location
   const hasCoord = !!loc && typeof loc.latitude === 'number' && typeof loc.longitude === 'number'
 
-  const hasFcp = [survey.fcpBrand, survey.fcpModel, survey.fcpType, survey.fcpMaterial, survey.fcpStatus].some((v) => !isEmpty(v))
+  const hasFcp = [survey.fcpBrand, survey.fcpModel, survey.fcpType, survey.fcpMaterial, survey.fcpStatus, survey.fcpOverview, survey.fcpNameplate, survey.fcpInside].some((v) => !isEmpty(v))
   const hasAddress = !!loc && [loc.address, loc.subdistrict, loc.district, loc.province, loc.postalCode, loc.country].some((v) => !isEmpty(v))
 
   return (
@@ -99,7 +108,7 @@ export default function SurveyDetail({ survey, onClose: _onClose, onEdit }: { su
         <div>
           <h2 style={{ margin: 0 }}>{survey.projectName || '(ไม่มีชื่อโครงการ)'}</h2>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-            {survey.surveyDate ? <small className="dms-card-date">วันที่สำรวจ {survey.surveyDate}</small> : null}
+            {survey.surveyDate ? <small className="dms-card-date">วันที่สำรวจ {formatDate(survey.surveyDate)}</small> : null}
             {(() => {
               const statusKey = survey.status ?? ''
               return statusKey ? <span className={`dms-card-status is-${statusKey}`}>{String(SURVEY_STATUS[statusKey] ?? statusKey)}</span> : null
@@ -133,6 +142,12 @@ export default function SurveyDetail({ survey, onClose: _onClose, onEdit }: { su
           <Field label="ตำแหน่ง" value={survey.contact1?.position} />
           <Field label="ประเภทการเยี่ยม" value={VISIT_TYPE[survey.visitType ?? ''] ?? survey.visitType} />
         </div>
+        {survey.signPhoto ? (
+          <div className="dms-form-field dms-form-field--full">
+            <span className="dms-form-label">รูปป้ายชื่ออาคาร</span>
+            <PhotoGrid items={[{ src: survey.signPhoto, caption: 'ป้ายชื่ออาคาร' }]} onOpen={setPreview} />
+          </div>
+        ) : null}
       </section>
 
       {/* ตำแหน่งโครงการ */}
@@ -157,7 +172,7 @@ export default function SurveyDetail({ survey, onClose: _onClose, onEdit }: { su
             <Field label="รหัสไปรษณีย์" value={loc.postalCode} />
           </div>
           <div className="dms-pm-create-grid">
-            <Field label="ประเทศ" value={loc.country} />
+            <Field label="ประเทศ" value={formatCountry(loc.country)} />
             <Field label="Latitude / Longitude" value={hasCoord ? `${(loc.latitude as number).toFixed(6)}, ${(loc.longitude as number).toFixed(6)}` : undefined} />
           </div>
           {hasCoord ? (
@@ -181,6 +196,19 @@ export default function SurveyDetail({ survey, onClose: _onClose, onEdit }: { su
             <Field label="วัสดุตู้" value={survey.fcpMaterial} />
           </div>
           <Field label="Status" value={FCP_STATUS[survey.fcpStatus ?? ''] ?? survey.fcpStatus} />
+          {survey.fcpOverview || survey.fcpNameplate || survey.fcpInside ? (
+            <div className="dms-form-field dms-form-field--full">
+              <span className="dms-form-label">รูปถ่าย FCP</span>
+              <PhotoGrid
+                items={[
+                  survey.fcpOverview ? { src: survey.fcpOverview, caption: 'FCP ทั้งตู้' } : null,
+                  survey.fcpNameplate ? { src: survey.fcpNameplate, caption: 'ป้ายชื่อ / แผงยี่ห้อ' } : null,
+                  survey.fcpInside ? { src: survey.fcpInside, caption: 'ภายในตู้ / สายไฟ' } : null,
+                ].filter(Boolean) as { src: string; caption: string }[]}
+                onOpen={setPreview}
+              />
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -210,23 +238,13 @@ export default function SurveyDetail({ survey, onClose: _onClose, onEdit }: { su
                       src={e.photo as string}
                       alt={e.name ?? ''}
                       onClick={() => setPreview(e.photo as string)}
-                      style={{ width: 56, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }}
+                      style={{ width: 72, height: 54, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }}
                     />
                   ) : null}
                   <Badge yes={yes} />
                 </div>
               )
             })}
-          </div>
-        </section>
-      ) : null}
-
-      {/* Photos */}
-      {photos.length > 0 ? (
-        <section className="dms-pm-create-section" style={{ marginTop: 12 }}>
-          <h3>รูปถ่าย ({photos.length})</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-            {photos.map((p, i) => <PhotoTile key={p.src ? p.src : `photo-${i}`} src={p.src} caption={p.caption} onOpen={setPreview} />)}
           </div>
         </section>
       ) : null}

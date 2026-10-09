@@ -1,14 +1,22 @@
+/** ดึง file id จาก URL รูปที่โหลดมาจาก server (รูปใหม่เป็น data: จะได้ null) */
+const fileIdFromUrl = (v: unknown): number | null => {
+  const m = typeof v === 'string' ? /\/surveys\/files\/(\d+)/.exec(v) : null
+  return m ? Number(m[1]) : null
+}
+
 /** สร้าง payload ตามรูปแบบที่ backend ต้องการ */
 export function buildBodyPayload(payload: any): any {
   return {
-    surveyDate: payload.surveyDate,
+    // MySQL DATE รับเฉพาะ YYYY-MM-DD (ข้อมูลที่โหลดจาก server อาจเป็น ISO string)
+    surveyDate: typeof payload.surveyDate === 'string' ? payload.surveyDate.slice(0, 10) : payload.surveyDate,
     projectName: payload.projectName,
     floors: payload.floors,
     visitType: payload.visitType,
     status: payload.status,
     notes: payload.notes,
     surveyedBy: undefined,
-    submittedAt: payload.status === 'submitted' ? new Date().toISOString() : null,
+    // MySQL DATETIME ไม่รับ 'T' และ 'Z'
+    submittedAt: payload.status === 'submitted' ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null,
     contacts: [
       { seq: 1, ...(payload.contact1 || {}) },
       { seq: 2, ...(payload.contact2 || {}) },
@@ -24,7 +32,10 @@ export function buildBodyPayload(payload: any): any {
       postalCodeId: (payload.location as any).postalCodeId ?? null,
       country: payload.location.country ?? 'TH',
     } : undefined,
-    fcp: payload.fcpBrand || payload.fcpModel || payload.fcpType || payload.fcpMaterial || payload.fcpStatus ? {
+    fcp: payload.fcpBrand || payload.fcpModel || payload.fcpType || payload.fcpMaterial || payload.fcpStatus || payload.fcpOverview || payload.fcpNameplate || payload.fcpInside ? {
+      overviewFileId: fileIdFromUrl(payload.fcpOverview),
+      nameplateFileId: fileIdFromUrl(payload.fcpNameplate),
+      insideFileId: fileIdFromUrl(payload.fcpInside),
       brand: payload.fcpBrand,
       model: payload.fcpModel,
       type: payload.fcpType,
@@ -36,6 +47,7 @@ export function buildBodyPayload(payload: any): any {
       customName: e.customName ?? (e.name ?? null),
       isPresent: e.status === 'yes',
       model: e.model ?? null,
+      photoFileId: fileIdFromUrl(e.photo),
       qty: typeof e.qty === 'number' ? e.qty : (e.qty ? Number(e.qty) : null),
     })),
   }

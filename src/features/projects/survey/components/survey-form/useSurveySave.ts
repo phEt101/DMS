@@ -39,10 +39,12 @@ export function useSurveySave({
 
       // determine create vs update
       const isUpdate = (typeof payload.id === 'string' && /^\d+$/.test(payload.id)) || typeof payload.id === 'number'
+
       try {
-        const res: any = isUpdate
-          ? await updateSurvey(payload.id as any, body)
-          : await createSurvey(body)
+        let res: any
+
+        // Submit behaves like Save draft (full payload incl. edits/files); only the status differs
+        res = isUpdate ? await updateSurvey(payload.id as any, body) : await createSurvey(body)
 
         // backend returns created/updated object
         onSaved({
@@ -60,7 +62,16 @@ export function useSurveySave({
       } catch (err: any) {
         // surface server error to user and keep form open for correction
         console.error('save survey failed', err)
-        const serverMsg = err?.body?.error ?? err?.message ?? String(err)
+        // Show full error body when available for debugging (stringify if object)
+        const body = err?.body
+        let bodyStr: string | undefined
+        try {
+          if (body && typeof body === 'object') bodyStr = JSON.stringify(body, null, 2)
+          else if (typeof body === 'string') bodyStr = body
+        } catch (e) {
+          bodyStr = String(body)
+        }
+        const serverMsg = bodyStr ?? err?.message ?? String(err)
         // use alert for simplicity; replace with app toast if available
         alert(`Save failed: ${serverMsg}`)
         return

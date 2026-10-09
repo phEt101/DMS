@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import SurveyForm from './components/survey-form'
 import SurveyDetail from './components/survey-detail'
@@ -90,6 +90,34 @@ function mapSurvey(r: any): Survey {
         }
       : undefined,
   } as Survey
+}
+
+class ErrorBoundary extends React.Component<any, { error: Error | null, info?: any }> {
+  constructor(props: any) {
+    super(props)
+    this.state = { error: null }
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+  componentDidCatch(error: Error, info: any) {
+    // log to console and keep UI from being blank
+    console.error('Unhandled error in SurveyPage:', error, info)
+    this.setState({ error, info })
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 24 }}>
+          <h2>เกิดข้อผิดพลาดขณะโหลดหน้า</h2>
+          <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', background: '#fff6f6', padding: 12, borderRadius: 8, border: '1px solid #f5c2c7' }}>
+            {String(this.state.error && this.state.error.stack ? this.state.error.stack : this.state.error)}
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 export default function SurveyPage() {
@@ -185,53 +213,52 @@ export default function SurveyPage() {
   }
 
   return (
-    <section className="feature-page">
-      {/* PAGE HEADER */}
-      <div className="dms-title-row">
-        <div className="dms-title-block">
-          <h1>Fire Alarm Survey</h1>
-          <div className="dms-subtitle">Field technician checklist</div>
-        </div>
-        <div className="dms-title-search-row">
-          <div className="dms-create-actions">
-            <button
-              className="dms-create-btn"
-              onClick={() => { setEditing(null); setModalOpen(true) }}
-            >
-              New Survey
-            </button>
+    <ErrorBoundary>
+      <section className="feature-page">
+        <div className="dms-title-row">
+          <div className="dms-title-block">
+            <h1>Fire Alarm Survey</h1>
+            <div className="dms-subtitle">Field technician checklist</div>
           </div>
-        </div>
-      </div>
-
-      {/* SEARCH / FILTER */}
-      <div style={{ marginTop: 12 }}>
-        <div className="dms-title-search-row">
-          <div className="dms-search-wrap">
-            <FaMagnifyingGlass className="dms-search-icon" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              placeholder="ค้นหา ชื่อโครงการ"
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value as '' | 'draft' | 'submitted'); setPage(1) }}
-              className="dms-filter-select-trigger"
-            >
-              <option value="">สถานะทั้งหมด</option>
-              <option value="draft">Draft</option>
-              <option value="submitted">Submitted</option>
-            </select>
-            <div className="dms-stats-group">
-              <div className="dms-stats-pill">{total} records</div>
+          <div className="dms-title-search-row">
+            <div className="dms-create-actions">
+              <button
+                className="dms-create-btn"
+                onClick={() => { setEditing(null); setModalOpen(true) }}
+              >
+                New Survey
+              </button>
             </div>
           </div>
         </div>
+
+        <div style={{ marginTop: 12 }}>
+          <div className="dms-title-search-row">
+            <div className="dms-search-wrap">
+              <FaMagnifyingGlass className="dms-search-icon" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                placeholder="ค้นหา ชื่อโครงการ"
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value as '' | 'draft' | 'submitted'); setPage(1) }}
+                className="dms-filter-select-trigger"
+              >
+                <option value="">สถานะทั้งหมด</option>
+                <option value="draft">Draft</option>
+                <option value="submitted">Submitted</option>
+              </select>
+              <div className="dms-stats-group">
+                <div className="dms-stats-pill">{total} records</div>
+              </div>
+            </div>
+          </div>
 
         {/* SURVEY LIST */}
         {total === 0 ? (
@@ -346,5 +373,6 @@ export default function SurveyPage() {
         </RadixDialog.Portal>
       </RadixDialog.Root>
     </section>
+    </ErrorBoundary>
   )
 }
