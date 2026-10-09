@@ -128,6 +128,7 @@ class ErrorBoundary extends React.Component<any, { error: Error | null, info?: a
 }
 
 import type { Language, Translations } from '../../../locales'
+import './survey.css'
 
 export default function SurveyPage({ translations, language }: { translations: Translations, language: Language }) {
   const [surveys, setSurveys] = useState<Survey[]>([])

@@ -3996,9 +3996,6 @@ a {
 
   /* ช่องกรอก: 1 คอลัมน์ ไม่ซูมอัตโนมัติบน iOS */
   .dms-pm-create-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
-  .dms-pm-create-section { padding: 12px !important; }
-  .survey-form input, .survey-form select, .survey-form textarea { font-size: 16px; max-width: 100%; }
-  .survey-form { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); } /* กันแถบปุ่มล่างบังช่องท้ายสุด */
 }
 /* ===== Survey list: search/filter row + cards ===== */
 .dms-survey-filter-row {
