@@ -34,6 +34,9 @@ export type ActivityFeatureCopy = FeatureCopy & {
   moduleActions: Record<string, string>
   projectActions: Record<string, string>
   projectFields: Record<string, string>
+  surveyActions: Record<string, string>
+  surveyFields: Record<string, string>
+  surveyValues: Record<string, string>
   rolePermissionModules: string
   roleActivated: string
   roleDeactivated: string

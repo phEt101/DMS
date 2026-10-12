@@ -59,36 +59,96 @@ interface ActivityCountRow extends RowDataPacket {
   total: number
 }
 
+const activityEntries = `
+  SELECT
+    a.id AS id,
+    0 AS source,
+    a.module AS module,
+    a.action AS action,
+    a.entity_type AS entityType,
+    a.entity_id AS entityId,
+    a.details AS details,
+    a.ip_address AS ipAddress,
+    a.created_at AS createdAt,
+    a.user_id AS userId
+  FROM activity_logs a
+  UNION ALL
+  SELECT
+    s.id,
+    1,
+    'survey',
+    s.action,
+    'survey',
+    s.survey_id,
+    s.details,
+    s.ip_address,
+    s.created_at,
+    s.user_id
+  FROM survey_logs s
+`
+
+interface SurveyLogInput {
+  surveyId: number | null
+  surveyNo?: string | null
+  projectName?: string | null
+  userId?: number | null
+  action: 'created' | 'updated' | 'deleted'
+  details?: Record<string, unknown> | null
+  ipAddress?: string | null
+}
+
+export async function logSurveyActivity(i: SurveyLogInput) {
+  await db.execute(
+    `INSERT INTO survey_logs (survey_id, survey_no, project_name, user_id, action, details, ip_address)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      i.surveyId,
+      i.surveyNo ?? null,
+      i.projectName ?? null,
+      i.userId ?? null,
+      i.action,
+      i.details ? JSON.stringify(i.details) : null,
+      i.ipAddress ?? null,
+    ],
+  )
+}
 export async function findActivityLogs(page: number, limit: number) {
   const offset = (page - 1) * limit
   const [rows] = await db.query<ActivityLogRow[]>(
-    `SELECT
-       a.id,
-       a.module,
-       a.action,
-       a.entity_type AS entityType,
-       a.entity_id AS entityId,
-       a.details,
-       a.ip_address AS ipAddress,
-       a.created_at AS createdAt,
-       u.name AS userName,
-       u.email AS userEmail
-     FROM activity_logs a
-     LEFT JOIN users u ON u.id = a.user_id
-     ORDER BY a.created_at DESC, a.id DESC
+    `SELECT x.id, x.module, x.action, x.entityType, x.entityId, x.details,
+            x.ipAddress, x.createdAt, x.surveyNo, x.projectName,
+            u.name AS userName, u.email AS userEmail
+     FROM (
+       SELECT a.id, a.user_id, a.module, a.action, a.entity_type AS entityType,
+              a.entity_id AS entityId, a.details, a.ip_address AS ipAddress,
+              a.created_at AS createdAt, NULL AS surveyNo, NULL AS projectName
+       FROM activity_logs a
+       UNION ALL
+       SELECT l.id, l.user_id, 'surveys', l.action, 'survey',
+              l.survey_id, l.details, l.ip_address,
+              l.created_at, l.survey_no, l.project_name
+       FROM survey_logs l
+     ) x
+     LEFT JOIN users u ON u.id = x.user_id
+     ORDER BY x.createdAt DESC, x.id DESC
      LIMIT ? OFFSET ?`,
     [limit, offset],
   )
   const [countRows] = await db.query<ActivityCountRow[]>(
-    'SELECT COUNT(*) AS total FROM activity_logs',
+    `SELECT (SELECT COUNT(*) FROM activity_logs) + (SELECT COUNT(*) FROM survey_logs) AS total`,
   )
 
   return {
-    rows: rows.map(({ details, ...row }) => ({
-      ...row,
-      details: parseDetails(details),
-    })),
-    total: countRows[0]?.total ?? 0,
+    rows: rows.map(({ details, surveyNo, projectName, ...row }: any) => {
+      const parsed = parseDetails(details) ?? {}
+      return {
+        ...row,
+        details: surveyNo || projectName
+          ? { name: projectName ?? null, surveyNo: surveyNo ?? null, ...parsed }
+          : (Object.keys(parsed).length ? parsed : null),
+      }
+    }),
+    total: Number(countRows[0]?.total ?? 0),
   }
 }
 

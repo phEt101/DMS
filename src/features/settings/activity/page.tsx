@@ -125,6 +125,37 @@ function formatDetails(
     return parts.filter(Boolean).join(' · ')
   }
 
+  if (log.entityType === 'survey') {
+    const prefix = activityTranslations.surveyActions[log.action] ?? log.action
+    const displayValue = (field: string, value: unknown) => {
+      if (value === null || value === undefined || value === '') return '—'
+      const text = String(value)
+      return field === 'status' || field === 'visitType' || field === 'fcpStatus'
+        ? activityTranslations.surveyValues[text] ?? text
+        : text
+    }
+    const parts = [[prefix, name].filter(Boolean).join(' ')]
+
+    if (log.action === 'created') {
+      for (const field of ['status', 'surveyDate', 'contactName', 'province']) {
+        if (!(field in log.details)) continue
+        parts.push(`${activityTranslations.surveyFields[field] ?? field}: ${displayValue(field, log.details[field])}`)
+      }
+    }
+
+    if (log.action === 'updated' && Array.isArray(log.details.changes)) {
+      for (const value of log.details.changes) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+        const change = value as Record<string, unknown>
+        if (typeof change.field !== 'string') continue
+        const field = activityTranslations.surveyFields[change.field] ?? change.field
+        parts.push(`${field}: ${activityTranslations.from} “${displayValue(change.field, change.from)}” ${activityTranslations.to} “${displayValue(change.field, change.to)}”`)
+      }
+    }
+
+    return parts.filter(Boolean).join(' · ')
+  }
+
   if (log.entityType === 'role') {
     const hasChangedModules = Array.isArray(log.details.changedModules)
       && log.details.changedModules.length > 0

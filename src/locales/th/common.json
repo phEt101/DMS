@@ -377,6 +377,7 @@
         "modules": "จัดการโมดูล",
         "permissions": "จัดการสิทธิ์",
         "projects": "โครงการ",
+        "survey": "แบบสำรวจ",
         "reports": "รายงาน",
         "trash": "ถังขยะ",
         "activity_logs": "บันทึกกิจกรรม",
@@ -419,6 +420,41 @@
         "siteLon": "ลองจิจูด",
         "plannedStartDate": "วันที่เริ่มตามแผน",
         "plannedEndDate": "วันที่สิ้นสุดตามแผน"
+      },
+      "surveyActions": {
+        "created": "สร้างแบบสำรวจ",
+        "updated": "แก้ไขแบบสำรวจ",
+        "deleted": "ลบแบบสำรวจ"
+      },
+      "surveyFields": {
+        "surveyDate": "วันที่สำรวจ",
+        "projectName": "ชื่อโครงการ/อาคาร",
+        "floors": "จำนวนชั้น",
+        "visitType": "ประเภทการเยี่ยม",
+        "status": "สถานะ",
+        "notes": "หมายเหตุ",
+        "contactName": "ผู้ติดต่อ",
+        "contactPhone": "เบอร์โทรผู้ติดต่อ",
+        "contactPosition": "ตำแหน่งผู้ติดต่อ",
+        "address": "ที่อยู่",
+        "subdistrict": "ตำบล/แขวง",
+        "district": "อำเภอ/เขต",
+        "province": "จังหวัด",
+        "postalCode": "รหัสไปรษณีย์",
+        "fcpBrand": "ยี่ห้อ FCP",
+        "fcpModel": "รุ่น FCP",
+        "fcpType": "ประเภท FCP",
+        "fcpMaterial": "วัสดุตู้ FCP",
+        "fcpStatus": "สถานะไฟ FCP",
+        "equipmentCount": "จำนวนอุปกรณ์"
+      },
+      "surveyValues": {
+        "draft": "ฉบับร่าง",
+        "submitted": "ส่งแล้ว",
+        "survey_by_sale": "Survey by Sale",
+        "survey_by_sale_service": "Survey by Sale + Service",
+        "on": "เปิด",
+        "off": "ปิด"
       },
       "roleActions": {
         "created": "เพิ่มบทบาท",
