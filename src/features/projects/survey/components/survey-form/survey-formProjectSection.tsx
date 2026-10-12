@@ -11,12 +11,15 @@ export default function ProjectSection({
   form,
   photos,
   openCamera,
+  translations,
 }: {
   form: UseFormReturn<Survey>
   photos: ReturnType<typeof usePhotos>
   openCamera: (target: string) => void
+  translations?: any
 }) {
   const { register, watch, setValue } = form
+  const t = translations?.features?.survey ?? {}
 
   // ensure surveyDate is in yyyy-MM-dd format for <input type="date"> to avoid React warnings
   useEffect(() => {
@@ -29,62 +32,62 @@ export default function ProjectSection({
 
   return (
     <section className="dms-pm-create-section">
-      <h3>ข้อมูลโครงการ</h3>
+      <h3>{t.form?.section?.projectInfo ?? 'Project information'}</h3>
       <label className="dms-form-field">
-        <span className="dms-form-label">วันที่สำรวจ <Required /></span>
+        <span className="dms-form-label">{t.form?.field?.surveyDate ?? 'Survey date'} <Required /></span>
         <input className="dms-form-input" type="date" {...register('surveyDate', { required: true })} />
-        <small className="dms-form-help">วันที่ทำการสำรวจ (เลือกวันที่)</small>
+        <small className="dms-form-help">{t.form?.help?.surveyDate ?? 'Select the date of survey'}</small>
       </label>
       <label className="dms-form-field">
-        <span className="dms-form-label">ชื่อโครงการ / อาคาร <Required /></span>
-        <input className="dms-form-input" placeholder="เช่น อาคารสำนักงานใหญ่" {...register('projectName', { required: true })} />
-        <small className="dms-form-help">ชื่ออาคารหรือโครงการที่เข้าตรวจ</small>
+        <span className="dms-form-label">{t.form?.field?.projectName ?? 'Project / Building'} <Required /></span>
+        <input className="dms-form-input" placeholder={t.form?.placeholder?.projectName ?? 'e.g. Head Office'} {...register('projectName', { required: true })} />
+        <small className="dms-form-help">{t.form?.help?.projectName ?? 'Project or building name'}</small>
       </label>
       <div className="dms-pm-create-grid">
         <label className="dms-form-field">
-          <span className="dms-form-label">จำนวนชั้น</span>
-          <input className="dms-form-input" type="number" placeholder="เช่น 5" {...register('floors', { valueAsNumber: true })} />
-          <small className="dms-form-help">จำนวนชั้นทั้งหมดของอาคาร</small>
+          <span className="dms-form-label">{t.form?.field?.floors ?? 'Floors'}</span>
+          <input className="dms-form-input" type="number" placeholder={t.form?.placeholder?.floors ?? 'e.g. 5'} {...register('floors', { valueAsNumber: true })} />
+          <small className="dms-form-help">{t.form?.help?.floors ?? 'Total number of floors'}</small>
         </label>
       </div>
 
       <div className="dms-pm-create-grid">
         <label className="dms-form-field">
-          <span className="dms-form-label">ผู้ติดต่อ (ชื่อ) <Required /></span>
-          <input className="dms-form-input" placeholder="เช่น นายสมชาย ใจดี" {...register('contact1.name', { required: true })} />
-          <small className="dms-form-help">ชื่อผู้ประสานงานหน้างาน</small>
+          <span className="dms-form-label">{t.form?.field?.contactName ?? 'Contact (name)'} <Required /></span>
+          <input className="dms-form-input" placeholder={t.form?.placeholder?.contactName ?? 'e.g. John Doe'} {...register('contact1.name', { required: true })} />
+          <small className="dms-form-help">{t.form?.help?.contactName ?? 'On-site contact person'}</small>
         </label>
         <label className="dms-form-field">
-          <span className="dms-form-label">ผู้ติดต่อ (โทรศัพท์) <Required /></span>
-          <input className="dms-form-input" placeholder="เช่น 0812345678" {...register('contact1.phone', { required: true })} />
-          <small className="dms-form-help">หมายเลขที่ติดต่อได้</small>
+          <span className="dms-form-label">{t.form?.field?.contactPhone ?? 'Contact (phone)'} <Required /></span>
+          <input className="dms-form-input" placeholder={t.form?.placeholder?.contactPhone ?? 'e.g. 0812345678'} {...register('contact1.phone', { required: true })} />
+          <small className="dms-form-help">{t.form?.help?.contactPhone ?? 'Reachable phone number'}</small>
         </label>
       </div>
       <div className="dms-pm-create-grid">
         <label className="dms-form-field">
-          <span className="dms-form-label">ตำแหน่ง <Required /></span>
-          <input className="dms-form-input" placeholder="เช่น หัวหน้างาน" {...register('contact1.position', { required: true })} />
-          <small className="dms-form-help">ตำแหน่งของผู้ติดต่อ</small>
+          <span className="dms-form-label">{t.form?.field?.contactPosition ?? 'Position'} <Required /></span>
+          <input className="dms-form-input" placeholder={t.form?.placeholder?.contactPosition ?? 'e.g. Site Supervisor'} {...register('contact1.position', { required: true })} />
+          <small className="dms-form-help">{t.form?.help?.contactPosition ?? 'Position of contact person'}</small>
         </label>
         <label className="dms-form-field">
-          <span className="dms-form-label">ประเภทการเยี่ยม</span>
+          <span className="dms-form-label">{t.form?.field?.visitTypeLabel ?? 'Visit type'}</span>
           <select className="dms-form-input" {...register('visitType')}>
-            <option value="">เลือก</option>
-            <option value="survey_by_sale">Survey by Sale — Sale สำรวจคนเดียว ถ้าตู้มีปัญหานัด Service ตามภายหลัง</option>
-            <option value="survey_by_sale_service">Survey by Sale + Service — Sale และช่างไปด้วยกัน ประเมินหน้างานทันที</option>
+            <option value="">{t.form?.option?.select ?? 'Select'}</option>
+            <option value="survey_by_sale">{t.form?.option?.survey_by_sale ?? 'Survey by Sale'}</option>
+            <option value="survey_by_sale_service">{t.form?.option?.survey_by_sale_service ?? 'Survey by Sale + Service'}</option>
           </select>
-          <small className="dms-form-help">เลือกประเภทการเยี่ยมหน้างาน</small>
+          <small className="dms-form-help">{t.form?.help?.visitType ?? 'Choose visit type'}</small>
         </label>
       </div>
 
       <PhotoField
         className="dms-form-field dms-form-field--full"
-        label="ป้ายชื่ออาคาร"
-        help="ถ่ายให้เห็นชื่ออาคารหรือโครงการชัดเจน"
+        label={t.form?.photo?.sign?.label ?? 'Signboard photo'}
+        help={t.form?.photo?.sign?.help ?? 'Capture the building sign clearly'}
         alt="sign"
+        translations={translations}
         value={watch('signPhoto')}
         onFile={(e) => photos.handleFile(e, 'signPhoto')}
-        onOpenCamera={() => openCamera('signPhoto')}
         onRemove={() => photos.removeSurveyPhoto('signPhoto')}
       />
     </section>

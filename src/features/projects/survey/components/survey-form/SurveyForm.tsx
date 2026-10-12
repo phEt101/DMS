@@ -19,10 +19,14 @@ export default function SurveyForm({
   initial,
   onSaved,
   onClose,
+  translations,
+  language,
 }: {
   initial?: Survey | null
   onSaved: (s: Survey) => void
   onClose: () => void
+  translations?: any
+  language?: string
 }) {
   const form = useForm<Survey>({ defaultValues: getDefaultValues(initial) })
   const { handleSubmit, setValue, getValues, watch, register } = form
@@ -43,18 +47,18 @@ export default function SurveyForm({
   const camera = useCamera(form)
   const postal = usePostalCodes({ initialLocation: initial?.location, getValues, updateLocation })
   const picker = useLocationPicker({ initial, getValues, updateLocation, postal })
-  const { saving, onSave } = useSurveySave({ filesMap: photos.filesMap, onSaved, onClose })
+  const { saving, onSave } = useSurveySave({ filesMap: photos.filesMap, onSaved, onClose, translations })
 
   return (
     <>
       <form className="survey-form" onSubmit={handleSubmit((v) => onSave(v, true))}>
-        <ActionBar saving={saving} onSaveDraft={() => { handleSubmit((v) => onSave(v, false))() }} />
+        <ActionBar saving={saving} onSaveDraft={() => { handleSubmit((v) => onSave(v, false))() }} translations={translations} />
 
-        <ProjectSection form={form} photos={photos} openCamera={camera.openCamera} />
-        <LocationSection locationValue={locationValue} updateLocation={updateLocation} picker={picker} postal={postal} />
-        <FcpSection form={form} photos={photos} openCamera={camera.openCamera} />
-        <EquipmentSection form={form} photos={photos} openCamera={camera.openCamera} isEditing={!!initial} />
-        <NotesSection form={form} />
+        <ProjectSection form={form} photos={photos} openCamera={camera.openCamera} translations={translations} />
+        <LocationSection locationValue={locationValue} updateLocation={updateLocation} picker={picker} postal={postal} translations={translations} />
+        <FcpSection form={form} photos={photos} openCamera={camera.openCamera} translations={translations} />
+        <EquipmentSection form={form} photos={photos} openCamera={camera.openCamera} isEditing={!!initial} translations={translations} />
+        <NotesSection form={form} translations={translations} />
       </form>
 
       <CameraOverlay

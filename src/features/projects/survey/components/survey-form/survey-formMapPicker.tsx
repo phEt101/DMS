@@ -4,7 +4,8 @@ import MapEvents from './survey-mapevents'
 import { DefaultIcon } from './utils'
 import type { LocationPicker } from './useLocationPicker'
 
-export default function MapPicker({ picker }: { picker: LocationPicker }) {
+export default function MapPicker({ picker, translations }: { picker: LocationPicker, translations?: any }) {
+  const t = translations?.features?.survey ?? {}
   const {
     initialCenter, initialZoom, tempPos, setTempPos, mapRef,
     searchQuery, setSearchQuery, clearSearch, doSearch,
@@ -27,15 +28,15 @@ export default function MapPicker({ picker }: { picker: LocationPicker }) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
             <input
               style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 8px', fontSize: 14, background: 'transparent' }}
-              placeholder="ค้นหาสถานที่ / บริษัท / ที่อยู่"
+              placeholder={t.form?.placeholder?.searchLocation ?? 'Search place / company / address'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') { e.preventDefault(); void doSearch(searchQuery) } // กัน form submit
+                if (e.key === 'Enter') { e.preventDefault(); void doSearch(searchQuery) } // prevent form submit
               }}
             />
             {searchQuery ? (
-              <button type="button" aria-label="ล้าง" onClick={clearSearch}
+              <button type="button" aria-label={t.form?.actions?.clearSearch ?? 'Clear'} onClick={clearSearch}
                 style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 18, color: '#888' }}>×</button>
             ) : null}
           </div>

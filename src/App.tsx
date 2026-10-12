@@ -4,9 +4,9 @@ import { useAuth } from './features/auth/hooks/use-auth'
 import Sidebar from './layout/sidebar'
 import Topbar from './layout/topbar'
 import { getLocale } from './locales'
-import { buildPages } from './routes/appRoutes'
+import { buildPages } from './services/routes/appRoutes'
 import type { AuthUser } from './features/auth/types/auth.types'
-import type { PageKey } from './routes/pageTypes'
+import type { PageKey } from './services/routes/pageTypes'
 import { canViewModule } from './features/auth/permissions'
 
 const pathByPage: Record<PageKey, string> = {

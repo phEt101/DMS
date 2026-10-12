@@ -1,0 +1,46 @@
+/* Survey-specific styles extracted for the Survey feature components */
+
+/* Layout and form */
+.survey-form input, .survey-form select, .survey-form textarea { font-size: 16px; max-width: 100%; }
+.survey-form { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+
+.dms-pm-create-section { padding: 18px; border: 1px solid rgba(226,232,240,0.8); border-radius: 12px; background: #fff; margin-bottom: 16px; }
+.dms-pm-create-section-head h4 { margin: 0 0 6px; font-size: 15px; color: #172033; }
+.dms-pm-create-section-head p { margin: 0; color: #64748b; font-size: 13px; }
+.dms-pm-create-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+
+.dms-form-field { display: block; margin-bottom: 6px; }
+.dms-form-field--full { grid-column: 1 / -1; }
+.dms-form-label { display: block; color: #182033; font-weight: 700; margin-bottom: 6px; }
+.dms-form-input { display: block; width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #e5e9f0; background: #fff; font: inherit; color: inherit; }
+.dms-form-input:focus { outline: none; box-shadow: 0 6px 18px rgba(88,71,223,0.08); border-color: rgba(88,71,223,0.16); }
+.dms-form-help { display: block; color: #64748b; font-size: 12px; margin-top: 6px; }
+
+/* Buttons */
+.dms-create-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 12px; border: none; background: var(--accent, #5847df); color: #fff; font-weight: 800; cursor: pointer; }
+.dms-create-btn:hover { background: #4f3ce6; }
+.dms-create-btn:active { transform: translateY(1px); }
+.dms-back-btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; color: #475569; cursor: pointer; }
+.dms-back-btn:hover { background: #f8fafc; }
+
+/* Photo grid / thumbnails used in survey detail/form */
+.dms-equipment-card-images { display: grid; height: 170px; gap: 7px; }
+.dms-equipment-card-images > button { min-width: 0; min-height: 0; padding: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 8px; background: #eef2f7; cursor: zoom-in; }
+.dms-equipment-card-images img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .2s ease; }
+.dms-equipment-card-images > button:hover img { transform: scale(1.05); }
+
+/* Status badges used by survey cards */
+.dms-card-status { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.dms-card-status.is-draft { background: #f1f5f9; color: #475569; }
+.dms-card-status.is-submitted { background: #dbeafe; color: #1d4ed8; }
+.dms-card-status.is-planning { background: #fce7f3; color: #be185d; }
+.dms-card-status.is-active { background: #dbeafe; color: #1d4ed8; }
+.dms-card-status.is-on_hold { background: #fef3c7; color: #b45309; }
+.dms-card-status.is-done { background: #dcfce7; color: #15803d; }
+.dms-card-status.is-cancelled { background: #fee2e2; color: #b91c1c; }
+
+/* Responsive adjustments for survey forms */
+@media (max-width: 900px) {
+  .dms-pm-create-grid { grid-template-columns: 1fr; gap: 10px; }
+  .dms-pm-create-section { padding: 12px; }
+}
