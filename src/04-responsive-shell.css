@@ -1,0 +1,370 @@
+@media (max-width: 1100px) {
+  .page-placeholder {
+    padding: 28px;
+  }
+  .feature-page {
+    padding: 24px;
+  }
+  .users-table {
+    min-width: 680px;
+  }
+  .users-table:has(.user-identity) {
+    min-width: 880px;
+  }
+  .users-table-wrap {
+    scrollbar-color: #c7ccda transparent;
+    scrollbar-width: thin;
+  }
+}
+@media (max-width: 560px) {
+  .dms-equipment-detail-controls { grid-template-columns: 1fr; padding: 12px; }
+}
+
+@media (max-width: 720px) {
+  .signin-page {
+    padding: 18px 14px 28px;
+  }
+  .signin-header {
+    margin-bottom: 16px;
+  }
+  .signin-shell {
+    min-height: 0;
+    grid-template-columns: 1fr;
+    border-radius: 20px;
+  }
+  .signin-showcase {
+    padding: 32px 24px;
+  }
+  .signin-showcase-copy h1 {
+    font-size: 30px;
+  }
+  .signin-showcase-copy > span {
+    font-size: 13px;
+  }
+  .signin-card {
+    width: 100%;
+    padding: 36px 24px 30px;
+  }
+  .app-main,
+  .sidebar-collapsed .app-main {
+    margin-left: 0;
+  }
+  .sidebar,
+  .sidebar.is-collapsed {
+    width: min(265px, 82vw);
+    transform: translateX(-105%);
+    box-shadow: 12px 0 40px rgba(24, 31, 48, 0.16);
+  }
+  .sidebar.is-mobile-open {
+    transform: translateX(0);
+  }
+  .sidebar.is-collapsed .brand-copy,
+  .sidebar.is-collapsed .nav-item span,
+  .sidebar.is-collapsed .nav-item i,
+  .sidebar.is-collapsed .item-count,
+  .sidebar.is-collapsed .nav-section-title {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .sidebar.is-collapsed .brand-row {
+    padding: 0 16px;
+    justify-content: flex-start;
+  }
+  .sidebar.is-collapsed .brand-copy {
+    display: flex;
+  }
+  .sidebar.is-collapsed .nav-item > span,
+  .sidebar.is-collapsed .nav-item > i,
+  .sidebar.is-collapsed .nav-item > .item-count {
+    display: block;
+  }
+  .sidebar.is-collapsed .nav-item {
+    padding: 0 10px;
+    justify-content: flex-start;
+  }
+  .sidebar.is-collapsed .subnav .nav-item {
+    padding-left: 36px;
+  }
+  .sidebar.is-collapsed .subnav {
+    display: block;
+  }
+  .sidebar.is-collapsed .subnav {
+    position: static;
+    width: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .sidebar.is-collapsed .subnav::before,
+  .sidebar.is-collapsed .subnav-title {
+    display: none;
+  }
+  .sidebar.is-collapsed .settings-toggle::after {
+    display: none;
+  }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    border: 0;
+    background: rgba(25, 31, 44, 0.42);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .sidebar-backdrop.is-visible {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .mobile-close,
+  .menu-button {
+    display: grid;
+    place-items: center;
+  }
+  .sidebar-toggle {
+    display: none;
+  }
+  .topbar {
+    min-height: 64px;
+    padding: 0 12px;
+  }
+  .topbar-actions {
+    gap: 1px;
+  }
+  .language-switch,
+  .profile-divider,
+  .profile-copy,
+  .profile-chevron {
+    display: none;
+  }
+  .avatar {
+    width: 28px;
+    height: 28px;
+  }
+  .page-placeholder {
+    min-height: calc(100vh - 64px);
+    padding: 18px 14px 28px;
+  }
+  .feature-page {
+    padding: 20px 16px;
+    border-radius: 18px;
+  }
+  .users-header {
+    margin-bottom: 18px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .users-header h1 {
+    font-size: 28px;
+  }
+  .users-tabs {
+    margin-right: -16px;
+    margin-left: -16px;
+    padding: 0 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .users-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .users-tabs button {
+    flex: 0 0 auto;
+    padding: 10px 11px;
+  }
+  .management-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .management-header .primary-button,
+  .users-toolbar .primary-button {
+    width: 100%;
+  }
+  .users-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .users-toolbar input {
+    width: 100%;
+  }
+  .users-count {
+    margin-left: 0;
+  }
+  .form-grid,
+  .role-module-grid,
+  .role-permission-picker-grid {
+    grid-template-columns: 1fr;
+  }
+  .users-table-wrap {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .users-table,
+  .users-table tbody,
+  .users-table tr,
+  .users-table td {
+    width: 100%;
+    display: block;
+  }
+  .users-table {
+    min-width: 0 !important;
+    white-space: normal;
+  }
+  .users-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .users-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .users-table tbody tr {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(31, 39, 62, 0.04);
+  }
+  .users-table td {
+    min-height: 44px;
+    padding: 11px 13px;
+    display: grid;
+    grid-template-columns: minmax(90px, 36%) minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #edf0f5;
+    overflow-wrap: anywhere;
+  }
+  .users-table td::before {
+    content: attr(data-label);
+    color: #7d879a;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .users-table td:last-child {
+    border-bottom: 0;
+  }
+  .activity-table td:first-child {
+    width: 100%;
+    text-align: left;
+  }
+  .users-table .table-message {
+    height: 110px;
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+  }
+  .users-table .table-message::before {
+    content: none;
+  }
+  .cell-description {
+    overflow-wrap: anywhere;
+  }
+  .row-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .users-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .users-pagination select {
+    width: 100%;
+  }
+  .pagination-controls {
+    justify-content: space-between;
+  }
+  .pagination-controls > span {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .modal-backdrop {
+    padding: 10px;
+    align-items: end;
+  }
+  .user-modal,
+  .role-modal {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    border-radius: 16px 16px 10px 10px;
+  }
+  .role-form-fields,
+  .role-permission-picker-grid,
+  .role-module-grid {
+    grid-template-columns: 1fr;
+  }
+  .role-module-header {
+    min-height: auto;
+    padding: 0 0 8px;
+    border-right: 0;
+    border-bottom: 1px solid #e5e9f0;
+  }
+  .user-modal > header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 18px 18px 10px;
+    background: #fff;
+  }
+  .user-modal h2 {
+    font-size: 20px;
+  }
+  .user-modal form,
+  .role-permission-dialog-content {
+    padding: 12px 18px 18px;
+  }
+  .user-modal form footer {
+    position: sticky;
+    bottom: -18px;
+    margin: 4px -18px -18px;
+    padding: 12px 18px;
+    background: #fff;
+    border-top: 1px solid var(--line);
+  }
+  .role-permission-picker {
+    padding: 10px;
+  }
+  .permission-picker-module-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+
+.access-subnav {
+  margin: 2px 0 4px 18px;
+  padding-left: 8px;
+  border-left: 1px solid #ddd9ff;
+}
+.access-subnav .nav-item {
+  min-height: 36px;
+  padding-left: 16px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+.access-subnav .nav-item.is-active { background: #eeeaff; }
+.access-subnav .nav-item.is-active::before {
+  left: -10px;
+  height: 18px;
+}
+
+.is-collapsed .access-subnav .nav-item {
+  padding-left: 36px;
+}
+
+/* =========================================================
+   PROJECT MANAGEMENT UI (DMS Projects Page)
+   ========================================================= */
+
+/* Survey page: header stacks on small screens */

@@ -1,0 +1,255 @@
+
+.signin-page {
+  position: relative;
+  min-height: 100vh;
+  padding: 28px clamp(24px, 5vw, 72px) 48px;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(246, 247, 252, 0.88), rgba(246, 247, 252, 0.96)),
+    radial-gradient(circle at 20% 10%, #dfe3f4, transparent 32%),
+    radial-gradient(circle at 92% 88%, #f7dedd, transparent 34%);
+}
+.signin-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(2px);
+  pointer-events: none;
+}
+.signin-orb--one {
+  top: -170px;
+  right: -120px;
+  width: 420px;
+  height: 420px;
+  border: 70px solid rgba(28, 23, 125, 0.035);
+}
+.signin-orb--two {
+  bottom: -210px;
+  left: -180px;
+  width: 480px;
+  height: 480px;
+  border: 1px solid rgba(219, 55, 52, 0.09);
+  box-shadow: 0 0 0 70px rgba(219, 55, 52, 0.025);
+}
+.signin-header {
+  position: relative;
+  z-index: 2;
+  max-width: 1180px;
+  min-height: 48px;
+  margin: 0 auto 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.signin-logo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.boswell-logo-mark {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 26%, #ff8177, #e7433f 48%, #bd2426 100%);
+  box-shadow: 0 5px 13px rgba(190, 37, 38, 0.25);
+}
+.boswell-logo-mark span {
+  display: none;
+}
+.boswell-logo-mark::before,
+.boswell-logo-mark::after {
+  width: 46px;
+  height: 15px;
+  border-radius: 50%;
+  background: transparent;
+  transform: translate(-4px, 3px) rotate(-18deg);
+}
+.boswell-logo-mark::before {
+  border-top: 1.5px solid rgba(255, 255, 255, 0.92);
+}
+.boswell-logo-mark::after {
+  border-top: 1px solid rgba(255, 255, 255, 0.58);
+  transform: translate(-4px, 7px) rotate(-18deg);
+}
+.signin-logo strong {
+  color: #1c177d;
+  font-size: 16px;
+}
+.signin-logo > div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.signin-logo > div span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.signin-language {
+  padding: 3px;
+  display: flex;
+  gap: 2px;
+  border: 1px solid #dfe3ee;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+}
+.signin-language span {
+  min-width: 34px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #8b94a7;
+  font-size: 11px;
+  font-weight: 700;
+}
+.signin-language span.is-active {
+  color: #fff;
+  background: #1c177d;
+}
+.signin-shell {
+  position: relative;
+  z-index: 1;
+  width: min(1180px, 100%);
+  min-height: min(690px, calc(100vh - 124px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(390px, 0.9fr);
+  overflow: hidden;
+  border: 1px solid rgba(222, 225, 237, 0.92);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 30px 80px rgba(26, 28, 65, 0.13);
+}
+.signin-showcase {
+  position: relative;
+  padding: clamp(40px, 6vw, 74px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  color: #fff;
+  background:
+    radial-gradient(circle at 90% 12%, rgba(228, 74, 67, 0.2), transparent 28%),
+    linear-gradient(145deg, #12104b, #1c176f 56%, #292385);
+}
+.signin-showcase::after {
+  content: "";
+  position: absolute;
+  right: -85px;
+  bottom: -120px;
+  width: 310px;
+  height: 310px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 52px rgba(255, 255, 255, 0.035);
+}
+.signin-showcase-copy {
+  position: relative;
+  z-index: 1;
+}
+.signin-showcase-copy {
+  max-width: 560px;
+}
+.signin-showcase-copy > p {
+  margin: 0 0 16px;
+  color: #ffaaa4;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.signin-showcase-copy h1 {
+  margin: 0 0 18px;
+  font-size: clamp(34px, 4vw, 54px);
+  line-height: 1.12;
+  letter-spacing: -0.045em;
+}
+.signin-showcase-copy > span {
+  display: block;
+  max-width: 500px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 15px;
+}
+.signin-card {
+  width: min(420px, calc(100% - 56px));
+  margin: auto;
+  padding: 44px 8px;
+}
+.signin-card > header {
+  margin-bottom: 30px;
+}
+.signin-card header p {
+  margin: 0 0 7px;
+  color: #d93735;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.signin-card h2 {
+  margin: 0 0 8px;
+  font-size: clamp(30px, 3.5vw, 40px);
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+}
+.signin-card header > span {
+  color: var(--muted);
+  font-size: 14px;
+}
+.signin-card form {
+  display: grid;
+  gap: 17px;
+}
+.signin-field {
+  display: grid;
+  gap: 7px;
+  color: #4d576c;
+  font-size: 14px;
+  font-weight: 700;
+}
+.signin-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid #dfe3ec;
+  border-radius: 11px;
+  color: #252b3a;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.16s, box-shadow 0.16s;
+}
+.signin-field input::placeholder {
+  color: #a5adbc;
+}
+.signin-field input:focus {
+  border-color: #25207e;
+  box-shadow: 0 0 0 4px rgba(28, 23, 125, 0.1);
+}
+.signin-submit {
+  min-height: 49px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 11px;
+  color: #fff;
+  background: linear-gradient(135deg, #ee554d, #cf302f);
+  box-shadow: 0 12px 24px rgba(196, 40, 40, 0.23);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s, box-shadow 0.16s;
+}
+.signin-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 15px 28px rgba(196, 40, 40, 0.3);
+}
+.signin-submit:disabled {
+  opacity: 0.62;
+  cursor: wait;
+}
+.signin-alert {
+  padding: 11px 13px;
+  border: 1px solid #f1c3ca;
+  border-radius: 10px;
+  color: #a93243;
+  background: #fff1f3;
+  font-size: 12px;
+}
