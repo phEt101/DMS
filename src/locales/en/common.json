@@ -377,6 +377,7 @@
         "modules": "Modules",
         "permissions": "Permissions",
         "projects": "Projects",
+        "survey": "Survey",
         "reports": "Reports",
         "trash": "Trash",
         "activity_logs": "Activity log",
@@ -419,6 +420,41 @@
         "siteLon": "Longitude",
         "plannedStartDate": "Planned start date",
         "plannedEndDate": "Planned end date"
+      },
+      "surveyActions": {
+        "created": "Created survey",
+        "updated": "Updated survey",
+        "deleted": "Deleted survey"
+      },
+      "surveyFields": {
+        "surveyDate": "Survey date",
+        "projectName": "Project/building name",
+        "floors": "Floors",
+        "visitType": "Visit type",
+        "status": "Status",
+        "notes": "Notes",
+        "contactName": "Contact",
+        "contactPhone": "Contact phone",
+        "contactPosition": "Contact position",
+        "address": "Address",
+        "subdistrict": "Subdistrict",
+        "district": "District",
+        "province": "Province",
+        "postalCode": "Postal code",
+        "fcpBrand": "FCP brand",
+        "fcpModel": "FCP model",
+        "fcpType": "FCP type",
+        "fcpMaterial": "FCP cabinet material",
+        "fcpStatus": "FCP power status",
+        "equipmentCount": "Equipment count"
+      },
+      "surveyValues": {
+        "draft": "Draft",
+        "submitted": "Submitted",
+        "survey_by_sale": "Survey by Sale",
+        "survey_by_sale_service": "Survey by Sale + Service",
+        "on": "On",
+        "off": "Off"
       },
       "roleActions": {
         "created": "Created role",
