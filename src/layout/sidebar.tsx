@@ -16,7 +16,7 @@ import type { IconType } from "react-icons";
 import { useAuth } from "../features/auth/hooks/use-auth";
 import { canViewModule } from "../features/auth/permissions";
 import type { Translations } from "../locales";
-import type { PageKey } from '../routes/pageTypes'
+import type { PageKey } from '../services/routes/pageTypes'
 
 const icons = {
   dashboard: FaTableCellsLarge,
