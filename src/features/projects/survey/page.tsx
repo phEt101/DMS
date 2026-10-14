@@ -272,6 +272,7 @@ export default function SurveyPage({ translations, language }: { translations: T
   return (
     <ErrorBoundary>
       <section className="feature-page">
+        <p className="dms-kicker">{translations.features.projects.kicker}</p>
         <div className="dms-title-row">
           <div className="dms-title-block">
           <h1>{t.title ?? 'Fire Alarm Survey'}</h1>

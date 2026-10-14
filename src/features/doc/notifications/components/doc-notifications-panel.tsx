@@ -1,0 +1,9 @@
+import type { MockNotification } from '../../document-types'
+import { FaFileLines } from 'react-icons/fa6'
+type Props = { notifications: MockNotification[]; emailEnabled: boolean; onEmailEnabled: (enabled: boolean) => void; onReadAll: () => void; tab: 'app'|'email'; onTab: (tab: 'app'|'email') => void; onOpen: (notification: MockNotification) => void }
+export default function DocNotificationsPanel({notifications,emailEnabled,onEmailEnabled,onReadAll,tab,onTab,onOpen}:Props) {
+  return <><div className="documents-tools"><label className="documents-email-toggle"><input type="checkbox" checked={emailEnabled} onChange={event=>onEmailEnabled(event.target.checked)}/> รับอีเมลแจ้งเตือน: {emailEnabled?'เปิด':'ปิด'}</label><button onClick={onReadAll}>อ่านทั้งหมดแล้ว</button></div>
+    <div className="documents-notification-tabs"><button aria-pressed={tab==='app'} onClick={()=>onTab('app')}>ในแอป ({notifications.length})</button><button aria-pressed={tab==='email'} onClick={()=>onTab('email')}>อีเมลที่ส่ง (2)</button></div>
+    {tab==='app'?<div className="documents-notification-list">{notifications.map(notification=><button key={notification.id} className={`documents-notification ${notification.read?'':'is-unread'}`} onClick={()=>onOpen(notification)}><span className="documents-icon"><FaFileLines/></span><span><b>{notification.title}</b><small>{notification.body} · {new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'short'}).format(new Date(notification.date))}</small></span></button>)}</div>:<div className="documents-email-preview"><p>โหมดตัวอย่าง: ยังไม่ได้ส่งอีเมลจริง</p><article><b>[Boswell] ใบ OT ของวีระ ศรีสุข รอพิจารณา</b><small>ถึง: นภา วงศ์สุข · 12 ต.ค. 2569</small><span>เปิดระบบเพื่อดูรายละเอียดและเซ็นอนุมัติ</span></article><article><b>[Boswell] ใบลาของสมชาย ใจดี รอ HR ตรวจ</b><small>ถึง: ศิริพร แก้วมณี · 12 ต.ค. 2569</small><span>ลากิจ 30 ต.ค. 2569 · 1 วัน</span></article></div>}
+  </>
+}

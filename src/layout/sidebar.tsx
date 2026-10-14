@@ -44,6 +44,7 @@ type SidebarItem =
   | "documents-pending"
   | "documents-ledger"
   | "documents-employees"
+  | "documents-policy"
   | "documents-notifications"
   | "report"
   | "trash"
@@ -85,7 +86,7 @@ export default function Sidebar({
   const [accessOpen, setAccessOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const sidebarTranslations = translations.sidebar;
-  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(true);
   const [collapsedFlyout, setCollapsedFlyout] = useState<"projects" | "documents" | "settings" | null>(null);
   const [flyoutTop, setFlyoutTop] = useState(8);
   const projectsToggleRef = useRef<HTMLButtonElement>(null);
@@ -279,6 +280,7 @@ if (item.key === "documents") {
     { key: "documents-pending", label: "รออนุมัติ" },
     { key: "documents-ledger", label: "สมุดบันทึกการลา" },
     { key: "documents-employees", label: "พนักงาน" },
+    { key: "documents-policy", label: "นโยบายการลา" },
     { key: "documents-notifications", label: "แจ้งเตือน" },
   ];
 

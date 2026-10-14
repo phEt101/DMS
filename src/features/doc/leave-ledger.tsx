@@ -63,10 +63,10 @@ export function LeaveLedger({ person, people, entries, onPersonChange }: { perso
   return <div className="leave-ledger-screen">
     <div className="leave-ledger-toolbar">
       {people.length > 1 && <label>เลือกพนักงาน<select value={person.id} onChange={(event) => onPersonChange(event.target.value)}>{people.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label>}
-      <button type="button" onClick={exportCsv}>ส่งออก Excel</button>
-      <button type="button" onClick={exportWord}>ส่งออก Word</button>
-      <button type="button" onClick={() => window.print()}>ส่งออก PDF</button>
-      <button type="button" onClick={() => window.print()}>พิมพ์</button>
+      <button type="button" className="leave-export-btn is-excel" onClick={() => { if (window.confirm('ยืนยันส่งออกสมุดบันทึกการลาเป็น Excel หรือไม่?')) exportCsv() }}>ส่งออก Excel</button>
+      <button type="button" className="leave-export-btn is-word" onClick={() => { if (window.confirm('ยืนยันส่งออกสมุดบันทึกการลาเป็น Word หรือไม่?')) exportWord() }}>ส่งออก Word</button>
+      <button type="button" className="leave-export-btn is-pdf" onClick={() => { if (window.confirm('ยืนยันส่งออกสมุดบันทึกการลาเป็น PDF หรือไม่?')) window.print() }}>ส่งออก PDF</button>
+      <button type="button" className="leave-export-btn is-print" onClick={() => window.print()}>พิมพ์</button>
     </div>
     <div className="leave-sheet-scroll"><article className="leave-sheet">
       <h2>บริษัท บอสเวลล์ คอนเนคชั่น กรุ๊ป จำกัด</h2>

@@ -32,6 +32,7 @@ export function buildPages(translations: Translations, language: Language, onNav
     'documents-pending': <DocumentPage translations={translations} view="pending" />,
     'documents-ledger': <DocumentPage translations={translations} view="ledger" />,
     'documents-employees': <DocumentPage translations={translations} view="employees" />,
+    'documents-policy': <DocumentPage translations={translations} view="policy" />,
     'documents-notifications': <DocumentPage translations={translations} view="notifications" />
   }
 }
