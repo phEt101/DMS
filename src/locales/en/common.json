@@ -301,9 +301,9 @@
       "companySaveError": "Unable to save company",
       "roles": {
         "admin": "Administrator",
+        "executive": "Executive",
         "manager": "Manager",
-        "user": "Users",
-        "viewer": "Viewer"
+        "user": "Users"
       },
       "userTab": "Users",
       "roleTab": "Roles and permissions",

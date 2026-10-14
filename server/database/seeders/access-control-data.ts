@@ -1,8 +1,8 @@
 export const roles: Array<readonly [string, string]> = [
   ['admin', 'Full system access'],
+  ['executive', 'Executive access with user and project management'],
   ['manager', 'Manage projects and view reports'],
   ['user', 'Create and manage assigned projects'],
-  ['viewer', 'Read-only access'],
 ]
 
 export const departments = [
@@ -76,10 +76,15 @@ export const permissions: Array<readonly [string, string]> = [
 
 export const rolePermissions: Record<string, readonly string[]> = {
   admin: permissions.map(([name]) => name),
+  executive: [
+    'เข้าถึงเมนูแดชบอร์ด', 'เข้าถึงเมนูโครงการ', 'สร้างโครงการ', 'แก้ไขโครงการ',
+    'ลบโครงการ', 'เข้าถึงเมนูถังขยะ', 'กู้คืนโครงการ', 'เข้าถึงเมนูรายงาน',
+    'เข้าถึงเมนูแบบสำรวจ', 'เข้าถึงเมนูบันทึกกิจกรรม', 'เข้าถึงเมนูผู้ใช้งาน',
+    'สร้างผู้ใช้งาน', 'แก้ไขผู้ใช้งาน', 'ลบผู้ใช้งาน',
+  ],
   manager: [
     'เข้าถึงเมนูแดชบอร์ด', 'เข้าถึงเมนูโครงการ', 'สร้างโครงการ', 'แก้ไขโครงการ',
     'ลบโครงการ', 'เข้าถึงเมนูถังขยะ', 'กู้คืนโครงการ', 'เข้าถึงเมนูรายงาน', 'เข้าถึงเมนูแบบสำรวจ', 'เข้าถึงเมนูบันทึกกิจกรรม',
   ],
   user: ['เข้าถึงเมนูแดชบอร์ด', 'เข้าถึงเมนูโครงการ', 'สร้างโครงการ', 'แก้ไขโครงการ'],
-  viewer: ['เข้าถึงเมนูแดชบอร์ด', 'เข้าถึงเมนูโครงการ'],
 }

@@ -17,6 +17,8 @@ services:
       dockerfile: Dockerfile
     container_name: boswell-dms-api
     restart: unless-stopped
+    env_file:
+      - ./server/.env
     environment:
       NODE_ENV: production
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
