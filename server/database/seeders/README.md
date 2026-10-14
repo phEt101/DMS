@@ -17,6 +17,9 @@ Database commands:
 - `npm run db:fresh` drops all tables in the configured database and reruns migrations.
 - `npm run db:fresh:seed` drops all tables, reruns migrations, and reruns all seeders.
 
+Set `SEED_DEFAULT_PASSWORD` in `server/.env` before running a seed command.
+The value is hashed at runtime and is not stored in source control.
+
 Fresh commands only affect the database configured by `DB_NAME`; they do not
 drop the shared MySQL database volume. They are blocked when `NODE_ENV` is
 `production` unless `--force` is passed explicitly.

@@ -6,10 +6,20 @@ export const roles: Array<readonly [string, string]> = [
 ]
 
 export const departments = [
-  'IT / System',
   'Project Management',
   'Service',
   'Management',
+  'Managing Director',
+  'Deputy Managing Director',
+  'Financial, Accounting Div.',
+  'HR Div.',
+  'Safety Div.',
+  'Procurement Div.',
+  'IT Div.',
+  'Sales Div.',
+  'Project Div. / Support Engineer',
+  'Stock Div.',
+  'Services Div.',
 ] as const
 
 export const permissionModules: Array<readonly [string, string]> = [
