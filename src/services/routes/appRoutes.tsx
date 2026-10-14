@@ -9,10 +9,12 @@ import SettingsAccessPage from '../../features/settings/access/page'
 import SettingsUsersPage from '../../features/settings/users/page'
 import SettingsActivityPage from '../../features/settings/activity/page'
 import type { Language, Translations } from '../../locales'
+import DocumentPage from '../../features/doc/page'
+import type { PageKey } from './pageTypes'
 
-export function buildPages(translations: Translations, language: Language) {
+export function buildPages(translations: Translations, language: Language, onNavigate?: (page: PageKey) => void) {
   return {
-    dashboard: <DashboardPage translations={translations} />,
+    dashboard: <DashboardPage translations={translations} onNavigate={onNavigate} />,
     projects: <ProjectsPage translations={translations} language={language} />,
     'projects-cm': <CmProjectsPage translations={translations} language={language} />,
     'projects-cm-create': <CmCreatePage translations={translations} language={language} />,
@@ -25,5 +27,11 @@ export function buildPages(translations: Translations, language: Language) {
     'settings-permissions': <SettingsAccessPage translations={translations} section="permissions" />,
     'settings-modules': <SettingsAccessPage translations={translations} section="modules" />,
     'settings-activity': <SettingsActivityPage translations={translations} language={language} />,
+    documents: <DocumentPage translations={translations} view="all" />,
+    'documents-all': <DocumentPage translations={translations} view="all" />,
+    'documents-pending': <DocumentPage translations={translations} view="pending" />,
+    'documents-ledger': <DocumentPage translations={translations} view="ledger" />,
+    'documents-employees': <DocumentPage translations={translations} view="employees" />,
+    'documents-notifications': <DocumentPage translations={translations} view="notifications" />
   }
 }

@@ -3,6 +3,7 @@ import type { AuthUser } from "./types/auth.types";
 export const viewPermissionByModule: Record<string, string> = {
   dashboard: "เข้าถึงเมนูแดชบอร์ด",
   projects: "เข้าถึงเมนูโครงการ",
+  documents: "เข้าถึงเมนูเอกสาร",
   survey: "เข้าถึงเมนูแบบสำรวจ",
   reports: "เข้าถึงเมนูรายงาน",
   trash: "เข้าถึงเมนูถังขยะ",

@@ -336,6 +336,7 @@
       "permissionModules": {
         "dashboard": "Dashboard",
         "projects": "Projects",
+      "documents": "Document Management",
         "reports": "Reports",
         "trash": "Trash",
         "users": "Users",

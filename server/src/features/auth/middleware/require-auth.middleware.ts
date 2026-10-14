@@ -46,6 +46,7 @@ export const requireAuth: RequestHandler = async (
     id: session.userId,
     email: session.email,
     name: session.name,
+    department: session.departmentName,
     role: {
       id: session.roleId,
       name: session.roleName,

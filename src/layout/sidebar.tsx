@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import {
   FaBuilding,
   FaChartColumn,
@@ -17,10 +17,12 @@ import { useAuth } from "../features/auth/hooks/use-auth";
 import { canViewModule } from "../features/auth/permissions";
 import type { Translations } from "../locales";
 import type { PageKey } from '../services/routes/pageTypes'
+import {FaFolderOpen,} from "react-icons/fa6";
 
 const icons = {
   dashboard: FaTableCellsLarge,
   projects: FaFileLines,
+  documents: FaFolderOpen,
   report: FaChartColumn,
   trash: FaTrashCan,
   settings: FaGear,
@@ -37,6 +39,12 @@ type SidebarItem =
   | "dashboard"
   | "projects"
   | "projects-cm"
+  | "documents"
+  | "documents-all"
+  | "documents-pending"
+  | "documents-ledger"
+  | "documents-employees"
+  | "documents-notifications"
   | "report"
   | "trash"
   | "settings-user"
@@ -76,53 +84,57 @@ export default function Sidebar({
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [accessOpen, setAccessOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
-  const projectsGroupRef = useRef<HTMLDivElement>(null);
-  const settingsGroupRef = useRef<HTMLDivElement>(null);
   const sidebarTranslations = translations.sidebar;
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [collapsedFlyout, setCollapsedFlyout] = useState<"projects" | "documents" | "settings" | null>(null);
+  const [flyoutTop, setFlyoutTop] = useState(8);
+  const projectsToggleRef = useRef<HTMLButtonElement>(null);
+  const documentsToggleRef = useRef<HTMLButtonElement>(null);
+  const settingsToggleRef = useRef<HTMLButtonElement>(null);
+  const previousActiveItem = useRef(activeItem);
+
+  const toggleSidebarGroup = (
+    group: "projects" | "documents" | "settings",
+    isOpen: boolean,
+    setOpen: (value: boolean | ((current: boolean) => boolean)) => void,
+    event: MouseEvent<HTMLButtonElement>,
+  ) => {
+    if (!collapsed) {
+      setOpen((open) => !open);
+      return;
+    }
+    if (collapsedFlyout === group && isOpen) {
+      setOpen(false);
+      setCollapsedFlyout(null);
+      return;
+    }
+    const anchorTop = event.currentTarget.getBoundingClientRect().top;
+    setFlyoutTop(Math.max(8, Math.min(anchorTop, window.innerHeight - 300)));
+    setCollapsedFlyout(group);
+    setOpen(true);
+  };
+
+  const flyoutStyle = { "--sidebar-flyout-top": `${flyoutTop}px` } as CSSProperties;
 
   useEffect(() => {
-    if (!settingsOpen) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!settingsGroupRef.current?.contains(event.target as Node)) {
-        setSettingsOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSettingsOpen(false);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [settingsOpen]);
-
-  useEffect(() => {
-    if (!projectsOpen) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!projectsGroupRef.current?.contains(event.target as Node)) {
-        setProjectsOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setProjectsOpen(false);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [projectsOpen]);
+    if (previousActiveItem.current === activeItem) return;
+    previousActiveItem.current = activeItem;
+    const group = ["projects", "projects-cm", "survey"].includes(activeItem)
+      ? "projects"
+      : activeItem.startsWith("documents")
+        ? "documents"
+        : activeItem.startsWith("settings-")
+          ? "settings"
+          : null;
+    setProjectsOpen(group === "projects");
+    setDocumentsOpen(group === "documents");
+    setSettingsOpen(group === "settings");
+    setCollapsedFlyout(group);
+    if (group && collapsed) {
+      const anchor = group === "projects" ? projectsToggleRef.current : group === "documents" ? documentsToggleRef.current : settingsToggleRef.current;
+      if (anchor) setFlyoutTop(Math.max(8, Math.min(anchor.getBoundingClientRect().top, window.innerHeight - 300)));
+    }
+  }, [activeItem, collapsed]);
 
   const grantedModules = [...new Map(
     (user?.permissions ?? []).map((permission) => [permission.module, {
@@ -137,10 +149,11 @@ export default function Sidebar({
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((module) => {
       const mainKey = module.name === "reports" ? "report" : module.name;
-      const key = ["dashboard", "projects", "report", "trash"].includes(mainKey)
+      const key = ["dashboard", "projects", "documents", "report", "trash"].includes(mainKey)
         ? mainKey as SidebarItem
         : `settings-${module.name}` as SidebarItem;
-      const localizedLabel = sidebarTranslations[module.name as keyof typeof sidebarTranslations];
+      const localizedLabel = sidebarTranslations.items?.[module.name as keyof typeof sidebarTranslations.items]
+        ?? sidebarTranslations[module.name as keyof typeof sidebarTranslations];
       const IconComponent = module.iconName
         ? FaIcons[module.iconName as keyof typeof FaIcons] as IconType | undefined
         : undefined;
@@ -152,7 +165,7 @@ export default function Sidebar({
     });
 
   const mainItems = moduleItems.filter((item) =>
-    ["dashboard", "projects", "report", "trash"].includes(item.key),
+    ["dashboard", "projects", "documents", "report", "trash"].includes(item.key),
   );
   const accessItems = moduleItems.filter((item) => sidebarModuleKeys.has(item.key));
   const canViewUsers = Boolean(user && canViewModule(user, "users"));
@@ -218,10 +231,11 @@ export default function Sidebar({
           {mainItems.map((item) => {
             if (item.key === 'projects') {
               return (
-                <div className="nav-group" key={item.key} ref={projectsGroupRef}>
+                <div className="nav-group" key={item.key}>
                   <button
+                    ref={projectsToggleRef}
                     className={`nav-item nav-button projects-toggle ${['projects', 'projects-cm', 'survey'].includes(activeItem) ? 'has-active-child' : ''}`}
-                    onClick={() => setProjectsOpen((v) => !v)}
+                    onClick={(event) => toggleSidebarGroup("projects", projectsOpen, setProjectsOpen, event)}
                     title={collapsed ? item.label : undefined}
                     aria-expanded={projectsOpen}
                   >
@@ -229,8 +243,8 @@ export default function Sidebar({
                     <span>{item.label}</span>
                     <i className={projectsOpen ? 'is-rotated' : ''}>⌄</i>
                   </button>
-                  {projectsOpen && (
-                    <div className="subnav">
+                  {projectsOpen && (!collapsed || collapsedFlyout === "projects") && (
+                    <div className="subnav" style={flyoutStyle}>
                       <strong className="subnav-title">{item.label}</strong>
                       <button
                         className={`nav-item nav-button ${activeItem === 'projects' ? 'is-active' : ''}`}
@@ -255,6 +269,66 @@ export default function Sidebar({
                 </div>
               );
             }
+
+if (item.key === "documents") {
+  const documentItems: Array<{
+    key: PageKey;
+    label: string;
+  }> = [
+    { key: "documents-all", label: "เอกสารทั้งหมด" },
+    { key: "documents-pending", label: "รออนุมัติ" },
+    { key: "documents-ledger", label: "สมุดบันทึกการลา" },
+    { key: "documents-employees", label: "พนักงาน" },
+    { key: "documents-notifications", label: "แจ้งเตือน" },
+  ];
+
+  return (
+    <div
+      className="nav-group"
+      key={item.key}
+    >
+      <button
+        type="button"
+        ref={documentsToggleRef}
+        className={`nav-item nav-button documents-toggle ${
+          activeItem.startsWith("documents")
+            ? "has-active-child"
+            : ""
+        }`}
+        onClick={(event) => toggleSidebarGroup("documents", documentsOpen, setDocumentsOpen, event)}
+        title={collapsed ? item.label : undefined}
+        aria-expanded={documentsOpen}
+      >
+        {item.icon && (
+          <item.icon
+            className="nav-icon"
+            size={17}
+            aria-hidden="true"
+          />
+        )}
+        <span>Document Management</span>
+        <i className={documentsOpen ? "is-rotated" : ""}>⌄</i>
+      </button>
+
+      {documentsOpen && (!collapsed || collapsedFlyout === "documents") && (
+        <div className="subnav" style={flyoutStyle}>
+          {documentItems.map(({ key, label }) => (
+            <button
+              type="button"
+              key={key}
+              className={`nav-item nav-button ${
+                activeItem === key ? "is-active" : ""
+              }`}
+              onClick={() => onNavigate?.(key)}
+            >
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
             return (
               <button
                 className={`nav-item nav-button ${activeItem === item.key ? "is-active" : ""}`}
@@ -271,10 +345,11 @@ export default function Sidebar({
             );
           })}
           {hasSettingsItems && <div className="nav-divider" />}
-          {hasSettingsItems && <div className="settings-group" ref={settingsGroupRef}>
+          {hasSettingsItems && <div className="settings-group">
             <button
+              ref={settingsToggleRef}
               className={`nav-item nav-button settings-toggle ${hasActiveSettingsItem ? "has-active-child" : ""}`}
-              onClick={() => setSettingsOpen((open) => !open)}
+              onClick={(event) => toggleSidebarGroup("settings", settingsOpen, setSettingsOpen, event)}
               title={collapsed ? sidebarTranslations.settingsHint : undefined}
               aria-expanded={settingsOpen}
             >
@@ -282,8 +357,8 @@ export default function Sidebar({
               <span>{sidebarTranslations.settings}</span>
               <i className={settingsOpen ? "is-rotated" : ""}>⌄</i>
             </button>
-            {settingsOpen && (
-              <div className="subnav">
+            {settingsOpen && (!collapsed || collapsedFlyout === "settings") && (
+              <div className="subnav" style={flyoutStyle}>
                 <strong className="subnav-title">{sidebarTranslations.settings}</strong>
                 {canViewUsers && <button
                   className={`nav-item nav-button ${activeItem === "settings-user" ? "is-active" : ""}`}

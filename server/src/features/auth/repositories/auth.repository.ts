@@ -6,6 +6,7 @@ export interface AuthUserRow extends RowDataPacket {
   email: string;
   passwordHash: string | null;
   name: string;
+  departmentName: string | null;
   isActive: boolean;
   roleId: number;
   roleName: string;
@@ -27,6 +28,7 @@ export interface AuthSessionRow extends RowDataPacket {
   userId: number;
   email: string;
   name: string;
+  departmentName: string | null;
   userIsActive: boolean;
   roleId: number;
   roleName: string;
@@ -50,6 +52,7 @@ export async function findUserByEmail(
             users.email, 
             users.password_hash AS passwordHash,
             users.name,
+            departments.name AS departmentName,
             users.is_active AS isActive,
             roles.id AS roleId,
             roles.name AS roleName,
@@ -57,6 +60,8 @@ export async function findUserByEmail(
         FROM users
         INNER JOIN roles 
             ON roles.id = users.role_id
+        LEFT JOIN departments
+            ON departments.id = users.department_id
         WHERE users.email = ? 
             AND users.deleted_at IS NULL
             AND roles.deleted_at IS NULL
@@ -96,6 +101,7 @@ export async function findSessionByTokenHash(
        users.id AS userId,
        users.email,
        users.name,
+       departments.name AS departmentName,
        users.is_active AS userIsActive,
 
        roles.id AS roleId,
@@ -109,6 +115,9 @@ export async function findSessionByTokenHash(
 
      INNER JOIN roles
        ON roles.id = users.role_id
+
+     LEFT JOIN departments
+       ON departments.id = users.department_id
 
      WHERE user_sessions.token_hash = ?
        AND user_sessions.revoked_at IS NULL

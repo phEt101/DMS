@@ -23,6 +23,12 @@ const pathByPage: Record<PageKey, string> = {
   'settings-permissions': '/settings/access/permissions',
   'settings-modules': '/settings/access/modules',
   'settings-activity': '/settings/activity',
+  'documents': '/documents',
+  'documents-all': '/documents/all',
+  'documents-pending': '/documents/pending',
+  'documents-ledger': '/documents/ledger',
+  'documents-employees': '/documents/employees',
+  'documents-notifications': '/documents/notifications'
 }
 
 const moduleByPage: Record<PageKey, string> = {
@@ -39,6 +45,12 @@ const moduleByPage: Record<PageKey, string> = {
   'settings-permissions': 'permissions',
   'settings-modules': 'modules',
   'settings-activity': 'activity_logs',
+  'documents': 'documents',
+  'documents-all': 'documents',
+  'documents-pending': 'documents',
+  'documents-ledger': 'documents',
+  'documents-employees': 'documents',
+  'documents-notifications': 'documents'
 }
 
 const pageOrder = Object.keys(pathByPage) as PageKey[]
@@ -72,7 +84,14 @@ export default function App() {
   const [language, setLanguage] = useState<'th' | 'en'>('th')
   const [activeItem, setActiveItem] = useState<PageKey>(() => pageFromPath(window.location.pathname))
   const translations = getLocale(language)
-  const pages = buildPages(translations, language)
+  const handleNavigate = (item: PageKey) => {
+    if (user && canAccessPage(user, item)) {
+      setActiveItem(item)
+      if (window.location.pathname !== pathByPage[item]) window.history.pushState({}, '', pathByPage[item])
+    }
+    setMobileOpen(false)
+  }
+  const pages = buildPages(translations, language, handleNavigate)
   useEffect(() => {
     if (isLoading) return
     if (!user) {
@@ -98,14 +117,6 @@ export default function App() {
     return () => window.removeEventListener('popstate', syncFromUrl)
   }, [isLoading, user])
 
-  const handleNavigate = (item: PageKey) => {
-    if (user && canAccessPage(user, item) && pages[item]) {
-      setActiveItem(item)
-      if (window.location.pathname !== pathByPage[item]) window.history.pushState({}, '', pathByPage[item])
-    }
-    setMobileOpen(false)
-  }
-
   if (isLoading) {
     return <div className="auth-loading" role="status" aria-label="Loading"><span /></div>
   }
@@ -125,7 +136,7 @@ export default function App() {
   return <div className={`app-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
     <Sidebar translations={translations} collapsed={collapsed} mobileOpen={mobileOpen} activeItem={activeItem} onNavigate={handleNavigate} onClose={() => setMobileOpen(false)} onToggle={() => setCollapsed((value) => !value)} />
     <div className="app-main">
-      <Topbar user={user} translations={translations} language={language} onLanguageToggle={() => setLanguage((value) => (value === 'th' ? 'en' : 'th'))} onMenuClick={() => setMobileOpen(true)} onLogout={logout} />
+      <Topbar user={user} translations={translations} language={language} onLanguageToggle={() => setLanguage((value) => (value === 'th' ? 'en' : 'th'))} onMenuClick={() => setMobileOpen(true)} onNavigate={handleNavigate} onLogout={logout} />
       <main className="page-placeholder">{canAccessActivePage
         ? pages[activeItem]
         : <section className="feature-page"><h1>ไม่มีสิทธิ์เข้าถึงหน้านี้</h1></section>}

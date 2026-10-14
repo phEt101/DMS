@@ -13,6 +13,7 @@ import { permissionsRouter } from "./settings/access/permissions/routes/permissi
 import { modulesRouter } from "./settings/access/modules/routes/modules.routes.js";
 import { postalCodesRouter } from "./postal-codes/routes/postal-codes.routes.js";
 import { surveysRouter } from "./surveys/routes/surveys.routes.js";
+import { documentsRouter } from "./documents/routes/documents.routes.js";
 import { asyncHandler } from "../middleware/errors.js";
 import { requireAuth } from "./auth/middleware/require-auth.middleware.js";
 
@@ -26,6 +27,7 @@ apiRouter.use(asyncHandler(requireAuth));
 apiRouter.use("/project-types", projectTypesRouter);
 apiRouter.use("/postal-codes", postalCodesRouter);
 apiRouter.use("/surveys", surveysRouter);
+apiRouter.use("/documents", documentsRouter);
 apiRouter.use("/projects", projectsRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/roles", rolesRouter);
