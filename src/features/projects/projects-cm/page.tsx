@@ -83,6 +83,7 @@ export default function CmProjectsPage({ translations, language }: { translation
 
 	return (
 		<section className="feature-page">
+			<p className="dms-kicker">{translations?.features?.projects?.kicker ?? 'โครงการทั้งหมด'}</p>
 			<div className="dms-title-row">
 				<div className="dms-title-block"><h1>โครงการ CM</h1><div className="dms-subtitle">รายการงานซ่อมและแก้ไข</div></div>
 				<div className="dms-title-search-row"><div className="dms-create-actions"><button className="dms-create-btn" onClick={() => { setEditingProject(null); setFormOpen(true) }}>สร้างโครงการ CM</button></div></div>

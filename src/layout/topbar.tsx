@@ -2,6 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Translations } from "../locales";
 import type { AuthUser } from "../features/auth/types/auth.types";
+import type { PageKey } from "../services/routes/pageTypes";
+
+type TopbarNotification = { id: number; title: string; body: string; date: string; read: boolean };
+const TOPBAR_NOTIFICATION_KEY = "boswell-topbar-notifications-mock";
+const INITIAL_TOPBAR_NOTIFICATIONS: TopbarNotification[] = [
+  { id: 1, title: "ใบลาของสมชาย ใจดี รอ HR ตรวจ", body: "ลากิจ 30 ต.ค. 2569 · 1 วัน", date: "วันนี้ · 10:00", read: false },
+  { id: 2, title: "ใบ OT ของวีระ ศรีสุข รอพิจารณา", body: "14 ต.ค. 2569 · 18:00–20:30 · 2.5 ชั่วโมง", date: "วันนี้ · 09:00", read: false },
+  { id: 3, title: "ผู้จัดการอนุมัติใบลาของคุณแล้ว", body: "เอกสารส่งต่อให้ HR ตรวจแล้ว", date: "เมื่อวาน · 15:00", read: true },
+];
+
+function readTopbarNotifications(): TopbarNotification[] {
+  try {
+    const stored = localStorage.getItem(TOPBAR_NOTIFICATION_KEY);
+    return stored ? JSON.parse(stored) as TopbarNotification[] : INITIAL_TOPBAR_NOTIFICATIONS;
+  } catch {
+    return INITIAL_TOPBAR_NOTIFICATIONS;
+  }
+}
 
 function TopbarIcon({ children }: { children: ReactNode }) {
   return (
@@ -27,6 +45,7 @@ export default function Topbar({
   language = "th",
   onLanguageToggle,
   onMenuClick,
+  onNavigate,
   onLogout,
 }: {
   user: AuthUser;
@@ -34,11 +53,15 @@ export default function Topbar({
   language?: "th" | "en";
   onLanguageToggle?: () => void;
   onMenuClick?: () => void;
+  onNavigate?: (page: PageKey) => void;
   onLogout: () => Promise<void>;
 }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mockNotifications, setMockNotifications] = useState(readTopbarNotifications);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const isThai = language === "th";
   const topbarTranslations = translations.topbar;
   const initials = user.name
@@ -70,6 +93,36 @@ export default function Topbar({
     };
   }, [profileOpen]);
 
+  useEffect(() => {
+    try { localStorage.setItem(TOPBAR_NOTIFICATION_KEY, JSON.stringify(mockNotifications)); } catch { /* mock storage is optional */ }
+  }, [mockNotifications]);
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!notificationsRef.current?.contains(event.target as Node)) setNotificationsOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setNotificationsOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [notificationsOpen]);
+
+  const unreadCount = mockNotifications.filter((notification) => !notification.read).length;
+  const markAllNotificationsRead = () => setMockNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+  const openNotificationsPage = (notificationId?: number) => {
+    if (notificationId !== undefined) {
+      setMockNotifications((current) => current.map((notification) => notification.id === notificationId ? { ...notification, read: true } : notification));
+    }
+    setNotificationsOpen(false);
+    onNavigate?.("documents-notifications");
+  };
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -96,15 +149,26 @@ export default function Topbar({
         </button>
       </div>
       <div className="topbar-actions">
-        <button
-          className="icon-button notification-button"
-          aria-label={topbarTranslations.notifications}
-        >
-          <TopbarIcon>
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-          </TopbarIcon>
-          <span />
-        </button>
+        <div className="notification-menu" ref={notificationsRef}>
+          <button
+            type="button"
+            className="icon-button notification-button"
+            aria-label={`${topbarTranslations.notifications}${unreadCount ? `, ${unreadCount}` : ""}`}
+            aria-expanded={notificationsOpen}
+            aria-controls="topbar-notifications-panel"
+            onClick={() => setNotificationsOpen((open) => !open)}
+          >
+            <TopbarIcon>
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+            </TopbarIcon>
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          </button>
+          {notificationsOpen && <section className="topbar-notifications" id="topbar-notifications-panel" aria-label={topbarTranslations.notifications}>
+            <header><strong>{isThai ? "การแจ้งเตือน" : "Notifications"}</strong><button type="button" onClick={markAllNotificationsRead}>{isThai ? "อ่านทั้งหมด" : "Mark all read"}</button></header>
+            <div className="topbar-notification-list">{mockNotifications.map((notification) => <button type="button" key={notification.id} className={`topbar-notification ${notification.read ? "" : "is-unread"}`} onClick={() => openNotificationsPage(notification.id)}><span className="topbar-notification-mark" aria-hidden="true" /><span className="topbar-notification-copy"><strong>{notification.title}</strong><small>{notification.body}</small><time>{notification.date}</time></span></button>)}</div>
+            <button type="button" className="topbar-notifications-all" onClick={() => openNotificationsPage()}>{isThai ? "ดูการแจ้งเตือนทั้งหมด" : "View all notifications"}</button>
+          </section>}
+        </div>
         <button
           className="language-switch"
           onClick={onLanguageToggle}

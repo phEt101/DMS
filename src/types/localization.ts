@@ -61,6 +61,20 @@ export type UserFeatureCopy = FeatureCopy & {
   inactive: string
   users: string
   name: string
+  firstName: string
+  lastName: string
+  company: string
+  companyLogo: string
+  companyLogoHelp: string
+  companyManagement: string
+  companyHelp: string
+  addCompany: string
+  newCompany: string
+  noCompanies: string
+  deleteCompanyConfirm: string
+  deleteCompanyError: string
+  companyLoadError: string
+  companySaveError: string
   email: string
   password: string
   passwordOptional: string
@@ -121,5 +135,5 @@ export type UserFeatureCopy = FeatureCopy & {
   deleteRoleConfirm: string
   deleteRoleError: string
   permissionsFor: string
-  permissionModules: Record<'dashboard' | 'projects' | 'reports' | 'trash' | 'users' | 'roles' | 'departments' | 'permissions' | 'modules' | 'activity_logs', string>
+  permissionModules: Record<'dashboard' | 'projects' | 'reports' | 'trash' | 'users' | 'roles' | 'departments' | 'permissions' | 'modules' | 'companies' | 'activity_logs', string>
 }

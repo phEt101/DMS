@@ -23,6 +23,10 @@ if (import.meta.env.DEV) {
   }
 }
 
+export function apiUrl(path: string) {
+  return path.startsWith('http') ? path : `${API_PREFIX}${path}`
+}
+
 export async function request(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers)
   let body: any = options.body
@@ -39,7 +43,7 @@ export async function request(path: string, options: RequestInit = {}) {
     }
   }
 
-  const url = path.startsWith('http') ? path : `${API_PREFIX}${path}`
+  const url = apiUrl(path)
   const response = await fetch(url, {
     ...options,
     headers,

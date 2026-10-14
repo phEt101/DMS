@@ -268,6 +268,17 @@
       "inactive": "ปิดใช้งาน",
       "users": "ผู้ใช้งาน",
       "name": "ชื่อที่แสดง",
+      "firstName": "ชื่อ",
+      "lastName": "นามสกุล",
+      "company": "บริษัท",
+      "companyLogo": "โลโก้บริษัท",
+      "companyLogoHelp": "ใส่ URL รูปโลโก้เพื่อแสดงแทนโลโก้เดิมในแถบด้านข้าง",
+      "companyManagement": "จัดการบริษัท",
+      "companyHelp": "เพิ่มบริษัทและกำหนดโลโก้ที่แสดงในแถบด้านข้างของผู้ใช้งาน",
+      "addCompany": "เพิ่มบริษัท",
+      "newCompany": "บริษัทใหม่",
+      "noCompanies": "ไม่พบบริษัท",
+      "deleteCompanyConfirm": "ยืนยันการลบบริษัท",
       "email": "อีเมล",
       "password": "รหัสผ่าน",
       "passwordOptional": "เว้นว่างหากไม่ต้องการเปลี่ยน",
@@ -285,6 +296,9 @@
       "loadError": "ไม่สามารถโหลดผู้ใช้งานได้",
       "saveError": "ไม่สามารถบันทึกผู้ใช้งานได้",
       "deleteError": "ไม่สามารถลบผู้ใช้งานได้",
+      "deleteCompanyError": "ไม่สามารถลบบริษัทได้ ตรวจสอบว่าบริษัทไม่มีผู้ใช้งาน",
+      "companyLoadError": "ไม่สามารถโหลดข้อมูลบริษัทได้",
+      "companySaveError": "ไม่สามารถบันทึกบริษัทได้",
       "roles": {
         "admin": "ผู้ดูแลระบบ",
         "manager": "ผู้จัดการ",
@@ -343,6 +357,7 @@
         "departments": "แผนก",
         "permissions": "สิทธิ์",
         "modules": "โมดูล",
+        "companies": "บริษัท",
         "activity_logs": "บันทึกกิจกรรม"
       }
     },
@@ -374,6 +389,7 @@
         "users": "จัดการผู้ใช้งาน",
         "roles": "บทบาทและสิทธิ์",
         "departments": "จัดการแผนก",
+        "companies": "จัดการบริษัท",
         "modules": "จัดการโมดูล",
         "permissions": "จัดการสิทธิ์",
         "projects": "โครงการ",
@@ -507,6 +523,7 @@
     "departments": "จัดการแผนก",
     "permissions": "สิทธิ์",
     "modules": "โมดูล",
+    "companies": "บริษัท",
     "activity": "บันทึกกิจกรรม",
     "settingsHint": "ตั้งค่า - มีเมนูย่อย",
     "collapse": "ย่อแถบด้านข้าง",
@@ -517,6 +534,8 @@
     "items": {
       "dashboard": "แดชบอร์ด",
       "projects": "โครงการทั้งหมด",
+      "documents": "จัดการเอกสาร",
+      "companies": "บริษัท",
       "report": "รายงาน",
       "trash": "ถังขยะ"
     }

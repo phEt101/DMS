@@ -33,6 +33,7 @@ export const permissionModules: Array<readonly [string, string]> = [
   ['departments', 'FaBuilding'],
   ['permissions', 'FaKey'],
   ['modules', 'FaLayerGroup'],
+  ['companies', 'FaBuilding'],
   ['activity_logs', 'FaWaveSquare'],
 ]
 
@@ -66,6 +67,10 @@ export const permissions: Array<readonly [string, string]> = [
   ['เพิ่มโมดูล', 'modules'],
   ['แก้ไขโมดูล', 'modules'],
   ['ลบโมดูล', 'modules'],
+  ['เข้าถึงเมนูบริษัท', 'companies'],
+  ['เพิ่มบริษัท', 'companies'],
+  ['แก้ไขบริษัท', 'companies'],
+  ['ลบบริษัท', 'companies'],
   ['เข้าถึงเมนูบันทึกกิจกรรม', 'activity_logs'],
 ]
 

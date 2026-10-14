@@ -268,6 +268,17 @@
       "inactive": "Inactive",
       "users": "users",
       "name": "Display name",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "company": "Company",
+      "companyLogo": "Company logo",
+      "companyLogoHelp": "Enter a logo image URL to show it in the sidebar for this company’s users.",
+      "companyManagement": "Company management",
+      "companyHelp": "Add companies and choose the logo shown in their users’ sidebar.",
+      "addCompany": "Add company",
+      "newCompany": "New company",
+      "noCompanies": "No companies found",
+      "deleteCompanyConfirm": "Delete company",
       "email": "Email",
       "password": "Password",
       "passwordOptional": "Leave blank to keep the current password",
@@ -285,6 +296,9 @@
       "loadError": "Unable to load users",
       "saveError": "Unable to save user",
       "deleteError": "Unable to delete user",
+      "deleteCompanyError": "Unable to delete company. Make sure it has no users.",
+      "companyLoadError": "Unable to load companies",
+      "companySaveError": "Unable to save company",
       "roles": {
         "admin": "Administrator",
         "manager": "Manager",
@@ -336,6 +350,7 @@
       "permissionModules": {
         "dashboard": "Dashboard",
         "projects": "Projects",
+      "documents": "Document Management",
         "reports": "Reports",
         "trash": "Trash",
         "users": "Users",
@@ -343,6 +358,7 @@
         "departments": "Departments",
         "permissions": "Permissions",
         "modules": "Modules",
+        "companies": "Companies",
         "activity_logs": "Activity log"
       }
     },
@@ -374,6 +390,7 @@
         "users": "User management",
         "roles": "Roles and permissions",
         "departments": "Departments",
+        "companies": "Companies",
         "modules": "Modules",
         "permissions": "Permissions",
         "projects": "Projects",
@@ -507,6 +524,7 @@
     "departments": "Departments",
     "permissions": "Permissions",
     "modules": "Modules",
+    "companies": "Companies",
     "activity": "Activity Log",
     "settingsHint": "Settings - has submenu",
     "collapse": "Collapse sidebar",
@@ -518,7 +536,8 @@
       "dashboard": "Dashboard",
       "projects": "All Projects",
       "report": "Report",
-      "trash": "Trash"
+      "trash": "Trash",
+      "companies": "Companies"
     }
   },
   "topbar": {

@@ -14,6 +14,7 @@ import {
   type Department,
 } from "../../access/departments/services/departments.service";
 import { listRoles, type Role } from "../../access/roles/services/roles.service";
+import { listCompanies, type Company } from "../../access/companies/services/companies.service";
 import { PaginationFooter } from "../../../../components/pagination-footer";
 import { useErrorToast } from "../../../../components/toast-provider";
 import { useAuth } from "../../../auth/hooks/use-auth";
@@ -21,7 +22,9 @@ import { hasPermission } from "../../../auth/permissions";
 
 const emptyForm = (): UserInput => ({
   email: "",
-  name: "",
+  firstName: "",
+  lastName: "",
+  companyId: 0,
   role: "user",
   department: "",
   phone: "",
@@ -41,13 +44,14 @@ function initials(name: string) {
 
 export function UsersSection({ translations }: { translations: Translations }) {
   const settingsTranslations = translations.features.settingsUser;
-  const { user: authenticatedUser } = useAuth();
+  const { user: authenticatedUser, refreshUser } = useAuth();
   const canCreate = Boolean(authenticatedUser && hasPermission(authenticatedUser, "สร้างผู้ใช้งาน"));
   const canEdit = Boolean(authenticatedUser && hasPermission(authenticatedUser, "แก้ไขผู้ใช้งาน"));
   const canDelete = Boolean(authenticatedUser && hasPermission(authenticatedUser, "ลบผู้ใช้งาน"));
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -81,10 +85,11 @@ export function UsersSection({ translations }: { translations: Translations }) {
   }, [load]);
   useEffect(() => {
     if (!canCreate && !canEdit) return;
-    void Promise.all([listRoles(), listDepartments()])
-      .then(([rolesResponse, departmentsResponse]) => {
+    void Promise.all([listRoles(), listDepartments(), listCompanies()])
+      .then(([rolesResponse, departmentsResponse, companiesResponse]) => {
         setRoles(rolesResponse.data);
         setDepartments(departmentsResponse.data);
+        setCompanies(companiesResponse.data);
       })
       .catch((caught: unknown) => {
         setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
@@ -101,7 +106,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
   function openCreate() {
     setEditing(null);
     const defaultRole = roles.find((role) => Boolean(role.isActive))?.name ?? "";
-    setForm({ ...emptyForm(), role: defaultRole });
+    setForm({ ...emptyForm(), role: defaultRole, companyId: companies.find((company) => Boolean(company.isActive))?.id ?? 0 });
     setError("");
     setFormOpen(true);
   }
@@ -110,7 +115,9 @@ export function UsersSection({ translations }: { translations: Translations }) {
     setEditing(user);
     setForm({
       email: user.email,
-      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      companyId: user.companyId,
       role: user.role,
       department: user.department ?? "",
       phone: user.phone ?? "",
@@ -130,10 +137,12 @@ export function UsersSection({ translations }: { translations: Translations }) {
         const payload: Partial<UserInput> = { ...form };
         if (!payload.password) delete payload.password;
         if (payload.role === editing.role) delete payload.role;
+        if (payload.companyId === editing.companyId) delete payload.companyId;
         if (payload.department === (editing.department ?? "")) {
           delete payload.department;
         }
         await updateUser(editing.id, payload);
+        if (editing.id === authenticatedUser?.id) await refreshUser();
       } else {
         await createUser(form);
       }
@@ -199,6 +208,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
 
       <UsersTable
         users={users}
+        companies={companies}
         loading={loading}
         translations={translations}
         canEdit={canEdit}
@@ -223,6 +233,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
           form={form}
           roles={roles}
           departments={departments}
+          companies={companies}
           saving={saving}
           translations={translations}
           onChange={setForm}
@@ -236,6 +247,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
 
 function UsersTable({
   users,
+  companies,
   loading,
   translations,
   onEdit,
@@ -245,6 +257,7 @@ function UsersTable({
   canDelete,
 }: {
   users: User[];
+  companies: Company[];
   loading: boolean;
   translations: Translations;
   onEdit: (user: User) => void;
@@ -260,6 +273,7 @@ function UsersTable({
         <thead>
           <tr>
             <th>{settingsTranslations.name}</th>
+            <th>{settingsTranslations.company}</th>
             <th>{settingsTranslations.email}</th>
             <th>{settingsTranslations.department}</th>
             <th>{settingsTranslations.role}</th>
@@ -270,13 +284,13 @@ function UsersTable({
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={6} className="table-message">
+              <td colSpan={7} className="table-message">
                 {settingsTranslations.loading}
               </td>
             </tr>
           ) : users.length === 0 ? (
             <tr>
-              <td colSpan={6} className="table-message">
+              <td colSpan={7} className="table-message">
                 {settingsTranslations.empty}
               </td>
             </tr>
@@ -289,6 +303,7 @@ function UsersTable({
                     <strong>{user.name}</strong>
                   </div>
                 </td>
+                <td data-label={settingsTranslations.company}>{user.company || companies.find((company) => company.id === user.companyId)?.name || "—"}</td>
                 <td data-label={settingsTranslations.email}>{user.email}</td>
                 <td data-label={settingsTranslations.department}>{user.department || "—"}</td>
                 <td data-label={settingsTranslations.role}>
@@ -334,6 +349,7 @@ function UserFormModal({
   form,
   roles,
   departments,
+  companies,
   saving,
   translations,
   onChange,
@@ -344,6 +360,7 @@ function UserFormModal({
   form: UserInput;
   roles: Role[];
   departments: Department[];
+  companies: Company[];
   saving: boolean;
   translations: Translations;
   onChange: (form: UserInput) => void;
@@ -380,17 +397,10 @@ function UserFormModal({
           </button>
         </header>
         <form onSubmit={(event) => void onSubmit(event)}>
-          <label>
-            {settingsTranslations.name}
-            <input
-              required
-              maxLength={150}
-              value={form.name}
-              onChange={(event) =>
-                onChange({ ...form, name: event.target.value })
-              }
-            />
-          </label>
+          <div className="form-grid">
+            <label>{settingsTranslations.firstName}<input required maxLength={150} value={form.firstName} onChange={(event) => onChange({ ...form, firstName: event.target.value })}/></label>
+            <label>{settingsTranslations.lastName}<input required maxLength={150} value={form.lastName} onChange={(event) => onChange({ ...form, lastName: event.target.value })}/></label>
+          </div>
           <label>
             {settingsTranslations.email}
             <input
@@ -417,6 +427,13 @@ function UserFormModal({
             />
           </label>
           <div className="form-grid">
+            <label>
+              {settingsTranslations.company}
+              <select required value={form.companyId || ''} onChange={(event) => onChange({ ...form, companyId: Number(event.target.value) })}>
+                <option value="">—</option>
+                {companies.filter((company) => Boolean(company.isActive) || company.id === form.companyId).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+              </select>
+            </label>
             <label>
               {settingsTranslations.department}
               <select
