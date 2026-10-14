@@ -10,10 +10,11 @@ type Props = {
   dateText: (value: string) => string
   onSelect: (id: number) => void
   onCancel: (id: number) => void
+  copy: any
 }
-export default function DocPendingApproval({ documents, mockRole, kindInfo, statusInfo, dateText, onSelect, onCancel }: Props) {
+export default function DocPendingApproval({ documents, mockRole, kindInfo, statusInfo, dateText, onSelect, onCancel, copy }: Props) {
   return <>
-    <div className="documents-tools"><span className="documents-stat"><FaFileLines /> {documents.length} รายการรอ HR ตรวจ</span></div>
-    <DocAllDocumentsList documents={documents} layout="grid" mockRole={mockRole} kindInfo={kindInfo} statusInfo={statusInfo} dateText={dateText} onSelect={onSelect} onCancel={onCancel} />
+    <div className="documents-tools"><span className="documents-stat"><FaFileLines /> {documents.length} {copy.messages.mockPendingCount}</span></div>
+    <DocAllDocumentsList documents={documents} layout="grid" mockRole={mockRole} kindInfo={kindInfo} statusInfo={statusInfo} dateText={dateText} onSelect={onSelect} onCancel={onCancel} copy={copy} />
   </>
 }

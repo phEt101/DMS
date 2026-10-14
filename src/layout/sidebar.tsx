@@ -88,6 +88,7 @@ export default function Sidebar({
   const [accessOpen, setAccessOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const sidebarTranslations = translations.sidebar;
+  const documentNavTranslations = sidebarTranslations.items.documentViews;
   const companyName = user?.company?.name || "Boswell";
   const [documentsOpen, setDocumentsOpen] = useState(true);
   const [collapsedFlyout, setCollapsedFlyout] = useState<"projects" | "documents" | "settings" | null>(null);
@@ -283,12 +284,12 @@ if (item.key === "documents") {
     key: PageKey;
     label: string;
   }> = [
-    { key: "documents-all", label: "เอกสารทั้งหมด" },
-    { key: "documents-pending", label: "รออนุมัติ" },
-    { key: "documents-ledger", label: "สมุดบันทึกการลา" },
-    { key: "documents-employees", label: "พนักงาน" },
-    { key: "documents-policy", label: "นโยบายการลา" },
-    { key: "documents-notifications", label: "แจ้งเตือน" },
+    { key: "documents-all", label: documentNavTranslations.all },
+    { key: "documents-pending", label: documentNavTranslations.pending },
+    { key: "documents-ledger", label: documentNavTranslations.ledger },
+    { key: "documents-employees", label: documentNavTranslations.employees },
+    { key: "documents-policy", label: documentNavTranslations.policy },
+    { key: "documents-notifications", label: documentNavTranslations.notifications },
   ];
 
   return (
@@ -315,7 +316,7 @@ if (item.key === "documents") {
             aria-hidden="true"
           />
         )}
-        <span>Document Management</span>
+        <span>{sidebarTranslations.items.documents}</span>
         <i className={documentsOpen ? "is-rotated" : ""}>⌄</i>
       </button>
 

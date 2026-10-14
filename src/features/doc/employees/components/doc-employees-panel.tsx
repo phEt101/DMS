@@ -13,6 +13,7 @@ type Props = {
   onQuery: (value: string) => void
   onSave: (employee: MockEmployee) => void
   onToggleActive: (id: string) => void
+  copy: any
 }
 
 type Draft = Omit<MockEmployee, 'id'>
@@ -20,7 +21,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 const blankEmployee = (): Draft => ({ name: '', code: '', department: '', position: '', email: '', emailNotify: true, role: 'พนักงาน', manager: '', sick: 30, personal: 3, vacation: 6, other: 0, emergency: 0, active: true, startDate: today(), appointedDate: today() })
 const roleLabels: MockEmployee['role'][] = ['พนักงาน', 'ผู้จัดการแผนก', 'HR']
 
-export default function DocEmployeesPanel({ employees, documents, policyStart, policyEnd, matches, mockRole, query, onQuery, onSave, onToggleActive }: Props) {
+export default function DocEmployeesPanel({ employees, documents, policyStart, policyEnd, matches, mockRole, query, onQuery, onSave, onToggleActive, copy: c }: Props) {
   const [editing, setEditing] = useState<MockEmployee | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [draft, setDraft] = useState<Draft>(blankEmployee)
@@ -42,9 +43,9 @@ export default function DocEmployeesPanel({ employees, documents, policyStart, p
     const name = draft.name.trim()
     const code = draft.code.trim()
     const email = (draft.email ?? '').trim()
-    if (!name || !code) { setFormError('กรอกชื่อและรหัสประจำตัวให้ครบ'); return }
-    if (!/^\S+@\S+\.\S+$/.test(email)) { setFormError('กรอกอีเมลให้ถูกต้อง'); return }
-    if (employees.some((person) => person.code.trim().toLocaleLowerCase() === code.toLocaleLowerCase() && person.id !== editing?.id)) { setFormError('รหัสประจำตัวนี้มีอยู่แล้ว'); return }
+    if (!name || !code) { setFormError(c.employees.required); return }
+    if (!/^\S+@\S+\.\S+$/.test(email)) { setFormError(c.employees.invalidEmail); return }
+    if (employees.some((person) => person.code.trim().toLocaleLowerCase() === code.toLocaleLowerCase() && person.id !== editing?.id)) { setFormError(c.employees.duplicateCode); return }
     onSave({ ...draft, id: editing?.id ?? `mock-${Date.now()}`, name, code, email, manager: draft.manager || '—' })
     closeForm()
   }
@@ -54,40 +55,40 @@ export default function DocEmployeesPanel({ employees, documents, policyStart, p
 
   return <>
     <div className="dms-title-search-row documents-employee-toolbar">
-      <div className="dms-search-wrap"><FaMagnifyingGlass className="dms-search-icon"/><input value={query} onChange={(event) => onQuery(event.target.value)} placeholder="ค้นหาชื่อ รหัส แผนก" aria-label="ค้นหาพนักงาน"/></div>
-      <div className="dms-stats-group"><div className="dms-stats-pill">{matches.length} คน</div></div>
-      {mockRole === 'HR' && <div className="dms-create-actions"><button className="dms-create-btn" onClick={() => openForm()}><FaPlus/> เพิ่มพนักงาน</button></div>}
+      <div className="dms-search-wrap"><FaMagnifyingGlass className="dms-search-icon"/><input value={query} onChange={(event) => onQuery(event.target.value)} placeholder={c.employees.search} aria-label={c.employees.searchLabel}/></div>
+      <div className="dms-stats-group"><div className="dms-stats-pill">{matches.length} {c.employees.count}</div></div>
+      {mockRole === 'HR' && <div className="dms-create-actions"><button className="dms-create-btn" onClick={() => openForm()}><FaPlus/> {c.employees.add}</button></div>}
     </div>
 
     {matches.length ? <div className="dms-card-grid dms-survey-grid documents-employee-grid">{matches.map((employee) => <article key={employee.id} className="dms-project-card documents-employee-card" role="button" tabIndex={0} aria-label={`แก้ไขข้อมูล ${employee.name}`} onClick={() => openForm(employee)} onKeyDown={(event) => activateCard(event, employee)}>
-      <div className="documents-employee-card-top"><span className="documents-employee-avatar"><FaUser/></span><span className={`dms-card-status ${employee.active ? 'is-active' : 'is-cancelled'}`}>{employee.active ? employee.role : 'ปิดใช้งาน'}</span></div>
+      <div className="documents-employee-card-top"><span className="documents-employee-avatar"><FaUser/></span><span className={`dms-card-status ${employee.active ? 'is-active' : 'is-cancelled'}`}>{employee.active ? c.roles[employee.role === 'พนักงาน' ? 'employee' : employee.role === 'HR' ? 'hr' : 'manager'] : c.employees.inactive}</span></div>
       <h2 className="documents-employee-name">{employee.name}</h2>
-      <div className="documents-employee-meta">{employee.position || 'ไม่ระบุตำแหน่ง'} · {employee.department || 'ไม่ระบุแผนก'}<br/>{employee.code}{employee.email ? ` · ${employee.email}` : ''}</div>
-      <div className="documents-employee-balances"><span>ป่วย <b>{remaining(employee, 'sick')}/{employee.sick}</b></span><span>กิจ <b>{remaining(employee, 'personal')}/{employee.personal}</b></span><span>พักร้อน <b>{remaining(employee, 'vacation')}/{employee.vacation}</b></span></div>
-      <div className="documents-employee-manager">ผู้จัดการที่อนุมัติ: {employee.manager || '—'}</div>
-    </article>)}</div> : <div className="documents-employee-empty">ไม่พบพนักงานที่ตรงกับคำค้น</div>}
+      <div className="documents-employee-meta">{employee.position || c.employees.noPosition} · {employee.department || c.employees.noDepartment}<br/>{employee.code}{employee.email ? ` · ${employee.email}` : ''}</div>
+      <div className="documents-employee-balances"><span>{c.employees.leaveSick} <b>{remaining(employee, 'sick')}/{employee.sick}</b></span><span>{c.employees.leavePersonal} <b>{remaining(employee, 'personal')}/{employee.personal}</b></span><span>{c.employees.leaveVacation} <b>{remaining(employee, 'vacation')}/{employee.vacation}</b></span></div>
+      <div className="documents-employee-manager">{c.employees.manager}: {employee.manager || '—'}</div>
+    </article>)}</div> : <div className="documents-employee-empty">{c.employees.noMatches}</div>}
 
     {formOpen && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm() }}><form className="dms-modal dms-create-doc-modal documents-employee-modal" onSubmit={save}>
-      <h2 className="dms-modal-title">{editing ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงาน'}</h2><p className="dms-modal-subtitle">{editing ? `${editing.code} · แก้ไขข้อมูล สิทธิ์วันลา และการใช้งาน` : 'กรอกข้อมูลและกำหนดสิทธิ์วันลา'}</p>
-      <button type="button" className="modal-close" aria-label="ปิด" onClick={closeForm}><FaXmark/></button>
+      <h2 className="dms-modal-title">{editing ? c.employees.edit : c.employees.add}</h2><p className="dms-modal-subtitle">{editing ? `${editing.code} · ${c.employees.formSubtitleEdit}` : c.employees.formSubtitleAdd}</p>
+      <button type="button" className="modal-close" aria-label={c.detail.close} onClick={closeForm}><FaXmark/></button>
       <div className="documents-employee-form-grid">
-        <label className="dms-form-field"><span className="dms-form-label">ชื่อ - นามสกุล</span><input className="dms-form-input" required value={draft.name} onChange={(event) => change('name', event.target.value)} autoFocus/></label>
-        <label className="dms-form-field"><span className="dms-form-label">รหัสประจำตัว</span><input className="dms-form-input" required value={draft.code} onChange={(event) => change('code', event.target.value)}/></label>
-        <label className="dms-form-field"><span className="dms-form-label">แผนก</span><input className="dms-form-input" value={draft.department} onChange={(event) => change('department', event.target.value)}/></label>
-        <label className="dms-form-field"><span className="dms-form-label">ตำแหน่ง</span><input className="dms-form-input" value={draft.position} onChange={(event) => change('position', event.target.value)}/></label>
-        <label className="dms-form-field"><span className="dms-form-label">อีเมล (รับแจ้งเตือน)</span><input className="dms-form-input" type="email" required value={draft.email ?? ''} onChange={(event) => change('email', event.target.value)}/></label>
-        <label className="dms-form-field"><span className="dms-form-label">บทบาทในระบบ</span><select className="dms-form-input" value={draft.role} onChange={(event) => change('role', event.target.value as MockEmployee['role'])}>{roleLabels.map((role) => <option key={role}>{role}</option>)}</select></label>
-        <label className="dms-form-field"><span className="dms-form-label">ผู้จัดการที่อนุมัติ</span><select className="dms-form-input" value={draft.manager === '—' ? '' : draft.manager} onChange={(event) => change('manager', event.target.value)}><option value="">— ไม่มี (ส่งตรง HR)</option>{managers.map((manager) => <option key={manager.id} value={manager.name}>{manager.name}</option>)}</select></label>
-        <label className="dms-form-field"><span className="dms-form-label">วันที่เริ่มทำงาน</span><input className="dms-form-input" type="date" value={draft.startDate} onChange={(event) => change('startDate', event.target.value)}/></label>
-        <label className="dms-form-field"><span className="dms-form-label">วันที่บรรจุงาน</span><input className="dms-form-input" type="date" value={draft.appointedDate} onChange={(event) => change('appointedDate', event.target.value)}/></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.name}</span><input className="dms-form-input" required value={draft.name} onChange={(event) => change('name', event.target.value)} autoFocus/></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.code}</span><input className="dms-form-input" required value={draft.code} onChange={(event) => change('code', event.target.value)}/></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.departmentLabel}</span><input className="dms-form-input" value={draft.department} onChange={(event) => change('department', event.target.value)}/></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.position}</span><input className="dms-form-input" value={draft.position} onChange={(event) => change('position', event.target.value)}/></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.email}</span><input className="dms-form-input" type="email" required value={draft.email ?? ''} onChange={(event) => change('email', event.target.value)}/></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.role}</span><select className="dms-form-input" value={draft.role} onChange={(event) => change('role', event.target.value as MockEmployee['role'])}>{roleLabels.map((role) => <option key={role} value={role}>{c.roles[role === 'พนักงาน' ? 'employee' : role === 'HR' ? 'hr' : 'manager']}</option>)}</select></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.manager}</span><select className="dms-form-input" value={draft.manager === '—' ? '' : draft.manager} onChange={(event) => change('manager', event.target.value)}><option value="">{c.employees.noManager}</option>{managers.map((manager) => <option key={manager.id} value={manager.name}>{manager.name}</option>)}</select></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.startDate}</span><input className="dms-form-input" type="date" value={draft.startDate} onChange={(event) => change('startDate', event.target.value)}/></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.appointedDate}</span><input className="dms-form-input" type="date" value={draft.appointedDate} onChange={(event) => change('appointedDate', event.target.value)}/></label>
       </div>
-      <h3 className="documents-employee-entitlement-title">สิทธิ์วันลาประจำปี (วัน)</h3>
+      <h3 className="documents-employee-entitlement-title">{c.employees.entitlements}</h3>
       <div className="documents-employee-form-grid documents-employee-entitlements">
-        {([['sick', 'ลาป่วย'], ['personal', 'ลากิจ'], ['vacation', 'ลาพักร้อน'], ['other', 'ลาพิเศษอื่น ๆ'], ['emergency', 'พักร้อนฉุกเฉิน (วัน/ปี)']] as const).map(([key, label]) => <label className="dms-form-field" key={key}><span className="dms-form-label">{label}</span><input className="dms-form-input" type="number" min="0" step="0.5" value={draft[key] ?? 0} onChange={(event) => change(key, Math.max(0, Number(event.target.value) || 0))}/></label>)}
+        {([['sick', c.leaveTypes.sick], ['personal', c.leaveTypes.personal], ['vacation', c.leaveTypes.vacation], ['other', c.employees.leaveOther], ['emergency', c.employees.leaveEmergency]] as const).map(([key, label]) => <label className="dms-form-field" key={key}><span className="dms-form-label">{label}</span><input className="dms-form-input" type="number" min="0" step="0.5" value={draft[key] ?? 0} onChange={(event) => change(key, Math.max(0, Number(event.target.value) || 0))}/></label>)}
       </div>
-      <label className="documents-employee-email-toggle"><input type="checkbox" checked={draft.emailNotify !== false} onChange={(event) => change('emailNotify', event.target.checked)}/> ส่งอีเมลแจ้งเตือนให้พนักงานคนนี้</label>
+      <label className="documents-employee-email-toggle"><input type="checkbox" checked={draft.emailNotify !== false} onChange={(event) => change('emailNotify', event.target.checked)}/> {c.employees.emailNotify}</label>
       {formError && <p className="documents-employee-error" role="alert">{formError}</p>}
-      <div className="documents-employee-form-actions"><button className="dms-create-btn" type="submit">บันทึกข้อมูล</button>{editing && <button className={`documents-employee-toggle ${editing.active ? 'is-disable' : 'is-enable'}`} type="button" onClick={() => { onToggleActive(editing.id); closeForm() }}>{editing.active ? 'ปิดใช้งานพนักงาน' : 'เปิดใช้งานอีกครั้ง'}</button>}</div>
+      <div className="documents-employee-form-actions"><button className="dms-create-btn" type="submit">{c.employees.save}</button>{editing && <button className={`documents-employee-toggle ${editing.active ? 'is-disable' : 'is-enable'}`} type="button" onClick={() => { onToggleActive(editing.id); closeForm() }}>{editing.active ? c.employees.disable : c.employees.enable}</button>}</div>
     </form></div>}
   </>
 }

@@ -18,7 +18,7 @@ type View = 'all' | 'pending' | 'ledger' | 'employees' | 'policy' | 'notificatio
 type FormCheck = { ok: boolean; message: string }
 const INITIAL_POLICY: MockPolicy = { year:2569, expiry:'25 พฤศจิกายน 2569', yearStart:'2025-11-26', yearEnd:'2026-11-25', leadPersonal:1, leadVacation:15, emergencyDays:3, hoursPerDay:8, hourStep:1, emergencyNeedsPersonal:true, certDays:3, otMax:4, fixDays:7 }
 
-const KIND_INFO: Record<DocKind, { title: string; description: string; icon: typeof FaFileLines; group: 'leave' | 'ot' | 'other' }> = {
+const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; icon: typeof FaFileLines; group: 'leave' | 'ot' | 'other' }> = {
   leave: { title: 'ใบลา', description: 'ลาป่วย ลากิจ พักร้อน ลาคลอด และอื่น ๆ', icon: FaCalendarDays, group: 'leave' },
   ot: { title: 'ขอทำงานล่วงเวลา (OT)', description: 'ขออนุมัติวันและเวลาทำงานล่วงเวลา', icon: FaClock, group: 'ot' },
   timefix: { title: 'ขอแก้ไขเวลาเข้า–ออกงาน', description: 'แจ้งลืมสแกนหรือแก้ไขเวลาเข้างาน', icon: FaFileLines, group: 'other' },
@@ -26,9 +26,9 @@ const KIND_INFO: Record<DocKind, { title: string; description: string; icon: typ
   outing: { title: 'ขอออกนอกสถานที่', description: 'ขออนุญาตออกไปปฏิบัติงานระหว่างวัน', icon: FaLocationDot, group: 'other' },
   swap: { title: 'ขอสลับวันหยุด / วันทำงาน', description: 'ขอหยุดและระบุวันที่มาทำงานชดเชย', icon: FaRotate, group: 'other' },
 }
-const LEAVE_TYPES: Record<string, string> = { personal:'ลากิจ', sick:'ลาป่วย', vacation:'ลาพักร้อน', emergency:'ลาพักร้อนฉุกเฉิน', unpaid:'ลากิจไม่รับค่าจ้าง', maternity:'ลาคลอด', ordain:'ลาบวช', marriage:'ลาสมรส', other:'ลาอื่น ๆ' }
-const FORM_FIELDS: Record<DocKind, Array<{ key: string; label: string; type: 'text' | 'date' | 'time' | 'number' | 'textarea' | 'select' | 'checkbox'; options?: Record<string, string>; step?: number; wide?: boolean }>> = {
-  leave:[{key:'leaveType',label:'ประเภทการลา',type:'select',options:LEAVE_TYPES,wide:true},{key:'byHour',label:'ลาเป็นชั่วโมง (ลาพักร้อนฉุกเฉินเท่านั้น · 1 วัน = 8 ชม.)',type:'checkbox',wide:true},{key:'from',label:'วันที่ลา',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'start',label:'เวลาเริ่มลา',type:'time'},{key:'end',label:'เวลาสิ้นสุดลา',type:'time'},{key:'days',label:'จำนวนวันทำงาน (แก้ไขได้ เช่น 0.5)',type:'number',step:.5,wide:true},{key:'hours',label:'รวมชั่วโมง (คำนวณอัตโนมัติ)',type:'number',step:.5,wide:true},{key:'reason',label:'เหตุผลการลา',type:'textarea',wide:true},{key:'cert',label:'แนบใบรับรองแพทย์แล้ว',type:'checkbox',wide:true}],
+const LEAVE_TYPES_DEFAULT: Record<string, string> = { personal:'ลากิจ', sick:'ลาป่วย', vacation:'ลาพักร้อน', emergency:'ลาพักร้อนฉุกเฉิน', unpaid:'ลากิจไม่รับค่าจ้าง', maternity:'ลาคลอด', ordain:'ลาบวช', marriage:'ลาสมรส', other:'ลาอื่น ๆ' }
+const FORM_FIELDS_DEFAULT: Record<DocKind, Array<{ key: string; label: string; type: 'text' | 'date' | 'time' | 'number' | 'textarea' | 'select' | 'checkbox'; options?: Record<string, string>; step?: number; wide?: boolean }>> = {
+  leave:[{key:'leaveType',label:'ประเภทการลา',type:'select',options:LEAVE_TYPES_DEFAULT,wide:true},{key:'byHour',label:'ลาเป็นชั่วโมง (ลาพักร้อนฉุกเฉินเท่านั้น · 1 วัน = 8 ชม.)',type:'checkbox',wide:true},{key:'from',label:'วันที่ลา',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'start',label:'เวลาเริ่มลา',type:'time'},{key:'end',label:'เวลาสิ้นสุดลา',type:'time'},{key:'days',label:'จำนวนวันทำงาน (แก้ไขได้ เช่น 0.5)',type:'number',step:.5,wide:true},{key:'hours',label:'รวมชั่วโมง (คำนวณอัตโนมัติ)',type:'number',step:.5,wide:true},{key:'reason',label:'เหตุผลการลา',type:'textarea',wide:true},{key:'cert',label:'แนบใบรับรองแพทย์แล้ว',type:'checkbox',wide:true}],
   ot:[{key:'dayType',label:'ประเภทวัน',type:'select',options:{weekday:'วันทำงานปกติ',weekend:'วันหยุดประจำสัปดาห์',holiday:'วันหยุดนักขัตฤกษ์'},wide:true},{key:'date',label:'วันที่ทำ OT',type:'date',wide:true},{key:'start',label:'เวลาเริ่ม',type:'time'},{key:'end',label:'เวลาสิ้นสุด',type:'time'},{key:'hours',label:'รวม (ชั่วโมง)',type:'number',step:.5,wide:true},{key:'task',label:'งาน / โครงการที่ทำ',type:'text',wide:true},{key:'reason',label:'เหตุผลที่ต้องทำ OT',type:'textarea',wide:true}],
   timefix:[{key:'date',label:'วันที่ต้องการแก้ไข',type:'date'},{key:'cause',label:'สาเหตุ',type:'select',options:{forgot:'ลืมสแกนนิ้ว',device:'เครื่องสแกนขัดข้อง',offsite:'ปฏิบัติงานนอกสถานที่',other:'อื่น ๆ'}},{key:'inTime',label:'เวลาเข้างานที่ถูกต้อง',type:'time'},{key:'outTime',label:'เวลาออกงานที่ถูกต้อง',type:'time'},{key:'reason',label:'รายละเอียด',type:'textarea',wide:true}],
   wfh:[{key:'from',label:'ตั้งแต่วันที่',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'days',label:'จำนวนวันทำงาน',type:'number',step:.5,wide:true},{key:'place',label:'สถานที่ทำงาน',type:'text',wide:true},{key:'plan',label:'แผนงานที่จะทำ',type:'textarea',wide:true}],
@@ -45,65 +45,66 @@ const daysBetween = (from: string, to: string) => {
   return count
 }
 const timeMinutes = (value: string) => { const [hour, minute] = value.split(':').map(Number); return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : -1 }
-const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocument[], employee: MockEmployee, policy: MockPolicy): FormCheck[] => {
+const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocument[], employee: MockEmployee, policy: MockPolicy, copy: any): FormCheck[] => {
   const checks: FormCheck[] = []
   const add = (ok: boolean, message: string) => checks.push({ ok, message })
+  const msg = (key: string, values: Record<string, string | number> = {}) => Object.entries(values).reduce((result, [name, value]) => result.split(`{${name}}`).join(String(value)), copy.validation[key] as string)
   const v = (key: string) => String(values[key] ?? '').trim()
   const today = new Date(); today.setHours(0,0,0,0)
   const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
   if (kind === 'leave') {
     const type = v('leaveType'), from = v('from'), to = v('to'), qty = Number(v('days')), isHour = type === 'emergency' && values.byHour === true
-    add(Boolean(from && to && to >= from), 'เลือกวันที่ลาและวันสุดท้ายให้ถูกต้อง')
+    add(Boolean(from && to && to >= from), msg('dateRange'))
     if (isHour) {
       const start = timeMinutes(v('start')), end = timeMinutes(v('end')), hours = (end - start) / 60
-      add(start >= 0 && end > start, 'เวลาสิ้นสุดต้องหลังเวลาเริ่ม')
-      add(hours > 0 && hours <= policy.hoursPerDay, `ลาพักร้อนฉุกเฉินเป็นชั่วโมงได้ไม่เกิน ${policy.hoursPerDay} ชั่วโมงต่อวัน`)
+      add(start >= 0 && end > start, msg('endAfterStart'))
+      add(hours > 0 && hours <= policy.hoursPerDay, msg('emergencyHours', { hours: policy.hoursPerDay }))
       values.hours = hours > 0 ? String(Math.ceil(hours / policy.hourStep) * policy.hourStep) : ''
       values.days = hours > 0 ? String(Math.ceil(hours / policy.hourStep) * policy.hourStep / policy.hoursPerDay) : ''
-    } else add(qty > 0, 'จำนวนวันต้องมากกว่า 0')
-    add(Boolean(v('reason')), type === 'emergency' ? 'ระบุเหตุผลที่ต้องลาด่วน' : 'ระบุเหตุผลการลา')
+    } else add(qty > 0, msg('daysPositive'))
+    add(Boolean(v('reason')), msg(type === 'emergency' ? 'emergencyReason' : 'leaveReason'))
     if (from && to && to >= from) {
       const overlap = docs.some((doc) => doc.employee === employee.name && doc.kind === 'leave' && doc.status !== 'rejected' && doc.from && doc.to && doc.from <= to && doc.to >= from)
-      add(!overlap, 'ช่วงวันที่ซ้อนกับใบลาที่ยังดำเนินการอยู่')
+      add(!overlap, msg('overlap'))
     }
     const startDate = from ? new Date(`${from}T00:00:00`) : null
     const leadDays = startDate ? Math.floor((startDate.getTime() - today.getTime()) / 86400000) : 0
     const leadWorkdays = from ? daysBetween(todayIso, from) - (todayIso <= from && ![0,6].includes(today.getDay()) ? 1 : 0) : 0
-    if (type === 'personal' || type === 'unpaid') add(leadDays >= policy.leadPersonal, `ลากิจและลากิจไม่รับค่าจ้างต้องยื่นล่วงหน้าอย่างน้อย ${policy.leadPersonal} วัน`)
-    if (type === 'vacation') add(leadWorkdays >= policy.leadVacation, `ลาพักร้อนต้องยื่นล่วงหน้าอย่างน้อย ${policy.leadVacation} วันทำการ`)
-    if (type === 'emergency') add(Boolean(from && from >= todayIso), 'ลาพักร้อนฉุกเฉินยื่นได้ตั้งแต่วันนี้เป็นต้นไป')
-    if (['sick','personal','vacation','emergency'].includes(type) && from && to) add(from >= policy.yearStart && to <= policy.yearEnd, `วันลาต้องอยู่ในปีสิทธิ์ ${policy.year} (${policy.yearStart} – ${policy.yearEnd})`)
+    if (type === 'personal' || type === 'unpaid') add(leadDays >= policy.leadPersonal, msg('personalLead', { days: policy.leadPersonal }))
+    if (type === 'vacation') add(leadWorkdays >= policy.leadVacation, msg('vacationLead', { days: policy.leadVacation }))
+    if (type === 'emergency') add(Boolean(from && from >= todayIso), msg('emergencyFromToday'))
+    if (['sick','personal','vacation','emergency'].includes(type) && from && to) add(from >= policy.yearStart && to <= policy.yearEnd, msg('withinYear', { year: policy.year, from: policy.yearStart, to: policy.yearEnd }))
     const approvedUsage = (leaveType: string) => docs.filter((doc) => doc.employee === employee.name && doc.kind === 'leave' && doc.leaveType === leaveType && doc.status !== 'rejected').reduce((sum, doc) => sum + (doc.days ?? 0), 0)
     if (type === 'sick' || type === 'personal' || type === 'vacation') {
       const limit = type === 'sick' ? employee.sick : type === 'personal' ? employee.personal : employee.vacation
       const remaining = limit - approvedUsage(type)
-      add(qty <= remaining, `${LEAVE_TYPES[type]}คงเหลือ ${Math.max(0,remaining)} วัน ขอลา ${qty || 0} วัน`)
+      add(qty <= remaining, msg('leaveBalance', { type: copy.leaveTypes[type], remaining: Math.max(0, remaining), requested: qty || 0 }))
     }
     if (type === 'emergency') {
       const personalRemaining = employee.personal - approvedUsage('personal')
       const vacationRemaining = employee.vacation - approvedUsage('vacation') - approvedUsage('emergency')
       const emergencyUsed = approvedUsage('emergency')
-      if (policy.emergencyNeedsPersonal) add(personalRemaining < qty, personalRemaining < qty ? `สิทธิ์ลากิจเหลือ ${personalRemaining} วัน ไม่พอสำหรับคำขอนี้ จึงใช้พักร้อนฉุกเฉินได้` : `ลากิจเหลือ ${personalRemaining} วัน ให้ใช้ลากิจก่อน`)
-      add(qty <= policy.emergencyDays - emergencyUsed, `สิทธิ์พักร้อนฉุกเฉิน ${policy.emergencyDays} วัน ใช้ไปแล้ว ${emergencyUsed} วัน`)
-      add(qty <= vacationRemaining, `หักจากพักร้อนปีนี้ คงเหลือ ${vacationRemaining} วัน`)
+      if (policy.emergencyNeedsPersonal) add(personalRemaining < qty, personalRemaining < qty ? msg('personalInsufficient', { days: personalRemaining }) : msg('usePersonalFirst', { days: personalRemaining }))
+      add(qty <= policy.emergencyDays - emergencyUsed, msg('emergencyLimit', { limit: policy.emergencyDays, used: emergencyUsed }))
+      add(qty <= vacationRemaining, msg('vacationBalance', { days: vacationRemaining }))
     }
     if (type === 'sick' && from && to && to >= from) {
       const a = new Date(`${from}T00:00:00`), b = new Date(`${to}T00:00:00`)
       const needsCert = qty >= policy.certDays || [1,5].includes(a.getDay()) || [1,5].includes(b.getDay()) || daysBetween(from,to) < Math.round((b.getTime()-a.getTime())/86400000)+1
-      if (needsCert) add(values.cert === true, 'กรณีนี้ต้องแนบใบรับรองแพทย์')
+      if (needsCert) add(values.cert === true, msg('certificateRequired'))
     }
   }
   if (kind === 'ot') {
     const start = timeMinutes(v('start')), end = timeMinutes(v('end')), hours = (end-start)/60
-    add(Boolean(v('date')), 'เลือกวันที่ทำ OT'); add(start >= 0 && end > start, 'เวลาสิ้นสุดต้องหลังเวลาเริ่ม')
-    add(hours > 0 && hours <= policy.otMax, `OT ไม่เกิน ${policy.otMax} ชั่วโมงต่อวัน`)
-    add(Boolean(v('task')), 'ระบุงานหรือโครงการที่ทำ'); add(Boolean(v('reason')), 'ระบุเหตุผลที่ต้องทำ OT')
+    add(Boolean(v('date')), msg('otDate')); add(start >= 0 && end > start, msg('endAfterStart'))
+    add(hours > 0 && hours <= policy.otMax, msg('otLimit', { hours: policy.otMax }))
+    add(Boolean(v('task')), msg('taskRequired')); add(Boolean(v('reason')), msg('otReason'))
     values.hours = hours > 0 ? String(Math.round(hours*2)/2) : ''
   }
-  if (kind === 'timefix') { add(Boolean(v('date') && v('date') < todayIso), 'เลือกวันที่ผ่านมาแล้ว'); const ago = v('date') ? (today.getTime()-new Date(`${v('date')}T00:00:00`).getTime())/86400000 : Infinity; add(ago <= policy.fixDays, `แก้ไขย้อนหลังได้ไม่เกิน ${policy.fixDays} วัน`); add(Boolean(v('inTime') || v('outTime')), 'ระบุเวลาเข้า หรือเวลาออกอย่างน้อยหนึ่งรายการ'); add(Boolean(v('reason')), 'ระบุรายละเอียด') }
-  if (kind === 'wfh') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), 'เลือกช่วงวันที่ให้ถูกต้อง'); add(Number(v('days')) > 0, 'จำนวนวันต้องมากกว่า 0'); add(Boolean(v('place')), 'ระบุสถานที่ทำงาน'); add(Boolean(v('plan')), 'ระบุแผนงานที่จะทำ') }
-  if (kind === 'outing') { add(Boolean(v('date') && v('date') >= todayIso), 'เลือกวันที่ตั้งแต่วันนี้เป็นต้นไป'); add(timeMinutes(v('outTime')) >= 0, 'ระบุเวลาออก'); add(!v('backTime') || timeMinutes(v('backTime')) > timeMinutes(v('outTime')), 'เวลากลับต้องหลังเวลาออก'); add(Boolean(v('place')), 'ระบุสถานที่ที่ไป'); add(Boolean(v('reason')), 'ระบุวัตถุประสงค์') }
-  if (kind === 'swap') { add(Boolean(v('offDate') && v('offDate') >= todayIso), 'วันที่ขอหยุดต้องเป็นวันนี้หรืออนาคต'); add(Boolean(v('workDate') && v('workDate') !== v('offDate')), 'วันที่มาทำงานแทนต้องเป็นคนละวัน'); add(Boolean(v('reason')), 'ระบุเหตุผล') }
+  if (kind === 'timefix') { add(Boolean(v('date') && v('date') < todayIso), msg('pastDate')); const ago = v('date') ? (today.getTime()-new Date(`${v('date')}T00:00:00`).getTime())/86400000 : Infinity; add(ago <= policy.fixDays, msg('fixLimit', { days: policy.fixDays })); add(Boolean(v('inTime') || v('outTime')), msg('timeRequired')); add(Boolean(v('reason')), msg('detailsRequired')) }
+  if (kind === 'wfh') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), msg('validRange')); add(Number(v('days')) > 0, msg('daysPositive')); add(Boolean(v('place')), msg('placeRequired')); add(Boolean(v('plan')), msg('planRequired')) }
+  if (kind === 'outing') { add(Boolean(v('date') && v('date') >= todayIso), msg('todayOrFuture')); add(timeMinutes(v('outTime')) >= 0, msg('outTimeRequired')); add(!v('backTime') || timeMinutes(v('backTime')) > timeMinutes(v('outTime')), msg('backAfterOut')); add(Boolean(v('place')), msg('destinationRequired')); add(Boolean(v('reason')), msg('purposeRequired')) }
+  if (kind === 'swap') { add(Boolean(v('offDate') && v('offDate') >= todayIso), msg('offDateFuture')); add(Boolean(v('workDate') && v('workDate') !== v('offDate')), msg('differentWorkDate')); add(Boolean(v('reason')), msg('reasonRequired')) }
   return checks
 }
 const STATUS_INFO: Record<Status, { label: string; className: string }> = {
@@ -156,7 +157,13 @@ function DetailField({ label, value, full = false }: { label: string; value?: st
   return <div className={`dms-form-field documents-readonly-field${full ? ' dms-form-field--full' : ''}`}><span className="dms-form-label">{label}</span><div className="documents-readonly-value">{value}</div></div>
 }
 
-export default function DocumentPage({ translations: _translations, view = 'all' }: { translations: Translations; view?: View }) {
+export default function DocumentPage({ translations, view = 'all' }: { translations: Translations; view?: View }) {
+  const copy: any = translations.features.documentManagement
+  const dateText = (value: string) => new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${value}T00:00:00`))
+  const KIND_INFO = Object.fromEntries(Object.entries(KIND_INFO_DEFAULT).map(([key, info]) => [key, { ...info, title: copy.kinds[key as DocKind], description: copy.kindDescriptions[key as DocKind] }])) as typeof KIND_INFO_DEFAULT
+  const LEAVE_TYPES = copy.leaveTypes
+  const FORM_FIELDS = Object.fromEntries(Object.entries(FORM_FIELDS_DEFAULT).map(([kind, fields]) => [kind, fields.map((field) => ({ ...field, label: copy.fieldLabels[field.key as keyof typeof copy.fieldLabels] ?? field.label, ...(field.key === 'leaveType' ? { options: LEAVE_TYPES } : field.options ? { options: Object.fromEntries(Object.entries(field.options).map(([key]) => [key, copy.fieldOptions[key as keyof typeof copy.fieldOptions] ?? key])) } : {}) }))])) as typeof FORM_FIELDS_DEFAULT
+  const STATUS_INFO = { pending_mgr: { label: copy.statuses.pending_mgr, className: 'pending' }, pending_hr: { label: copy.statuses.pending_hr, className: 'pending' }, approved: { label: copy.statuses.approved, className: 'approved' }, rejected: { label: copy.statuses.rejected, className: 'rejected' } }
   const [policy, setPolicy] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
   const [policyDraft, setPolicyDraft] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
   const [documents, setDocuments] = useState(() => readMockSnapshot().documents ?? INITIAL_DOCS)
@@ -197,7 +204,7 @@ export default function DocumentPage({ translations: _translations, view = 'all'
   const signingDocument = documents.find((doc) => doc.id === signingDocumentId) ?? null
   const detailValues = selectedDocument?.formData ?? {}
   const currentSubmitter = mockRole === 'พนักงาน' ? employees[0] : mockRole === 'ผู้จัดการแผนก' ? employees[1] : employees[3]
-  const formChecks = selectedKind ? validateSubmission(selectedKind, { ...formValues }, documents, currentSubmitter, policy) : []
+  const formChecks = selectedKind ? validateSubmission(selectedKind, { ...formValues }, documents, currentSubmitter, policy, copy) : []
   const canSignAsSubmitter = (doc: MockDocument) => mockRole === 'พนักงาน' && doc.employee === 'สมชาย ใจดี' && doc.status.startsWith('pending') && !doc.signatures?.['ผู้ยื่น']
   const signatureStage = (doc: MockDocument): SignatureStage => canSignAsSubmitter(doc) ? 'ผู้ยื่น' : doc.status === 'pending_mgr' ? 'ผู้จัดการแผนก' : 'HR'
 
@@ -217,7 +224,7 @@ export default function DocumentPage({ translations: _translations, view = 'all'
     image.src = savedSignature
   }, [signingDocumentId, pendingSubmission, savedSignature])
 
-  const pageTitle = view === 'pending' ? 'เอกสารที่รอ HR ตรวจ' : view === 'ledger' ? 'สมุดบันทึกการลา' : view === 'employees' ? 'รายชื่อพนักงาน' : view === 'policy' ? 'นโยบายการลา' : view === 'notifications' ? 'การแจ้งเตือน' : 'เอกสารทั้งหมด'
+  const pageTitle = view === 'pending' ? copy.pendingTitle : view === 'ledger' ? copy.ledgerTitle : view === 'employees' ? copy.employeesTitle : view === 'policy' ? copy.policyTitle : view === 'notifications' ? copy.notificationsTitle : copy.allTitle
   const canReviewAsHr = view === 'pending' || mockRole === 'HR'
   const visibleDocs = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('th')
@@ -244,7 +251,7 @@ export default function DocumentPage({ translations: _translations, view = 'all'
     event.preventDefault()
     if (!selectedKind) return
     const submitter = mockRole === 'พนักงาน' ? employees[0] : mockRole === 'ผู้จัดการแผนก' ? employees[1] : employees[3]
-    const checks = validateSubmission(selectedKind, { ...formValues }, documents, submitter, policy)
+    const checks = validateSubmission(selectedKind, { ...formValues }, documents, submitter, policy, copy)
     if (checks.some((check) => !check.ok)) return
     setPendingSubmission({ kind:selectedKind, values:{ ...formValues } })
     setFormOpen(false)
@@ -278,13 +285,13 @@ export default function DocumentPage({ translations: _translations, view = 'all'
   const cancelPendingSubmission = () => { setPendingSubmission(null); setFormOpen(true) }
 
   const mockDecision = (doc: MockDocument, reject = false, signature?: string) => {
-    const note = reject ? window.prompt('ระบุเหตุผลที่ไม่อนุมัติ')?.trim() : ''
+    const note = reject ? window.prompt(copy.messages.rejectPrompt)?.trim() : ''
     if (reject && !note) return
     const nextStatus: Status = reject ? 'rejected' : doc.status === 'pending_mgr' ? 'pending_hr' : 'approved'
     const stage: SignatureStage = doc.status === 'pending_mgr' ? 'ผู้จัดการแผนก' : 'HR'
     const reviewer = stage === 'HR' ? employees.find((employee) => employee.role === 'HR') : employees.find((employee) => employee.role === mockRole)
     setDocuments((current) => current.map((item) => item.id === doc.id ? { ...item, status:nextStatus, ...(reject ? { note, rejectedBy:stage === 'ผู้จัดการแผนก' ? 'manager' as const : 'hr' as const } : {}), ...(signature ? { signatures: { ...item.signatures, [stage]: { image:signature, name:reviewer?.name ?? mockRole, date:new Date().toISOString().slice(0,10) } } } : {}) } : item))
-    setToast(reject ? 'ตัวอย่าง: ไม่อนุมัติเอกสารแล้ว' : doc.status === 'pending_mgr' ? 'ตัวอย่าง: ส่งต่อให้ HR แล้ว' : 'ตัวอย่าง: อนุมัติเอกสารแล้ว')
+    setToast(reject ? copy.messages.rejectedToast : doc.status === 'pending_mgr' ? copy.messages.forwardedToast : copy.messages.approvedToast)
     window.setTimeout(() => setToast(''), 3200)
   }
 
@@ -333,14 +340,14 @@ export default function DocumentPage({ translations: _translations, view = 'all'
       setDocuments((current) => [doc, ...current])
       if (rememberSignature) setSavedSignature(image)
       setPendingSubmission(null); setSelectedKind(''); setFormValues({})
-      setToast('เซ็นและยื่นเอกสารตัวอย่างแล้ว (ข้อมูล mock ไม่ได้บันทึกลงระบบ)')
+      setToast(copy.messages.submittedToast)
       window.setTimeout(() => setToast(''), 3200)
       return
     }
     if (!signingDocument) return
     if (canSignAsSubmitter(signingDocument)) {
       setDocuments((current) => current.map((doc) => doc.id === signingDocument.id ? { ...doc, signatures:{ ...doc.signatures, 'ผู้ยื่น':{ image, name:doc.employee, date:new Date().toISOString().slice(0,10) } } } : doc))
-      setToast('บันทึกลายเซ็นผู้ยื่นแล้ว')
+      setToast(copy.messages.signedToast)
     } else {
       mockDecision(signingDocument, false, image)
     }
@@ -350,12 +357,12 @@ export default function DocumentPage({ translations: _translations, view = 'all'
 
   const saveMockEmployee = (employee: MockEmployee) => {
     setEmployees((current) => current.some((person) => person.id === employee.id) ? current.map((person) => person.id === employee.id ? employee : person) : [employee, ...current])
-    setToast(employees.some((person) => person.id === employee.id) ? 'บันทึกข้อมูลพนักงานแล้ว' : 'เพิ่มพนักงานตัวอย่างแล้ว')
+    setToast(employees.some((person) => person.id === employee.id) ? copy.messages.employeeSaved : copy.messages.employeeAdded)
     window.setTimeout(() => setToast(''), 3200)
   }
   const toggleMockEmployee = (id: string) => {
     setEmployees((current) => current.map((person) => person.id === id ? { ...person, active: !person.active } : person))
-    setToast('เปลี่ยนสถานะพนักงานแล้ว')
+    setToast(copy.messages.employeeToggled)
     window.setTimeout(() => setToast(''), 3200)
   }
   const markAllRead = () => setNotifications((current) => current.map((notification) => ({ ...notification, read:true })))
@@ -368,27 +375,29 @@ export default function DocumentPage({ translations: _translations, view = 'all'
   }
 
   return <section className="feature-page documents-page">
-    <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? 'รออนุมัติ' : 'Document Management'}</p>
-    {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">สรุปวันลาที่อนุมัติแล้วและรายการที่อยู่ระหว่างพิจารณา</div></div></div> : <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? 'ตรวจเอกสารที่ผู้จัดการอนุมัติแล้ว เซ็นอนุมัติเพื่อบันทึกวันลาและอัปเดตสมุดบันทึก' : view === 'employees' ? 'HR เพิ่มพนักงาน กำหนดสิทธิ์วันลา ผู้จัดการ และสิทธิ์การใช้งานได้จากหน้านี้' : view === 'policy' ? 'กำหนดเงื่อนไขที่ระบบตัวอย่างใช้ตรวจเอกสารตอนพนักงานยื่น' : view === 'notifications' ? 'การแจ้งเตือนในแอปและอีเมลจำลอง' : 'ยื่นและติดตามสถานะเอกสารของพนักงาน'}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> ยื่นเอกสารใหม่</button>}</div>}
-    {view !== 'pending' && <div className="documents-mock-note">โหมดตัวอย่าง · ข้อมูลและการเปลี่ยนแปลงเก็บไว้ในหน้านี้เท่านั้น ไม่เชื่อมต่อฐานข้อมูล</div>}
+    <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
+    {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'employees' ? copy.employeesSubtitle : view === 'policy' ? copy.policySubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
+    {view !== 'pending' && <div className="documents-mock-note">{copy.mockNote}</div>}
 
-    {view !== 'pending' && <div className="documents-mock-role"><span>จำลองบทบาท</span><select aria-label="จำลองบทบาทผู้ใช้" value={mockRole} onChange={(event) => setMockRole(event.target.value as MockEmployee['role'])}><option>พนักงาน</option><option>ผู้จัดการแผนก</option><option>HR</option></select></div>}
+    {view !== 'pending' && <div className="documents-mock-role"><span>{copy.mockRole}</span><select aria-label={copy.mockRole} value={mockRole} onChange={(event) => setMockRole(event.target.value as MockEmployee['role'])}><option value="พนักงาน">{copy.roles.employee}</option><option value="ผู้จัดการแผนก">{copy.roles.manager}</option><option value="HR">{copy.roles.hr}</option></select></div>}
 
-    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} />}
+    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} copy={copy} />}
 
-    {view === 'ledger' && <DocLeaveLedgerSummary employees={employees} employee={ledgerEmployee} employeeId={ledgerEmployeeId} onEmployee={setLedgerEmployeeId} rows={ledgerRows} statusInfo={STATUS_INFO} onExport={exportLedgerCsv} />}
+    {view === 'ledger' && <DocLeaveLedgerSummary employees={employees} employee={ledgerEmployee} employeeId={ledgerEmployeeId} onEmployee={setLedgerEmployeeId} rows={ledgerRows} statusInfo={STATUS_INFO} onExport={exportLedgerCsv} copy={copy} />}
 
-    {view === 'employees' && <DocEmployeesPanel employees={employees} documents={documents} policyStart={policy.yearStart} policyEnd={policy.yearEnd} matches={employeeMatches} mockRole={mockRole} query={employeeQuery} onQuery={setEmployeeQuery} onSave={saveMockEmployee} onToggleActive={toggleMockEmployee} />}
+    {view === 'employees' && <DocEmployeesPanel employees={employees} documents={documents} policyStart={policy.yearStart} policyEnd={policy.yearEnd} matches={employeeMatches} mockRole={mockRole} query={employeeQuery} onQuery={setEmployeeQuery} onSave={saveMockEmployee} onToggleActive={toggleMockEmployee} copy={copy} />}
 
     {view === 'policy' && <DocLeavePolicySettings
       policyDraft={policyDraft}
+      copy={copy}
       onChange={setPolicyDraft}
-      onReset={() => { if (!window.confirm('รีเซ็ตข้อมูลตัวอย่างทั้งหมดหรือไม่?')) return; setPolicy({...INITIAL_POLICY}); setPolicyDraft({...INITIAL_POLICY}); setDocuments(INITIAL_DOCS); setEmployees(INITIAL_EMPLOYEES); setNotifications(INITIAL_NOTIFICATIONS); setMockRole('พนักงาน'); setLedgerEmployeeId('e1'); setEmailEnabled(true); setSavedSignature(''); setToast('รีเซ็ตข้อมูลตัวอย่างแล้ว') }}
-      onSave={() => { if (!policyDraft.yearStart || !policyDraft.yearEnd || policyDraft.yearEnd < policyDraft.yearStart) { setToast('ปีสิทธิ์สิ้นสุดต้องอยู่หลังวันเริ่ม'); return } setPolicy({...policyDraft}); setToast('บันทึกนโยบายแล้ว') }}
+      onReset={() => { if (!window.confirm(copy.messages.resetConfirm)) return; setPolicy({...INITIAL_POLICY}); setPolicyDraft({...INITIAL_POLICY}); setDocuments(INITIAL_DOCS); setEmployees(INITIAL_EMPLOYEES); setNotifications(INITIAL_NOTIFICATIONS); setMockRole('พนักงาน'); setLedgerEmployeeId('e1'); setEmailEnabled(true); setSavedSignature(''); setToast(copy.messages.resetDone) }}
+      onSave={() => { if (!policyDraft.yearStart || !policyDraft.yearEnd || policyDraft.yearEnd < policyDraft.yearStart) { setToast(copy.messages.policyInvalid); return } setPolicy({...policyDraft}); setToast(copy.messages.policySaved) }}
     />}
 
     {view === 'notifications' && <DocNotificationsPanel
       notifications={notifications} emailEnabled={emailEnabled} onEmailEnabled={setEmailEnabled} onReadAll={markAllRead}
+      copy={copy}
       tab={notificationTab} onTab={setNotificationTab}
       onOpen={(notification) => { setNotifications(current => current.map(item => item.id === notification.id ? {...item,read:true} : item)); setSelectedNotification(notification) }}
     />}
@@ -397,16 +406,16 @@ export default function DocumentPage({ translations: _translations, view = 'all'
       draftStatus={draftStatus} draftKind={draftKind} onDraftStatus={setDraftStatus} onDraftKind={setDraftKind}
       filterOpen={filterOpen} onToggle={() => { setDraftStatus(statusFilter); setDraftKind(kindFilter); setFilterOpen(open => !open) }} count={visibleDocs.length}
       onApply={() => { setStatusFilter(draftStatus); setKindFilter(draftKind); setFilterOpen(false) }}
-      onReset={() => { setDraftStatus('all'); setDraftKind('all'); setStatusFilter('all'); setKindFilter('all'); setFilterOpen(false) }}
+      onReset={() => { setDraftStatus('all'); setDraftKind('all'); setStatusFilter('all'); setKindFilter('all'); setFilterOpen(false) }} copy={copy}
     />}
 
     {view === 'all' && <DocAllDocumentsList
       documents={visibleDocs} layout={layout} mockRole={mockRole} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
-      onSelect={setSelectedDocumentId} onCancel={(id) => setDocuments((current) => current.filter((doc) => doc.id !== id))}
+      onSelect={setSelectedDocumentId} onCancel={(id) => setDocuments((current) => current.filter((doc) => doc.id !== id))} copy={copy}
     />}
     {view === 'pending' && <DocPendingApproval
       documents={visibleDocs} mockRole={mockRole} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
-      onSelect={setSelectedDocumentId} onCancel={(id) => setDocuments((current) => current.filter((doc) => doc.id !== id))}
+      onSelect={setSelectedDocumentId} onCancel={(id) => setDocuments((current) => current.filter((doc) => doc.id !== id))} copy={copy}
     />}
 
     {selectedDocument && <DocAllDocumentsDetail
@@ -417,6 +426,7 @@ export default function DocumentPage({ translations: _translations, view = 'all'
       dateText={dateText}
       canSignAsSubmitter={canSignAsSubmitter(selectedDocument)}
       canReview={canReviewAsHr}
+      copy={copy}
       mockRole={mockRole}
       onClose={() => setSelectedDocumentId(null)}
       onSign={() => setSigningDocumentId(selectedDocument.id)}
@@ -424,12 +434,12 @@ export default function DocumentPage({ translations: _translations, view = 'all'
       onCancel={() => { setDocuments((current) => current.filter((doc) => doc.id !== selectedDocument.id)); setSelectedDocumentId(null) }}
     />}
 
-    {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? 'เซ็นชื่อผู้ยื่น' : signatureStage(signingDocument!) === 'ผู้ยื่น' ? 'เซ็นชื่อผู้ยื่น' : `เซ็นอนุมัติ · ${signatureStage(signingDocument!)}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitter.name : `${signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label="ปิด" onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={640} height={240} aria-label="พื้นที่เซ็นชื่อ ใช้นิ้วหรือเมาส์เซ็น" onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> จำลายเซ็นนี้ไว้ใช้ครั้งถัดไป</label><div className="documents-signature-actions"><button onClick={clearSignature}>ล้างลายเซ็น</button><button className="documents-primary" disabled={!signatureHasInk} onClick={confirmSignature}>เซ็นชื่อและส่ง</button></div></section></div>}
+    {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitter.name : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={640} height={240} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" disabled={!signatureHasInk} onClick={confirmSignature}>{copy.signature.send}</button></div></section></div>}
 
-    {selectedNotification && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedNotification(null) }}><section className="documents-modal"><div className="documents-modal-head"><div><span className="documents-pill is-pending">เอกสารที่เกี่ยวข้อง</span><h2>{selectedNotification.title}</h2><p>{selectedNotification.body}</p></div><button aria-label="ปิด" onClick={() => setSelectedNotification(null)}><FaXmark /></button></div><p>รายการ: {documents.find((doc) => doc.id === selectedNotification.documentId)?.no ?? 'ไม่พบเอกสาร'}</p><button className="documents-primary" onClick={() => setSelectedNotification(null)}>ปิด</button></section></div>}
+    {selectedNotification && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedNotification(null) }}><section className="documents-modal"><div className="documents-modal-head"><div><span className="documents-pill is-pending">{copy.messages.relatedDocument}</span><h2>{copy.sampleNotifications[String(selectedNotification.id)]?.title ?? selectedNotification.title}</h2><p>{copy.sampleNotifications[String(selectedNotification.id)]?.body ?? selectedNotification.body}</p></div><button aria-label={copy.detail.close} onClick={() => setSelectedNotification(null)}><FaXmark /></button></div><p>{copy.messages.item}: {documents.find((doc) => doc.id === selectedNotification.documentId)?.no ?? copy.messages.notFound}</p><button className="documents-primary" onClick={() => setSelectedNotification(null)}>{copy.detail.close}</button></section></div>}
 
     <DocNewDocumentModal
-      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} role={mockRole}
+      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} role={mockRole} copy={copy}
       onSubmit={submitMock}
       onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}) }}
       onClearKind={() => { setSelectedKind(''); setFormValues({}) }}

@@ -25,6 +25,7 @@ export const departments = [
 export const permissionModules: Array<readonly [string, string]> = [
   ['dashboard', 'FaTableCellsLarge'],
   ['projects', 'FaDiagramProject'],
+  ['documents', 'FaFolderOpen'],
   ['reports', 'FaChartColumn'],
   ['survey', 'FaClipboardList'],
   ['trash', 'FaTrashCan'],
@@ -40,6 +41,7 @@ export const permissionModules: Array<readonly [string, string]> = [
 export const permissions: Array<readonly [string, string]> = [
   ['เข้าถึงเมนูแดชบอร์ด', 'dashboard'],
   ['เข้าถึงเมนูโครงการ', 'projects'],
+  ['เข้าถึงเมนูเอกสาร', 'documents'],
   ['สร้างโครงการ', 'projects'],
   ['แก้ไขโครงการ', 'projects'],
   ['ลบโครงการ', 'projects'],

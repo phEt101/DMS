@@ -25,19 +25,13 @@ export interface LedgerEntry {
 }
 
 const categories = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
-const labels: Record<(typeof categories)[number], string> = {
-  personal: 'กิจ', sick: 'ป่วย', vacation: 'พักร้อน', unpaid: 'ลากิจไม่รับค่าจ้าง', other: 'อื่น ๆ',
-}
-const notes = [
-  '1. การลาป่วยต้องเขียนใบลาทันทีที่กลับมาทำงาน ลาป่วยวันแรกและวันสุดท้ายของสัปดาห์ วันคร่อมวันหยุดต่อเนื่อง หรือลาป่วย 3 วันทำงานขึ้นไป ต้องแสดงใบรับรองแพทย์ทุกครั้ง',
-  '2. การลากิจหรือลากิจไม่รับค่าจ้างต้องเขียนใบลาล่วงหน้าไม่น้อยกว่า 1 วัน และได้รับอนุมัติจากผู้บังคับบัญชาก่อนทุกครั้ง',
-  '3. การลาพักร้อนต้องเขียนใบลาล่วงหน้าไม่น้อยกว่า 15 วัน และได้รับอนุมัติจากผู้บังคับบัญชาก่อนทุกครั้ง',
-  '4. ผู้ลาต้องเขียนใบลาตามระเบียบว่าด้วยการลาประเภทต่าง ๆ และเสนอให้ผู้บังคับบัญชาพิจารณาเห็นชอบก่อนส่งให้แผนกบุคคลบันทึกเวลา',
-]
-const formatDate = (value?: string) => value ? new Intl.DateTimeFormat('th-TH', { day:'numeric', month:'short', year:'2-digit' }).format(new Date(`${value}T00:00:00`)) : ''
+const formatDate = (value?: string, locale = 'th-TH') => value ? new Intl.DateTimeFormat(locale, { day:'numeric', month:'short', year:'2-digit' }).format(new Date(`${value}T00:00:00`)) : ''
 const esc = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]!)
 
-export function LeaveLedger({ person, people, entries, onPersonChange }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void }) {
+export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; copy: any }) {
+  const labels: Record<(typeof categories)[number], string> = { personal:c.ledger.personal, sick:c.ledger.sick, vacation:c.ledger.vacation, unpaid:c.leaveTypes.unpaid, other:c.leaveTypes.other }
+  const locale = c.dateLocale
+  const notes: string[] = c.ledger.noteItems
   const rows = useMemo(() => [...entries].sort((a, b) => (a.from ?? '').localeCompare(b.from ?? '')).slice(0, 15), [entries])
   const used = (type: (typeof categories)[number]) => entries.filter((entry) => entry.leaveType === type && entry.status === 'approved').reduce((total, entry) => total + (entry.days ?? 0), 0)
   const printRows = Array.from({ length:15 }, (_, index) => rows[index] ?? null)
@@ -46,8 +40,8 @@ export function LeaveLedger({ person, people, entries, onPersonChange }: { perso
   const exportCsv = () => {
     const quote = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
     const csv = [
-      ['ลำดับ','วันที่ลา','ถึงวันที่','กิจ','ป่วย','พักร้อน','ลากิจไม่รับค่าจ้าง','อื่น ๆ','รวมเวลา','เหตุผลการลา','ผู้ขออนุมัติ','ผู้จัดการแผนก','HR'],
-      ...printRows.map((row, index) => [index + 1, formatDate(row?.from), formatDate(row?.to), ...categories.map((type) => row?.leaveType === type ? row.days ?? '' : ''), row?.days ?? '', row?.reason ?? '', row ? person.name : '', row && row.status !== 'pending_mgr' ? row.rejectedBy === 'manager' ? 'ไม่อนุมัติ' : 'อนุมัติ' : '', row?.status === 'approved' ? 'อนุมัติ' : row?.status === 'pending_hr' ? 'รอพิจารณา' : row?.rejectedBy === 'hr' ? 'ไม่อนุมัติ' : '']),
+      [c.ledger.sequence,c.ledger.dateType,c.ledger.dateType,...categories.map((type) => labels[type]),c.ledger.totalTime,c.ledger.reason,c.ledger.requester,c.ledger.manager,c.detail.hr],
+      ...printRows.map((row, index) => [index + 1, formatDate(row?.from, locale), formatDate(row?.to, locale), ...categories.map((type) => row?.leaveType === type ? row.days ?? '' : ''), row?.days ?? '', row ? c.sampleDocuments[String(row.id)]?.reason ?? row.reason ?? '' : '', row ? person.name : '', row && row.status !== 'pending_mgr' ? row.rejectedBy === 'manager' ? c.statuses.rejected : c.statuses.approved : '', row?.status === 'approved' ? c.statuses.approved : row?.status === 'pending_hr' ? c.statuses.pending : row?.rejectedBy === 'hr' ? c.statuses.rejected : '']),
     ].map((line) => line.map(quote).join(',')).join('\r\n')
     const blob = new Blob(['\ufeff', csv], { type:'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob); const link = document.createElement('a')
@@ -62,30 +56,30 @@ export function LeaveLedger({ person, people, entries, onPersonChange }: { perso
 
   return <div className="leave-ledger-screen">
     <div className="leave-ledger-toolbar">
-      {people.length > 1 && <label>เลือกพนักงาน<select value={person.id} onChange={(event) => onPersonChange(event.target.value)}>{people.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label>}
-      <button type="button" className="leave-export-btn is-excel" onClick={() => { if (window.confirm('ยืนยันส่งออกสมุดบันทึกการลาเป็น Excel หรือไม่?')) exportCsv() }}>ส่งออก Excel</button>
-      <button type="button" className="leave-export-btn is-word" onClick={() => { if (window.confirm('ยืนยันส่งออกสมุดบันทึกการลาเป็น Word หรือไม่?')) exportWord() }}>ส่งออก Word</button>
-      <button type="button" className="leave-export-btn is-pdf" onClick={() => { if (window.confirm('ยืนยันส่งออกสมุดบันทึกการลาเป็น PDF หรือไม่?')) window.print() }}>ส่งออก PDF</button>
-      <button type="button" className="leave-export-btn is-print" onClick={() => window.print()}>พิมพ์</button>
+      {people.length > 1 && <label>{c.ledger.chooseEmployee}<select value={person.id} onChange={(event) => onPersonChange(event.target.value)}>{people.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label>}
+      <button type="button" className="leave-export-btn is-excel" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportCsv() }}>{c.ledger.exportExcel}</button>
+      <button type="button" className="leave-export-btn is-word" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportWord() }}>{c.ledger.word}</button>
+      <button type="button" className="leave-export-btn is-pdf" onClick={() => { if (window.confirm(c.ledger.exportConfirmPdf)) window.print() }}>{c.ledger.pdf}</button>
+      <button type="button" className="leave-export-btn is-print" onClick={() => window.print()}>{c.ledger.print}</button>
     </div>
     <div className="leave-sheet-scroll"><article className="leave-sheet">
-      <h2>บริษัท บอสเวลล์ คอนเนคชั่น กรุ๊ป จำกัด</h2>
+      <h2>{c.ledger.companyName}</h2>
       <div className="leave-sheet-info">
-        <span>ชื่อ - นามสกุล&nbsp; {person.name}</span><span>วันที่เริ่มทำงาน&nbsp; {formatDate(person.startDate)}</span><span>ลาป่วย {person.sick} วัน&nbsp; ลากิจ {person.personal} วัน</span>
-        <span>รหัสประจำตัว&nbsp; {person.code}&nbsp;&nbsp; แผนก {person.department}</span><span>วันที่บรรจุงาน&nbsp; {formatDate(person.appointedDate)}</span><span>วันลาพักร้อนของปี 2569 = {person.vacation} วัน</span>
+        <span>{c.ledger.fullName}&nbsp; {person.name}</span><span>{c.ledger.startDate}&nbsp; {formatDate(person.startDate, locale)}</span><span>{c.ledger.sick} {person.sick} {c.ledger.day}&nbsp; {c.ledger.personal} {person.personal} {c.ledger.day}</span>
+        <span>{c.ledger.employeeCode}&nbsp; {person.code}&nbsp;&nbsp; {c.ledger.department} {person.department}</span><span>{c.ledger.appointedDate}&nbsp; {formatDate(person.appointedDate, locale)}</span><span>{c.ledger.annualVacation} 2569 = {person.vacation} {c.ledger.day}</span>
       </div>
       <table className="leave-sheet-table"><colgroup><col className="c-no"/><col className="c-date"/><col className="c-date"/><col className="c-type"/><col className="c-type"/><col className="c-vacation"/><col className="c-unpaid"/><col className="c-other"/><col className="c-total"/><col/><col className="c-approval"/><col className="c-review"/><col className="c-review"/></colgroup>
-        <thead><tr><th rowSpan={2}>ลำดับ</th><th colSpan={7}>วันที่ / ประเภทการลา</th><th rowSpan={2}>รวมเวลา</th><th rowSpan={2}>เหตุผลการลา</th><th rowSpan={2}>ผู้ขออนุมัติ</th><th colSpan={2}>ผลการพิจารณา</th></tr><tr><th>วันที่ลา</th><th>ถึงวันที่</th>{categories.map((type) => <th key={type}>{labels[type]}</th>)}<th>ผู้จัดการแผนก</th><th>HR</th></tr></thead>
+        <thead><tr><th rowSpan={2}>{c.ledger.sequence}</th><th colSpan={7}>{c.ledger.dateType}</th><th rowSpan={2}>{c.ledger.totalTime}</th><th rowSpan={2}>{c.ledger.reason}</th><th rowSpan={2}>{c.ledger.requester}</th><th colSpan={2}>{c.ledger.reviewResult}</th></tr><tr><th>{c.ledger.leaveDate}</th><th>{c.ledger.endDate}</th>{categories.map((type) => <th key={type}>{labels[type]}</th>)}<th>{c.ledger.manager}</th><th>{c.detail.hr}</th></tr></thead>
         <tbody>{printRows.map((entry, index) => {
-          const managerResult = !entry || entry.status === 'pending_mgr' ? '' : entry.rejectedBy === 'manager' ? 'ไม่อนุมัติ' : 'อนุมัติ'
-          const hrResult = !entry ? '' : entry.status === 'approved' ? 'อนุมัติ' : entry.status === 'pending_hr' ? 'รอพิจารณา' : entry.rejectedBy === 'hr' ? 'ไม่อนุมัติ' : ''
-          return <tr key={entry?.id ?? `empty-${index}`}><td>{index + 1}</td><td>{formatDate(entry?.from)}</td><td>{formatDate(entry?.to)}</td>{categories.map((type) => <td key={type}>{entry?.leaveType === type ? entry.days : ''}</td>)}<td>{entry?.days ?? ''}</td><td className="leave-sheet-reason">{entry?.reason ?? ''}</td>{signatureCell(entry ? person.name : '')}{signatureCell(managerResult)}{signatureCell(hrResult)}</tr>
+          const managerResult = !entry || entry.status === 'pending_mgr' ? '' : entry.rejectedBy === 'manager' ? c.statuses.rejected : c.statuses.approved
+          const hrResult = !entry ? '' : entry.status === 'approved' ? c.statuses.approved : entry.status === 'pending_hr' ? c.statuses.pending : entry.rejectedBy === 'hr' ? c.statuses.rejected : ''
+          return <tr key={entry?.id ?? `empty-${index}`}><td>{index + 1}</td><td>{formatDate(entry?.from, locale)}</td><td>{formatDate(entry?.to, locale)}</td>{categories.map((type) => <td key={type}>{entry?.leaveType === type ? entry.days : ''}</td>)}<td>{entry?.days ?? ''}</td><td className="leave-sheet-reason">{entry ? c.sampleDocuments[String(entry.id)]?.reason ?? entry.reason : ''}</td>{signatureCell(entry ? person.name : '')}{signatureCell(managerResult)}{signatureCell(hrResult)}</tr>
         })}</tbody>
       </table>
       <div className="leave-sheet-footer">
-        <div className="leave-balance-table"><table><thead><tr><th colSpan={3}>วันลาคงเหลือ</th></tr></thead><tbody><tr><td>ลาป่วย</td><td>{person.sick - used('sick')}</td><td>วัน</td></tr><tr><td>ลากิจ</td><td>{person.personal - used('personal')}</td><td>วัน</td></tr><tr><td>ลาพักร้อน</td><td>{person.vacation - used('vacation')}</td><td>วัน</td></tr></tbody></table></div>
-        <div className="leave-notes"><b>หมายเหตุ</b><ol>{notes.map((note) => <li key={note}>{note}</li>)}</ol></div>
-        <strong className="leave-expiry">***สิทธิวันลาสามารถใช้ได้ถึงวันที่ 25 พฤศจิกายน 2569***</strong>
+        <div className="leave-balance-table"><table><thead><tr><th colSpan={3}>{c.ledger.remaining}</th></tr></thead><tbody><tr><td>{c.ledger.sick}</td><td>{person.sick - used('sick')}</td><td>{c.ledger.day}</td></tr><tr><td>{c.ledger.personal}</td><td>{person.personal - used('personal')}</td><td>{c.ledger.day}</td></tr><tr><td>{c.ledger.vacation}</td><td>{person.vacation - used('vacation')}</td><td>{c.ledger.day}</td></tr></tbody></table></div>
+        <div className="leave-notes"><b>{c.ledger.notes}</b><ol>{notes.map((note) => <li key={note}>{note}</li>)}</ol></div>
+        <strong className="leave-expiry">***{c.ledger.expiryNote} {c.ledger.expiryDate}***</strong>
       </div>
     </article></div>
   </div>
