@@ -11,8 +11,8 @@ interface UserPayload extends UserWriteInput {
 
 interface UserChange {
   field: string;
-  from?: string | boolean | null;
-  to?: string | boolean | null;
+  from?: string | number | boolean | null;
+  to?: string | number | boolean | null;
   changed?: true;
 }
 
@@ -23,7 +23,7 @@ function collectChanges(
   if (!current) return [];
 
   const changes: UserChange[] = [];
-  const fields = ["name", "email", "role", "department", "phone", "isActive"] as const;
+  const fields = ["firstName", "lastName", "email", "role", "department", "companyId", "phone", "isActive"] as const;
   for (const field of fields) {
     if (!Object.hasOwn(input, field)) continue;
     const from = field === "isActive" ? Boolean(current[field]) : current[field];
@@ -71,10 +71,18 @@ function validate(input: unknown, { partial = false }: { partial?: boolean } = {
     if (!/^\S+@\S+\.\S+$/.test(output.email))
       throw httpError(400, "Valid email is required");
   }
-  if (!partial || Object.hasOwn(body, "name")) {
-    output.name = typeof body.name === "string" ? body.name.trim() : "";
-    if (!output.name) throw httpError(400, "Name is required");
-    if (output.name.length > 150) throw httpError(400, "Name is too long");
+  for (const field of ["firstName", "lastName"] as const) {
+    if (!partial || Object.hasOwn(body, field)) {
+      const value = typeof body[field] === "string" ? body[field].trim() : "";
+      if (!value) throw httpError(400, `${field} is required`);
+      if (value.length > 150) throw httpError(400, `${field} is too long`);
+      output[field] = value;
+    }
+  }
+  if (!partial || Object.hasOwn(body, "companyId")) {
+    const companyId = Number(body.companyId);
+    if (!Number.isSafeInteger(companyId) || companyId < 1) throw httpError(400, "Valid company is required");
+    output.companyId = companyId;
   }
   if (!partial || Object.hasOwn(body, "role")) {
     const role = typeof body.role === "string" ? body.role.trim() : "";
@@ -138,11 +146,15 @@ export const show: RequestHandler = async (req, res) => {
 
 export const store: RequestHandler = async (req, res) => {
   const input = validate(req.body);
+  if (`${input.firstName} ${input.lastName}`.trim().length > 150) throw httpError(400, "Full name is too long");
   await ensureUniqueEmail(input.email!);
   const data = await users.create({
     ...input,
     email: input.email!,
-    name: input.name!,
+    name: `${input.firstName!} ${input.lastName!}`.trim(),
+    firstName: input.firstName!,
+    lastName: input.lastName!,
+    companyId: input.companyId!,
     role: input.role!,
     department: input.department ?? null,
     phone: input.phone ?? null,
@@ -166,6 +178,10 @@ export const patch: RequestHandler = async (req, res) => {
   const current = await users.findById(id);
   if (!current) throw httpError(404, "User not found");
   const input = validate(req.body, { partial: true });
+  if (input.firstName !== undefined || input.lastName !== undefined) {
+    input.name = `${input.firstName ?? current.firstName} ${input.lastName ?? current.lastName}`.trim();
+    if (input.name.length > 150) throw httpError(400, "Full name is too long");
+  }
   const changes = collectChanges(current, input);
   if (input.email) await ensureUniqueEmail(input.email, id);
   if (input.password) {

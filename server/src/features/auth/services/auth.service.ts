@@ -23,6 +23,7 @@ export interface AuthenticatedUser {
   id: number;
   email: string;
   name: string;
+  company: { id: number; name: string; logoUrl: string | null };
   department: string | null;
   role: {
     id: number;
@@ -102,6 +103,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
       id: user.id,
       email: user.email,
       name: user.name,
+      company: { id: user.companyId, name: user.companyName, logoUrl: user.companyLogoUrl },
       department: user.departmentName,
       role: {
         id: user.roleId,

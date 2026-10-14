@@ -12,6 +12,7 @@ export const viewPermissionByModule: Record<string, string> = {
   departments: "เข้าถึงเมนูแผนก",
   permissions: "เข้าถึงเมนูสิทธิ์",
   modules: "เข้าถึงเมนูโมดูล",
+  companies: "เข้าถึงเมนูบริษัท",
   activity_logs: "เข้าถึงเมนูบันทึกกิจกรรม",
 };
 
@@ -26,6 +27,7 @@ const legacyViewPermissionsByModule: Record<string, string[]> = {
   departments: ["ดูแผนก", "จัดการแผนก"],
   permissions: ["ดูสิทธิ์"],
   modules: ["ดูโมดูล"],
+  companies: ["จัดการบริษัท"],
   activity_logs: ["ดูบันทึกกิจกรรม"],
 };
 

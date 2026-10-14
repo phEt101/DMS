@@ -12,44 +12,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const response = await authService.getCurrentUser()
+      // Keep the existing client-side Survey access adjustment for dev admin accounts.
+      const u = response.data
+      const roleName = String(u.role?.name || '').trim().toLowerCase()
+      const hasSurvey = Array.isArray(u.permissions) && u.permissions.some((p) => p.module === 'survey')
+      if (!hasSurvey && (roleName === 'admin' || roleName === 'manager')) {
+        setUser({ ...u, permissions: [...u.permissions, { id: -999, name: 'เข้าถึงเมนูแบบสำรวจ', module: 'survey', moduleIconName: null, moduleSortOrder: 999 }] })
+      } else {
+        setUser(u)
+      }
+    } catch {
+      setUser(null)
+    }
+  }, [])
+
   useEffect(() => {
-    let isActive = true;
-
-    void authService
-      .getCurrentUser()
-      .then((response) => {
-        if (!isActive) return
-        // Ensure dev/test admin/manager accounts can access the new `survey` feature
-        // by augmenting their permissions client-side if the permission is missing.
-        // This is a minimal, reversible dev-time change and does not modify server roles.
-        const u = response.data
-        try {
-          const roleName = String(u.role?.name || '').trim().toLowerCase()
-          const hasSurvey = Array.isArray(u.permissions) && u.permissions.some((p) => p.module === 'survey')
-          if (!hasSurvey && (roleName === 'admin' || roleName === 'manager')) {
-            const next = { ...u, permissions: [
-              ...u.permissions,
-              { id: -999, name: 'เข้าถึงเมนูแบบสำรวจ', module: 'survey', moduleIconName: null, moduleSortOrder: 999 },
-            ] }
-            setUser(next)
-            return
-          }
-        } catch (e) {
-          // ignore and fallthrough to set original user
-        }
-        if (isActive) setUser(response.data);
-      })
-      .catch(() => {
-        if (isActive) setUser(null);
-      })
-      .finally(() => {
-        if (isActive) setIsLoading(false);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
+    let isActive = true
+    void refreshUser().finally(() => {
+      if (isActive) setIsLoading(false)
+    })
+    return () => { isActive = false }
+  }, [refreshUser])
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     const response = await authService.login(credentials);
@@ -62,8 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isLoading, login, logout }),
-    [user, isLoading, login, logout],
+    () => ({ user, isLoading, login, logout, refreshUser }),
+    [user, isLoading, login, logout, refreshUser],
   );
 
   return (

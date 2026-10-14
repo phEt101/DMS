@@ -9,7 +9,7 @@ import { errorHandler, notFound } from './middleware/errors.js'
 export const app = express()
 app.set('trust proxy', env.trustProxy)
 app.disable('x-powered-by')
-app.use(helmet())
+app.use(helmet({ contentSecurityPolicy: { directives: { imgSrc: ["'self'", 'data:', 'https:'] } } }))
 app.use(cookieParser())
 app.use(express.json({ limit: '1mb' }))
 app.use('/boswell-api/v1', apiRouter)

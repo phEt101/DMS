@@ -26,6 +26,7 @@ export function buildPages(translations: Translations, language: Language, onNav
     'settings-departments': <SettingsAccessPage translations={translations} section="departments" />,
     'settings-permissions': <SettingsAccessPage translations={translations} section="permissions" />,
     'settings-modules': <SettingsAccessPage translations={translations} section="modules" />,
+    'settings-companies': <SettingsAccessPage translations={translations} section="companies" />,
     'settings-activity': <SettingsActivityPage translations={translations} language={language} />,
     documents: <DocumentPage translations={translations} view="all" />,
     'documents-all': <DocumentPage translations={translations} view="all" />,

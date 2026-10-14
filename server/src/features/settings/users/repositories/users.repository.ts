@@ -6,6 +6,11 @@ export interface UserRow extends RowDataPacket {
   id: number;
   email: string;
   name: string;
+  firstName: string;
+  lastName: string;
+  companyId: number;
+  company: string;
+  companyLogoUrl: string | null;
   role: string;
   department: string | null;
   phone: string | null;
@@ -18,15 +23,19 @@ export interface UserWriteInput {
   email?: string;
   passwordHash?: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
+  companyId?: number;
   role?: string;
   department?: string | null;
   phone?: string | null;
   isActive?: boolean;
 }
 
-interface CreateUserInput extends Required<Omit<UserWriteInput, "department" | "phone">> {
+interface CreateUserInput extends Required<Omit<UserWriteInput, "department" | "phone" | "passwordHash">> {
   department: string | null;
   phone: string | null;
+  passwordHash: string;
 }
 
 interface FindUsersOptions {
@@ -37,8 +46,9 @@ interface FindUsersOptions {
 }
 
 const selectFields = `
-  users.id, users.email, users.name, roles.name AS role,
-  departments.name AS department, users.phone,
+  users.id, users.email, users.name, users.first_name AS firstName, users.last_name AS lastName,
+  users.company_id AS companyId, companies.name AS company, companies.logo_url AS companyLogoUrl,
+  roles.name AS role, departments.name AS department, users.phone,
   users.is_active AS isActive,
   users.created_at AS createdAt, users.updated_at AS updatedAt
 `;
@@ -47,6 +57,7 @@ const joins = `
   FROM users
   INNER JOIN roles ON roles.id = users.role_id
   LEFT JOIN departments ON departments.id = users.department_id
+  INNER JOIN companies ON companies.id = users.company_id
 `;
 
 async function resolveRoleId(name: string) {
@@ -68,6 +79,14 @@ async function resolveDepartmentId(name: string | null) {
   return rows[0].id;
 }
 
+async function resolveCompanyId(id: number) {
+  const [rows] = await db.execute<(RowDataPacket & { id: number })[]>(
+    'SELECT id FROM companies WHERE id = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1', [id],
+  )
+  if (!rows[0]) throw httpError(400, 'Invalid company')
+  return rows[0].id
+}
+
 export async function findAll({
   search = "",
   status = "all",
@@ -77,8 +96,8 @@ export async function findAll({
   const conditions = ["users.deleted_at IS NULL"];
   const values: Array<string | number> = [];
   if (search) {
-    conditions.push("(users.email LIKE ? OR users.name LIKE ? OR departments.name LIKE ?)");
-    values.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    conditions.push("(users.email LIKE ? OR users.name LIKE ? OR departments.name LIKE ? OR companies.name LIKE ?)");
+    values.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
   if (status === "active") conditions.push("users.is_active = 1");
   if (status === "inactive") conditions.push("users.is_active = 0");
@@ -118,6 +137,9 @@ export async function create({
   email,
   passwordHash,
   name,
+  firstName,
+  lastName,
+  companyId,
   role,
   department,
   phone,
@@ -125,9 +147,10 @@ export async function create({
 }: CreateUserInput) {
   const roleId = await resolveRoleId(role);
   const departmentId = await resolveDepartmentId(department);
+  const resolvedCompanyId = await resolveCompanyId(companyId);
   const [result] = await db.execute<ResultSetHeader>(
-    "INSERT INTO users (email, password_hash, name, role_id, department_id, phone, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [email, passwordHash, name, roleId, departmentId, phone, isActive],
+    "INSERT INTO users (email, password_hash, name, first_name, last_name, role_id, department_id, company_id, phone, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [email, passwordHash, name, firstName, lastName, roleId, departmentId, resolvedCompanyId, phone, isActive],
   );
   return findById(result.insertId);
 }
@@ -142,14 +165,18 @@ export async function update(id: number | string, input: UserWriteInput) {
     normalized.departmentId = await resolveDepartmentId(input.department);
     delete normalized.department;
   }
+  if (input.companyId !== undefined) normalized.companyId = await resolveCompanyId(input.companyId)
   const fields = [];
   const values: Array<string | number | boolean | null> = [];
   const columns = {
     email: "email",
     passwordHash: "password_hash",
     name: "name",
+    firstName: "first_name",
+    lastName: "last_name",
     roleId: "role_id",
     departmentId: "department_id",
+    companyId: "company_id",
     phone: "phone",
     isActive: "is_active",
   };

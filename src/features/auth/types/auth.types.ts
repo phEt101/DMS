@@ -7,6 +7,7 @@ export interface AuthUser {
   id: number;
   email: string;
   name: string;
+  company?: { id: number; name: string; logoUrl: string | null };
   department?: string | null;
   role: {
     id: number;
@@ -35,4 +36,5 @@ export interface AuthContextValue {
   isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }

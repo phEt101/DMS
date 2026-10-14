@@ -186,6 +186,8 @@
   color: #182033;
   font-weight: 700;
 }
+.company-logo-preview { display:block; width:44px; height:44px; border:1px solid var(--line); border-radius:10px; object-fit:contain; background:#fff; }
+.company-logo-preview--large { width:88px; height:88px; margin:0 auto; }
 .user-identity {
   display: flex;
   align-items: center;

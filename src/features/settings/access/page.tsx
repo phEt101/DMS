@@ -3,8 +3,9 @@ import { DepartmentsSection } from './departments/components/departments-section
 import { ModulesSection } from './modules/components/modules-section'
 import { PermissionsSection } from './permissions/components/permissions-section'
 import { RolesSection } from './roles/components/roles-section'
+import { CompaniesSection } from './companies/components/companies-section'
 
-export type AccessSection = 'roles' | 'departments' | 'permissions' | 'modules'
+export type AccessSection = 'roles' | 'departments' | 'permissions' | 'modules' | 'companies'
 
 export default function SettingsAccessPage({ translations, section }: { translations: Translations; section: AccessSection }) {
   const settingsTranslations = translations.features.settingsUser
@@ -20,6 +21,7 @@ export default function SettingsAccessPage({ translations, section }: { translat
       {section === 'departments' && <DepartmentsSection translations={translations} />}
       {section === 'permissions' && <PermissionsSection translations={translations} />}
       {section === 'modules' && <ModulesSection translations={translations} />}
+      {section === 'companies' && <CompaniesSection translations={translations} />}
     </section>
   )
 }

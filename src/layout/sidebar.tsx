@@ -53,6 +53,7 @@ type SidebarItem =
   | "settings-departments"
   | "settings-permissions"
   | "settings-modules"
+  | "settings-companies"
   | "settings-activity";
 
 const sidebarModuleKeys = new Set<SidebarItem>([
@@ -60,6 +61,7 @@ const sidebarModuleKeys = new Set<SidebarItem>([
   "settings-departments",
   "settings-permissions",
   "settings-modules",
+  "settings-companies",
 ]);
 
 
@@ -86,6 +88,7 @@ export default function Sidebar({
   const [accessOpen, setAccessOpen] = useState(true);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const sidebarTranslations = translations.sidebar;
+  const companyName = user?.company?.name || "Boswell";
   const [documentsOpen, setDocumentsOpen] = useState(true);
   const [collapsedFlyout, setCollapsedFlyout] = useState<"projects" | "documents" | "settings" | null>(null);
   const [flyoutTop, setFlyoutTop] = useState(8);
@@ -169,6 +172,12 @@ export default function Sidebar({
     ["dashboard", "projects", "documents", "report", "trash"].includes(item.key),
   );
   const accessItems = moduleItems.filter((item) => sidebarModuleKeys.has(item.key));
+  const companiesIndex = accessItems.findIndex((item) => item.key === "settings-companies");
+  const modulesIndex = accessItems.findIndex((item) => item.key === "settings-modules");
+  if (companiesIndex !== -1 && modulesIndex !== -1 && companiesIndex !== modulesIndex + 1) {
+    const [companiesItem] = accessItems.splice(companiesIndex, 1);
+    accessItems.splice(accessItems.findIndex((item) => item.key === "settings-modules") + 1, 0, companiesItem);
+  }
   const canViewUsers = Boolean(user && canViewModule(user, "users"));
   const canViewActivity = Boolean(user && canViewModule(user, "activity_logs"));
   const hasSettingsItems = canViewUsers || accessItems.length > 0 || canViewActivity;
@@ -190,14 +199,12 @@ export default function Sidebar({
             type="button"
             className="sidebar-brand"
             onClick={() => onNavigate?.("dashboard")}
-            title={collapsed ? "Boswell" : undefined}
-            aria-label="Boswell - Dashboard"
+            title={collapsed ? companyName : undefined}
+            aria-label={`${companyName} - Dashboard`}
           >
-            <span className="brand-mark boswell-logo-mark">
-              <span />
-            </span>
+            {user?.company?.logoUrl ? <img className="brand-company-logo" src={user.company.logoUrl} alt="" /> : <span className="brand-mark boswell-logo-mark"><span /></span>}
             <span className="brand-copy">
-              <strong>Boswell</strong>
+              <strong>{companyName}</strong>
               <small>{sidebarTranslations.brand}</small>
             </span>
           </button>

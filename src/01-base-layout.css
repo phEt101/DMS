@@ -99,6 +99,8 @@ a {
   height: 30px;
   flex-basis: 30px;
 }
+.brand-company-logo { width:34px; height:34px; flex:0 0 34px; border-radius:10px; object-fit:contain; background:#fff; box-shadow:0 5px 12px rgba(101,87,232,.18); }
+.sidebar .brand-company-logo { width:30px; height:30px; flex-basis:30px; }
 .brand-mark {
   position: relative;
   width: 34px;
@@ -137,6 +139,10 @@ a {
   transition: opacity 0.15s;
 }
 .brand-copy strong {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 15px;
   letter-spacing: -0.2px;
 }
