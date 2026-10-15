@@ -15,6 +15,6 @@ type Props = {
 export default function DocPendingApproval({ documents, mockRole, kindInfo, statusInfo, dateText, onSelect, onCancel, copy }: Props) {
   return <>
     <div className="documents-tools"><span className="documents-stat"><FaFileLines /> {documents.length} {copy.messages.mockPendingCount}</span></div>
-    <DocAllDocumentsList documents={documents} layout="grid" mockRole={mockRole} kindInfo={kindInfo} statusInfo={statusInfo} dateText={dateText} onSelect={onSelect} onCancel={onCancel} copy={copy} />
+    <DocAllDocumentsList documents={documents} layout="grid" canCancel={false} kindInfo={kindInfo} statusInfo={statusInfo} dateText={dateText} onSelect={onSelect} onCancel={onCancel} copy={copy} />
   </>
 }

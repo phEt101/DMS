@@ -13,6 +13,6 @@
     "noImplicitOverride": true,
     "sourceMap": true
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", "database/seeders/**/*.ts"],
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "database/seeders/**/*.ts", "src/features/employee requests/services/employee-requests.validation.ts"],
   "exclude": ["dist", "node_modules"]
 }

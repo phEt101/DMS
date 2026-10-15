@@ -77,6 +77,7 @@
 .documents-balances span { padding:9px 12px; border-radius:12px; background:#f7f9fc; color:#6a7592; font-size:13px; }
 .documents-balances b { margin-left:5px; color:#283451; }
 .documents-modal-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:16px; background:#10162980; }
+.documents-modal-backdrop:has(> .documents-signature-modal) { z-index:1100; }
 .documents-modal { display:grid; gap:17px; width:min(680px,100%); max-height:min(780px,calc(100dvh - 32px)); overflow:auto; padding:23px; border:1px solid #e3e8f2; border-radius:24px; background:#fff; color:#1c2540; box-shadow:0 24px 70px #1016294d; }
 .documents-modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .documents-modal-head h2 { font-size:23px; font-weight:800; }

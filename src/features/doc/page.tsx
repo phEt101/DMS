@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as PointerEventType } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as PointerEventType } from 'react'
 import { FaCalendarDays, FaClock, FaFileLines, FaHouse, FaLocationDot, FaRotate, FaPlus, FaXmark } from 'react-icons/fa6'
 import type { Translations } from '../../locales'
 import { LeaveLedger, type LedgerEntry } from './leave-ledger'
@@ -15,6 +15,14 @@ import DocPendingApproval from './pending-approval/components/doc-pending-approv
 import type { DocKind, FormValues, MockDocument, MockEmployee, MockNotification, MockPolicy, SignatureStage, Status } from './document-types'
 import { listUsers, type User } from '../settings/users/services/users.service'
 import { useAuth } from '../auth/hooks/use-auth'
+import {
+  ApiError, approveRequest, cancelRequest, createRequest, getMySignature, getPolicy, getRequest,
+  listNotifications, listPeople, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, toFormChecks, validateRequestDryRun,
+} from './services/employee-requests.service'
+
+// true = ใช้ข้อมูลจริงจาก /api/employee-requests (all, pending, ส่งเอกสาร, เซ็น/ไม่อนุมัติ, ยกเลิก, นโยบาย)
+// false = กลับไปใช้ mock + localStorage เหมือนเดิม
+const USE_DB = true
 
 type View = 'all' | 'pending' | 'ledger' | 'employees' | 'policy' | 'notifications'
 type FormCheck = { ok: boolean; message: string }
@@ -47,6 +55,8 @@ const daysBetween = (from: string, to: string) => {
   return count
 }
 const timeMinutes = (value: string) => { const [hour, minute] = value.split(':').map(Number); return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : -1 }
+
+// ใช้เฉพาะโหมด mock (USE_DB = false) — โหมด DB ใช้ผลตรวจจาก server (/validate)
 const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocument[], employee: MockEmployee, policy: MockPolicy, copy: any): FormCheck[] => {
   const checks: FormCheck[] = []
   const add = (ok: boolean, message: string) => checks.push({ ok, message })
@@ -109,12 +119,7 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
   if (kind === 'swap') { add(Boolean(v('offDate') && v('offDate') >= todayIso), msg('offDateFuture')); add(Boolean(v('workDate') && v('workDate') !== v('offDate')), msg('differentWorkDate')); add(Boolean(v('reason')), msg('reasonRequired')) }
   return checks
 }
-const STATUS_INFO: Record<Status, { label: string; className: string }> = {
-  pending_mgr: { label: 'รอผู้จัดการ', className: 'pending' },
-  pending_hr: { label: 'รอ HR', className: 'pending' },
-  approved: { label: 'อนุมัติแล้ว', className: 'approved' },
-  rejected: { label: 'ไม่อนุมัติ', className: 'rejected' },
-}
+
 const INITIAL_DOCS: MockDocument[] = [
   { id: 1, no: 'LV-2569-0012', kind: 'leave', title: 'ลากิจ · 1 วัน', summary: '30 ต.ค. 2569 · ธุระส่วนตัว', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-10-10', status: 'pending_hr', leaveType:'personal', from:'2026-10-30', to:'2026-10-30', days:1, reason:'ธุระส่วนตัว' },
   { id: 2, no: 'LV-2569-0011', kind: 'leave', title: 'ลาพักร้อน · 3 วัน', summary: '18–20 พ.ย. 2569 · พักผ่อนปลายปี', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr', leaveType:'vacation', from:'2026-11-18', to:'2026-11-20', days:3, reason:'พักผ่อนปลายปี' },
@@ -138,39 +143,29 @@ const INITIAL_NOTIFICATIONS: MockNotification[] = [
   { id:2, title:'ใบลาของสมชาย ใจดี รอ HR ตรวจ', body:'ลากิจ 30 ต.ค. 2569 · 1 วัน', date:'2026-10-12T10:00:00+07:00', read:false, documentId:1 },
   { id:3, title:'ผู้จัดการอนุมัติใบลาของคุณแล้ว', body:'เอกสารส่งต่อให้ HR ตรวจแล้ว', date:'2026-10-11T15:00:00+07:00', read:true, documentId:1 },
 ]
-const COMPANY_NAME = 'บริษัท บอสเวลล์ คอนเนคชั่น กรุ๊ป จำกัด'
-const LEAVE_EXPIRY = '25 พฤศจิกายน 2569'
-const LEAVE_NOTES = [
-  '1. การลาป่วยต้องเขียนใบลาทันทีที่กลับมาทำงาน ลาป่วยวันแรกและวันสุดท้ายของสัปดาห์ วันคร่อมวันหยุดต่อเนื่อง หรือลาป่วย 3 วันทำงานขึ้นไป ต้องแสดงใบรับรองแพทย์ทุกครั้ง',
-  '2. การลากิจหรือลากิจไม่รับค่าจ้างต้องเขียนใบลาล่วงหน้าไม่น้อยกว่า 1 วัน และได้รับอนุมัติจากผู้บังคับบัญชาก่อนทุกครั้ง',
-  '3. การลาพักร้อนต้องเขียนใบลาล่วงหน้าไม่น้อยกว่า 15 วัน และได้รับอนุมัติจากผู้บังคับบัญชาก่อนทุกครั้ง',
-  '4. ผู้ลาต้องเขียนใบลาตามระเบียบว่าด้วยการลาประเภทต่าง ๆ และเสนอให้ผู้บังคับบัญชาพิจารณาเห็นชอบก่อนส่งให้แผนกบุคคลบันทึกเวลา',
-]
 const MOCK_STORAGE_KEY = 'boswell-leave-v2-mock'
 type MockSnapshot = { policy: MockPolicy; documents: MockDocument[]; employees: MockEmployee[]; notifications: MockNotification[]; mockRole: MockEmployee['role']; emailEnabled: boolean; ledgerEmployeeId: string; savedSignature?: string }
 function readMockSnapshot(): Partial<MockSnapshot> {
+  if (USE_DB) return {}
   try { return JSON.parse(localStorage.getItem(MOCK_STORAGE_KEY) ?? '{}') as Partial<MockSnapshot> } catch { return {} }
 }
 
-const dateText = (value: string) => new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${value}T00:00:00`))
-
-function DetailField({ label, value, full = false }: { label: string; value?: string | number; full?: boolean }) {
-  if (value === undefined || value === '') return null
-  return <div className={`dms-form-field documents-readonly-field${full ? ' dms-form-field--full' : ''}`}><span className="dms-form-label">{label}</span><div className="documents-readonly-value">{value}</div></div>
-}
-
 export default function DocumentPage({ translations, view = 'all' }: { translations: Translations; view?: View }) {
-  const copy: any = translations.features.documentManagement
+  const rawCopy: any = translations.features.documentManagement
+  // โหมด DB: ตัดข้อความตัวอย่างของ mock ออก เพราะ id จริงจะชนกับ id ของตัวอย่าง
+  const copy: any = useMemo(() => USE_DB ? { ...rawCopy, sampleDocuments: {}, sampleNotifications: {} } : rawCopy, [rawCopy])
   const { user } = useAuth()
   const dateText = (value: string) => new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${value}T00:00:00`))
   const KIND_INFO = Object.fromEntries(Object.entries(KIND_INFO_DEFAULT).map(([key, info]) => [key, { ...info, title: copy.kinds[key as DocKind], description: copy.kindDescriptions[key as DocKind] }])) as typeof KIND_INFO_DEFAULT
   const LEAVE_TYPES = copy.leaveTypes
   const FORM_FIELDS = Object.fromEntries(Object.entries(FORM_FIELDS_DEFAULT).map(([kind, fields]) => [kind, fields.map((field) => ({ ...field, label: copy.fieldLabels[field.key as keyof typeof copy.fieldLabels] ?? field.label, ...(field.key === 'leaveType' ? { options: LEAVE_TYPES } : field.options ? { options: Object.fromEntries(Object.entries(field.options).map(([key]) => [key, copy.fieldOptions[key as keyof typeof copy.fieldOptions] ?? key])) } : {}) }))])) as typeof FORM_FIELDS_DEFAULT
   const STATUS_INFO = { pending_mgr: { label: copy.statuses.pending_mgr, className: 'pending' }, pending_hr: { label: copy.statuses.pending_hr, className: 'pending' }, approved: { label: copy.statuses.approved, className: 'approved' }, rejected: { label: copy.statuses.rejected, className: 'rejected' } }
+
   const [policy, setPolicy] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
   const [policyDraft, setPolicyDraft] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
-  const [documents, setDocuments] = useState(() => readMockSnapshot().documents ?? INITIAL_DOCS)
+  const [documents, setDocuments] = useState<MockDocument[]>(() => USE_DB ? [] : (readMockSnapshot().documents ?? INITIAL_DOCS))
   const [employees, setEmployees] = useState(() => readMockSnapshot().employees ?? INITIAL_EMPLOYEES)
+  const [dbPeople, setDbPeople] = useState<import('./services/employee-requests.service').ApiPerson[]>([])
   const [notifications, setNotifications] = useState(() => readMockSnapshot().notifications ?? INITIAL_NOTIFICATIONS)
   const [mockRole, setMockRole] = useState<MockEmployee['role']>(() => readMockSnapshot().mockRole ?? 'พนักงาน')
   const [ledgerEmployeeId, setLedgerEmployeeId] = useState(() => readMockSnapshot().ledgerEmployeeId ?? 'e1')
@@ -200,19 +195,97 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const [formValues, setFormValues] = useState<FormValues>({})
   const [pendingSubmission, setPendingSubmission] = useState<{ kind: DocKind; values: FormValues } | null>(null)
   const [toast, setToast] = useState('')
+  const [docsLoading, setDocsLoading] = useState(false)
+  const [docsError, setDocsError] = useState('')
+  const [detail, setDetail] = useState<{ doc: MockDocument; canApprove: boolean; canCancel: boolean } | null>(null)
+  const [serverChecks, setServerChecks] = useState<FormCheck[]>([])
 
+  const showToast = useCallback((message: string) => {
+    setToast(message)
+    window.setTimeout(() => setToast(''), 3200)
+  }, [])
+  const mapperText = useMemo(() => ({ locale: copy.dateLocale, kinds: copy.kinds, leaveTypes: copy.leaveTypes, day: copy.ledger.day, hour: copy.ledger.hour }), [copy])
+  const errorText = useCallback((error: unknown) => error instanceof ApiError && error.errors?.length
+    ? toFormChecks(error.errors.map((item) => ({ ok: false, ...item })), copy).map((item) => item.message).join(' / ')
+    : error instanceof Error ? error.message : 'Error', [copy])
+
+  // เก็บ mock ลง localStorage เฉพาะโหมด mock
   useEffect(() => {
+    if (USE_DB) return
     const snapshot: MockSnapshot = { policy, documents, employees, notifications, mockRole, emailEnabled, ledgerEmployeeId, savedSignature }
     try { localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(snapshot)) } catch (error) { console.warn('Could not save mock leave data', error) }
   }, [policy, documents, employees, notifications, mockRole, emailEnabled, ledgerEmployeeId, savedSignature])
 
-  const selectedDocument = documents.find((doc) => doc.id === selectedDocumentId) ?? null
-  const signingDocument = documents.find((doc) => doc.id === signingDocumentId) ?? null
+  const selectedDocument = USE_DB ? detail?.doc ?? null : documents.find((doc) => doc.id === selectedDocumentId) ?? null
+  // โหมด DB: dialog ลายเซ็นเปิดเฉพาะเมื่อผู้ใช้กดปุ่มเซ็นเอง (signingDocumentId ตั้งเอง) ไม่ fallback ไป detail — ไม่งั้น dialog จะเด้งทับ popup รายละเอียด
+  const signingDocument = signingDocumentId === null ? null : documents.find((doc) => doc.id === signingDocumentId) ?? detail?.doc ?? null
   const detailValues = selectedDocument?.formData ?? {}
   const currentSubmitter = mockRole === 'พนักงาน' ? employees[0] : mockRole === 'ผู้จัดการแผนก' ? employees[1] : employees[3]
-  const formChecks = selectedKind ? validateSubmission(selectedKind, { ...formValues }, documents, currentSubmitter, policy, copy) : []
-  const canSignAsSubmitter = (doc: MockDocument) => mockRole === 'พนักงาน' && doc.employee === 'สมชาย ใจดี' && doc.status.startsWith('pending') && !doc.signatures?.['ผู้ยื่น']
+  const currentSubmitterName = USE_DB ? ((user as unknown as { name?: string } | null)?.name ?? '') : currentSubmitter.name
+  const canCancel = mockRole === 'พนักงาน'
+  const formChecks = USE_DB ? serverChecks : selectedKind ? validateSubmission(selectedKind, { ...formValues }, documents, currentSubmitter, policy, copy) : []
+  // โหมด DB: ผู้ยื่นเซ็นตอนส่งเอกสารแล้ว จึงไม่มีขั้น "เซ็นภายหลัง"
+  const canSignAsSubmitter = (doc: MockDocument) => !USE_DB && mockRole === 'พนักงาน' && doc.employee === 'สมชาย ใจดี' && doc.status.startsWith('pending') && !doc.signatures?.['ผู้ยื่น']
+  // โหมด DB: ถ้าอยู่ในหน้ารายละเอียด ให้ปุ่มเซ็นเปิด dialog ทับ popup รายละเอียดได้ตั้งใจ — แต่ต้องตั้ง signingDocumentId เองเท่านั้น
   const signatureStage = (doc: MockDocument): SignatureStage => canSignAsSubmitter(doc) ? 'ผู้ยื่น' : doc.status === 'pending_mgr' ? 'ผู้จัดการแผนก' : 'HR'
+
+  // ---------- โหลดข้อมูลจาก API ----------
+  const reload = useCallback(async () => {
+    if (!USE_DB) return
+    setDocsLoading(true); setDocsError('')
+    try {
+      const rows = await listRequests(view === 'pending' ? { awaiting: 'me' } : {})
+      setDocuments(rows.filter((row) => row.status !== 'cancelled').map((row) => mapListRow(row, mapperText)))
+    } catch (error) { setDocsError(errorText(error)) } finally { setDocsLoading(false) }
+  }, [view, mapperText, errorText])
+
+  useEffect(() => { if (USE_DB && ['all', 'pending', 'ledger'].includes(view)) void reload() }, [view, reload])
+
+  // โหมด DB: แจ้งเตือนจากตาราง employee_request_notifications
+  const reloadNotifications = useCallback(async () => {
+    if (!USE_DB) return
+    try {
+      const rows = await listNotifications()
+      setNotifications(rows.map((row) => ({
+        id: row.notificationId,
+        title: `${row.employeeName} · ${mapperText.kinds[row.kind] ?? row.requestNo}`,
+        body: [row.reason ?? row.otTask ?? row.place ?? '', row.status].filter(Boolean).join(' · '),
+        date: row.createdAt,
+        read: row.isRead,
+        documentId: row.id,
+        event: row.event,
+      })))
+    } catch { /* เงียบไว้ — หน้าแจ้งเตือนใช้รายการว่าง */ }
+  }, [mapperText])
+  useEffect(() => { if (USE_DB && view === 'notifications') void reloadNotifications() }, [view, reloadNotifications])
+
+  // นโยบาย + ลายเซ็นที่จดจำไว้ + รายชื่อพนักงาน (ledger)
+  useEffect(() => {
+    if (!USE_DB) return
+    getPolicy().then((p) => { const next: MockPolicy = { ...INITIAL_POLICY, ...p, expiry: p.expiryDate }; setPolicy(next); setPolicyDraft(next) }).catch(() => {})
+    getMySignature().then((r) => setSavedSignature(r.signature)).catch(() => {})
+    listPeople().then((rows) => setDbPeople(rows)).catch(() => {})
+  }, [])
+
+  // รายละเอียดเอกสาร (ลายเซ็น, formData, canApprove/canCancel จาก server)
+  useEffect(() => {
+    if (!USE_DB) return
+    if (selectedDocumentId === null) { setDetail(null); return }
+    let cancelled = false
+    getRequest(selectedDocumentId)
+      .then((row) => { if (!cancelled) setDetail({ doc: mapDetail(row, mapperText), canApprove: row.canApprove, canCancel: row.canCancel }) })
+      .catch((error) => { if (!cancelled) { showToast(errorText(error)); setSelectedDocumentId(null) } })
+    return () => { cancelled = true }
+  }, [selectedDocumentId, mapperText, errorText, showToast])
+
+  // เช็คลิสต์ในฟอร์มจาก server (debounce 300ms)
+  useEffect(() => {
+    if (!USE_DB || !selectedKind) { setServerChecks([]); return }
+    const timer = window.setTimeout(() => {
+      validateRequestDryRun(selectedKind, formValues).then((r) => setServerChecks(toFormChecks(r.checks, copy))).catch(() => {})
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [selectedKind, formValues, copy])
 
   useEffect(() => {
     const canvas = signatureCanvas.current
@@ -231,26 +304,36 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   }, [signingDocumentId, pendingSubmission, savedSignature])
 
   const pageTitle = view === 'pending' ? copy.pendingTitle : view === 'ledger' ? copy.ledgerTitle : view === 'employees' ? copy.employeesTitle : view === 'policy' ? copy.policyTitle : view === 'notifications' ? copy.notificationsTitle : copy.allTitle
-  const canReviewAsHr = view === 'pending' || mockRole === 'HR'
   const visibleDocs = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('th')
     return documents.filter((doc) => {
-      const roleMatches = view === 'pending' || mockRole === 'HR'
+      // โหมด DB: server กรองสิทธิ์การมองเห็นและกรองหน้า pending (awaiting=me) ให้แล้ว
+      const roleMatches = USE_DB || view === 'pending' || mockRole === 'HR'
         || (mockRole === 'พนักงาน' && doc.employee === 'สมชาย ใจดี')
         || (mockRole === 'ผู้จัดการแผนก' && doc.department === 'การตลาด')
-      const statusMatches = view === 'pending' ? doc.status === 'pending_hr' && doc.employee !== 'ศิริพร แก้วมณี' : statusFilter === 'all' || (statusFilter === 'pending' ? doc.status.startsWith('pending') : doc.status === statusFilter)
+      const statusMatches = USE_DB && view === 'pending'
+        ? true
+        : view === 'pending' ? doc.status === 'pending_hr' && doc.employee !== 'ศิริพร แก้วมณี' : statusFilter === 'all' || (statusFilter === 'pending' ? doc.status.startsWith('pending') : doc.status === statusFilter)
       const group = KIND_INFO[doc.kind].group
       const kindMatches = kindFilter === 'all' || group === kindFilter || doc.kind === kindFilter
       const searchMatches = !query || [doc.no, doc.title, doc.summary, doc.employee, doc.department].some((field) => field.toLocaleLowerCase('th').includes(query))
       return roleMatches && statusMatches && kindMatches && searchMatches
     })
-  }, [documents, kindFilter, mockRole, search, statusFilter, view])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documents, kindFilter, mockRole, search, statusFilter, view, copy])
 
-  const availableLedgerEmployees = mockRole === 'HR' ? employees : mockRole === 'ผู้จัดการแผนก' ? employees.filter((employee) => employee.id === 'e2' || employee.manager === 'นภา วงศ์สุข') : employees.filter((employee) => employee.id === 'e1')
+  const availableLedgerEmployees = USE_DB
+    ? dbPeople.map((person) => ({
+        id: String(person.id), name: person.name, code: person.employeeCode ?? '', department: person.departmentName ?? '',
+        sick: person.sick, personal: person.personal, vacation: person.vacation, other: person.other, active: person.isActive,
+        role: 'พนักงาน' as const, manager: person.managerName ?? '', position: person.position ?? '', email: person.email, emailNotify: Boolean(person.emailNotificationsEnabled),
+        startDate: person.startDate ?? '', appointedDate: person.appointedDate ?? '',
+      }))
+    : mockRole === 'HR' ? employees : mockRole === 'ผู้จัดการแผนก' ? employees.filter((employee) => employee.id === 'e2' || employee.manager === 'นภา วงศ์สุข') : employees.filter((employee) => employee.id === 'e1')
   const ledgerEmployee = availableLedgerEmployees.find((employee) => employee.id === ledgerEmployeeId) ?? availableLedgerEmployees[0] ?? employees[0]
-  const ledgerRows = documents.filter((doc) => doc.employee === ledgerEmployee.name && doc.kind === 'leave').sort((left, right) => (left.from ?? '').localeCompare(right.from ?? ''))
-  const leaveUsed = (type: NonNullable<MockDocument['leaveType']>) => ledgerRows.filter((doc) => doc.leaveType === type && doc.status === 'approved').reduce((sum, doc) => sum + (doc.days ?? 0), 0)
+  const ledgerRows = documents.filter((doc) => doc.kind === 'leave' && (!USE_DB || doc.employee === ledgerEmployee.name)).sort((left, right) => (left.from ?? '').localeCompare(right.from ?? ''))
   const ledgerDisplayRows = Array.from({ length:15 }, (_, index) => ledgerRows[index] ?? null)
+
   useEffect(() => {
     if (view !== 'employees') return
     let cancelled = false
@@ -278,9 +361,13 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const submitMock = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!selectedKind) return
-    const submitter = mockRole === 'พนักงาน' ? employees[0] : mockRole === 'ผู้จัดการแผนก' ? employees[1] : employees[3]
-    const checks = validateSubmission(selectedKind, { ...formValues }, documents, submitter, policy, copy)
-    if (checks.some((check) => !check.ok)) return
+    if (USE_DB) {
+      if (serverChecks.length === 0 || serverChecks.some((check) => !check.ok)) return
+    } else {
+      const submitter = mockRole === 'พนักงาน' ? employees[0] : mockRole === 'ผู้จัดการแผนก' ? employees[1] : employees[3]
+      const checks = validateSubmission(selectedKind, { ...formValues }, documents, submitter, policy, copy)
+      if (checks.some((check) => !check.ok)) return
+    }
     setPendingSubmission({ kind:selectedKind, values:{ ...formValues } })
     setFormOpen(false)
     setSignatureHasInk(false)
@@ -319,8 +406,26 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     const stage: SignatureStage = doc.status === 'pending_mgr' ? 'ผู้จัดการแผนก' : 'HR'
     const reviewer = stage === 'HR' ? employees.find((employee) => employee.role === 'HR') : employees.find((employee) => employee.role === mockRole)
     setDocuments((current) => current.map((item) => item.id === doc.id ? { ...item, status:nextStatus, ...(reject ? { note, rejectedBy:stage === 'ผู้จัดการแผนก' ? 'manager' as const : 'hr' as const } : {}), ...(signature ? { signatures: { ...item.signatures, [stage]: { image:signature, name:reviewer?.name ?? mockRole, date:new Date().toISOString().slice(0,10) } } } : {}) } : item))
-    setToast(reject ? copy.messages.rejectedToast : doc.status === 'pending_mgr' ? copy.messages.forwardedToast : copy.messages.approvedToast)
-    window.setTimeout(() => setToast(''), 3200)
+    showToast(reject ? copy.messages.rejectedToast : doc.status === 'pending_mgr' ? copy.messages.forwardedToast : copy.messages.approvedToast)
+  }
+
+  // ---------- โหมด DB: ไม่อนุมัติ / ยกเลิก ----------
+  const dbReject = async (doc: MockDocument) => {
+    const note = window.prompt(copy.messages.rejectPrompt)?.trim()
+    if (!note) return
+    try {
+      await rejectRequest(doc.id, note)
+      setSelectedDocumentId(null)
+      showToast(copy.messages.rejectedToast)
+      await reload()
+    } catch (error) { showToast(errorText(error)) }
+  }
+  const dbCancel = async (id: number) => {
+    try {
+      await cancelRequest(id)
+      setSelectedDocumentId(null)
+      await reload()
+    } catch (error) { showToast(errorText(error)) }
   }
 
   const signaturePoint = (event: PointerEventType<HTMLCanvasElement>) => {
@@ -351,10 +456,28 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
     setSignatureHasInk(false)
   }
-  const confirmSignature = () => {
+  const confirmSignature = async () => {
     if (!signatureHasInk || (!signingDocument && !pendingSubmission)) return
     const image = signatureCanvas.current?.toDataURL('image/png')
     if (!image) return
+
+    if (USE_DB) {
+      try {
+        if (pendingSubmission) {
+          await createRequest({ kind: pendingSubmission.kind, values: pendingSubmission.values, signature: image, rememberSignature })
+          setPendingSubmission(null); setSelectedKind(''); setFormValues({})
+          showToast(copy.messages.submittedToast)
+        } else if (signingDocument) {
+          const result = await approveRequest(signingDocument.id, { signature: image, rememberSignature })
+          setSigningDocumentId(null); setSelectedDocumentId(null)
+          showToast(result.status === 'pending_hr' ? copy.messages.forwardedToast : copy.messages.approvedToast)
+        }
+        if (rememberSignature) setSavedSignature(image)
+        await reload()
+      } catch (error) { showToast(errorText(error)) }
+      return
+    }
+
     if (pendingSubmission) {
       const { kind, values } = pendingSubmission
       const submitter = mockRole === 'พนักงาน' ? employees[0] : mockRole === 'ผู้จัดการแผนก' ? employees[1] : employees[3]
@@ -368,14 +491,13 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       setDocuments((current) => [doc, ...current])
       if (rememberSignature) setSavedSignature(image)
       setPendingSubmission(null); setSelectedKind(''); setFormValues({})
-      setToast(copy.messages.submittedToast)
-      window.setTimeout(() => setToast(''), 3200)
+      showToast(copy.messages.submittedToast)
       return
     }
     if (!signingDocument) return
     if (canSignAsSubmitter(signingDocument)) {
       setDocuments((current) => current.map((doc) => doc.id === signingDocument.id ? { ...doc, signatures:{ ...doc.signatures, 'ผู้ยื่น':{ image, name:doc.employee, date:new Date().toISOString().slice(0,10) } } } : doc))
-      setToast(copy.messages.signedToast)
+      showToast(copy.messages.signedToast)
     } else {
       mockDecision(signingDocument, false, image)
     }
@@ -383,17 +505,36 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     setSigningDocumentId(null)
   }
 
-  const saveMockEmployee = (employee: MockEmployee) => {
-    setEmployees((current) => current.some((person) => person.id === employee.id) ? current.map((person) => person.id === employee.id ? employee : person) : [employee, ...current])
-    setToast(employees.some((person) => person.id === employee.id) ? copy.messages.employeeSaved : copy.messages.employeeAdded)
-    window.setTimeout(() => setToast(''), 3200)
+  // ---------- นโยบาย ----------
+  const savePolicyDraft = async () => {
+    if (!policyDraft.yearStart || !policyDraft.yearEnd || policyDraft.yearEnd < policyDraft.yearStart) { showToast(copy.messages.policyInvalid); return }
+    if (!USE_DB) { setPolicy({ ...policyDraft }); showToast(copy.messages.policySaved); return }
+    try {
+      const saved = await savePolicy({
+        year: policyDraft.year, yearStart: policyDraft.yearStart, yearEnd: policyDraft.yearEnd,
+        leadPersonal: policyDraft.leadPersonal, leadVacation: policyDraft.leadVacation,
+        hoursPerDay: policyDraft.hoursPerDay, hourStep: policyDraft.hourStep,
+        certDays: policyDraft.certDays, otMax: policyDraft.otMax, fixDays: policyDraft.fixDays,
+      })
+      const next: MockPolicy = { ...INITIAL_POLICY, ...saved, expiry: saved.expiryDate }
+      setPolicy(next); setPolicyDraft(next)
+      showToast(copy.messages.policySaved)
+    } catch (error) { showToast(errorText(error)) }
   }
-  const toggleMockEmployee = (id: string) => {
-    setEmployees((current) => current.map((person) => person.id === id ? { ...person, active: !person.active } : person))
-    setToast(copy.messages.employeeToggled)
-    window.setTimeout(() => setToast(''), 3200)
+  const resetPolicyAndMock = () => {
+    if (USE_DB) { setPolicyDraft({ ...policy }); return } // โหมด DB: คืนค่าที่บันทึกล่าสุด ไม่ล้างข้อมูลจริง
+    if (!window.confirm(copy.messages.resetConfirm)) return
+    setPolicy({ ...INITIAL_POLICY }); setPolicyDraft({ ...INITIAL_POLICY }); setDocuments(INITIAL_DOCS); setEmployees(INITIAL_EMPLOYEES); setNotifications(INITIAL_NOTIFICATIONS)
+    setMockRole('พนักงาน'); setLedgerEmployeeId('e1'); setEmailEnabled(true); setSavedSignature(''); setToast(copy.messages.resetDone)
   }
-  const markAllRead = () => setNotifications((current) => current.map((notification) => ({ ...notification, read:true })))
+
+  const markAllRead = () => {
+    if (USE_DB) {
+      markNotificationsRead().then(() => reloadNotifications()).catch(() => {})
+      return
+    }
+    setNotifications((current) => current.map((notification) => ({ ...notification, read:true })))
+  }
   const exportLedgerCsv = () => {
     const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
     const leaveColumns = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
@@ -415,16 +556,20 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       policyDraft={policyDraft}
       copy={copy}
       onChange={setPolicyDraft}
-      onReset={() => { if (!window.confirm(copy.messages.resetConfirm)) return; setPolicy({...INITIAL_POLICY}); setPolicyDraft({...INITIAL_POLICY}); setDocuments(INITIAL_DOCS); setEmployees(INITIAL_EMPLOYEES); setNotifications(INITIAL_NOTIFICATIONS); setMockRole('พนักงาน'); setLedgerEmployeeId('e1'); setEmailEnabled(true); setSavedSignature(''); setToast(copy.messages.resetDone) }}
-      onSave={() => { if (!policyDraft.yearStart || !policyDraft.yearEnd || policyDraft.yearEnd < policyDraft.yearStart) { setToast(copy.messages.policyInvalid); return } setPolicy({...policyDraft}); setToast(copy.messages.policySaved) }}
+      onReset={resetPolicyAndMock}
+      onSave={() => { void savePolicyDraft() }}
     />}
 
     {view === 'notifications' && <DocNotificationsPanel
       notifications={notifications} emailEnabled={emailEnabled} onEmailEnabled={setEmailEnabled} onReadAll={markAllRead}
       copy={copy}
       tab={notificationTab} onTab={setNotificationTab}
-      onOpen={(notification) => { setNotifications(current => current.map(item => item.id === notification.id ? {...item,read:true} : item)); setSelectedNotification(notification) }}
+      onOpen={(notification) => { if (USE_DB) { void markNotificationsRead(notification.id).then(() => reloadNotifications()); setSelectedNotification(notification) } else { setNotifications(current => current.map(item => item.id === notification.id ? {...item,read:true} : item)); setSelectedNotification(notification) } }}
     />}
+
+    {USE_DB && docsLoading && ['all', 'pending'].includes(view) && <p className="documents-empty">…</p>}
+    {USE_DB && docsError && ['all', 'pending'].includes(view) && <p className="documents-empty" role="alert">{docsError}</p>}
+
     {view === 'all' && <DocAllDocumentsFilters
       search={search} onSearch={setSearch} layout={layout} onLayout={setLayout} status={statusFilter} kind={kindFilter}
       draftStatus={draftStatus} draftKind={draftKind} onDraftStatus={setDraftStatus} onDraftKind={setDraftKind}
@@ -434,12 +579,15 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     />}
 
     {view === 'all' && <DocAllDocumentsList
-      documents={visibleDocs} layout={layout} mockRole={mockRole} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
-      onSelect={setSelectedDocumentId} onCancel={(id) => setDocuments((current) => current.filter((doc) => doc.id !== id))} copy={copy}
+      documents={visibleDocs} layout={layout} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
+      onSelect={setSelectedDocumentId}
+      onCancel={(id) => { if (USE_DB) void dbCancel(id); else setDocuments((current) => current.filter((doc) => doc.id !== id)) }}
+      canCancel={USE_DB ? false : canCancel} copy={copy}
     />}
     {view === 'pending' && <DocPendingApproval
       documents={visibleDocs} mockRole={mockRole} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
-      onSelect={setSelectedDocumentId} onCancel={(id) => setDocuments((current) => current.filter((doc) => doc.id !== id))} copy={copy}
+      onSelect={setSelectedDocumentId}
+      onCancel={(id) => { if (!USE_DB) setDocuments((current) => current.filter((doc) => doc.id !== id)) }} copy={copy}
     />}
 
     {selectedDocument && <DocAllDocumentsDetail
@@ -448,19 +596,21 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       kindTitle={KIND_INFO[selectedDocument.kind].title}
       statusLabel={STATUS_INFO[selectedDocument.status].label}
       dateText={dateText}
-      canSignAsSubmitter={canSignAsSubmitter(selectedDocument)}
-      canReview={canReviewAsHr}
       copy={copy}
-      mockRole={mockRole}
+      canApprove={USE_DB ? Boolean(detail?.canApprove) : false}
+      canCancel={USE_DB ? Boolean(detail?.canCancel) : false}
       onClose={() => setSelectedDocumentId(null)}
       onSign={() => setSigningDocumentId(selectedDocument.id)}
-      onReject={() => mockDecision(selectedDocument, true)}
-      onCancel={() => { setDocuments((current) => current.filter((doc) => doc.id !== selectedDocument.id)); setSelectedDocumentId(null) }}
+      onReject={() => { if (USE_DB) void dbReject(selectedDocument); else mockDecision(selectedDocument, true) }}
+      onCancel={() => {
+        if (USE_DB) void dbCancel(selectedDocument.id)
+        else { setDocuments((current) => current.filter((doc) => doc.id !== selectedDocument.id)); setSelectedDocumentId(null) }
+      }}
     />}
 
-    {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitter.name : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={640} height={240} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" disabled={!signatureHasInk} onClick={confirmSignature}>{copy.signature.send}</button></div></section></div>}
+    {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={640} height={240} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" disabled={!signatureHasInk} onClick={() => void confirmSignature()}>{copy.signature.send}</button></div></section></div>}
 
-    {selectedNotification && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedNotification(null) }}><section className="documents-modal"><div className="documents-modal-head"><div><span className="documents-pill is-pending">{copy.messages.relatedDocument}</span><h2>{copy.sampleNotifications[String(selectedNotification.id)]?.title ?? selectedNotification.title}</h2><p>{copy.sampleNotifications[String(selectedNotification.id)]?.body ?? selectedNotification.body}</p></div><button aria-label={copy.detail.close} onClick={() => setSelectedNotification(null)}><FaXmark /></button></div><p>{copy.messages.item}: {documents.find((doc) => doc.id === selectedNotification.documentId)?.no ?? copy.messages.notFound}</p><button className="documents-primary" onClick={() => setSelectedNotification(null)}>{copy.detail.close}</button></section></div>}
+    {selectedNotification && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedNotification(null) }}><section className="documents-modal"><div className="documents-modal-head"><div><span className="documents-pill is-pending">{copy.messages.relatedDocument}</span><h2>{selectedNotification.title}</h2><p>{selectedNotification.body}</p></div><button aria-label={copy.detail.close} onClick={() => setSelectedNotification(null)}><FaXmark /></button></div><p>{copy.messages.item}: {documents.find((doc) => doc.id === selectedNotification.documentId)?.no ?? copy.messages.notFound}</p><button className="documents-primary" onClick={() => setSelectedNotification(null)}>{copy.detail.close}</button></section></div>}
 
     <DocNewDocumentModal
       open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} role={mockRole} copy={copy}
