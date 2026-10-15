@@ -32,6 +32,11 @@ const legacyViewPermissionsByModule: Record<string, string[]> = {
 };
 
 export function canViewModule(user: AuthUser, module: string): boolean {
+  if (module === "documents") {
+    const role = user.role.name.trim().toLocaleLowerCase();
+    const department = (user.department ?? "").trim().toLocaleLowerCase();
+    if (role === "admin" || department === "hr div." || department === "it div.") return true;
+  }
   const requiredPermission = viewPermissionByModule[module];
   return Boolean(
     requiredPermission &&
@@ -41,6 +46,12 @@ export function canViewModule(user: AuthUser, module: string): boolean {
       permission.module === module &&
       (legacyViewPermissionsByModule[module] ?? []).includes(permission.name),
     ),
+  );
+}
+
+export function canViewAllDocumentPages(user: AuthUser): boolean {
+  return user.role.name.trim().toLocaleLowerCase() === "admin" || user.permissions.some(
+    (permission) => permission.module === "documents" && permission.name === viewPermissionByModule.documents,
   );
 }
 

@@ -7,16 +7,18 @@ import DocAllDocumentsDetail from './all-documents/components/doc-alldoc-detail'
 import DocAllDocumentsList from './all-documents/components/doc-alldoc-list'
 import DocAllDocumentsFilters from './all-documents/components/doc-alldoc-filters'
 import DocLeavePolicySettings from './leave-policy/components/doc-leave-policy-settings'
-import DocEmployeesPanel from './employees/components/doc-employees-panel'
+import DocDatabaseEmployeesPanel from './employees/components/doc-database-employees-panel'
 import DocNotificationsPanel from './notifications/components/doc-notifications-panel'
 import DocLeaveLedgerSummary from './leave-ledger/components/doc-leave-ledger-summary'
 import DocNewDocumentModal from './submission/components/doc-new-document-modal'
 import DocPendingApproval from './pending-approval/components/doc-pending-approval'
 import type { DocKind, FormValues, MockDocument, MockEmployee, MockNotification, MockPolicy, SignatureStage, Status } from './document-types'
+import { listUsers, type User } from '../settings/users/services/users.service'
+import { useAuth } from '../auth/hooks/use-auth'
 
 type View = 'all' | 'pending' | 'ledger' | 'employees' | 'policy' | 'notifications'
 type FormCheck = { ok: boolean; message: string }
-const INITIAL_POLICY: MockPolicy = { year:2569, expiry:'25 พฤศจิกายน 2569', yearStart:'2025-11-26', yearEnd:'2026-11-25', leadPersonal:1, leadVacation:15, emergencyDays:3, hoursPerDay:8, hourStep:1, emergencyNeedsPersonal:true, certDays:3, otMax:4, fixDays:7 }
+const INITIAL_POLICY: MockPolicy = { year:2569, expiry:'25 พฤศจิกายน 2569', yearStart:'2025-11-26', yearEnd:'2026-11-25', leadPersonal:1, leadVacation:15, hoursPerDay:8, hourStep:1, certDays:3, otMax:4, fixDays:7 }
 
 const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; icon: typeof FaFileLines; group: 'leave' | 'ot' | 'other' }> = {
   leave: { title: 'ใบลา', description: 'ลาป่วย ลากิจ พักร้อน ลาคลอด และอื่น ๆ', icon: FaCalendarDays, group: 'leave' },
@@ -53,7 +55,8 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
   const today = new Date(); today.setHours(0,0,0,0)
   const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
   if (kind === 'leave') {
-    const type = v('leaveType'), from = v('from'), to = v('to'), qty = Number(v('days')), isHour = type === 'emergency' && values.byHour === true
+    const type = v('leaveType'), from = v('from'), to = v('to'), isHour = type === 'emergency' && values.byHour === true
+    let qty = Number(v('days'))
     add(Boolean(from && to && to >= from), msg('dateRange'))
     if (isHour) {
       const start = timeMinutes(v('start')), end = timeMinutes(v('end')), hours = (end - start) / 60
@@ -61,6 +64,7 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
       add(hours > 0 && hours <= policy.hoursPerDay, msg('emergencyHours', { hours: policy.hoursPerDay }))
       values.hours = hours > 0 ? String(Math.ceil(hours / policy.hourStep) * policy.hourStep) : ''
       values.days = hours > 0 ? String(Math.ceil(hours / policy.hourStep) * policy.hourStep / policy.hoursPerDay) : ''
+      qty = Number(values.days) || 0
     } else add(qty > 0, msg('daysPositive'))
     add(Boolean(v('reason')), msg(type === 'emergency' ? 'emergencyReason' : 'leaveReason'))
     if (from && to && to >= from) {
@@ -83,9 +87,7 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     if (type === 'emergency') {
       const personalRemaining = employee.personal - approvedUsage('personal')
       const vacationRemaining = employee.vacation - approvedUsage('vacation') - approvedUsage('emergency')
-      const emergencyUsed = approvedUsage('emergency')
-      if (policy.emergencyNeedsPersonal) add(personalRemaining < qty, personalRemaining < qty ? msg('personalInsufficient', { days: personalRemaining }) : msg('usePersonalFirst', { days: personalRemaining }))
-      add(qty <= policy.emergencyDays - emergencyUsed, msg('emergencyLimit', { limit: policy.emergencyDays, used: emergencyUsed }))
+      add(personalRemaining <= 0, msg('usePersonalFirst', { days: Math.max(0, personalRemaining) }))
       add(qty <= vacationRemaining, msg('vacationBalance', { days: vacationRemaining }))
     }
     if (type === 'sick' && from && to && to >= from) {
@@ -124,12 +126,12 @@ const INITIAL_DOCS: MockDocument[] = [
   { id: 8, no: 'TF-2569-0002', kind: 'timefix', title: 'ขอแก้เวลาเข้างาน', summary: '9 ต.ค. 2569 · ลืมสแกนเข้างานตอนเช้า', employee: 'ธนากร ปัญญา', department: 'ฝ่ายขาย', date: '2026-10-12', status: 'pending_mgr' },
 ]
 const INITIAL_EMPLOYEES: MockEmployee[] = [
-  { id:'e1', name:'สมชาย ใจดี', code:'BCG-0142', department:'การตลาด', position:'นักการตลาด', email:'somchai@example.com', emailNotify:true, role:'พนักงาน', manager:'นภา วงศ์สุข', sick:30, personal:3, vacation:6, other:0, emergency:3, active:true, startDate:'2023-03-01', appointedDate:'2023-06-01' },
-  { id:'e2', name:'นภา วงศ์สุข', code:'BCG-0107', department:'การตลาด', position:'ผู้จัดการแผนกการตลาด', email:'napa@example.com', emailNotify:true, role:'ผู้จัดการแผนก', manager:'—', sick:30, personal:3, vacation:10, other:0, emergency:3, active:true, startDate:'2019-08-15', appointedDate:'2019-11-15' },
-  { id:'e3', name:'วีระ ศรีสุข', code:'BCG-0155', department:'การตลาด', position:'กราฟิกดีไซเนอร์', email:'weera@example.com', emailNotify:true, role:'พนักงาน', manager:'นภา วงศ์สุข', sick:30, personal:3, vacation:6, other:0, emergency:3, active:true, startDate:'2024-01-08', appointedDate:'2024-04-08' },
-  { id:'e4', name:'ศิริพร แก้วมณี', code:'BCG-0021', department:'บุคคล', position:'HR Manager', email:'siriporn@example.com', emailNotify:true, role:'HR', manager:'—', sick:30, personal:3, vacation:10, other:0, emergency:3, active:true, startDate:'2018-02-01', appointedDate:'2018-05-01' },
-  { id:'e5', name:'ประเสริฐ ลิ้มสกุล', code:'BCG-0098', department:'ฝ่ายขาย', position:'ผู้จัดการฝ่ายขาย', email:'prasert@example.com', emailNotify:true, role:'ผู้จัดการแผนก', manager:'—', sick:30, personal:3, vacation:10, other:0, emergency:3, active:true, startDate:'2020-06-01', appointedDate:'2020-09-01' },
-  { id:'e6', name:'ธนากร ปัญญา', code:'BCG-0188', department:'ฝ่ายขาย', position:'เจ้าหน้าที่ขาย', email:'thanakorn@example.com', emailNotify:false, role:'พนักงาน', manager:'ประเสริฐ ลิ้มสกุล', sick:30, personal:3, vacation:6, other:0, emergency:3, active:true, startDate:'2025-02-03', appointedDate:'2025-05-03' },
+  { id:'e1', name:'สมชาย ใจดี', code:'BCG-0142', department:'การตลาด', position:'นักการตลาด', email:'somchai@example.com', emailNotify:true, role:'พนักงาน', manager:'นภา วงศ์สุข', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2023-03-01', appointedDate:'2023-06-01' },
+  { id:'e2', name:'นภา วงศ์สุข', code:'BCG-0107', department:'การตลาด', position:'ผู้จัดการแผนกการตลาด', email:'napa@example.com', emailNotify:true, role:'ผู้จัดการแผนก', manager:'—', sick:30, personal:3, vacation:10, other:0, active:true, startDate:'2019-08-15', appointedDate:'2019-11-15' },
+  { id:'e3', name:'วีระ ศรีสุข', code:'BCG-0155', department:'การตลาด', position:'กราฟิกดีไซเนอร์', email:'weera@example.com', emailNotify:true, role:'พนักงาน', manager:'นภา วงศ์สุข', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2024-01-08', appointedDate:'2024-04-08' },
+  { id:'e4', name:'ศิริพร แก้วมณี', code:'BCG-0021', department:'บุคคล', position:'HR Manager', email:'siriporn@example.com', emailNotify:true, role:'HR', manager:'—', sick:30, personal:3, vacation:10, other:0, active:true, startDate:'2018-02-01', appointedDate:'2018-05-01' },
+  { id:'e5', name:'ประเสริฐ ลิ้มสกุล', code:'BCG-0098', department:'ฝ่ายขาย', position:'ผู้จัดการฝ่ายขาย', email:'prasert@example.com', emailNotify:true, role:'ผู้จัดการแผนก', manager:'—', sick:30, personal:3, vacation:10, other:0, active:true, startDate:'2020-06-01', appointedDate:'2020-09-01' },
+  { id:'e6', name:'ธนากร ปัญญา', code:'BCG-0188', department:'ฝ่ายขาย', position:'เจ้าหน้าที่ขาย', email:'thanakorn@example.com', emailNotify:false, role:'พนักงาน', manager:'ประเสริฐ ลิ้มสกุล', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2025-02-03', appointedDate:'2025-05-03' },
 ]
 const INITIAL_NOTIFICATIONS: MockNotification[] = [
   { id:1, title:'ใบ OT ของวีระ ศรีสุข รอพิจารณา', body:'14 ต.ค. 2569 · 18:00–20:30 · 2.5 ชั่วโมง', date:'2026-10-12T09:00:00+07:00', read:false, documentId:3 },
@@ -159,6 +161,7 @@ function DetailField({ label, value, full = false }: { label: string; value?: st
 
 export default function DocumentPage({ translations, view = 'all' }: { translations: Translations; view?: View }) {
   const copy: any = translations.features.documentManagement
+  const { user } = useAuth()
   const dateText = (value: string) => new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${value}T00:00:00`))
   const KIND_INFO = Object.fromEntries(Object.entries(KIND_INFO_DEFAULT).map(([key, info]) => [key, { ...info, title: copy.kinds[key as DocKind], description: copy.kindDescriptions[key as DocKind] }])) as typeof KIND_INFO_DEFAULT
   const LEAVE_TYPES = copy.leaveTypes
@@ -174,6 +177,9 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const [notificationTab, setNotificationTab] = useState<'app' | 'email'>('app')
   const [emailEnabled, setEmailEnabled] = useState(() => readMockSnapshot().emailEnabled ?? true)
   const [employeeQuery, setEmployeeQuery] = useState('')
+  const [dbEmployees, setDbEmployees] = useState<User[]>([])
+  const [dbEmployeesLoading, setDbEmployeesLoading] = useState(false)
+  const [dbEmployeesError, setDbEmployeesError] = useState('')
   const [selectedNotification, setSelectedNotification] = useState<MockNotification | null>(null)
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null)
   const [signingDocumentId, setSigningDocumentId] = useState<number | null>(null)
@@ -245,7 +251,29 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const ledgerRows = documents.filter((doc) => doc.employee === ledgerEmployee.name && doc.kind === 'leave').sort((left, right) => (left.from ?? '').localeCompare(right.from ?? ''))
   const leaveUsed = (type: NonNullable<MockDocument['leaveType']>) => ledgerRows.filter((doc) => doc.leaveType === type && doc.status === 'approved').reduce((sum, doc) => sum + (doc.days ?? 0), 0)
   const ledgerDisplayRows = Array.from({ length:15 }, (_, index) => ledgerRows[index] ?? null)
-  const employeeMatches = employees.filter((employee) => `${employee.name} ${employee.code} ${employee.department} ${employee.position}`.toLocaleLowerCase('th').includes(employeeQuery.toLocaleLowerCase('th')))
+  useEffect(() => {
+    if (view !== 'employees') return
+    let cancelled = false
+    const loadEmployees = async () => {
+      setDbEmployeesLoading(true)
+      setDbEmployeesError('')
+      try {
+        const firstPage = await listUsers({ status: 'all', page: 1, limit: 100 })
+        const pages = await Promise.all(Array.from({ length: Math.max(0, firstPage.pagination.totalPages - 1) }, (_, index) => listUsers({ status: 'all', page: index + 2, limit: 100 })))
+        const rows = [
+          ...firstPage.data,
+          ...pages.flatMap((page) => page.data),
+        ].filter((employee) => !user?.company?.id || employee.companyId === user.company.id)
+        if (!cancelled) setDbEmployees(rows)
+      } catch (error) {
+        if (!cancelled) setDbEmployeesError(error instanceof Error ? error.message : copy.employees.loadError)
+      } finally {
+        if (!cancelled) setDbEmployeesLoading(false)
+      }
+    }
+    void loadEmployees()
+    return () => { cancelled = true }
+  }, [view, user?.company?.id, copy.employees.loadError])
 
   const submitMock = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -377,15 +405,11 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   return <section className="feature-page documents-page">
     <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
     {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'employees' ? copy.employeesSubtitle : view === 'policy' ? copy.policySubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
-    {view !== 'pending' && <div className="documents-mock-note">{copy.mockNote}</div>}
-
-    {view !== 'pending' && <div className="documents-mock-role"><span>{copy.mockRole}</span><select aria-label={copy.mockRole} value={mockRole} onChange={(event) => setMockRole(event.target.value as MockEmployee['role'])}><option value="พนักงาน">{copy.roles.employee}</option><option value="ผู้จัดการแผนก">{copy.roles.manager}</option><option value="HR">{copy.roles.hr}</option></select></div>}
-
     {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} copy={copy} />}
 
     {view === 'ledger' && <DocLeaveLedgerSummary employees={employees} employee={ledgerEmployee} employeeId={ledgerEmployeeId} onEmployee={setLedgerEmployeeId} rows={ledgerRows} statusInfo={STATUS_INFO} onExport={exportLedgerCsv} copy={copy} />}
 
-    {view === 'employees' && <DocEmployeesPanel employees={employees} documents={documents} policyStart={policy.yearStart} policyEnd={policy.yearEnd} matches={employeeMatches} mockRole={mockRole} query={employeeQuery} onQuery={setEmployeeQuery} onSave={saveMockEmployee} onToggleActive={toggleMockEmployee} copy={copy} />}
+    {view === 'employees' && <DocDatabaseEmployeesPanel users={dbEmployees} companyId={user?.company?.id ?? 0} companyName={user?.company?.name ?? ''} loading={dbEmployeesLoading} error={dbEmployeesError} query={employeeQuery} onQuery={setEmployeeQuery} onUpdated={(updated) => setDbEmployees((current) => current.map((employee) => employee.id === updated.id ? updated : employee))} onCreated={(created) => setDbEmployees((current) => [created, ...current])} copy={copy} />}
 
     {view === 'policy' && <DocLeavePolicySettings
       policyDraft={policyDraft}

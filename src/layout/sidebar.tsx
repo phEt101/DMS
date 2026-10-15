@@ -14,7 +14,7 @@ import {
 import * as FaIcons from "react-icons/fa6";
 import type { IconType } from "react-icons";
 import { useAuth } from "../features/auth/hooks/use-auth";
-import { canViewModule } from "../features/auth/permissions";
+import { canViewAllDocumentPages, canViewModule } from "../features/auth/permissions";
 import type { Translations } from "../locales";
 import type { PageKey } from '../services/routes/pageTypes'
 import {FaFolderOpen,} from "react-icons/fa6";
@@ -148,6 +148,9 @@ export default function Sidebar({
       sortOrder: permission.moduleSortOrder,
     }]),
   ).values()];
+  if (user && canViewModule(user, "documents") && !grantedModules.some((module) => module.name === "documents")) {
+    grantedModules.push({ name: "documents", iconName: "FaFolderOpen", sortOrder: 3 });
+  }
 
   const moduleItems: Array<{ key: SidebarItem; label: string; icon?: IconType }> = grantedModules
     .filter((module) => Boolean(user && canViewModule(user, module.name)))
@@ -291,6 +294,9 @@ if (item.key === "documents") {
     { key: "documents-policy", label: documentNavTranslations.policy },
     { key: "documents-notifications", label: documentNavTranslations.notifications },
   ];
+  const visibleDocumentItems = user && canViewAllDocumentPages(user)
+    ? documentItems
+    : documentItems.filter((documentItem) => documentItem.key === "documents-employees");
 
   return (
     <div
@@ -322,7 +328,7 @@ if (item.key === "documents") {
 
       {documentsOpen && (!collapsed || collapsedFlyout === "documents") && (
         <div className="subnav" style={flyoutStyle}>
-          {documentItems.map(({ key, label }) => (
+          {visibleDocumentItems.map(({ key, label }) => (
             <button
               type="button"
               key={key}

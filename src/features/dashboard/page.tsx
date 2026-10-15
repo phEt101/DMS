@@ -22,6 +22,14 @@ const balancesByYear = {
   ],
 }
 
+const months = [
+  { value:'all', label:'ทุกเดือน' },
+  { value:'01', label:'มกราคม' }, { value:'02', label:'กุมภาพันธ์' }, { value:'03', label:'มีนาคม' },
+  { value:'04', label:'เมษายน' }, { value:'05', label:'พฤษภาคม' }, { value:'06', label:'มิถุนายน' },
+  { value:'07', label:'กรกฎาคม' }, { value:'08', label:'สิงหาคม' }, { value:'09', label:'กันยายน' },
+  { value:'10', label:'ตุลาคม' }, { value:'11', label:'พฤศจิกายน' }, { value:'12', label:'ธันวาคม' },
+]
+
 const recentDocuments = [
   { id:'LV-2569-0012', title:'ลากิจ · 1 วัน', detail:'30 ต.ค. 2569 · ธุระส่วนตัว', status:'รอ HR ตรวจ', kind:'pending' },
   { id:'LV-2569-0011', title:'ลาพักร้อน · 3 วัน', detail:'18–20 พ.ย. 2569 · พักผ่อนปลายปี', status:'รอผู้จัดการ', kind:'pending' },
@@ -31,6 +39,7 @@ const recentDocuments = [
 export default function DashboardPage({ translations: _translations, onNavigate }: { translations: Translations; onNavigate?: (page: PageKey) => void }) {
   const dashboardTranslations = _translations.features.dashboard
   const [selectedYear, setSelectedYear] = useState<keyof typeof balancesByYear>(2569)
+  const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const balances = balancesByYear[selectedYear]
 
   return <div className="dms-page-root dashboard-page-root">
@@ -47,7 +56,11 @@ export default function DashboardPage({ translations: _translations, onNavigate 
     </div>
 
     <section className="dashboard-section">
-      <div className="dashboard-section-heading"><div><h2>สิทธิ์วันลาคงเหลือ</h2><p>สรุปสิทธิ์วันลาตัวอย่าง ประจำปี {selectedYear}</p></div><label className="dashboard-year-select"><span>ปี</span><select aria-label="เลือกปีสำหรับสิทธิ์วันลา" value={selectedYear} onChange={(event) => setSelectedYear(Number(event.target.value) as keyof typeof balancesByYear)}>{Object.keys(balancesByYear).sort((a, b) => Number(b) - Number(a)).map((year) => <option key={year} value={year}>{year}</option>)}</select></label></div>
+      <div className="dashboard-section-heading"><div><h2>สิทธิ์วันลาคงเหลือ</h2><p>สรุปสิทธิ์วันลาตัวอย่าง{selectedMonth === 'all' ? ` ประจำปี ${selectedYear}` : ` ประจำเดือน ${months.find((m) => m.value === selectedMonth)?.label} ${selectedYear}`}</p></div>
+      <div className="dashboard-period-selects">
+        <label className="dashboard-year-select"><span>เดือน</span><select aria-label="เลือกเดือนสำหรับสิทธิ์วันลา" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>{months.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}</select></label>
+        <label className="dashboard-year-select"><span>ปี</span><select aria-label="เลือกปีสำหรับสิทธิ์วันลา" value={selectedYear} onChange={(event) => setSelectedYear(Number(event.target.value) as keyof typeof balancesByYear)}>{Object.keys(balancesByYear).sort((a, b) => Number(b) - Number(a)).map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+      </div></div>
       <div className="dms-card-grid dms-survey-grid dashboard-balances">{balances.map((balance) => {
         const progressTotal = balance.used + balance.pending
         const usedWidth = progressTotal ? balance.used / progressTotal * 100 : 0

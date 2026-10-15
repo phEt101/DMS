@@ -7,7 +7,7 @@ import { getLocale } from './locales'
 import { buildPages } from './services/routes/appRoutes'
 import type { AuthUser } from './features/auth/types/auth.types'
 import type { PageKey } from './services/routes/pageTypes'
-import { canViewModule } from './features/auth/permissions'
+import { canViewAllDocumentPages, canViewModule } from './features/auth/permissions'
 
 const pathByPage: Record<PageKey, string> = {
   dashboard: '/dashboard',
@@ -60,6 +60,10 @@ const moduleByPage: Record<PageKey, string> = {
 const pageOrder = Object.keys(pathByPage) as PageKey[]
 
 function canAccessPage(user: AuthUser, page: PageKey) {
+  if (moduleByPage[page] === 'documents') {
+    if (page === 'documents-employees') return canViewModule(user, 'documents')
+    return canViewAllDocumentPages(user)
+  }
   return canViewModule(user, moduleByPage[page])
 }
 

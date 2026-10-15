@@ -21,8 +21,8 @@
   color: var(--accent);
   font-size: 13px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 .users-header .settings-feature-kicker {
   color: var(--accent);

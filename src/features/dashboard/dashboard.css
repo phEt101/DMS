@@ -18,6 +18,7 @@
 .dashboard-year-select { display:flex; align-items:center; gap:8px; color:#71809e; font-size:13px; font-weight:700; }
 .dashboard-year-select select { min-width:96px; padding:8px 30px 8px 12px; border:1px solid #e1e7f2; border-radius:10px; background:#fff; color:#29334c; font:inherit; cursor:pointer; }
 .dashboard-year-select select:focus-visible { outline:2px solid #5143e8; outline-offset:2px; }
+.dashboard-period-selects { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .dashboard-balances { grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
 .dashboard-balances .dashboard-balance-card { min-width:0; border:1px solid #e5e9f0; border-radius:14px; padding:22px; gap:12px; cursor:default; }
 .dashboard-balances .dashboard-balance-card:hover { transform:none; border-color:#e5e9f0; box-shadow:none; }

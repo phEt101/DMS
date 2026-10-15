@@ -14,6 +14,17 @@ export interface UserRow extends RowDataPacket {
   role: string;
   department: string | null;
   phone: string | null;
+  employeeCode: string | null;
+  position: string | null;
+  managerUserId: number | null;
+  managerName: string | null;
+  employmentStartDate: string | null;
+  appointedDate: string | null;
+  sickLeaveDays: number | null;
+  personalLeaveDays: number | null;
+  vacationLeaveDays: number | null;
+  otherLeaveDays: number | null;
+  emailNotificationsEnabled: boolean | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -30,12 +41,32 @@ export interface UserWriteInput {
   department?: string | null;
   phone?: string | null;
   isActive?: boolean;
+  employeeCode?: string | null;
+  position?: string | null;
+  managerUserId?: number | null;
+  employmentStartDate?: string | null;
+  appointedDate?: string | null;
+  sickLeaveDays?: number | null;
+  personalLeaveDays?: number | null;
+  vacationLeaveDays?: number | null;
+  otherLeaveDays?: number | null;
+  emailNotificationsEnabled?: boolean | null;
 }
 
-interface CreateUserInput extends Required<Omit<UserWriteInput, "department" | "phone" | "passwordHash">> {
+interface CreateUserInput extends Required<Omit<UserWriteInput, "department" | "phone" | "passwordHash" | "employeeCode" | "position" | "managerUserId" | "employmentStartDate" | "appointedDate" | "sickLeaveDays" | "personalLeaveDays" | "vacationLeaveDays" | "otherLeaveDays" | "emailNotificationsEnabled">> {
   department: string | null;
   phone: string | null;
   passwordHash: string;
+  employeeCode?: string | null;
+  position?: string | null;
+  managerUserId?: number | null;
+  employmentStartDate?: string | null;
+  appointedDate?: string | null;
+  sickLeaveDays?: number | null;
+  personalLeaveDays?: number | null;
+  vacationLeaveDays?: number | null;
+  otherLeaveDays?: number | null;
+  emailNotificationsEnabled?: boolean | null;
 }
 
 interface FindUsersOptions {
@@ -49,6 +80,12 @@ const selectFields = `
   users.id, users.email, users.name, users.first_name AS firstName, users.last_name AS lastName,
   users.company_id AS companyId, companies.name AS company, companies.logo_url AS companyLogoUrl,
   roles.name AS role, departments.name AS department, users.phone,
+  employees.employee_code AS employeeCode, employees.position,
+  employees.manager_user_id AS managerUserId, manager.name AS managerName,
+  employees.employment_start_date AS employmentStartDate, employees.appointed_date AS appointedDate,
+  employees.sick_leave_days AS sickLeaveDays, employees.personal_leave_days AS personalLeaveDays,
+  employees.vacation_leave_days AS vacationLeaveDays, employees.other_leave_days AS otherLeaveDays,
+  employees.email_notifications_enabled AS emailNotificationsEnabled,
   users.is_active AS isActive,
   users.created_at AS createdAt, users.updated_at AS updatedAt
 `;
@@ -58,11 +95,13 @@ const joins = `
   INNER JOIN roles ON roles.id = users.role_id
   LEFT JOIN departments ON departments.id = users.department_id
   INNER JOIN companies ON companies.id = users.company_id
+  LEFT JOIN employees ON employees.user_id = users.id
+  LEFT JOIN users AS manager ON manager.id = employees.manager_user_id
 `;
 
 async function resolveRoleId(name: string) {
   const [rows] = await db.execute<(RowDataPacket & { id: number })[]>(
-    "SELECT id FROM roles WHERE name = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1",
+    "SELECT id FROM roles WHERE name = ? AND deleted_at IS NULL LIMIT 1",
     [name],
   );
   if (!rows[0]) throw httpError(400, "Invalid role");
@@ -72,7 +111,8 @@ async function resolveRoleId(name: string) {
 async function resolveDepartmentId(name: string | null) {
   if (!name) return null;
   const [rows] = await db.execute<(RowDataPacket & { id: number })[]>(
-    "SELECT id FROM departments WHERE name = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1",
+    // ไม่บังคับ is_active เพื่อให้ยังอ้างอิงแผนกเดิมที่ถูกปิดใช้งานได้ (เช่นตอนแก้ไขพนักงานที่ยังสังกัดแผนกนั้น)
+    "SELECT id FROM departments WHERE name = ? AND deleted_at IS NULL LIMIT 1",
     [name],
   );
   if (!rows[0]) throw httpError(400, "Invalid department");
@@ -96,8 +136,8 @@ export async function findAll({
   const conditions = ["users.deleted_at IS NULL"];
   const values: Array<string | number> = [];
   if (search) {
-    conditions.push("(users.email LIKE ? OR users.name LIKE ? OR departments.name LIKE ? OR companies.name LIKE ?)");
-    values.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    conditions.push("(users.email LIKE ? OR users.name LIKE ? OR departments.name LIKE ? OR companies.name LIKE ? OR employees.employee_code LIKE ? OR employees.position LIKE ?)");
+    values.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
   if (status === "active") conditions.push("users.is_active = 1");
   if (status === "inactive") conditions.push("users.is_active = 0");
@@ -144,31 +184,67 @@ export async function create({
   department,
   phone,
   isActive,
+  employeeCode,
+  position,
+  managerUserId,
+  employmentStartDate,
+  appointedDate,
+  sickLeaveDays,
+  personalLeaveDays,
+  vacationLeaveDays,
+  otherLeaveDays,
+  emailNotificationsEnabled,
 }: CreateUserInput) {
   const roleId = await resolveRoleId(role);
   const departmentId = await resolveDepartmentId(department);
   const resolvedCompanyId = await resolveCompanyId(companyId);
-  const [result] = await db.execute<ResultSetHeader>(
-    "INSERT INTO users (email, password_hash, name, first_name, last_name, role_id, department_id, company_id, phone, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    [email, passwordHash, name, firstName, lastName, roleId, departmentId, resolvedCompanyId, phone, isActive],
-  );
-  return findById(result.insertId);
+  const connection = await db.getConnection();
+  let userId: number;
+  try {
+    await connection.beginTransaction();
+    const [result] = await connection.execute<ResultSetHeader>(
+      "INSERT INTO users (email, password_hash, name, first_name, last_name, role_id, department_id, company_id, phone, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [email, passwordHash, name, firstName, lastName, roleId, departmentId, resolvedCompanyId, phone, isActive],
+    );
+    userId = result.insertId;
+    await connection.execute(
+      `INSERT INTO employees (
+        user_id, employee_code, position, manager_user_id, employment_start_date, appointed_date,
+        sick_leave_days, personal_leave_days, vacation_leave_days, other_leave_days, email_notifications_enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, employeeCode ?? null, position ?? null, managerUserId ?? null, employmentStartDate ?? null, appointedDate ?? null,
+        sickLeaveDays ?? null, personalLeaveDays ?? null, vacationLeaveDays ?? null, otherLeaveDays ?? null, emailNotificationsEnabled ?? true],
+    );
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+  return findById(userId);
 }
 
 export async function update(id: number | string, input: UserWriteInput) {
   const normalized: Record<string, string | number | boolean | null> = { ...input };
-  if (input.role !== undefined) {
+  const current = await findById(id);
+  if (input.role !== undefined && input.role !== current?.role) {
     normalized.roleId = await resolveRoleId(input.role);
     delete normalized.role;
+  } else if (input.role !== undefined) {
+    delete normalized.role;
   }
-  if (input.department !== undefined) {
+  if (input.department !== undefined && input.department !== (current?.department ?? "")) {
     normalized.departmentId = await resolveDepartmentId(input.department);
+    delete normalized.department;
+  } else if (input.department !== undefined) {
+    // แผนกไม่เปลี่ยน — ไม่ต้อง resolve/update ที่ DB
     delete normalized.department;
   }
   if (input.companyId !== undefined) normalized.companyId = await resolveCompanyId(input.companyId)
-  const fields = [];
-  const values: Array<string | number | boolean | null> = [];
-  const columns = {
+  const userFields: string[] = [];
+  const userValues: Array<string | number | boolean | null> = [];
+  const userColumns = {
     email: "email",
     passwordHash: "password_hash",
     name: "name",
@@ -180,17 +256,50 @@ export async function update(id: number | string, input: UserWriteInput) {
     phone: "phone",
     isActive: "is_active",
   };
-  for (const [key, column] of Object.entries(columns)) {
+  for (const [key, column] of Object.entries(userColumns)) {
     if (Object.hasOwn(normalized, key)) {
-      fields.push(`${column} = ?`);
-      values.push(normalized[key] ?? null);
+      userFields.push(`${column} = ?`);
+      userValues.push(normalized[key] ?? null);
     }
   }
-  if (!fields.length) return findById(id);
-  await db.execute(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`, [
-    ...values,
-    id,
-  ]);
+  const employeeColumns = {
+    employeeCode: "employee_code",
+    position: "position",
+    managerUserId: "manager_user_id",
+    employmentStartDate: "employment_start_date",
+    appointedDate: "appointed_date",
+    sickLeaveDays: "sick_leave_days",
+    personalLeaveDays: "personal_leave_days",
+    vacationLeaveDays: "vacation_leave_days",
+    otherLeaveDays: "other_leave_days",
+    emailNotificationsEnabled: "email_notifications_enabled",
+  };
+  const employeeFields: string[] = [];
+  const employeeValues: Array<string | number | boolean | null> = [];
+  for (const [key, column] of Object.entries(employeeColumns)) {
+    if (Object.hasOwn(normalized, key)) {
+      employeeFields.push(`${column} = ?`);
+      employeeValues.push(normalized[key] ?? null);
+    }
+  }
+  if (!userFields.length && !employeeFields.length) return findById(id);
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    if (userFields.length) {
+      await connection.execute(`UPDATE users SET ${userFields.join(", ")} WHERE id = ?`, [...userValues, id]);
+    }
+    if (employeeFields.length) {
+      await connection.execute("INSERT IGNORE INTO employees (user_id) VALUES (?)", [id]);
+      await connection.execute(`UPDATE employees SET ${employeeFields.join(", ")} WHERE user_id = ?`, [...employeeValues, id]);
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
   return findById(id);
 }
 

@@ -8,7 +8,7 @@ export type MockDocument = {
   leaveType?: 'personal' | 'sick' | 'vacation' | 'emergency' | 'unpaid' | 'maternity' | 'ordain' | 'marriage' | 'other';
   from?: string; to?: string; days?: number; reason?: string; rejectedBy?: 'manager' | 'hr'; formData?: FormValues; signatures?: Partial<Record<SignatureStage, MockSignature>>
 }
-export type MockEmployee = { id: string; name: string; code: string; department: string; position: string; email?: string; emailNotify?: boolean; role: 'พนักงาน' | 'ผู้จัดการแผนก' | 'HR'; manager: string; sick: number; personal: number; vacation: number; other?: number; emergency?: number; active: boolean; startDate: string; appointedDate: string }
+export type MockEmployee = { id: string; name: string; code: string; department: string; position: string; email?: string; emailNotify?: boolean; role: 'พนักงาน' | 'ผู้จัดการแผนก' | 'HR'; manager: string; sick: number; personal: number; vacation: number; other?: number; active: boolean; startDate: string; appointedDate: string }
 export type MockNotification = { id: number; title: string; body: string; date: string; read: boolean; documentId: number }
 
-export type MockPolicy = { year: number; expiry: string; yearStart: string; yearEnd: string; leadPersonal: number; leadVacation: number; emergencyDays: number; hoursPerDay: number; hourStep: number; emergencyNeedsPersonal: boolean; certDays: number; otMax: number; fixDays: number }
+export type MockPolicy = { year: number; expiry: string; yearStart: string; yearEnd: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number; certDays: number; otMax: number; fixDays: number }
