@@ -144,6 +144,8 @@ const INITIAL_NOTIFICATIONS: MockNotification[] = [
   { id:3, title:'ผู้จัดการอนุมัติใบลาของคุณแล้ว', body:'เอกสารส่งต่อให้ HR ตรวจแล้ว', date:'2026-10-11T15:00:00+07:00', read:true, documentId:1 },
 ]
 const MOCK_STORAGE_KEY = 'boswell-leave-v2-mock'
+// key ที่ Topbar ใช้ส่ง document id เมื่อคลิกแจ้งเตือน → ให้หน้าเอกสารเปิด popup รายละเอียดทันที
+export const OPEN_DOCUMENT_KEY = 'dms-open-doc'
 type MockSnapshot = { policy: MockPolicy; documents: MockDocument[]; employees: MockEmployee[]; notifications: MockNotification[]; mockRole: MockEmployee['role']; emailEnabled: boolean; ledgerEmployeeId: string; savedSignature?: string }
 function readMockSnapshot(): Partial<MockSnapshot> {
   if (USE_DB) return {}
@@ -175,7 +177,6 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const [dbEmployees, setDbEmployees] = useState<User[]>([])
   const [dbEmployeesLoading, setDbEmployeesLoading] = useState(false)
   const [dbEmployeesError, setDbEmployeesError] = useState('')
-  const [selectedNotification, setSelectedNotification] = useState<MockNotification | null>(null)
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null)
   const [signingDocumentId, setSigningDocumentId] = useState<number | null>(null)
   const [savedSignature, setSavedSignature] = useState(() => readMockSnapshot().savedSignature ?? '')
@@ -259,6 +260,23 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   }, [mapperText])
   useEffect(() => { if (USE_DB && view === 'notifications') void reloadNotifications() }, [view, reloadNotifications])
 
+  // Topbar คลิกแจ้งเตือน → ส่ง document id มาทาง sessionStorage + custom event → เปิด popup รายละเอียดเอกสารทันที
+  // (custom event สำคัญ: ถ้าอยู่หน้าเอกสารอยู่แล้ว component ไม่ re-mount effect ต้องฟัง event เอง)
+  const openDocumentFromSession = () => {
+    const raw = sessionStorage.getItem(OPEN_DOCUMENT_KEY)
+    if (!raw) return
+    sessionStorage.removeItem(OPEN_DOCUMENT_KEY)
+    const id = Number(raw)
+    if (Number.isSafeInteger(id) && id > 0) setSelectedDocumentId(id)
+  }
+  useEffect(() => {
+    if (!USE_DB) return
+    openDocumentFromSession()
+    const handler = () => openDocumentFromSession()
+    window.addEventListener('dms:open-doc', handler)
+    return () => window.removeEventListener('dms:open-doc', handler)
+  }, [view])
+
   // นโยบาย + ลายเซ็นที่จดจำไว้ + รายชื่อพนักงาน (ledger)
   useEffect(() => {
     if (!USE_DB) return
@@ -321,6 +339,13 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documents, kindFilter, mockRole, search, statusFilter, view, copy])
+
+  // สมุดบันทึกการลา: โหมด DB แสดงของตัวเองเป็นค่าเริ่มต้น (ถ้าอยู่ในรายชื่อ) — ถ้าจะดูของคนอื่นค่อยเลือกจาก dropdown
+  useEffect(() => {
+    if (!USE_DB || dbPeople.length === 0) return
+    const mine = dbPeople.find((person) => person.id === user?.id)
+    if (mine && String(mine.id) !== ledgerEmployeeId) setLedgerEmployeeId(String(mine.id))
+  }, [dbPeople, user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const availableLedgerEmployees = USE_DB
     ? dbPeople.map((person) => ({
@@ -564,7 +589,13 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       notifications={notifications} emailEnabled={emailEnabled} onEmailEnabled={setEmailEnabled} onReadAll={markAllRead}
       copy={copy}
       tab={notificationTab} onTab={setNotificationTab}
-      onOpen={(notification) => { if (USE_DB) { void markNotificationsRead(notification.id).then(() => reloadNotifications()); setSelectedNotification(notification) } else { setNotifications(current => current.map(item => item.id === notification.id ? {...item,read:true} : item)); setSelectedNotification(notification) } }}
+      // คลิกแจ้งเตือน: ทำเครื่องหมายว่าอ่านแล้ว แล้วเปิด popup รายละเอียดเอกสารทันที
+      onOpen={(notification) => {
+        const docId = notification.documentId ?? null
+        if (USE_DB) void markNotificationsRead(notification.id).then(() => reloadNotifications())
+        else setNotifications(current => current.map(item => item.id === notification.id ? {...item,read:true} : item))
+        if (docId !== null) setSelectedDocumentId(docId)
+      }}
     />}
 
     {USE_DB && docsLoading && ['all', 'pending'].includes(view) && <p className="documents-empty">…</p>}
@@ -609,8 +640,6 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     />}
 
     {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={640} height={240} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" disabled={!signatureHasInk} onClick={() => void confirmSignature()}>{copy.signature.send}</button></div></section></div>}
-
-    {selectedNotification && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedNotification(null) }}><section className="documents-modal"><div className="documents-modal-head"><div><span className="documents-pill is-pending">{copy.messages.relatedDocument}</span><h2>{selectedNotification.title}</h2><p>{selectedNotification.body}</p></div><button aria-label={copy.detail.close} onClick={() => setSelectedNotification(null)}><FaXmark /></button></div><p>{copy.messages.item}: {documents.find((doc) => doc.id === selectedNotification.documentId)?.no ?? copy.messages.notFound}</p><button className="documents-primary" onClick={() => setSelectedNotification(null)}>{copy.detail.close}</button></section></div>}
 
     <DocNewDocumentModal
       open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} role={mockRole} copy={copy}

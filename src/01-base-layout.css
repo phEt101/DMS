@@ -555,6 +555,7 @@ a {
 .topbar-notification-copy small,.topbar-notification-copy time { color: #75809b; font-size: 11px; line-height: 1.4; }
 .topbar-notifications-all { width: 100%; min-height: 42px; border-top: 1px solid #edf0f5; font-size: 12px; }
 .topbar-notifications-all:hover,.topbar-notifications > header button:hover { color: #3929bd; }
+.topbar-notification-empty { padding: 16px; font-size: 12px; color: #75809b; text-align: center; }
 @media (max-width: 560px) {
   .topbar-notifications { position: fixed; top: 70px; right: 12px; }
 }
