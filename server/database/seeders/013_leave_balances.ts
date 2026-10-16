@@ -5,9 +5,9 @@ import type { Connection } from 'mysql2/promise'
 export async function up(connection: Connection) {
   await connection.execute(
     `INSERT INTO employees (user_id, sick_leave_days, personal_leave_days, vacation_leave_days, other_leave_days)
-     SELECT id, 3, 3, 3, 0 FROM users WHERE deleted_at IS NULL
+     SELECT id, 30, 3, 3, 0 FROM users WHERE deleted_at IS NULL
      ON DUPLICATE KEY UPDATE
-       sick_leave_days = COALESCE(sick_leave_days, 3),
+       sick_leave_days = COALESCE(sick_leave_days, 30),
        personal_leave_days = COALESCE(personal_leave_days, 3),
        vacation_leave_days = COALESCE(vacation_leave_days, 3),
        other_leave_days = COALESCE(other_leave_days, 0)`,

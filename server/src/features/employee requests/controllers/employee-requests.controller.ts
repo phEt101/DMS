@@ -7,7 +7,7 @@ import { validateRequest, type Kind, type LeaveTypeRow, type Policy, type Valida
 const PERM = { access: 'เข้าถึงเมนูเอกสาร', submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
 const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'wfh', 'outing', 'swap']
 const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', wfh: 'WFH', outing: 'OUT', swap: 'SW' }
-const STATUSES = ['pending_mgr', 'pending_hr', 'approved', 'rejected', 'cancelled']
+const STATUSES = ['pending_mgr', 'pending_exec', 'pending_hr', 'approved', 'rejected', 'cancelled']
 const MAX_SIGNATURE_LENGTH = 200_000
 
 const has = (req: Request, name: string) => Boolean(req.user?.permissions.some((permission) => permission.name === name))
@@ -103,17 +103,37 @@ export async function saveMySignature(req: Request, res: Response) {
   res.status(204).end()
 }
 
+// ---------- helper: manager ทุกคนในแผนกเห็น/อนุมัติใบลูกน้องได้ ----------
+// แผนกที่ manager ที่ล็อกอินดูแลอยู่ (null ถ้าไม่ใช่ role manager) — ตอนใส่ใน SQL ใช้ `?? -1` เพื่อไม่ให้ match
+const myManagedDeptId = async (conn: any, req: Request): Promise<number | null> => {
+  if (String(req.user!.role?.name ?? '') !== 'manager') return null
+  const [rows] = await conn.query(
+    `SELECT department_id FROM users WHERE id = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1`, [req.user!.id],
+  )
+  return rows[0]?.department_id ? Number(rows[0].department_id) : null
+}
+
 // ---------- รายการ / รายละเอียด ----------
 export async function index(req: Request, res: Response) {
   need(req, PERM.access)
-  const companyId = companyIdOf(req), me = req.user!.id, isHr = has(req, PERM.review)
+  const companyId = companyIdOf(req), me = req.user!.id
+  // HR = มีสิทธิ์พิจารณา + อยู่แผนก HR Div. (กัน role user ที่โดนแถมสิทธิ์มองเห็นทั้งบริษัท)
+  const isHr = has(req, PERM.review) && String((req.user as any)?.department ?? '').trim().toLowerCase() === 'hr div.'
+  const listRoleName = String(req.user!.role?.name ?? '')
+  const listIsExec = listRoleName === 'executive'
+  const isAdmin = listRoleName === 'admin'
+  const myDept = await myManagedDeptId(db as any, req)
   const status = String(req.query.status ?? 'all'), kind = String(req.query.kind ?? 'all'), awaitingMe = req.query.awaiting === 'me'
   if (status !== 'all' && status !== 'pending' && !STATUSES.includes(status)) throw httpError(400, 'Invalid status')
   if (!['all', 'leave', 'ot', 'other', ...KINDS].includes(kind)) throw httpError(400, 'Invalid kind')
 
   const where = ['r.company_id = ?'], params: any[] = [companyId]
-  if (!isHr) { where.push('(r.employee_user_id = ? OR r.manager_user_id = ?)'); params.push(me, me) }
-  if (status === 'pending') where.push(`r.status IN ('pending_mgr','pending_hr')`)
+  // มองเห็น: admin เห็นทุกเอกสาร · HR เห็นทั้งบริษัท · executive เห็นของตัวเอง + pending_exec · manager เห็นของตัวเอง + ที่ผูกกับตน + ทั้งแผนกที่ตนดูแล · คนอื่นเห็นของตัวเอง
+  if (isAdmin) { /* ทุกเอกสาร */ }
+  else if (isHr) { /* ทุกเอกสาร */ }
+  else if (listIsExec) { where.push(`(r.employee_user_id = ? OR r.manager_user_id = ? OR r.status = 'pending_exec')`); params.push(me, me) }
+  else { where.push('(r.employee_user_id = ? OR r.manager_user_id = ? OR r.department_id = ?)'); params.push(me, me, myDept ?? -1) }
+  if (status === 'pending') where.push(`r.status IN ('pending_mgr','pending_exec','pending_hr')`)
   else if (status !== 'all') { where.push('r.status = ?'); params.push(status) }
   const employeeId = req.query.employeeId === undefined ? null : Number(req.query.employeeId)
   if (employeeId !== null) {
@@ -123,8 +143,8 @@ export async function index(req: Request, res: Response) {
   if (kind === 'other') where.push(`r.kind IN ('timefix','wfh','outing','swap')`)
   else if (kind !== 'all') { where.push('r.kind = ?'); params.push(kind) }
   if (awaitingMe) {
-    where.push(`r.employee_user_id <> ? AND ((r.status = 'pending_mgr' AND r.manager_user_id = ?) ${isHr ? `OR r.status = 'pending_hr'` : ''})`)
-    params.push(me, me)
+    where.push(`r.employee_user_id <> ? AND ((r.status = 'pending_mgr' AND (r.manager_user_id = ? OR r.department_id = ?)) ${listIsExec ? `OR r.status = 'pending_exec'` : ''} ${isHr ? `OR r.status = 'pending_hr'` : ''})`)
+    params.push(me, me, myDept ?? -1)
   }
   const [rows] = await db.query<any[]>(
     `SELECT r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at,
@@ -163,15 +183,22 @@ const DETAIL_SQL: Record<Kind, string> = {
 export async function show(req: Request, res: Response) {
   need(req, PERM.access)
   const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id, isHr = has(req, PERM.review)
+  const detailRoleName = String(req.user!.role?.name ?? '')
+  const detailIsExec = detailRoleName === 'executive'
+  const detailIsAdmin = detailRoleName === 'admin'
+  const myDept = await myManagedDeptId(db as any, req)
   const [rows] = await db.query<any[]>(
     `SELECT r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at, r.decided_at,
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
-            r.employee_user_id, r.manager_user_id, eu.name AS employee_name, dep.name AS department_name
+            r.employee_user_id, r.manager_user_id, r.department_id, eu.name AS employee_name, dep.name AS department_name
        FROM employee_requests r JOIN users eu ON eu.id = r.employee_user_id LEFT JOIN departments dep ON dep.id = r.department_id
       WHERE r.id = ? AND r.company_id = ? LIMIT 1`, [id, companyId],
   )
   const row = rows[0]
-  if (!row || !(isHr || row.employee_user_id === me || row.manager_user_id === me)) throw httpError(404, 'Request not found')
+  // manager ทุกคนในแผนกเดียวกับใบ (department_id snapshot ตอนยื่น) เห็น/อนุมัติขั้น manager ได้
+  const isDeptMgr = Boolean(row) && myDept !== null && Number(row.department_id) === myDept
+  if (!row || !(detailIsAdmin || isHr || row.employee_user_id === me || row.manager_user_id === me || isDeptMgr
+    || (detailIsExec && row.status === 'pending_exec'))) throw httpError(404, 'Request not found')
   const detailSql = DETAIL_SQL[row.kind as Kind]
   if (!detailSql) throw httpError(404, 'Request not found')
   const [detailRows] = await db.query<any[]>(detailSql, [id])
@@ -181,30 +208,104 @@ export async function show(req: Request, res: Response) {
     `SELECT stage, action, signer_name, signature_image, note, signed_at FROM employee_request_signatures WHERE request_id = ? ORDER BY signed_at, id`, [id],
   )
   const notSelf = row.employee_user_id !== me
-  const { manager_user_id: _manager, ...publicRow } = row
+  const isExec = detailIsExec, isAdmin = detailIsAdmin
+  // ขั้น HR: ใครใน HR Div. อนุมัติก็ได้ (ยกเว้นผู้ยื่น) — ถ้าไม่มี HR คนอื่น admin fallback
+  const otherHrIds = await findHrUserIds(db as any, companyId, row.employee_user_id)
+  const isAdminFallback = isAdmin && otherHrIds.length === 0
+  // ขั้น HR: เฉพาะสมาชิก HR Div. (ยกเว้นผู้ยื่น) — ถ้าไม่มี HR คนอื่น admin fallback
+  const hrMemberIds = await findHrUserIds(db as any, companyId)
+  const isHrMember = hrMemberIds.includes(me)
+  const { manager_user_id: _manager, executive_user_id: _exec, department_id: _dep, ...publicRow } = row as any
   res.json({
     ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map(camelize),
-    canApprove: notSelf && ((row.status === 'pending_mgr' && row.manager_user_id === me) || (row.status === 'pending_hr' && isHr)),
+    canApprove: notSelf && (
+      (row.status === 'pending_mgr' && (row.manager_user_id === me || isDeptMgr))
+      || (row.status === 'pending_exec' && (isExec || isAdmin))
+      || (row.status === 'pending_hr' && ((isHrMember && !isAdminFallback) || isAdminFallback))
+    ),
     canCancel: !notSelf && (row.status === 'pending_mgr' || (row.status === 'pending_hr' && row.manager_user_id === null)),
   })
 }
 
-// ---------- ยื่นเอกสาร ----------
+// ---------- แจ้งเตือน ----------
 const notify = async (conn: any, userIds: number[], requestId: number, event: string) => {
-  const ids = [...new Set(userIds)]
+  const ids = [...new Set(userIds)].filter((userId) => Number.isSafeInteger(userId))
   if (!ids.length) return
   await conn.query(`INSERT INTO employee_request_notifications (recipient_user_id, request_id, event) VALUES ?`, [ids.map((userId) => [userId, requestId, event])])
 }
-// ผู้ใช้ที่มีสิทธิ์ 'พิจารณาเอกสาร' ของบริษัทนี้ (ยกเว้นตัวเอกสารเอง กรณีเทียบเทียบภายหลัง)
-const findHrUserIds = async (conn: any, companyId: number): Promise<number[]> => {
+
+// ---------- ยื่นเอกสาร ----------
+// ทีม HR: ทุก active user ในแผนก 'HR Div.' ของบริษัทนี้
+// excludeUserId = ผู้ยื่น (HR อนุมัติเอกสารของตัวเองไม่ได้ — ต้องให้ HR อีกคนเซ็น)
+const findHrUserIds = async (conn: any, companyId: number, excludeUserId?: number): Promise<number[]> => {
   const [rows] = await conn.query(
     `SELECT DISTINCT u.id FROM users u
-       JOIN role_permissions rp ON rp.role_id = u.role_id
-       JOIN permissions p ON p.id = rp.permission_id AND p.is_active = 1 AND p.deleted_at IS NULL
+       JOIN departments d ON d.id = u.department_id AND d.name = 'HR Div.' AND d.deleted_at IS NULL
       WHERE u.company_id = ? AND u.is_active = 1 AND u.deleted_at IS NULL
-        AND p.name = ?`, [companyId, PERM.review],
+        AND u.id <> COALESCE(?, -1)`, [companyId, excludeUserId ?? null],
   )
   return (rows as any[]).map((row: any) => Number(row.id))
+}
+// ผู้ประกอบการ (role executive) — ถ้าไม่มี fallback เป็น admin
+const findExecUserIds = async (conn: any, companyId: number): Promise<number[]> => {
+  const [rows] = await conn.query(
+    `SELECT u.id FROM users u
+       JOIN roles r ON r.id = u.role_id AND r.name = 'executive' AND r.deleted_at IS NULL
+      WHERE u.company_id = ? AND u.is_active = 1 AND u.deleted_at IS NULL`, [companyId],
+  )
+  const ids = (rows as any[]).map((row: any) => Number(row.id))
+  if (ids.length) return ids
+  const [fallback] = await conn.query(
+    `SELECT u.id FROM users u
+       JOIN roles r ON r.id = u.role_id AND r.name = 'admin' AND r.deleted_at IS NULL
+      WHERE u.company_id = ? AND u.is_active = 1 AND u.deleted_at IS NULL`, [companyId],
+  )
+  return (fallback as any[]).map((row: any) => Number(row.id))
+}
+// ผู้จัดการแผนกของผู้ยื่น:
+//   1) manager ที่ระบุไว้ใน employees.manager_user_id (ถ้ามีและยัง active + เป็น manager ของบริษัทเดียวกัน)
+//   2) fallback: user คนอื่นในแผนกเดียวกันที่ role = manager (ตัวอย่างเช่น HR ไม่ได้ผูก manager ไว้)
+const findDeptManagerId = async (conn: any, departmentId: number, submitterId: number, defaultManagerId: number | null): Promise<number | null> => {
+  if (defaultManagerId && Number.isSafeInteger(Number(defaultManagerId)) && Number(defaultManagerId) !== submitterId) {
+    const [assigned] = await conn.query(
+      `SELECT u.id FROM users u
+         JOIN roles r ON r.id = u.role_id AND r.name = 'manager' AND r.deleted_at IS NULL
+        WHERE u.id = ? AND u.company_id = (SELECT company_id FROM users WHERE id = ?) AND u.is_active = 1 AND u.deleted_at IS NULL
+        LIMIT 1`, [Number(defaultManagerId), submitterId],
+    )
+    if (assigned[0]) return Number(assigned[0].id)
+  }
+  if (!departmentId) return null
+  const [rows] = await conn.query(
+    `SELECT u.id FROM users u
+       JOIN roles r ON r.id = u.role_id AND r.name = 'manager' AND r.deleted_at IS NULL
+      WHERE u.department_id = ? AND u.is_active = 1 AND u.deleted_at IS NULL AND u.id <> ?
+      ORDER BY u.id LIMIT 1`, [departmentId, submitterId],
+  )
+  return rows[0] ? Number(rows[0].id) : null
+}
+// manager ทุกคนในแผนก (ไว้แจ้งเตือนตอนยื่น)
+const findDeptManagerIds = async (conn: any, companyId: number, departmentId: number | null, excludeUserId: number): Promise<number[]> => {
+  if (!departmentId) return []
+  const [rows] = await conn.query(
+    `SELECT u.id FROM users u
+       JOIN roles r ON r.id = u.role_id AND r.name = 'manager' AND r.deleted_at IS NULL
+      WHERE u.department_id = ? AND u.company_id = ? AND u.is_active = 1 AND u.deleted_at IS NULL AND u.id <> ?`,
+    [departmentId, companyId, excludeUserId],
+  )
+  return (rows as any[]).map((row: any) => Number(row.id))
+}
+// ขั้นแรกตาม role + แผนกของผู้ยื่น:
+//   executive -> HR ทั้งหมดเลย (จบที่ HR)
+//   HR Div. (user/manager ก็ตาม) -> executive -> HR คนอื่น (ไม่ใช่ตัวเอง)
+//   manager แผนกอื่น -> executive -> HR
+//   user/admin ทั่วไป -> manager ของแผนกตัวเอง (ถ้าไม่มี manager → HR)
+const firstStage = (user: any): 'pending_mgr' | 'pending_exec' | 'pending_hr' => {
+  const role = String(user.role_name ?? '')
+  if (role === 'executive') return 'pending_hr'
+  if (user.isHrDept) return 'pending_exec'
+  if (role === 'user' || role === 'admin') return user.manager_user_id ? 'pending_mgr' : 'pending_hr'
+  return 'pending_exec'
 }
 
 function headerFields(kind: Kind, v: Values) {
@@ -254,9 +355,12 @@ export async function store(req: Request, res: Response) {
   const signature = checkSignature(req.body?.signature, true)
 
   const [userRows] = await db.query<any[]>(
-    `SELECT u.id, u.name, u.department_id, e.manager_user_id,
+    `SELECT u.id, u.name, u.department_id, u.role_id, r.name AS role_name, dep.name AS department_name, dep.name = 'HR Div.' AS isHrDept, e.manager_user_id,
             COALESCE(e.sick_leave_days, 0) AS sick, COALESCE(e.personal_leave_days, 0) AS personal, COALESCE(e.vacation_leave_days, 0) AS vacation
-       FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ? AND u.deleted_at IS NULL LIMIT 1`, [me],
+       FROM users u LEFT JOIN employees e ON e.user_id = u.id
+       JOIN roles r ON r.id = u.role_id
+       LEFT JOIN departments dep ON dep.id = u.department_id
+       WHERE u.id = ? AND u.deleted_at IS NULL LIMIT 1`, [me],
   )
   const user = userRows[0]
   if (!user) throw httpError(404, 'User not found')
@@ -271,7 +375,9 @@ export async function store(req: Request, res: Response) {
   if (kind === 'timefix') oneOf(v.cause, ['forgot', 'device', 'offsite', 'other'], 'สาเหตุไม่ถูกต้อง')
 
   const head = headerFields(kind, v)
-  const status = user.manager_user_id ? 'pending_mgr' : 'pending_hr'
+  // หา manager ของผู้ยื่น: ใช้ employees.manager_user_id เป็นหลัก (fallback = manager คนแรกในแผนก) แล้วคำนวณขั้นแรกตาม role + แผนก
+  const deptManagerId = await findDeptManagerId(db as any, user.department_id, me, user.manager_user_id)
+  const status = firstStage({ ...user, manager_user_id: deptManagerId, isHrDept: Boolean(Number(user.isHrDept)) })
   const conn = await db.getConnection()
   try {
     await conn.beginTransaction()
@@ -284,7 +390,7 @@ export async function store(req: Request, res: Response) {
     const [result] = await conn.execute<any>(
       `INSERT INTO employee_requests (company_id, request_no, kind, employee_user_id, department_id, manager_user_id, policy_id, status, start_date, end_date, days, reason)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [companyId, requestNo, kind, me, user.department_id, user.manager_user_id, policy.id, status, head.start, head.end, head.days, head.reason],
+      [companyId, requestNo, kind, me, user.department_id, deptManagerId, policy.id, status, head.start, head.end, head.days, head.reason],
     )
     const id = result.insertId as number
     const s = (key: string) => nz(v[key])
@@ -314,9 +420,15 @@ export async function store(req: Request, res: Response) {
     if (req.body?.rememberSignature === true) {
       await conn.execute(`INSERT INTO user_saved_signatures (user_id, signature_image) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature_image = VALUES(signature_image)`, [me, signature])
     }
+    // pending_mgr: แจ้ง manager ทุกคนในแผนก + manager ที่ผูกไว้ (notify กรองซ้ำให้)
     const recipients = status === 'pending_mgr'
-      ? [user.manager_user_id].filter((userId): userId is number => Number.isSafeInteger(userId))
-      : await findHrUserIds(conn, companyId)
+      ? [
+          ...(await findDeptManagerIds(conn, companyId, user.department_id, me)),
+          ...[deptManagerId].filter((userId): userId is number => Number.isSafeInteger(userId)),
+        ]
+      : status === 'pending_exec'
+        ? await findExecUserIds(conn, companyId)
+        : await findHrUserIds(conn, companyId, me)
     await notify(conn, recipients, id, 'submitted')
     await conn.commit()
     res.status(201).json({ id, requestNo, status })
@@ -339,16 +451,34 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
   const conn = await db.getConnection()
   try {
     await conn.beginTransaction()
-    const [rows] = await conn.query<any[]>(`SELECT id, employee_user_id, manager_user_id, status FROM employee_requests WHERE id = ? AND company_id = ? FOR UPDATE`, [id, companyId])
+    const [rows] = await conn.query<any[]>(`SELECT id, employee_user_id, manager_user_id, department_id, status FROM employee_requests WHERE id = ? AND company_id = ? FOR UPDATE`, [id, companyId])
     const row = rows[0]
     if (!row) throw httpError(404, 'Request not found')
     if (row.employee_user_id === me) throw httpError(403, 'ไม่สามารถพิจารณาเอกสารของตนเองได้')
-    let stage: 'manager' | 'hr'
-    if (row.status === 'pending_mgr') { if (row.manager_user_id !== me) throw httpError(403, 'ไม่มีสิทธิ์พิจารณาเอกสารนี้'); stage = 'manager' }
-    else if (row.status === 'pending_hr') { if (!isHr) throw httpError(403, 'ไม่มีสิทธิ์พิจารณาเอกสารนี้'); stage = 'hr' }
+    const myRole = String(req.user!.role?.name ?? '')
+    const isExec = myRole === 'executive'
+    const isAdmin = myRole === 'admin'
+    // ขั้น HR: ทุกคนในแผนก HR Div. อนุมัติได้ (ยกเว้นผู้ยื่น) — ถ้าไม่มี HR คนอื่น admin fallback
+    const otherHrIds = await findHrUserIds(conn, companyId, row.employee_user_id)
+    const isAdminFallback = isAdmin && otherHrIds.length === 0
+    let stage: 'manager' | 'executive' | 'hr'
+    if (row.status === 'pending_mgr') {
+      // manager ที่ผูกไว้ หรือ manager คนไหนก็ได้ในแผนกเดียวกับใบ
+      const myDept = await myManagedDeptId(conn, req)
+      const isDeptMgr = myDept !== null && Number(row.department_id) === myDept
+      if (row.manager_user_id !== me && !isDeptMgr) throw httpError(403, 'ไม่มีสิทธิ์พิจารณาเอกสารนี้')
+      stage = 'manager'
+    }
+    else if (row.status === 'pending_exec') { if (!isExec && !isAdmin) throw httpError(403, 'ไม่มีสิทธิ์พิจารณาเอกสารนี้'); stage = 'executive' }
+    else if (row.status === 'pending_hr') { if (!isHr && !isAdminFallback) throw httpError(403, 'ไม่มีสิทธิ์พิจารณาเอกสารนี้'); stage = 'hr' }
     else throw httpError(409, 'เอกสารไม่อยู่ในสถานะรออนุมัติแล้ว')
+    // ผู้ยื่นไม่มีสิทธิ์อนุมัติเอกสารของตัวเองแม้มีสิทธิ์ review (HR ยื่นต้องให้ HR คนอื่นเซ็น)
+    if (!isAdminFallback && stage === 'hr') {
+      const meIsHrMember = (await findHrUserIds(conn, companyId)).includes(me)
+      if (!meIsHrMember) throw httpError(403, 'ไม่มีสิทธิ์พิจารณาเอกสารนี้')
+    }
 
-    const next = action === 'reject' ? 'rejected' : stage === 'manager' ? 'pending_hr' : 'approved'
+    const next = action === 'reject' ? 'rejected' : stage === 'manager' || stage === 'executive' ? 'pending_hr' : 'approved'
     const [update] = await conn.execute<any>(
       `UPDATE employee_requests SET status = ?, rejected_stage = ?, rejection_note = ?, decided_at = IF(? IN ('approved','rejected'), CURRENT_TIMESTAMP, NULL)
         WHERE id = ? AND status = ?`,
@@ -364,7 +494,11 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
       await conn.execute(`INSERT INTO user_saved_signatures (user_id, signature_image) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature_image = VALUES(signature_image)`, [me, signature])
     }
     await notify(conn, [row.employee_user_id], id, next === 'pending_hr' ? 'forwarded_to_hr' : next)
-    if (next === 'pending_hr') await notify(conn, await findHrUserIds(conn, companyId), id, 'submitted')
+    if (next === 'pending_hr') {
+      // ขั้น HR: แจ้งทุกคนใน HR Div. (ยกเว้นผู้ยื่น) — ใครอนุมัติก็ได้; ถ้าไม่มี HR คนอื่น fallback executive/admin
+      const hrRecipients = await findHrUserIds(conn, companyId, row.employee_user_id)
+      await notify(conn, hrRecipients.length ? hrRecipients : await findExecUserIds(conn, companyId), id, 'submitted')
+    }
     await conn.commit()
     res.json({ id, status: next })
   } catch (error) {
@@ -383,7 +517,7 @@ export async function cancel(req: Request, res: Response) {
   const [result] = await db.execute<any>(
     `UPDATE employee_requests SET status = 'cancelled', decided_at = CURRENT_TIMESTAMP
       WHERE id = ? AND company_id = ? AND employee_user_id = ?
-        AND (status = 'pending_mgr' OR (status = 'pending_hr' AND manager_user_id IS NULL))`,
+        AND (status = 'pending_mgr' OR status = 'pending_exec' OR (status = 'pending_hr' AND manager_user_id IS NULL))`,
     [id, companyIdOf(req), req.user!.id],
   )
   if (!result.affectedRows) throw httpError(409, 'ไม่สามารถยกเลิกเอกสารนี้ได้')
@@ -398,15 +532,21 @@ export async function validate(req: Request, res: Response) {
   if (!KINDS.includes(kind)) throw httpError(400, 'ประเภทเอกสารไม่ถูกต้อง')
   const raw = req.body?.values
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw httpError(400, 'ข้อมูลเอกสารไม่ถูกต้อง')
+
   const [userRows] = await db.query<any[]>(
-    `SELECT u.id, COALESCE(e.sick_leave_days, 0) AS sick, COALESCE(e.personal_leave_days, 0) AS personal, COALESCE(e.vacation_leave_days, 0) AS vacation
-       FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ? AND u.deleted_at IS NULL LIMIT 1`, [req.user!.id],
+    `SELECT u.id, COALESCE(e.sick_leave_days, 0) AS sick,
+            COALESCE(e.personal_leave_days, 0) AS personal,
+            COALESCE(e.vacation_leave_days, 0) AS vacation
+       FROM users u LEFT JOIN employees e ON e.user_id = u.id
+      WHERE u.id = ? AND u.deleted_at IS NULL LIMIT 1`, [req.user!.id],
   )
-  if (!userRows[0]) throw httpError(404, 'User not found')
+  const user = userRows[0]
+  if (!user) throw httpError(404, 'User not found')
+
   const policy = await loadPolicy(companyId, today)
-  const ctx = await buildContext(kind, raw as Values, userRows[0], policy, today)
-  const { checks } = validateRequest(kind, raw as Values, ctx)
-  res.json({ checks: checks.map((check: { ok: boolean; key: string; params?: unknown }) => ({ ok: check.ok, key: check.key, params: check.params })) })
+  const ctx = await buildContext(kind, raw as Values, user, policy, today)
+  const result = validateRequest(kind, raw as Values, ctx)
+  res.json(result)
 }
 
 // ---------- รายการ/ใบที่ใช้ร่วมกับการแจ้งเตือน ----------
@@ -447,11 +587,92 @@ export async function readNotifications(req: Request, res: Response) {
   res.status(204).end()
 }
 
+// ---------- badge (sidebar): เอกสารรอตนเซ็น + แจ้งเตือนยังไม่อ่าน ----------
+export async function badges(req: Request, res: Response) {
+  need(req, PERM.access)
+  const companyId = companyIdOf(req), me = req.user!.id
+  const myRole = String(req.user!.role?.name ?? '')
+  const isExec = myRole === 'executive', isAdmin = myRole === 'admin'
+  const isHrBadge = has(req, PERM.review) && (await findHrUserIds(db as any, companyId)).includes(me)
+  const myDept = await myManagedDeptId(db as any, req)
+  // รอนุมัติ: ตามขั้นตอนของแต่ละ role — manager ตาม snapshot หรือแผนกที่ดูแล, executive/admin ขั้น exec, HR Div. ขั้น HR (ไม่รวมเอกสารของตนเอง)
+  const [pendingRows] = await db.query<any[]>(
+    `SELECT COUNT(*) AS n FROM employee_requests r
+      WHERE r.company_id = ? AND r.employee_user_id <> ?
+        AND ((r.status = 'pending_mgr' AND (r.manager_user_id = ? OR r.department_id = ?))
+          ${isExec || isAdmin ? `OR r.status = 'pending_exec'` : ''}
+          ${isHrBadge ? `OR r.status = 'pending_hr'` : ''})`, [companyId, me, me, myDept ?? -1],
+  )
+  const [unreadRows] = await db.query<any[]>(
+    `SELECT COUNT(*) AS n FROM employee_request_notifications n
+       JOIN employee_requests r ON r.id = n.request_id
+      WHERE n.recipient_user_id = ? AND r.company_id = ? AND n.is_read = 0`, [me, companyId],
+  )
+  res.json({ pendingApproval: Number(pendingRows[0]?.n ?? 0), unreadNotifications: Number(unreadRows[0]?.n ?? 0) })
+}
+
+// ---------- สรุปสำหรับ dashboard (เอกสารของตัวเอง + โควตาลาคงเหลือ) ----------
+export async function dashboardSummary(req: Request, res: Response) {
+  need(req, PERM.access)
+  const companyId = companyIdOf(req), me = req.user!.id, today = todayBangkok()
+  const [policyRowData] = await db.query<any[]>(
+    `${POLICY_SELECT} WHERE company_id = ? AND is_active = 1
+      ORDER BY (year_start <= ? AND year_end >= ?) DESC, policy_year DESC LIMIT 1`, [companyId, today, today],
+  )
+  const policy = policyRowData[0] ? policyRow(policyRowData[0]) : null
+  const [stats] = await db.query<any[]>(
+    `SELECT COUNT(*) AS total,
+            SUM(status IN ('pending_mgr','pending_exec','pending_hr')) AS pending,
+            SUM(status = 'approved') AS approved,
+            SUM(status = 'rejected') AS rejected
+       FROM employee_requests WHERE company_id = ? AND employee_user_id = ?`, [companyId, me],
+  )
+  const balances: Array<{ id: string; title: string; total: number; used: number; pending: number; remaining: number }> = []
+  if (policy) {
+    const [entRow] = await db.query<any[]>(
+      `SELECT COALESCE(e.sick_leave_days, 0) AS sick, COALESCE(e.personal_leave_days, 0) AS personal, COALESCE(e.vacation_leave_days, 0) AS vacation
+         FROM users u LEFT JOIN employees e ON e.user_id = u.id WHERE u.id = ? AND u.deleted_at IS NULL LIMIT 1`, [me],
+    )
+    const entitlement = { sick: Number(entRow[0]?.sick ?? 0), personal: Number(entRow[0]?.personal ?? 0), vacation: Number(entRow[0]?.vacation ?? 0) }
+    const [usage] = await db.query<any[]>(
+      `SELECT lt.balance_bucket,
+              SUM(CASE WHEN r.status = 'approved' THEN COALESCE(r.days, 0) ELSE 0 END) AS used,
+              SUM(CASE WHEN r.status IN ('pending_mgr','pending_exec','pending_hr') THEN COALESCE(r.days, 0) ELSE 0 END) AS pending
+         FROM employee_requests r
+         JOIN employee_request_leave_details dl ON dl.request_id = r.id
+         JOIN leave_types lt ON lt.id = dl.leave_type_id
+        WHERE r.employee_user_id = ? AND r.kind = 'leave' AND r.start_date BETWEEN ? AND ?
+        GROUP BY lt.balance_bucket`, [me, policy.yearStart, policy.yearEnd],
+    )
+    const byBucket: Record<string, { used: number; pending: number }> = {}
+    for (const row of usage) byBucket[String(row.balance_bucket)] = { used: Number(row.used), pending: Number(row.pending) }
+    const labelTh = { sick: 'ลาป่วย', personal: 'ลากิจ', vacation: 'ลาพักร้อน' } as Record<string, string>
+    for (const bucket of ['sick', 'personal', 'vacation'] as const) {
+      const total = entitlement[bucket]
+      const used = byBucket[bucket]?.used ?? 0, pending = byBucket[bucket]?.pending ?? 0
+      balances.push({ id: bucket, title: labelTh[bucket] ? `${labelTh[bucket]}คงเหลือ` : bucket, total, used, pending, remaining: Math.max(0, total - used - pending) })
+    }
+  }
+  res.json({
+    stats: {
+      total: Number(stats[0]?.total ?? 0), pending: Number(stats[0]?.pending ?? 0),
+      approved: Number(stats[0]?.approved ?? 0), rejected: Number(stats[0]?.rejected ?? 0),
+    },
+    balances,
+    recent: [],
+  })
+}
+
 // ---------- รายชื่อพนักงาน + โควตาลา (หน้า ledger) ----------
-// สมมติว่า users มีคอลัมน์ company_id (ฟรอนต์ใช้ employee.companyId) — ปรับตามสคีมาจริง
+// มองเห็น: admin/HR เห็นทั้งบริษัท · ผู้จัดการเห็นลูกน้องในแผนกตัวเอง · คนอื่นเห็นตัวเอง
 export async function people(req: Request, res: Response) {
   need(req, PERM.access)
-  const me = req.user!.id, isHr = has(req, PERM.review)
+  const me = req.user!.id
+  // HR = มีสิทธิ์พิจารณา + อยู่แผนก HR Div.
+  const isHr = has(req, PERM.review) && String((req.user as any)?.department ?? '').trim().toLowerCase() === 'hr div.'
+  const myRole = String(req.user!.role?.name ?? '')
+  const seeAll = isHr || myRole === 'admin'
+  const isManager = myRole === 'manager'
   const [rows] = await db.query<any[]>(
     `SELECT u.id, u.name, u.email, u.is_active, dep.name AS department_name, e.employee_code, e.position,
             e.email_notifications_enabled, mgr.name AS manager_name,
@@ -462,8 +683,13 @@ export async function people(req: Request, res: Response) {
        LEFT JOIN employees e ON e.user_id = u.id
        LEFT JOIN users mgr ON mgr.id = e.manager_user_id
        LEFT JOIN departments dep ON dep.id = u.department_id
-      WHERE u.deleted_at IS NULL AND ${isHr ? 'u.company_id = ?' : '(u.id = ? OR e.manager_user_id = ?)'}
-      ORDER BY u.name`, isHr ? [companyIdOf(req)] : [me, me],
+      WHERE u.deleted_at IS NULL AND u.company_id = ?
+        AND ${seeAll
+          ? '1 = 1'
+          : isManager
+            ? '(u.id = ? OR e.manager_user_id = ? OR u.department_id = (SELECT department_id FROM users me WHERE me.id = ?))'
+            : 'u.id = ?'}
+      ORDER BY u.name`, seeAll || !isManager ? [companyIdOf(req), me] : [companyIdOf(req), me, me, me],
   )
   res.json(rows.map((row) => ({
     ...camelize(row), isActive: Boolean(row.is_active),

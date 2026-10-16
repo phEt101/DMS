@@ -33,6 +33,7 @@
     "submitNew": "ยื่นเอกสารใหม่",
     "statuses": {
       "pending_mgr": "รอผู้จัดการ",
+      "pending_exec": "รอผู้ประกอบการ",
       "pending_hr": "รอ HR",
       "approved": "อนุมัติแล้ว",
       "rejected": "ไม่อนุมัติ",
@@ -140,6 +141,7 @@
       "rejectionNote": "หมายเหตุจากผู้พิจารณา",
       "submitted": "ผู้ยื่น",
       "manager": "ผู้จัดการแผนก",
+      "executive": "ผู้ประกอบการ",
       "hr": "HR",
       "rejected": "ไม่อนุมัติ",
       "waiting": "รอพิจารณา",

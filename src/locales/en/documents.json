@@ -33,6 +33,7 @@
     "submitNew": "Submit a document",
     "statuses": {
       "pending_mgr": "Awaiting manager",
+      "pending_exec": "Awaiting executive",
       "pending_hr": "Awaiting HR",
       "approved": "Approved",
       "rejected": "Rejected",
@@ -182,6 +183,7 @@
       "rejectionNote": "Reviewer note",
       "submitted": "Submitter",
       "manager": "Department manager",
+      "executive": "Executive",
       "hr": "HR",
       "rejected": "Rejected",
       "waiting": "Pending review",

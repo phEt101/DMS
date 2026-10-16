@@ -61,7 +61,12 @@ const pageOrder = Object.keys(pathByPage) as PageKey[]
 
 function canAccessPage(user: AuthUser, page: PageKey) {
   if (moduleByPage[page] === 'documents') {
-    if (page === 'documents-employees') return canViewModule(user, 'documents')
+    // พนักงานทุกคนที่เห็นเมนูเอกสาร: เอกสารทั้งหมด (ของตัวเอง) / สมุดบันทึกการลา / แจ้งเตือน / รออนุมัติ
+    if (page === 'documents-all' || page === 'documents-ledger' || page === 'documents-notifications' || page === 'documents-pending') return canViewModule(user, 'documents')
+    // รายชื่อพนักงาน + นโยบาย: admin หรือแผนก HR Div. เท่านั้น
+    if (page === 'documents-employees' || page === 'documents-policy') {
+      return user.role.name.trim().toLocaleLowerCase() === 'admin' || (user.department ?? '').trim().toLocaleLowerCase() === 'hr div.'
+    }
     return canViewAllDocumentPages(user)
   }
   return canViewModule(user, moduleByPage[page])

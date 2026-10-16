@@ -159,7 +159,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const KIND_INFO = Object.fromEntries(Object.entries(KIND_INFO_DEFAULT).map(([key, info]) => [key, { ...info, title: copy.kinds[key as DocKind], description: copy.kindDescriptions[key as DocKind] }])) as typeof KIND_INFO_DEFAULT
   const LEAVE_TYPES = copy.leaveTypes
   const FORM_FIELDS = Object.fromEntries(Object.entries(FORM_FIELDS_DEFAULT).map(([kind, fields]) => [kind, fields.map((field) => ({ ...field, label: copy.fieldLabels[field.key as keyof typeof copy.fieldLabels] ?? field.label, ...(field.key === 'leaveType' ? { options: LEAVE_TYPES } : field.options ? { options: Object.fromEntries(Object.entries(field.options).map(([key]) => [key, copy.fieldOptions[key as keyof typeof copy.fieldOptions] ?? key])) } : {}) }))])) as typeof FORM_FIELDS_DEFAULT
-  const STATUS_INFO = { pending_mgr: { label: copy.statuses.pending_mgr, className: 'pending' }, pending_hr: { label: copy.statuses.pending_hr, className: 'pending' }, approved: { label: copy.statuses.approved, className: 'approved' }, rejected: { label: copy.statuses.rejected, className: 'rejected' } }
+  const STATUS_INFO = { pending_mgr: { label: copy.statuses.pending_mgr, className: 'pending' }, pending_exec: { label: copy.statuses.pending_exec, className: 'pending' }, pending_hr: { label: copy.statuses.pending_hr, className: 'pending' }, approved: { label: copy.statuses.approved, className: 'approved' }, rejected: { label: copy.statuses.rejected, className: 'rejected' } }
 
   const [policy, setPolicy] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
   const [policyDraft, setPolicyDraft] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
@@ -227,7 +227,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   // โหมด DB: ผู้ยื่นเซ็นตอนส่งเอกสารแล้ว จึงไม่มีขั้น "เซ็นภายหลัง"
   const canSignAsSubmitter = (doc: MockDocument) => !USE_DB && mockRole === 'พนักงาน' && doc.employee === 'สมชาย ใจดี' && doc.status.startsWith('pending') && !doc.signatures?.['ผู้ยื่น']
   // โหมด DB: ถ้าอยู่ในหน้ารายละเอียด ให้ปุ่มเซ็นเปิด dialog ทับ popup รายละเอียดได้ตั้งใจ — แต่ต้องตั้ง signingDocumentId เองเท่านั้น
-  const signatureStage = (doc: MockDocument): SignatureStage => canSignAsSubmitter(doc) ? 'ผู้ยื่น' : doc.status === 'pending_mgr' ? 'ผู้จัดการแผนก' : 'HR'
+  const signatureStage = (doc: MockDocument): SignatureStage => canSignAsSubmitter(doc) ? 'ผู้ยื่น' : doc.status === 'pending_mgr' ? 'ผู้จัดการแผนก' : doc.status === 'pending_exec' ? 'ผู้ประกอบการ' : 'HR'
 
   // ---------- โหลดข้อมูลจาก API ----------
   const reload = useCallback(async () => {
@@ -402,8 +402,8 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const mockDecision = (doc: MockDocument, reject = false, signature?: string) => {
     const note = reject ? window.prompt(copy.messages.rejectPrompt)?.trim() : ''
     if (reject && !note) return
-    const nextStatus: Status = reject ? 'rejected' : doc.status === 'pending_mgr' ? 'pending_hr' : 'approved'
-    const stage: SignatureStage = doc.status === 'pending_mgr' ? 'ผู้จัดการแผนก' : 'HR'
+    const nextStatus: Status = reject ? 'rejected' : doc.status === 'pending_mgr' || doc.status === 'pending_exec' ? 'pending_hr' : 'approved'
+    const stage: SignatureStage = doc.status === 'pending_mgr' ? 'ผู้จัดการแผนก' : doc.status === 'pending_exec' ? 'ผู้ประกอบการ' : 'HR'
     const reviewer = stage === 'HR' ? employees.find((employee) => employee.role === 'HR') : employees.find((employee) => employee.role === mockRole)
     setDocuments((current) => current.map((item) => item.id === doc.id ? { ...item, status:nextStatus, ...(reject ? { note, rejectedBy:stage === 'ผู้จัดการแผนก' ? 'manager' as const : 'hr' as const } : {}), ...(signature ? { signatures: { ...item.signatures, [stage]: { image:signature, name:reviewer?.name ?? mockRole, date:new Date().toISOString().slice(0,10) } } } : {}) } : item))
     showToast(reject ? copy.messages.rejectedToast : doc.status === 'pending_mgr' ? copy.messages.forwardedToast : copy.messages.approvedToast)
@@ -470,7 +470,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
         } else if (signingDocument) {
           const result = await approveRequest(signingDocument.id, { signature: image, rememberSignature })
           setSigningDocumentId(null); setSelectedDocumentId(null)
-          showToast(result.status === 'pending_hr' ? copy.messages.forwardedToast : copy.messages.approvedToast)
+          showToast(result.status === 'pending_hr' || result.status === 'pending_exec' ? copy.messages.forwardedToast : copy.messages.approvedToast)
         }
         if (rememberSignature) setSavedSignature(image)
         await reload()

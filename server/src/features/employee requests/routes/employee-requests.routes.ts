@@ -13,6 +13,8 @@ employeeRequestsRouter.get('/signature/me', asyncHandler(controller.mySignature)
 employeeRequestsRouter.put('/signature/me', asyncHandler(controller.saveMySignature))
 employeeRequestsRouter.get('/people', asyncHandler(controller.people))
 employeeRequestsRouter.get('/notifications', asyncHandler(controller.notifications))
+employeeRequestsRouter.get('/badges', asyncHandler(controller.badges))
+employeeRequestsRouter.get('/summary', asyncHandler(controller.dashboardSummary))
 employeeRequestsRouter.post('/notifications/read', asyncHandler(controller.readNotifications))
 employeeRequestsRouter.post('/validate', asyncHandler(controller.validate))
 

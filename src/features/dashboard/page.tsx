@@ -1,47 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FaCalendarCheck, FaClock, FaFileLines } from 'react-icons/fa6'
 import type { Translations } from '../../locales'
 import type { PageKey } from '../../services/routes/pageTypes'
+import { getMySummary, type DashboardSummary } from './services/summary.service'
 import './dashboard.css'
-
-const balancesByYear = {
-  2569: [
-    { id:'sick', title:'ลาป่วยคงเหลือ', remaining:28, total:30, used:2, pending:0 },
-    { id:'personal', title:'ลากิจคงเหลือ', remaining:1, total:3, used:2, pending:3 },
-    { id:'vacation', title:'ลาพักร้อนคงเหลือ', remaining:3, total:6, used:3, pending:3 },
-  ],
-  2568: [
-    { id:'sick', title:'ลาป่วยคงเหลือ', remaining:26, total:30, used:4, pending:0 },
-    { id:'personal', title:'ลากิจคงเหลือ', remaining:2, total:3, used:1, pending:0 },
-    { id:'vacation', title:'ลาพักร้อนคงเหลือ', remaining:1, total:6, used:5, pending:0 },
-  ],
-  2567: [
-    { id:'sick', title:'ลาป่วยคงเหลือ', remaining:29, total:30, used:1, pending:0 },
-    { id:'personal', title:'ลากิจคงเหลือ', remaining:0, total:3, used:3, pending:0 },
-    { id:'vacation', title:'ลาพักร้อนคงเหลือ', remaining:4, total:6, used:2, pending:0 },
-  ],
-}
-
-const months = [
-  { value:'all', label:'ทุกเดือน' },
-  { value:'01', label:'มกราคม' }, { value:'02', label:'กุมภาพันธ์' }, { value:'03', label:'มีนาคม' },
-  { value:'04', label:'เมษายน' }, { value:'05', label:'พฤษภาคม' }, { value:'06', label:'มิถุนายน' },
-  { value:'07', label:'กรกฎาคม' }, { value:'08', label:'สิงหาคม' }, { value:'09', label:'กันยายน' },
-  { value:'10', label:'ตุลาคม' }, { value:'11', label:'พฤศจิกายน' }, { value:'12', label:'ธันวาคม' },
-]
-
-const recentDocuments = [
-  { id:'LV-2569-0012', title:'ลากิจ · 1 วัน', detail:'30 ต.ค. 2569 · ธุระส่วนตัว', status:'รอ HR ตรวจ', kind:'pending' },
-  { id:'LV-2569-0011', title:'ลาพักร้อน · 3 วัน', detail:'18–20 พ.ย. 2569 · พักผ่อนปลายปี', status:'รอผู้จัดการ', kind:'pending' },
-  { id:'LV-2569-0009', title:'ลาพักร้อน · 3 วัน', detail:'15–17 มิ.ย. 2569 · เดินทางกับครอบครัว', status:'อนุมัติแล้ว', kind:'approved' },
-]
 
 export default function DashboardPage({ translations: _translations, onNavigate }: { translations: Translations; onNavigate?: (page: PageKey) => void }) {
   const dashboardTranslations = _translations.features.dashboard
-  const [selectedYear, setSelectedYear] = useState<keyof typeof balancesByYear>(2569)
-  const [selectedMonth, setSelectedMonth] = useState<string>('all')
-  const balances = balancesByYear[selectedYear]
-
+  // ข้อมูลจริงจาก /employee-requests/summary (ตามผู้ใช้ที่ล็อกอิน) — ถ้าโหลดไม่ได้ใช้ค่าว่าง
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    getMySummary()
+      .then((data) => { if (!cancelled) setSummary(data) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+  const balances: Array<{ id: string; title: string; remaining: number; total: number; used: number; pending: number }> = summary?.balances ?? []
+  const stats = summary?.stats ?? { total: 0, pending: 0, approved: 0 }
   return <div className="dms-page-root dashboard-page-root">
     <section className="dms-col-main dashboard-page">
       <p className="dms-kicker">{dashboardTranslations.kicker}</p>
@@ -50,17 +26,13 @@ export default function DashboardPage({ translations: _translations, onNavigate 
       </div>
 
     <div className="dms-card-grid dms-survey-grid dashboard-stats">
-      <article className="dms-project-card"><span className="dashboard-stat-icon is-blue"><FaFileLines /></span><div><small>เอกสารของฉัน</small><strong>8</strong><span>รายการทั้งหมด</span></div></article>
-      <article className="dms-project-card"><span className="dashboard-stat-icon is-amber"><FaClock /></span><div><small>รอพิจารณา</small><strong>3</strong><span>รายการกำลังดำเนินการ</span></div></article>
-      <article className="dms-project-card"><span className="dashboard-stat-icon is-green"><FaCalendarCheck /></span><div><small>อนุมัติแล้ว</small><strong>5</strong><span>รายการในปีนี้</span></div></article>
+      <article className="dms-project-card"><span className="dashboard-stat-icon is-blue"><FaFileLines /></span><div><small>เอกสารของฉัน</small><strong>{stats.total}</strong><span>รายการทั้งหมด</span></div></article>
+      <article className="dms-project-card"><span className="dashboard-stat-icon is-amber"><FaClock /></span><div><small>รอพิจารณา</small><strong>{stats.pending}</strong><span>รายการกำลังดำเนินการ</span></div></article>
+      <article className="dms-project-card"><span className="dashboard-stat-icon is-green"><FaCalendarCheck /></span><div><small>อนุมัติแล้ว</small><strong>{stats.approved}</strong><span>รายการทั้งหมด</span></div></article>
     </div>
 
     <section className="dashboard-section">
-      <div className="dashboard-section-heading"><div><h2>สิทธิ์วันลาคงเหลือ</h2><p>สรุปสิทธิ์วันลาตัวอย่าง{selectedMonth === 'all' ? ` ประจำปี ${selectedYear}` : ` ประจำเดือน ${months.find((m) => m.value === selectedMonth)?.label} ${selectedYear}`}</p></div>
-      <div className="dashboard-period-selects">
-        <label className="dashboard-year-select"><span>เดือน</span><select aria-label="เลือกเดือนสำหรับสิทธิ์วันลา" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>{months.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}</select></label>
-        <label className="dashboard-year-select"><span>ปี</span><select aria-label="เลือกปีสำหรับสิทธิ์วันลา" value={selectedYear} onChange={(event) => setSelectedYear(Number(event.target.value) as keyof typeof balancesByYear)}>{Object.keys(balancesByYear).sort((a, b) => Number(b) - Number(a)).map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
-      </div></div>
+      <div className="dashboard-section-heading"><div><h2>สิทธิ์วันลาคงเหลือ</h2><p>สรุปสิทธิ์วันลาของคุณจากระบบเอกสาร</p></div></div>
       <div className="dms-card-grid dms-survey-grid dashboard-balances">{balances.map((balance) => {
         const progressTotal = balance.used + balance.pending
         const usedWidth = progressTotal ? balance.used / progressTotal * 100 : 0

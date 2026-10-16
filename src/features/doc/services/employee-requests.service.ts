@@ -23,12 +23,12 @@ const body = (data: unknown): RequestInit => ({ method: 'POST', body: JSON.strin
 // ---------- types ----------
 export type ApiListRow = {
   id: number; requestNo: string; kind: DocKind; status: Status | 'cancelled'
-  days: number | null; reason: string | null; rejectionNote: string | null; rejectedStage: 'manager' | 'hr' | null
+  days: number | null; reason: string | null; rejectionNote: string | null; rejectedStage: 'manager' | 'executive' | 'hr' | null
   submittedAt: string; startDate: string | null; endDate: string | null
   employeeUserId: number; employeeName: string; departmentName: string | null
   leaveType: string | null; otHours: number | null; otTask: string | null; place: string | null
 }
-export type ApiSignature = { stage: 'submitter' | 'manager' | 'hr'; action: string; signerName: string; signatureImage: string | null; note: string | null; signedAt: string }
+export type ApiSignature = { stage: 'submitter' | 'manager' | 'executive' | 'hr'; action: string; signerName: string; signatureImage: string | null; note: string | null; signedAt: string }
 export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean }
 export type ApiCheck = { ok: boolean; key: string; params?: Record<string, string | number> }
 export type ApiNotification = ApiListRow & { notificationId: number; event: string; isRead: boolean; createdAt: string }
@@ -53,10 +53,12 @@ export const getPolicy = () => call<ApiPolicy>('/policy')
 export const savePolicy = (policy: Omit<ApiPolicy, 'id' | 'expiryDate'>) => call<ApiPolicy>('/policy', { method: 'PUT', body: JSON.stringify(policy) })
 export const getMySignature = () => call<{ signature: string }>('/signature/me')
 export const listPeople = () => call<ApiPerson[]>('/people')
+export type ApiBadges = { pendingApproval: number; unreadNotifications: number }
+export const getBadges = () => call<ApiBadges>('/badges')
 
 // ---------- mappers ----------
 const bangkokDate = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
-const STAGE: Record<ApiSignature['stage'], SignatureStage> = { submitter: 'ผู้ยื่น', manager: 'ผู้จัดการแผนก', hr: 'HR' }
+const STAGE: Record<ApiSignature['stage'], SignatureStage> = { submitter: 'ผู้ยื่น', manager: 'ผู้จัดการแผนก', executive: 'ผู้ประกอบการ', hr: 'HR' }
 type MapperText = { locale: string; kinds: Record<string, string>; leaveTypes: Record<string, string>; day: string; hour: string }
 
 export function mapListRow(row: ApiListRow, t: MapperText): MockDocument {
@@ -87,8 +89,9 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
     place: s(d.place), plan: s(d.plan), offDate: s(d.offDate), workDate: s(d.workDate), reason: row.reason ?? '',
   }
   const signatures: NonNullable<MockDocument['signatures']> = {}
+  const signedActions = ['approved', 'submitted']
   for (const sig of row.signatures) {
-    if (sig.signatureImage) signatures[STAGE[sig.stage]] = { image: sig.signatureImage, name: sig.signerName, date: bangkokDate(sig.signedAt) }
+    if (sig.signatureImage && signedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage, name: sig.signerName, date: bangkokDate(sig.signedAt) }
   }
   return { ...base, formData, signatures } as MockDocument
 }

@@ -15,6 +15,7 @@ import * as FaIcons from "react-icons/fa6";
 import type { IconType } from "react-icons";
 import { useAuth } from "../features/auth/hooks/use-auth";
 import { canViewAllDocumentPages, canViewModule } from "../features/auth/permissions";
+import { getBadges } from "../features/doc/services/employee-requests.service";
 import type { Translations } from "../locales";
 import type { PageKey } from '../services/routes/pageTypes'
 import {FaFolderOpen,} from "react-icons/fa6";
@@ -97,6 +98,26 @@ export default function Sidebar({
   const documentsToggleRef = useRef<HTMLButtonElement>(null);
   const settingsToggleRef = useRef<HTMLButtonElement>(null);
   const previousActiveItem = useRef(activeItem);
+
+  // badge: เอกสารรอตนเซ็นอนุมัติ + แจ้งเตือนยังไม่อ่าน
+  const canOpenDocuments = Boolean(user && canViewModule(user, "documents"));
+  const [pendingBadge, setPendingBadge] = useState(0);
+  const [notificationsBadge, setNotificationsBadge] = useState(0);
+  useEffect(() => {
+    if (!canOpenDocuments) return;
+    let cancelled = false;
+    const load = () => {
+      getBadges()
+        .then((badges) => {
+          if (!cancelled) { setPendingBadge(badges.pendingApproval); setNotificationsBadge(badges.unreadNotifications) }
+        })
+        .catch(() => {});
+    };
+    load();
+    const timer = window.setInterval(load, 30_000);
+    return () => { cancelled = true; window.clearInterval(timer) };
+  }, [canOpenDocuments, activeItem]);
+  const docBadge = pendingBadge + notificationsBadge;
 
   const toggleSidebarGroup = (
     group: "projects" | "documents" | "settings",
@@ -294,9 +315,13 @@ if (item.key === "documents") {
     { key: "documents-policy", label: documentNavTranslations.policy },
     { key: "documents-notifications", label: documentNavTranslations.notifications },
   ];
-  const visibleDocumentItems = user && canViewAllDocumentPages(user)
+  // admin เห็นทุกหน้า · แผนก HR Div. เห็นทุกหน้ารวมนโยบาย · คนอื่นเห็น all/pending/ledger/notifications
+  const roleName = (user?.role?.name ?? "").trim().toLocaleLowerCase();
+  const department = (user?.department ?? "").trim().toLocaleLowerCase();
+  const visibleDocumentItems = roleName === "admin" || department === "hr div."
     ? documentItems
-    : documentItems.filter((documentItem) => documentItem.key === "documents-employees");
+    : documentItems.filter((documentItem) =>
+        ["documents-all", "documents-pending", "documents-ledger", "documents-notifications"].includes(documentItem.key));
 
   return (
     <div
@@ -323,6 +348,7 @@ if (item.key === "documents") {
           />
         )}
         <span>{sidebarTranslations.items.documents}</span>
+        {docBadge > 0 && <b className="item-count documents-badge">{docBadge}</b>}
         <i className={documentsOpen ? "is-rotated" : ""}>⌄</i>
       </button>
 
@@ -338,6 +364,8 @@ if (item.key === "documents") {
               onClick={() => onNavigate?.(key)}
             >
               <span>{label}</span>
+              {key === "documents-pending" && pendingBadge > 0 && <b className="item-count">{pendingBadge}</b>}
+              {key === "documents-notifications" && notificationsBadge > 0 && <b className="item-count">{notificationsBadge}</b>}
             </button>
           ))}
         </div>

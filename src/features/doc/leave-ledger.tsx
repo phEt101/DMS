@@ -15,13 +15,13 @@ export interface LedgerEntry {
   id: number
   no: string
   title: string
-  status: 'pending_mgr' | 'pending_hr' | 'approved' | 'rejected'
+  status: 'pending_mgr' | 'pending_exec' | 'pending_hr' | 'approved' | 'rejected'
   leaveType?: 'personal' | 'sick' | 'vacation' | 'unpaid' | 'other'
   from?: string
   to?: string
   days?: number
   reason?: string
-  rejectedBy?: 'manager' | 'hr'
+  rejectedBy?: 'manager' | 'executive' | 'hr'
 }
 
 const categories = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
@@ -41,7 +41,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
     const quote = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
     const csv = [
       [c.ledger.sequence,c.ledger.dateType,c.ledger.dateType,...categories.map((type) => labels[type]),c.ledger.totalTime,c.ledger.reason,c.ledger.requester,c.ledger.manager,c.detail.hr],
-      ...printRows.map((row, index) => [index + 1, formatDate(row?.from, locale), formatDate(row?.to, locale), ...categories.map((type) => row?.leaveType === type ? row.days ?? '' : ''), row?.days ?? '', row ? c.sampleDocuments[String(row.id)]?.reason ?? row.reason ?? '' : '', row ? person.name : '', row && row.status !== 'pending_mgr' ? row.rejectedBy === 'manager' ? c.statuses.rejected : c.statuses.approved : '', row?.status === 'approved' ? c.statuses.approved : row?.status === 'pending_hr' ? c.statuses.pending : row?.rejectedBy === 'hr' ? c.statuses.rejected : '']),
+      ...printRows.map((row, index) => [index + 1, formatDate(row?.from, locale), formatDate(row?.to, locale), ...categories.map((type) => row?.leaveType === type ? row.days ?? '' : ''), row?.days ?? '', row ? c.sampleDocuments[String(row.id)]?.reason ?? row.reason ?? '' : '', row ? person.name : '', row && row.status !== 'pending_mgr' && row.status !== 'pending_exec' ? row.rejectedBy === 'manager' || row.rejectedBy === 'executive' ? c.statuses.rejected : c.statuses.approved : '', row?.status === 'approved' ? c.statuses.approved : row?.status === 'pending_hr' ? c.statuses.pending : row?.rejectedBy === 'hr' ? c.statuses.rejected : '']),
     ].map((line) => line.map(quote).join(',')).join('\r\n')
     const blob = new Blob(['\ufeff', csv], { type:'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob); const link = document.createElement('a')
@@ -72,7 +72,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
         <thead><tr><th rowSpan={2}>{c.ledger.sequence}</th><th colSpan={7}>{c.ledger.dateType}</th><th rowSpan={2}>{c.ledger.totalTime}</th><th rowSpan={2}>{c.ledger.reason}</th><th rowSpan={2}>{c.ledger.requester}</th><th colSpan={2}>{c.ledger.reviewResult}</th></tr><tr><th>{c.ledger.leaveDate}</th><th>{c.ledger.endDate}</th>{categories.map((type) => <th key={type}>{labels[type]}</th>)}<th>{c.ledger.manager}</th><th>{c.detail.hr}</th></tr></thead>
         <tbody>{printRows.map((entry, index) => {
           const managerResult = !entry || entry.status === 'pending_mgr' ? '' : entry.rejectedBy === 'manager' ? c.statuses.rejected : c.statuses.approved
-          const hrResult = !entry ? '' : entry.status === 'approved' ? c.statuses.approved : entry.status === 'pending_hr' ? c.statuses.pending : entry.rejectedBy === 'hr' ? c.statuses.rejected : ''
+          const hrResult = !entry ? '' : entry.status === 'approved' ? c.statuses.approved : entry.status === 'pending_hr' || entry.status === 'pending_exec' ? c.statuses.pending : entry.rejectedBy === 'hr' ? c.statuses.rejected : ''
           return <tr key={entry?.id ?? `empty-${index}`}><td>{index + 1}</td><td>{formatDate(entry?.from, locale)}</td><td>{formatDate(entry?.to, locale)}</td>{categories.map((type) => <td key={type}>{entry?.leaveType === type ? entry.days : ''}</td>)}<td>{entry?.days ?? ''}</td><td className="leave-sheet-reason">{entry ? c.sampleDocuments[String(entry.id)]?.reason ?? entry.reason : ''}</td>{signatureCell(entry ? person.name : '')}{signatureCell(managerResult)}{signatureCell(hrResult)}</tr>
         })}</tbody>
       </table>

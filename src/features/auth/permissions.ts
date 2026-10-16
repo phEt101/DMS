@@ -35,7 +35,8 @@ export function canViewModule(user: AuthUser, module: string): boolean {
   if (module === "documents") {
     const role = user.role.name.trim().toLocaleLowerCase();
     const department = (user.department ?? "").trim().toLocaleLowerCase();
-    if (role === "admin" || department === "hr div." || department === "it div.") return true;
+    // HR Div. เข้าเมนูเอกสารได้ (จัดการได้เฉพาะแผนก HR) · admin เข้าได้ทุกอย่าง
+    if (role === "admin" || department === "hr div.") return true;
   }
   const requiredPermission = viewPermissionByModule[module];
   return Boolean(
@@ -50,9 +51,10 @@ export function canViewModule(user: AuthUser, module: string): boolean {
 }
 
 export function canViewAllDocumentPages(user: AuthUser): boolean {
-  return user.role.name.trim().toLocaleLowerCase() === "admin" || user.permissions.some(
-    (permission) => permission.module === "documents" && permission.name === viewPermissionByModule.documents,
-  );
+  const role = user.role.name.trim().toLocaleLowerCase();
+  const department = (user.department ?? "").trim().toLocaleLowerCase();
+  // เฉพาะ admin เห็นทุกหน้าของเอกสาร — HR Div. เห็นเฉพาะหน้าพนักงาน + รอนุมัติ (ตาม App.tsx)
+  return role === "admin";
 }
 
 export function hasPermission(user: AuthUser, permissionName: string): boolean {
