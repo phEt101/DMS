@@ -1,6 +1,7 @@
 -- =====================================================================
 -- Leave policy + Documents (ใบลา / OT / แก้เวลา / WFH / ออกนอกสถานที่ / สลับวันหยุด)
--- MySQL 8.0.16+ (ใช้ CHECK constraint) · ต่อจากตาราง users, employees, departments
+-- รองรับ MySQL 5.6+ · CHECK ถูกบังคับใช้ใน MySQL 8.0.16+ เท่านั้น
+-- สำหรับ MySQL 5.6 เงื่อนไขเดียวกันต้องตรวจที่ API (MySQL จะ parse แต่ไม่ enforce CHECK)
 -- หมายเหตุ: ชื่อตารางใช้ employee_requests / employee_request_* ให้ตรงกับโค้ด API
 -- (server/src/features/employee requests/*) — ห้ามเปลี่ยนชื่อฝั่งเดียว
 -- ปีนโยบายเก็บเป็น พ.ศ. (เช่น 2569) ตามที่ UI ใช้ ส่วนวันที่ทั้งหมดเก็บเป็น ค.ศ. (DATE)
@@ -263,9 +264,8 @@ WHERE d.kind = 'leave';
 -- ---------------------------------------------------------------------
 -- ตัวอย่าง seed นโยบายปี 2569 (บริษัท Boswell = id 1 จาก migration 018)
 -- ---------------------------------------------------------------------
-INSERT INTO leave_policies (company_id, policy_year, year_start, year_end)
-SELECT 1, 2569, '2025-11-26', '2026-11-25'
-WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE company_id = 1 AND policy_year = 2569);
+INSERT IGNORE INTO leave_policies (company_id, policy_year, year_start, year_end)
+VALUES (1, 2569, '2025-11-26', '2026-11-25');
 
 -- ---------------------------------------------------------------------
 -- สิทธิ์ที่ API เอกสารใช้ (ยื่น / พิจารณา / จัดการนโยบายการลา)

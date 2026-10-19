@@ -304,21 +304,6 @@
   .documents-cards.is-list .documents-card { grid-template-columns:48px minmax(0,1fr) minmax(0,1fr); grid-template-areas:"visual reference actions" "visual title actions" "visual summary summary" "visual note note"; }
   .documents-cards.is-list .documents-card-foot { grid-column:3; grid-row:1/3; }
 }
-@media (prefers-color-scheme:dark) {
-  .documents-page { color:#e8ecf6; }
-  .documents-mock-note,.documents-search,.documents-stat,.documents-tools select,.documents-view-toggle,.documents-filter-trigger,.documents-filter-panel,.documents-card,.documents-ledger-summary,.documents-modal,.documents-ledger-table-wrap,.documents-employee-card,.documents-notification,.documents-email-preview article { background:#161d2d; border-color:#27304a; color:#e8ecf6; }
-  .documents-search input,.documents-card h2,.documents-card-foot b,.documents-balances b,.documents-modal,.documents-modal input,.documents-modal textarea { color:#e8ecf6; }
-  .documents-card-foot { border-color:#27304a; }
-  .documents-detail-fields,.documents-signature-card { background:#1b2336; border-color:#27304a; }
-  .documents-detail-fields dd,.documents-signature-card b { color:#e8ecf6; }
-  .documents-detail-close,.documents-reject,.documents-signature-actions > button:first-child { background:#1b2336; border-color:#27304a; color:#e8ecf6; }
-  .documents-signature-pad { background-color:#fff; }
-  .documents-view-toggle button[aria-pressed="true"],.documents-modal-head > button,.documents-kind-grid > button,.documents-mock-role select,.documents-ledger-summary select,.documents-ledger-actions button,.documents-tools > button:not(.documents-primary),.documents-notification-tabs button,.documents-employee-form button,.documents-employee-form input,.documents-filter-field select,.documents-filter-reset { background:#1b2336; border-color:#27304a; color:#e8ecf6; }
-  .documents-modal input,.documents-modal textarea,.documents-balances span { background:#1b2336; border-color:#27304a; }
-  .documents-ledger-table th,.documents-ledger-table td { border-color:#27304a; color:#e8ecf6; }
-  .documents-ledger-table th { background:#1b2336; }
-  .documents-employee-card h2,.documents-notification b,.documents-email-preview b,.documents-email-toggle { color:#e8ecf6; }
-}
 @media print { .documents-heading > button,.documents-mock-note,.documents-mock-role,.documents-tools,.documents-ledger-actions { display:none!important; } .documents-page { max-width:none; } }
 @page { size:A4 landscape; margin:8mm; }
 @media print {
@@ -346,7 +331,6 @@
 .documents-policy-grid .is-policy-checkbox input { width:18px; height:18px; accent-color:#5143e8; }
 .documents-policy-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
 @media(max-width:640px) { .documents-policy-grid { grid-template-columns:minmax(0,1fr); } .documents-policy-intro { flex-direction:column; } }
-@media(prefers-color-scheme:dark) { .documents-policy-panel { border-color:#27304a; background:#161d2d; } .documents-policy-intro h2,.documents-policy-grid > label { color:#e8ecf6; } .documents-policy-grid input:not([type=checkbox]),.documents-policy-grid select { border-color:#27304a; background:#1b2336; color:#e8ecf6; } .documents-policy-grid .is-policy-checkbox { border-color:#27304a; background:#1b2336; color:#e8ecf6; } }
 .documents-ledger-title { margin:0 0 12px; }
 .leave-ledger-toolbar button.leave-export-btn,.documents-ledger-actions button.leave-export-btn { border:1px solid transparent; font-weight:700; transition:filter .15s ease,transform .15s ease; }
 .leave-ledger-toolbar button.leave-export-btn:hover,.documents-ledger-actions button.leave-export-btn:hover { filter:brightness(.95); transform:translateY(-1px); }

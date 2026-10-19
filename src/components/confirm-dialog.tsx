@@ -167,19 +167,6 @@ const styles = `
 }
 .cd-content:focus { outline: none; }
 
-@media (prefers-color-scheme: dark) {
-  .cd-content {
-    --cd-bg: #1e293b;
-    --cd-border: #334155;
-    --cd-title: #f1f5f9;
-    --cd-text: #94a3b8;
-    --cd-accent-soft: rgba(37, 99, 235, 0.2);
-    --cd-secondary-bg: transparent;
-    --cd-secondary-hover: #334155;
-  }
-  .cd-content[data-variant='danger'] { --cd-accent-soft: rgba(220, 38, 38, 0.2); }
-}
-
 .cd-header { display: flex; gap: 16px; align-items: flex-start; padding-right: 24px; }
 
 .cd-icon {

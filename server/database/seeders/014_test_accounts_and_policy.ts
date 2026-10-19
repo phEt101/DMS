@@ -53,9 +53,9 @@ export async function up(connection: Connection) {
 
   // นโยบายการลาเริ่มต้น (ปี 2569) — HR/admin แก้ไขเพิ่มเติมได้จากหน้านโยบาย
   await connection.execute(
-    `INSERT INTO leave_policies (company_id, policy_year, year_start, year_end, is_active)
-     SELECT 1, 2569, '2025-11-26', '2026-11-25', 1
-     WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE company_id = 1 AND policy_year = 2569)`,
+    `INSERT IGNORE INTO leave_policies
+       (company_id, policy_year, year_start, year_end, is_active)
+     VALUES (1, 2569, '2025-11-26', '2026-11-25', 1)`,
   )
 
   
