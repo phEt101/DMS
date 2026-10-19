@@ -380,6 +380,11 @@
       "deleted": "ลบ",
       "activated": "เปิดใช้งาน",
       "deactivated": "ปิดใช้งาน",
+      "submitted": "ยื่นเอกสาร",
+      "approved": "อนุมัติ/ส่งต่อ",
+      "rejected": "ไม่อนุมัติ",
+      "cancelled": "ยกเลิกเอกสาร",
+      "policyUpdated": "แก้ไขนโยบายการลา",
       "loginFrom": "เข้าสู่ระบบผ่าน",
       "onDevice": "บน",
       "unknownClient": "อุปกรณ์ที่ไม่ทราบ",
@@ -393,6 +398,7 @@
         "modules": "จัดการโมดูล",
         "permissions": "จัดการสิทธิ์",
         "projects": "โครงการ",
+        "documents": "จัดการเอกสาร",
         "survey": "แบบสำรวจ",
         "reports": "รายงาน",
         "trash": "ถังขยะ",
@@ -500,6 +506,54 @@
         "activated": "เปิดการใช้งานโมดูล",
         "deactivated": "ปิดการใช้งานโมดูล"
       },
+      "companyActions": {
+        "created": "เพิ่มบริษัท",
+        "updated": "แก้ไขบริษัท",
+        "deleted": "ลบบริษัท"
+      },
+      "documentActions": {
+        "submitted": "ยื่นเอกสาร",
+        "approved": "อนุมัติ/ส่งต่อเอกสาร",
+        "rejected": "ไม่อนุมัติเอกสาร",
+        "cancelled": "ยกเลิกเอกสาร",
+        "policy_updated": "แก้ไขนโยบายการลา"
+      },
+      "documentKinds": {
+        "leave": "ใบลา",
+        "ot": "ใบขอทำ OT",
+        "timefix": "ใบขอแก้ไขเวลา",
+        "wfh": "ใบขอทำงานนอกสถานที่",
+        "outing": "ใบขอออกนอกสถานที่",
+        "swap": "ใบขอสลับวันหยุด"
+      },
+      "documentStatuses": {
+        "pending_mgr": "รอผู้จัดการพิจารณา",
+        "pending_exec": "รอผู้บริหารพิจารณา",
+        "pending_hr": "รอ HR พิจารณา",
+        "approved": "อนุมัติแล้ว",
+        "rejected": "ไม่อนุมัติ",
+        "cancelled": "ยกเลิก"
+      },
+      "approvalStages": {
+        "manager": "ผู้จัดการแผนก",
+        "executive": "ผู้บริหาร",
+        "hr": "HR"
+      },
+      "policyFields": {
+        "yearStart": "วันเริ่มปีการลา",
+        "yearEnd": "วันสิ้นสุดปีการลา",
+        "leadPersonal": "จำนวนวันยื่นลากิจล่วงหน้า",
+        "leadVacation": "จำนวนวันทำงานยื่นลาพักร้อนล่วงหน้า",
+        "hoursPerDay": "ชั่วโมงทำงานต่อวัน",
+        "hourStep": "หน่วยขั้นต่ำการลา",
+        "certDays": "จำนวนวันลาป่วยที่ต้องมีใบรับรอง",
+        "otMax": "ชั่วโมง OT สูงสุดต่อใบ",
+        "fixDays": "จำนวนวันที่ขอแก้เวลาย้อนหลังได้"
+      },
+      "requestNumber": "เลขที่เอกสาร",
+      "documentType": "ประเภทเอกสาร",
+      "status": "สถานะ",
+      "approvalStage": "ขั้นตอนพิจารณา",
       "rolePermissionModules": "ปรับสิทธิ์โมดูล",
       "roleActivated": "เปิดสถานะการใช้งาน",
       "roleDeactivated": "ปิดสถานะการใช้งาน",

@@ -89,7 +89,7 @@ function formatDetails(
       }
 
       return [
-        `${activityTranslations.from} “${displayValue(change.from)}” ${activityTranslations.to} “${displayValue(change.to)}”`,
+        `${activityTranslations.fields[change.field] ?? change.field}: ${activityTranslations.from} “${displayValue(change.from)}” ${activityTranslations.to} “${displayValue(change.to)}”`,
       ]
     })
 
@@ -184,6 +184,47 @@ function formatDetails(
     return parts.filter(Boolean).join(' · ')
   }
 
+  if (log.entityType === 'company') {
+    const prefix = activityTranslations.companyActions[log.action] ?? log.action
+    return [prefix, name].filter(Boolean).join(' ')
+  }
+
+  if (log.entityType === 'employee_request') {
+    const prefix = activityTranslations.documentActions[log.action] ?? log.action
+    const parts = [prefix]
+    if (typeof log.details.requestNo === 'string') {
+      parts.push(`${activityTranslations.requestNumber}: ${log.details.requestNo}`)
+    }
+    if (typeof log.details.kind === 'string') {
+      parts.push(`${activityTranslations.documentType}: ${activityTranslations.documentKinds[log.details.kind] ?? log.details.kind}`)
+    }
+    if (typeof log.details.status === 'string') {
+      parts.push(`${activityTranslations.status}: ${activityTranslations.documentStatuses[log.details.status] ?? log.details.status}`)
+    }
+    if (typeof log.details.stage === 'string') {
+      parts.push(`${activityTranslations.approvalStage}: ${activityTranslations.approvalStages[log.details.stage] ?? log.details.stage}`)
+    }
+    return parts.join(' · ')
+  }
+
+  if (log.entityType === 'leave_policy') {
+    const prefix = activityTranslations.documentActions[log.action] ?? log.action
+    const parts = [prefix]
+    if (typeof log.details.year === 'number') parts.push(String(log.details.year))
+    if (Array.isArray(log.details.changes)) {
+      for (const value of log.details.changes) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+        const change = value as Record<string, unknown>
+        if (typeof change.field !== 'string') continue
+        const field = activityTranslations.policyFields[change.field] ?? change.field
+        const displayValue = (item: unknown) =>
+          item === null || item === undefined || item === '' ? '—' : String(item)
+        parts.push(`${field}: ${activityTranslations.from} “${displayValue(change.from)}” ${activityTranslations.to} “${displayValue(change.to)}”`)
+      }
+    }
+    return parts.join(' · ')
+  }
+
   if (log.entityType === 'department' || log.entityType === 'permission' || log.entityType === 'module') {
     const actions = log.entityType === 'department'
       ? activityTranslations.departmentActions
@@ -212,7 +253,8 @@ function formatDetails(
         return item === null || item === undefined || item === '' ? '—' : String(item)
       }
 
-      return [`${activityTranslations.from} “${displayValue(change.from)}” ${activityTranslations.to} “${displayValue(change.to)}”`]
+      const field = activityTranslations.fields[change.field] ?? change.field
+      return [`${field}: ${activityTranslations.from} “${displayValue(change.from)}” ${activityTranslations.to} “${displayValue(change.to)}”`]
     })
 
     return [[prefix, name].filter(Boolean).join(' '), ...changes]
@@ -284,6 +326,11 @@ export default function SettingsActivityPage({
     deleted: activityTranslations.deleted,
     activated: activityTranslations.activated,
     deactivated: activityTranslations.deactivated,
+    submitted: activityTranslations.submitted,
+    approved: activityTranslations.approved,
+    rejected: activityTranslations.rejected,
+    cancelled: activityTranslations.cancelled,
+    policy_updated: activityTranslations.policyUpdated,
   }
 
   return (

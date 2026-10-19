@@ -20,6 +20,11 @@ export type ActivityFeatureCopy = FeatureCopy & {
   deleted: string
   activated: string
   deactivated: string
+  submitted: string
+  approved: string
+  rejected: string
+  cancelled: string
+  policyUpdated: string
   loginFrom: string
   onDevice: string
   unknownClient: string
@@ -32,6 +37,16 @@ export type ActivityFeatureCopy = FeatureCopy & {
   departmentActions: Record<string, string>
   permissionActions: Record<string, string>
   moduleActions: Record<string, string>
+  companyActions: Record<string, string>
+  documentActions: Record<string, string>
+  documentKinds: Record<string, string>
+  documentStatuses: Record<string, string>
+  approvalStages: Record<string, string>
+  policyFields: Record<string, string>
+  requestNumber: string
+  documentType: string
+  status: string
+  approvalStage: string
   projectActions: Record<string, string>
   projectFields: Record<string, string>
   surveyActions: Record<string, string>

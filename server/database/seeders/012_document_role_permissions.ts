@@ -3,7 +3,7 @@ import type { Connection } from 'mysql2/promise'
 // สิทธิ์เอกสารตาม flow:
 //   admin    : ทุกสิทธิ์
 //   manager  : ยื่น + พิจารณา (อนุมัติขั้น manager)
-//   HR Div.  (manager/user ของแผนก HR) : ยื่น + พิจารณา (อนุมัติขั้น HR)
+//   HR Div.  (ทุก role ในแผนก HR) : ยื่น + พิจารณา + จัดการนโยบายการลา
 //   executive: ยื่น (อนุมัติขั้น executive ด้วย role ไม่ใช่ permission)
 //   user     : ยื่น
 const DOCUMENT_PERMISSIONS = ['เข้าถึงเมนูเอกสาร', 'ยื่นเอกสาร', 'พิจารณาเอกสาร', 'จัดการนโยบายการลา']
@@ -36,13 +36,13 @@ export async function up(connection: Connection) {
   await grant('executive', ['เข้าถึงเมนูเอกสาร', 'ยื่นเอกสาร'])
   await grant('user', ['เข้าถึงเมนูเอกสาร', 'ยื่นเอกสาร'])
 
-  // ผู้ใช้แผนก HR Div. (ทุก role) ได้สิทธิ์พิจารณาเอกสาร — HR อนุมัติขั้น HR ใครอนุมัติก็ได้
+  // ผู้ใช้แผนก HR Div. (ทุก role) จัดการนโยบายและพิจารณาเอกสารได้
   await connection.execute(
     `INSERT IGNORE INTO role_permissions (role_id, permission_id)
      SELECT DISTINCT u.role_id, p.id
        FROM users u
        JOIN departments d ON d.id = u.department_id AND d.name = 'HR Div.' AND d.deleted_at IS NULL
-       JOIN permissions p ON p.name = 'พิจารณาเอกสาร' AND p.deleted_at IS NULL
+       JOIN permissions p ON p.name IN ('พิจารณาเอกสาร', 'จัดการนโยบายการลา') AND p.deleted_at IS NULL
       WHERE u.deleted_at IS NULL`,
   )
 }

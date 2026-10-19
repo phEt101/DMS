@@ -27,6 +27,10 @@ export type ApiListRow = {
   submittedAt: string; startDate: string | null; endDate: string | null
   employeeUserId: number; employeeName: string; departmentName: string | null
   leaveType: string | null; otHours: number | null; otTask: string | null; place: string | null
+  mgrSignerName: string | null; mgrSignedAt: string | null; mgrSignatureImage: string | null
+  execSignerName: string | null; execSignedAt: string | null; execSignatureImage: string | null
+  hrSignerName: string | null; hrSignedAt: string | null; hrSignatureImage: string | null
+  submitterName: string | null; submitterSignatureImage: string | null
 }
 export type ApiSignature = { stage: 'submitter' | 'manager' | 'executive' | 'hr'; action: string; signerName: string; signatureImage: string | null; note: string | null; signedAt: string }
 export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean }
@@ -43,7 +47,8 @@ export const listRequests = (params: { status?: string; kind?: string; awaiting?
 }
 export const getRequest = (id: number) => call<ApiDetail>(`/${id}`)
 export const createRequest = (data: { kind: DocKind; values: FormValues; signature: string; rememberSignature: boolean }) => call<{ id: number; requestNo: string; status: Status }>('/', body(data))
-export const approveRequest = (id: number, data: { signature: string; rememberSignature?: boolean }) => call<{ id: number; status: Status }>(`/${id}/approve`, body(data))
+export const approveRequest = (id: number, data: { signature?: string; rememberSignature?: boolean }) => call<{ id: number; status: Status }>(`/${id}/approve`, body(data))
+export const decideRequest = (id: number, action: 'approve' | 'reject', data: { signature: string; rememberSignature?: boolean; note?: string }) => call<{ id: number; status: Status }>(`/${id}/${action}`, body(data))
 export const rejectRequest = (id: number, note: string) => call<{ id: number; status: Status }>(`/${id}/reject`, body({ note }))
 export const cancelRequest = (id: number) => call<{ id: number; status: 'cancelled' }>(`/${id}/cancel`, { method: 'POST' })
 export const validateRequestDryRun = (kind: DocKind, values: FormValues) => call<{ checks: ApiCheck[] }>('/validate', body({ kind, values }))
@@ -74,6 +79,16 @@ export function mapListRow(row: ApiListRow, t: MapperText): MockDocument {
     status: row.status as Status, leaveType: (row.leaveType ?? undefined) as MockDocument['leaveType'],
     from: row.startDate ?? undefined, to: row.endDate ?? undefined, days: row.days ?? undefined,
     reason: row.reason ?? undefined, note: row.rejectionNote ?? undefined, rejectedBy: row.rejectedStage ?? undefined,
+    mgrSignerName: row.mgrSignerName ?? undefined, mgrSignedAt: row.mgrSignedAt ?? undefined,
+    execSignerName: row.execSignerName ?? undefined, execSignedAt: row.execSignedAt ?? undefined,
+    hrSignerName: row.hrSignerName ?? undefined, hrSignedAt: row.hrSignedAt ?? undefined,
+    signatures: {
+      ...(row.submitterName && row.submitterSignatureImage ? { 'ผู้ยื่น': { image: row.submitterSignatureImage, name: row.submitterName, date: row.submittedAt ? String(row.submittedAt).slice(0,10) : '' } } : {}),
+      // ยืนยันโดยไม่เซ็น = signatureImage เป็น null → ยังแสดงขั้นตอน + ชื่อผู้ยืนยัน (ไม่มีรูป)
+      ...(row.mgrSignerName ? { 'ผู้จัดการแผนก': { image: row.mgrSignatureImage ?? '', name: row.mgrSignerName, date: row.mgrSignedAt ?? '' } } : {}),
+      ...(row.execSignerName ? { 'ผู้ประกอบการ': { image: row.execSignatureImage ?? '', name: row.execSignerName, date: row.execSignedAt ?? '' } } : {}),
+      ...(row.hrSignerName ? { 'HR': { image: row.hrSignatureImage ?? '', name: row.hrSignerName, date: row.hrSignedAt ?? '' } } : {}),
+    },
   } as MockDocument
 }
 
@@ -91,7 +106,8 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
   const signatures: NonNullable<MockDocument['signatures']> = {}
   const signedActions = ['approved', 'submitted']
   for (const sig of row.signatures) {
-    if (sig.signatureImage && signedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage, name: sig.signerName, date: bangkokDate(sig.signedAt) }
+    // ยืนยันโดยไม่เซ็น = signatureImage เป็น null → ยังคงแสดงในขั้นตอน แต่ไม่มีรูปลายเซ็น
+    if (signedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage ?? '', name: sig.signerName, date: bangkokDate(sig.signedAt) }
   }
   return { ...base, formData, signatures } as MockDocument
 }

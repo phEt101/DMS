@@ -42,12 +42,12 @@ export async function up(connection: Connection) {
          OR (r.name = 'manager' AND p.name IN ('เข้าถึงเมนูเอกสาร','ยื่นเอกสาร','พิจารณาเอกสาร'))
          OR (r.name IN ('executive','user') AND p.name IN ('เข้าถึงเมนูเอกสาร','ยื่นเอกสาร')))`,
   )
-  // ผู้ใช้แผนก HR Div. ทุกคนได้สิทธิ์พิจารณาเอกสาร
+  // ผู้ใช้แผนก HR Div. ทุกคนได้สิทธิ์พิจารณาเอกสารและจัดการนโยบายการลา
   await connection.execute(
     `INSERT IGNORE INTO role_permissions (role_id, permission_id)
      SELECT DISTINCT u.role_id, p.id FROM users u
      JOIN departments d ON d.id = u.department_id AND d.name = 'HR Div.' AND d.deleted_at IS NULL
-     JOIN permissions p ON p.name = 'พิจารณาเอกสาร' AND p.deleted_at IS NULL
+     JOIN permissions p ON p.name IN ('พิจารณาเอกสาร', 'จัดการนโยบายการลา') AND p.deleted_at IS NULL
      WHERE u.deleted_at IS NULL`,
   )
 

@@ -15,6 +15,7 @@ export interface LedgerEntry {
   id: number
   no: string
   title: string
+  employee?: string
   status: 'pending_mgr' | 'pending_exec' | 'pending_hr' | 'approved' | 'rejected'
   leaveType?: 'personal' | 'sick' | 'vacation' | 'unpaid' | 'other'
   from?: string
@@ -22,6 +23,8 @@ export interface LedgerEntry {
   days?: number
   reason?: string
   rejectedBy?: 'manager' | 'executive' | 'hr'
+  signatures?: Partial<Record<'ผู้ยื่น' | 'ผู้จัดการแผนก' | 'ผู้ประกอบการ' | 'HR', { image: string; name: string; date: string }>>
+  mgrSignerName?: string; mgrSignedAt?: string; execSignerName?: string; execSignedAt?: string; hrSignerName?: string; hrSignedAt?: string
 }
 
 const categories = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
@@ -71,9 +74,26 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
       <table className="leave-sheet-table"><colgroup><col className="c-no"/><col className="c-date"/><col className="c-date"/><col className="c-type"/><col className="c-type"/><col className="c-vacation"/><col className="c-unpaid"/><col className="c-other"/><col className="c-total"/><col/><col className="c-approval"/><col className="c-review"/><col className="c-review"/></colgroup>
         <thead><tr><th rowSpan={2}>{c.ledger.sequence}</th><th colSpan={7}>{c.ledger.dateType}</th><th rowSpan={2}>{c.ledger.totalTime}</th><th rowSpan={2}>{c.ledger.reason}</th><th rowSpan={2}>{c.ledger.requester}</th><th colSpan={2}>{c.ledger.reviewResult}</th></tr><tr><th>{c.ledger.leaveDate}</th><th>{c.ledger.endDate}</th>{categories.map((type) => <th key={type}>{labels[type]}</th>)}<th>{c.ledger.manager}</th><th>{c.detail.hr}</th></tr></thead>
         <tbody>{printRows.map((entry, index) => {
-          const managerResult = !entry || entry.status === 'pending_mgr' ? '' : entry.rejectedBy === 'manager' ? c.statuses.rejected : c.statuses.approved
-          const hrResult = !entry ? '' : entry.status === 'approved' ? c.statuses.approved : entry.status === 'pending_hr' || entry.status === 'pending_exec' ? c.statuses.pending : entry.rejectedBy === 'hr' ? c.statuses.rejected : ''
-          return <tr key={entry?.id ?? `empty-${index}`}><td>{index + 1}</td><td>{formatDate(entry?.from, locale)}</td><td>{formatDate(entry?.to, locale)}</td>{categories.map((type) => <td key={type}>{entry?.leaveType === type ? entry.days : ''}</td>)}<td>{entry?.days ?? ''}</td><td className="leave-sheet-reason">{entry ? c.sampleDocuments[String(entry.id)]?.reason ?? entry.reason : ''}</td>{signatureCell(entry ? person.name : '')}{signatureCell(managerResult)}{signatureCell(hrResult)}</tr>
+          // คอลัมน์อนุมัติ: แสดง ชื่อ + ลายเซ็น (ถ้ามี) + สถานะ + วันที่อนุมัติ
+          const approvedDate = (date?: string) => date ? formatDate(date, locale) : ''
+          const submitterSignature = entry?.signatures?.['ผู้ยื่น']
+          const requestCell = entry && <div className="leave-approver">{submitterSignature?.image && <img className="leave-signature-img" src={submitterSignature.image} alt={`ลายเซ็น ${entry.employee}`} />}<div className="leave-approver-name">{entry.employee}</div></div>
+          const mgrApproved = Boolean(entry?.mgrSignerName)
+          const execApproved = Boolean(entry?.execSignerName)
+          const approverSignature = entry ? entry.signatures?.[entry.mgrSignerName ? 'ผู้จัดการแผนก' : 'ผู้ประกอบการ'] : undefined
+          const mgrCell = entry && (mgrApproved || execApproved) ? <div className="leave-approver">
+            {approverSignature?.image && <img className="leave-signature-img" src={approverSignature.image} alt={`ลายเซ็น ${entry.mgrSignerName ?? entry.execSignerName}`} />}
+            <div className="leave-approver-name">{entry.mgrSignerName ?? entry.execSignerName}</div>
+            <div className="leave-approver-sub">{entry.rejectedBy === 'manager' ? <span className="leave-approver-state">{c.statuses.rejected}</span> : <span className="leave-approver-state">{c.statuses.approved} {approvedDate(entry.mgrSignedAt ?? entry.execSignedAt)}{execApproved ? ' (ผู้ประกอบการ)' : ''}</span>}</div>
+          </div> : entry?.status === 'pending_mgr' ? <span className="leave-approver-state">{c.statuses.pending_mgr}</span> : entry?.status === 'pending_exec' ? <span className="leave-approver-state">{c.statuses.pending_exec}</span> : ''
+          const hrSignature = entry?.signatures?.['HR']
+          const hrCell = entry && entry.hrSignerName ? <div className="leave-approver">
+            {hrSignature?.image && <img className="leave-signature-img" src={hrSignature.image} alt={`ลายเซ็น ${entry.hrSignerName}`} />}
+            <div className="leave-approver-name">{entry.hrSignerName}</div>
+            <div className="leave-approver-sub">{entry.rejectedBy === 'hr' ? <span className="leave-approver-state">{c.statuses.rejected}</span> : <span className="leave-approver-state">{c.statuses.approved} {approvedDate(entry.hrSignedAt)}</span>}</div>
+          </div> : entry?.status === 'pending_hr' ? <span className="leave-approver-state">{c.statuses.pending_hr}</span> : ''
+          return <tr key={entry?.id ?? `empty-${index}`}><td>{index + 1}</td><td>{formatDate(entry?.from, locale)}</td><td>{formatDate(entry?.to, locale)}</td>{categories.map((type) => <td key={type}>{entry?.leaveType === type ? entry.days : ''}</td>)}<td>{entry?.days ?? ''}</td><td className="leave-sheet-reason">{entry ? c.sampleDocuments[String(entry.id)]?.reason ?? entry.reason : ''}</td><td className="leave-sheet-approval">{requestCell}</td><td className="leave-sheet-approval">{mgrCell}</td><td className="leave-sheet-approval">{hrCell}</td>
+          </tr>
         })}</tbody>
       </table>
       <div className="leave-sheet-footer">

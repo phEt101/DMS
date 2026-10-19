@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { db } from '../../../config/database.js'
 import { httpError } from '../../../middleware/errors.js'
 import { validateRequest, type Kind, type LeaveTypeRow, type Policy, type ValidationContext, type Values } from '../services/employee-requests.validation.js'
+import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
 
 // ใช้สิทธิ์เดิมของโมดูลเอกสาร + เพิ่ม 'จัดการนโยบายการลา' 1 รายการ (ต้อง seed ในตาราง permissions)
 const PERM = { access: 'เข้าถึงเมนูเอกสาร', submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
@@ -62,6 +63,9 @@ export async function policy(req: Request, res: Response) {
 
 export async function updatePolicy(req: Request, res: Response) {
   need(req, PERM.policy)
+  const roleName = String(req.user!.role?.name ?? '').trim().toLocaleLowerCase()
+  const departmentName = String(req.user!.department ?? '').trim().toLocaleLowerCase()
+  if (roleName !== 'admin' && departmentName !== 'hr div.') throw httpError(403, 'ไม่มีสิทธิ์จัดการนโยบายการลา')
   const companyId = companyIdOf(req), b = req.body ?? {}
   const year = Number(b.year), yearStart = String(b.yearStart ?? ''), yearEnd = String(b.yearEnd ?? '')
   if (!Number.isSafeInteger(year) || year < 2500 || year > 2700) throw httpError(400, 'ปีนโยบายไม่ถูกต้อง')
@@ -72,6 +76,24 @@ export async function updatePolicy(req: Request, res: Response) {
   }
   if (Object.values(fields).some((value) => value === null || value < 0)) throw httpError(400, 'ค่านโยบายไม่ถูกต้อง')
   if (fields.hoursPerDay! <= 0 || fields.hourStep! <= 0) throw httpError(400, 'ชั่วโมงต่อวันและหน่วยการลาต้องมากกว่า 0')
+  const [previousRows] = await db.query<any[]>(
+    `SELECT id, DATE_FORMAT(year_start, '%Y-%m-%d') AS year_start, DATE_FORMAT(year_end, '%Y-%m-%d') AS year_end,
+       lead_days_personal, lead_workdays_vacation,
+       hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back
+     FROM leave_policies WHERE company_id = ? AND policy_year = ? LIMIT 1`, [companyId, year],
+  )
+  const previous = previousRows[0]
+  const policyChanges = [
+    { field: 'yearStart', from: previous?.year_start ?? null, to: yearStart },
+    { field: 'yearEnd', from: previous?.year_end ?? null, to: yearEnd },
+    { field: 'leadPersonal', from: previous ? Number(previous.lead_days_personal) : null, to: fields.leadPersonal },
+    { field: 'leadVacation', from: previous ? Number(previous.lead_workdays_vacation) : null, to: fields.leadVacation },
+    { field: 'hoursPerDay', from: previous ? Number(previous.hours_per_day) : null, to: fields.hoursPerDay },
+    { field: 'hourStep', from: previous ? Number(previous.hour_step) : null, to: fields.hourStep },
+    { field: 'certDays', from: previous ? Number(previous.certificate_days) : null, to: fields.certDays },
+    { field: 'otMax', from: previous ? Number(previous.ot_max_hours) : null, to: fields.otMax },
+    { field: 'fixDays', from: previous ? Number(previous.timefix_max_days_back) : null, to: fields.fixDays },
+  ].filter((change) => change.from !== change.to)
   await db.execute(
     `INSERT INTO leave_policies (company_id, policy_year, year_start, year_end, lead_days_personal, lead_workdays_vacation,
        hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back, updated_by)
@@ -84,6 +106,17 @@ export async function updatePolicy(req: Request, res: Response) {
       fields.certDays, fields.otMax, fields.fixDays, req.user!.id],
   )
   const [rows] = await db.query<any[]>(`${POLICY_SELECT} WHERE company_id = ? AND policy_year = ? LIMIT 1`, [companyId, year])
+  if (policyChanges.length > 0) {
+    await logActivity({
+      userId: req.user!.id,
+      module: 'documents',
+      action: 'policy_updated',
+      entityType: 'leave_policy',
+      entityId: rows[0].id,
+      details: { year, changes: policyChanges },
+      ipAddress: req.ip,
+    })
+  }
   res.json(policyRow(rows[0]))
 }
 
@@ -151,7 +184,12 @@ export async function index(req: Request, res: Response) {
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
             r.employee_user_id, eu.name AS employee_name, dep.name AS department_name,
             lt.code AS leave_type, ot.hours AS ot_hours, ot.task AS ot_task,
-            COALESCE(wfh.place, outing.place) AS place
+            COALESCE(wfh.place, outing.place) AS place,
+            sm.signer_name AS mgr_signer_name, DATE_FORMAT(sm.signed_at,'%Y-%m-%d') AS mgr_signed_at,
+            se.signer_name AS exec_signer_name, DATE_FORMAT(se.signed_at,'%Y-%m-%d') AS exec_signed_at,
+            sh.signer_name AS hr_signer_name, DATE_FORMAT(sh.signed_at,'%Y-%m-%d') AS hr_signed_at,
+            sm.signature_image AS mgr_signature_image, se.signature_image AS exec_signature_image, sh.signature_image AS hr_signature_image,
+            ss.signer_name AS submitter_name, ss.signature_image AS submitter_signature_image
        FROM employee_requests r
        JOIN users eu ON eu.id = r.employee_user_id
        LEFT JOIN departments dep ON dep.id = r.department_id
@@ -160,6 +198,10 @@ export async function index(req: Request, res: Response) {
        LEFT JOIN employee_request_ot_details ot ON ot.request_id = r.id
        LEFT JOIN employee_request_wfh_details wfh ON wfh.request_id = r.id
        LEFT JOIN employee_request_outing_details outing ON outing.request_id = r.id
+        LEFT JOIN employee_request_signatures sm ON sm.request_id = r.id AND sm.stage = 'manager' AND sm.action = 'approved'
+       LEFT JOIN employee_request_signatures se ON se.request_id = r.id AND se.stage = 'executive' AND se.action = 'approved'
+       LEFT JOIN employee_request_signatures sh ON sh.request_id = r.id AND sh.stage = 'hr' AND sh.action = 'approved'
+       LEFT JOIN employee_request_signatures ss ON ss.request_id = r.id AND ss.stage = 'submitter' AND ss.action = 'submitted'
       WHERE ${where.join(' AND ')}
       ORDER BY r.submitted_at DESC, r.id DESC LIMIT 1000`, params,
   )
@@ -352,7 +394,8 @@ export async function store(req: Request, res: Response) {
   if (!KINDS.includes(kind)) throw httpError(400, 'ประเภทเอกสารไม่ถูกต้อง')
   const raw = req.body?.values
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw httpError(400, 'ข้อมูลเอกสารไม่ถูกต้อง')
-  const signature = checkSignature(req.body?.signature, true)
+  // ยื่นเอกสาร: ลายเซ็นเป็น optional — กดยืนยันโดยไม่เซ็นก็ได้ (บันทึกเป็น NULL)
+  const signature = checkSignature(req.body?.signature, false)
 
   const [userRows] = await db.query<any[]>(
     `SELECT u.id, u.name, u.department_id, u.role_id, r.name AS role_name, dep.name AS department_name, dep.name = 'HR Div.' AS isHrDept, e.manager_user_id,
@@ -417,7 +460,7 @@ export async function store(req: Request, res: Response) {
       `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_image) VALUES (?, 'submitter', 'submitted', ?, ?, ?)`,
       [id, me, user.name, signature],
     )
-    if (req.body?.rememberSignature === true) {
+    if (req.body?.rememberSignature === true && signature) {
       await conn.execute(`INSERT INTO user_saved_signatures (user_id, signature_image) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature_image = VALUES(signature_image)`, [me, signature])
     }
     // pending_mgr: แจ้ง manager ทุกคนในแผนก + manager ที่ผูกไว้ (notify กรองซ้ำให้)
@@ -431,6 +474,15 @@ export async function store(req: Request, res: Response) {
         : await findHrUserIds(conn, companyId, me)
     await notify(conn, recipients, id, 'submitted')
     await conn.commit()
+    await logActivity({
+      userId: me,
+      module: 'documents',
+      action: 'submitted',
+      entityType: 'employee_request',
+      entityId: id,
+      details: { requestNo, kind, status },
+      ipAddress: req.ip,
+    })
     res.status(201).json({ id, requestNo, status })
   } catch (error) {
     await conn.rollback()
@@ -446,12 +498,13 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
   const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id, isHr = has(req, PERM.review)
   const note = nz(req.body?.note)
   if (action === 'reject' && !note) throw httpError(400, 'กรุณาระบุเหตุผลที่ไม่อนุมัติ')
-  const signature = checkSignature(req.body?.signature, action === 'approve')
+  // อนุมัติไม่บังคับลายเซ็นแล้ว — ไม่เซ็นก็กดยืนยันได้ (ลายเซ็นเป็น optional)
+  const signature = checkSignature(req.body?.signature, false)
 
   const conn = await db.getConnection()
   try {
     await conn.beginTransaction()
-    const [rows] = await conn.query<any[]>(`SELECT id, employee_user_id, manager_user_id, department_id, status FROM employee_requests WHERE id = ? AND company_id = ? FOR UPDATE`, [id, companyId])
+    const [rows] = await conn.query<any[]>(`SELECT id, request_no, kind, employee_user_id, manager_user_id, department_id, status FROM employee_requests WHERE id = ? AND company_id = ? FOR UPDATE`, [id, companyId])
     const row = rows[0]
     if (!row) throw httpError(404, 'Request not found')
     if (row.employee_user_id === me) throw httpError(403, 'ไม่สามารถพิจารณาเอกสารของตนเองได้')
@@ -490,7 +543,8 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
       `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_image, note) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [id, stage, action === 'approve' ? 'approved' : 'rejected', me, names[0]?.name ?? '', signature, note],
     )
-    if (action === 'approve' && req.body?.rememberSignature === true) {
+    // จดจำลายเซ็นเฉพาะเมื่อมีลายเซ็นจริง (กดยืนยันโดยไม่เซ็น = ไม่บันทึก)
+    if (action === 'approve' && req.body?.rememberSignature === true && signature) {
       await conn.execute(`INSERT INTO user_saved_signatures (user_id, signature_image) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature_image = VALUES(signature_image)`, [me, signature])
     }
     await notify(conn, [row.employee_user_id], id, next === 'pending_hr' ? 'forwarded_to_hr' : next)
@@ -500,6 +554,15 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
       await notify(conn, hrRecipients.length ? hrRecipients : await findExecUserIds(conn, companyId), id, 'submitted')
     }
     await conn.commit()
+    await logActivity({
+      userId: me,
+      module: 'documents',
+      action: action === 'approve' ? 'approved' : 'rejected',
+      entityType: 'employee_request',
+      entityId: id,
+      details: { requestNo: row.request_no, kind: row.kind, status: next, stage },
+      ipAddress: req.ip,
+    })
     res.json({ id, status: next })
   } catch (error) {
     await conn.rollback()
@@ -514,13 +577,26 @@ export const reject = (req: Request, res: Response) => decide(req, res, 'reject'
 export async function cancel(req: Request, res: Response) {
   need(req, PERM.access)
   const id = idParam(req)
+  const companyId = companyIdOf(req)
   const [result] = await db.execute<any>(
     `UPDATE employee_requests SET status = 'cancelled', decided_at = CURRENT_TIMESTAMP
       WHERE id = ? AND company_id = ? AND employee_user_id = ?
         AND (status = 'pending_mgr' OR status = 'pending_exec' OR (status = 'pending_hr' AND manager_user_id IS NULL))`,
-    [id, companyIdOf(req), req.user!.id],
+    [id, companyId, req.user!.id],
   )
   if (!result.affectedRows) throw httpError(409, 'ไม่สามารถยกเลิกเอกสารนี้ได้')
+  const [rows] = await db.query<any[]>(
+    `SELECT request_no, kind FROM employee_requests WHERE id = ? AND company_id = ? LIMIT 1`, [id, companyId],
+  )
+  await logActivity({
+    userId: req.user!.id,
+    module: 'documents',
+    action: 'cancelled',
+    entityType: 'employee_request',
+    entityId: id,
+    details: { requestNo: rows[0].request_no, kind: rows[0].kind, status: 'cancelled' },
+    ipAddress: req.ip,
+  })
   res.json({ id, status: 'cancelled' })
 }
 

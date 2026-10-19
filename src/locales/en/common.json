@@ -381,6 +381,11 @@
       "deleted": "Deleted",
       "activated": "Activated",
       "deactivated": "Deactivated",
+      "submitted": "Submitted",
+      "approved": "Approved/forwarded",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "policyUpdated": "Updated leave policy",
       "loginFrom": "Signed in with",
       "onDevice": "on",
       "unknownClient": "Unknown device",
@@ -394,6 +399,7 @@
         "modules": "Modules",
         "permissions": "Permissions",
         "projects": "Projects",
+        "documents": "Document management",
         "survey": "Survey",
         "reports": "Reports",
         "trash": "Trash",
@@ -501,6 +507,54 @@
         "activated": "Activated module",
         "deactivated": "Deactivated module"
       },
+      "companyActions": {
+        "created": "Created company",
+        "updated": "Updated company",
+        "deleted": "Deleted company"
+      },
+      "documentActions": {
+        "submitted": "Submitted document",
+        "approved": "Approved/forwarded document",
+        "rejected": "Rejected document",
+        "cancelled": "Cancelled document",
+        "policy_updated": "Updated leave policy"
+      },
+      "documentKinds": {
+        "leave": "Leave request",
+        "ot": "Overtime request",
+        "timefix": "Time correction request",
+        "wfh": "Work-from-home request",
+        "outing": "Outing request",
+        "swap": "Day-off swap request"
+      },
+      "documentStatuses": {
+        "pending_mgr": "Awaiting manager",
+        "pending_exec": "Awaiting executive",
+        "pending_hr": "Awaiting HR",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      },
+      "approvalStages": {
+        "manager": "Department manager",
+        "executive": "Executive",
+        "hr": "HR"
+      },
+      "policyFields": {
+        "yearStart": "Leave-year start",
+        "yearEnd": "Leave-year end",
+        "leadPersonal": "Personal leave notice days",
+        "leadVacation": "Vacation notice workdays",
+        "hoursPerDay": "Work hours per day",
+        "hourStep": "Minimum leave-hour increment",
+        "certDays": "Sick-leave certificate threshold",
+        "otMax": "Maximum OT hours per request",
+        "fixDays": "Time correction lookback days"
+      },
+      "requestNumber": "Request no.",
+      "documentType": "Document type",
+      "status": "Status",
+      "approvalStage": "Approval stage",
       "rolePermissionModules": "Updated permissions for",
       "roleActivated": "Activated role",
       "roleDeactivated": "Deactivated role",

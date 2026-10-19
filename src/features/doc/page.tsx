@@ -184,6 +184,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const [rememberSignature, setRememberSignature] = useState(true)
   const signatureCanvas = useRef<HTMLCanvasElement>(null)
   const signatureDrawing = useRef(false)
+  const signaturePreviewImage = useRef<HTMLImageElement | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [kindFilter, setKindFilter] = useState('all')
@@ -313,12 +314,24 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     context.clearRect(0, 0, canvas.width, canvas.height)
     setSignatureHasInk(false)
     if (!savedSignature) return
+    let cancelled = false
     const image = new Image()
+    signaturePreviewImage.current = image
     image.onload = () => {
-      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      if (cancelled || signaturePreviewImage.current !== image) return
+      // วาดลายเซ็นที่จดจำไว้โดยรักษาสัดส่วน (ไม่ยืดเต็ม canvas ทำให้ลายเซ็นใหญ่เกิน)
+      const scale = Math.min(canvas.width / image.width, canvas.height / image.height, 1)
+      const width = image.width * scale, height = image.height * scale
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(image, (canvas.width - width) / 2, canvas.height - height, width, height)
       setSignatureHasInk(true)
     }
     image.src = savedSignature
+    return () => {
+      cancelled = true
+      image.onload = null
+      if (signaturePreviewImage.current === image) signaturePreviewImage.current = null
+    }
   }, [signingDocumentId, pendingSubmission, savedSignature])
 
   const pageTitle = view === 'pending' ? copy.pendingTitle : view === 'ledger' ? copy.ledgerTitle : view === 'employees' ? copy.employeesTitle : view === 'policy' ? copy.policyTitle : view === 'notifications' ? copy.notificationsTitle : copy.allTitle
@@ -479,12 +492,17 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const clearSignature = () => {
     const canvas = signatureCanvas.current
     canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
+    if (signaturePreviewImage.current) {
+      signaturePreviewImage.current.onload = null
+      signaturePreviewImage.current = null
+    }
+    signatureDrawing.current = false
     setSignatureHasInk(false)
   }
   const confirmSignature = async () => {
-    if (!signatureHasInk || (!signingDocument && !pendingSubmission)) return
-    const image = signatureCanvas.current?.toDataURL('image/png')
-    if (!image) return
+    if (!signingDocument && !pendingSubmission) return
+    // เซ็นหรือไม่เซ็นก็ได้ — ไม่เซ็นส่ง image ว่างไป (server บันทึกเป็น null = ยืนยันโดยไม่เซ็น)
+    const image = signatureHasInk ? (signatureCanvas.current?.toDataURL('image/png') ?? '') : ''
 
     if (USE_DB) {
       try {
@@ -497,7 +515,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
           setSigningDocumentId(null); setSelectedDocumentId(null)
           showToast(result.status === 'pending_hr' || result.status === 'pending_exec' ? copy.messages.forwardedToast : copy.messages.approvedToast)
         }
-        if (rememberSignature) setSavedSignature(image)
+        if (rememberSignature && image) setSavedSignature(image)
         await reload()
       } catch (error) { showToast(errorText(error)) }
       return
@@ -512,9 +530,9 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       const leaveLabel = LEAVE_TYPES[value('leaveType')] ?? KIND_INFO[kind].title
       const title = kind === 'leave' ? `${leaveLabel} · ${value('days')} วัน` : kind === 'ot' ? `ทำ OT · ${value('hours')} ชั่วโมง` : KIND_INFO[kind].title
       const summary = kind === 'leave' ? `${dateText(value('from'))}${value('to') && value('to') !== value('from') ? ` – ${dateText(value('to'))}` : ''} · ${value('reason')}` : kind === 'ot' ? `${dateText(value('date'))} · ${value('start')}–${value('end')} · ${value('task')}` : kind === 'wfh' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('place')}` : kind === 'timefix' ? `${dateText(value('date'))} · ${value('reason')}` : kind === 'outing' ? `${dateText(value('date'))} · ${value('place')} · ${value('reason')}` : `${dateText(value('offDate'))} · ${value('reason')}`
-      const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'wfh' ? 'from' : 'date') || value('offDate'), to:value(kind === 'leave' || kind === 'wfh' ? 'to' : kind === 'swap' ? 'workDate' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, formData:values, signatures:{ 'ผู้ยื่น':{ image, name:submitter.name, date } } }
+      const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'wfh' ? 'from' : 'date') || value('offDate'), to:value(kind === 'leave' || kind === 'wfh' ? 'to' : kind === 'swap' ? 'workDate' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
       setDocuments((current) => [doc, ...current])
-      if (rememberSignature) setSavedSignature(image)
+      if (rememberSignature && image) setSavedSignature(image)
       setPendingSubmission(null); setSelectedKind(''); setFormValues({})
       showToast(copy.messages.submittedToast)
       return
@@ -526,7 +544,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     } else {
       mockDecision(signingDocument, false, image)
     }
-    if (rememberSignature) setSavedSignature(image)
+    if (rememberSignature && image) setSavedSignature(image)
     setSigningDocumentId(null)
   }
 
@@ -639,7 +657,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       }}
     />}
 
-    {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={640} height={240} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" disabled={!signatureHasInk} onClick={() => void confirmSignature()}>{copy.signature.send}</button></div></section></div>}
+    {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={480} height={160} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" onClick={() => void confirmSignature()}>{signatureHasInk ? copy.signature.confirmOrSend : copy.signature.confirmWithoutSign}</button></div></section></div>}
 
     <DocNewDocumentModal
       open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} role={mockRole} copy={copy}
