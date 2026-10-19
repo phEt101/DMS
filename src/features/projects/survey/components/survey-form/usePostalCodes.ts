@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import type { UseFormReturn } from 'react-hook-form'
 import type { Survey } from '../../types'
 import { apiGet } from './api'
 
@@ -8,12 +7,12 @@ const enc = encodeURIComponent
 
 export function usePostalCodes({
   initialLocation,
-  getValues,
+  getLocation,
   updateLocation,
 }: {
-  initialLocation?: { province?: string | null; district?: string | null } | null
-  getValues: UseFormReturn<Survey>['getValues']
-  updateLocation: (patch: Record<string, any>) => void
+  initialLocation?: Survey['location'] | null
+  getLocation: () => Survey['location'] | undefined
+  updateLocation: (patch: Partial<NonNullable<Survey['location']>>) => void
 }) {
   // Location lists from backend (seeded postal_codes)
   const [provinces, setProvinces] = useState<string[] | null>(null)
@@ -87,13 +86,13 @@ export function usePostalCodes({
   const onDistrictChange = (v: string) => {
     updateLocation({ district: v, subdistrict: '', postalCode: '' })
     setSubdistricts([])
-    const prov = (getValues('location')?.province || '').trim()
+    const prov = (getLocation()?.province || '').trim()
     if (prov && v) void loadSubdistrictsFor(prov, v)
   }
 
   const onSubdistrictChange = (v: string) => {
     updateLocation({ subdistrict: v })
-    const loc = getValues('location')
+    const loc = getLocation()
     const prov = (loc?.province || '').trim()
     const dist = (loc?.district || '').trim()
     if (prov && dist && v) void loadPostalCodeFor(prov, dist, v)

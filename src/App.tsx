@@ -39,7 +39,7 @@ const moduleByPage: Record<PageKey, string> = {
   'projects-cm': 'projects',
   'projects-cm-create': 'projects',
   survey: 'survey',
-  report: 'reports',
+  report: 'documents',
   trash: 'trash',
   'settings-user': 'users',
   'settings-roles': 'roles',
@@ -62,7 +62,7 @@ const pageOrder = Object.keys(pathByPage) as PageKey[]
 function canAccessPage(user: AuthUser, page: PageKey) {
   if (moduleByPage[page] === 'documents') {
     // พนักงานทุกคนที่เห็นเมนูเอกสาร: เอกสารทั้งหมด (ของตัวเอง) / สมุดบันทึกการลา / แจ้งเตือน / รออนุมัติ
-    if (page === 'documents-all' || page === 'documents-ledger' || page === 'documents-notifications' || page === 'documents-pending') return canViewModule(user, 'documents')
+    if (page === 'documents-all' || page === 'documents-ledger' || page === 'documents-notifications' || page === 'documents-pending' || page === 'report') return canViewModule(user, 'documents')
     // รายชื่อพนักงาน + นโยบาย: admin หรือแผนก HR Div. เท่านั้น
     if (page === 'documents-employees' || page === 'documents-policy') {
       return user.role.name.trim().toLocaleLowerCase() === 'admin' || (user.department ?? '').trim().toLocaleLowerCase() === 'hr div.'

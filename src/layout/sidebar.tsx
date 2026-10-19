@@ -147,7 +147,7 @@ export default function Sidebar({
     previousActiveItem.current = activeItem;
     const group = ["projects", "projects-cm", "survey"].includes(activeItem)
       ? "projects"
-      : activeItem.startsWith("documents")
+      : activeItem.startsWith("documents") || activeItem === "report"
         ? "documents"
         : activeItem.startsWith("settings-")
           ? "settings"
@@ -194,7 +194,7 @@ export default function Sidebar({
     });
 
   const mainItems = moduleItems.filter((item) =>
-    ["dashboard", "projects", "documents", "report", "trash"].includes(item.key),
+    ["dashboard", "projects", "documents", "trash"].includes(item.key),
   );
   const accessItems = moduleItems.filter((item) => sidebarModuleKeys.has(item.key));
   const companiesIndex = accessItems.findIndex((item) => item.key === "settings-companies");
@@ -311,6 +311,7 @@ if (item.key === "documents") {
     { key: "documents-all", label: documentNavTranslations.all },
     { key: "documents-pending", label: documentNavTranslations.pending },
     { key: "documents-ledger", label: documentNavTranslations.ledger },
+    { key: "report", label: documentNavTranslations.report },
     { key: "documents-employees", label: documentNavTranslations.employees },
     { key: "documents-policy", label: documentNavTranslations.policy },
     { key: "documents-notifications", label: documentNavTranslations.notifications },
@@ -321,7 +322,7 @@ if (item.key === "documents") {
   const visibleDocumentItems = roleName === "admin" || department === "hr div."
     ? documentItems
     : documentItems.filter((documentItem) =>
-        ["documents-all", "documents-pending", "documents-ledger", "documents-notifications"].includes(documentItem.key));
+        ["documents-all", "documents-pending", "documents-ledger", "report", "documents-notifications"].includes(documentItem.key));
 
   return (
     <div
@@ -332,7 +333,7 @@ if (item.key === "documents") {
         type="button"
         ref={documentsToggleRef}
         className={`nav-item nav-button documents-toggle ${
-          activeItem.startsWith("documents")
+          activeItem.startsWith("documents") || activeItem === "report"
             ? "has-active-child"
             : ""
         }`}

@@ -34,8 +34,8 @@ export default function SurveyForm({
   const locationValue = watch('location')
 
   // merge ค่า location ปัจจุบันกับ patch ที่ส่งเข้ามา
-  const updateLocation = (patch: Record<string, any>) =>
-    setValue('location', { ...(getValues('location') ?? {}), ...patch } as any)
+  const updateLocation = (patch: Partial<NonNullable<Survey['location']>>) =>
+    setValue('location', { ...(getValues('location') ?? {}), ...patch })
 
   // ผูกฟิลด์รูปกับฟอร์ม เพื่อให้ค่ารูปเดิม (จากโหมดแก้ไข) ถูกเก็บและแสดงผลได้แน่นอน
   useEffect(() => {
@@ -45,8 +45,9 @@ export default function SurveyForm({
 
   const photos = usePhotos(form)
   const camera = useCamera(form)
-  const postal = usePostalCodes({ initialLocation: initial?.location, getValues, updateLocation })
-  const picker = useLocationPicker({ initial, getValues, updateLocation, postal })
+  const getLocation = () => getValues('location')
+  const postal = usePostalCodes({ initialLocation: initial?.location, getLocation, updateLocation })
+  const picker = useLocationPicker({ initialLocation: initial?.location, getLocation, updateLocation, postal })
   const { saving, onSave } = useSurveySave({ filesMap: photos.filesMap, onSaved, onClose, translations })
 
   return (

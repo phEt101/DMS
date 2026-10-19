@@ -19,7 +19,7 @@ export function buildPages(translations: Translations, language: Language, onNav
     'projects-cm': <CmProjectsPage translations={translations} language={language} />,
     'projects-cm-create': <CmCreatePage translations={translations} language={language} />,
     survey: <SurveyPage translations={translations} language={language} />,
-    report: <ReportPage translations={translations} />,
+    report: <ReportPage translations={translations} language={language} />,
     trash: <TrashPage translations={translations} />,
     'settings-user': <SettingsUsersPage translations={translations} />,
     'settings-roles': <SettingsAccessPage translations={translations} section="roles" />,

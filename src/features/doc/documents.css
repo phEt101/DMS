@@ -107,6 +107,10 @@
 .documents-submission-actions > button { min-height:44px; }
 .documents-submission-actions > button:disabled { opacity:.48; cursor:not-allowed; }
 .documents-form-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+.documents-form-fields > .outing-location-section { grid-column:1/-1; min-width:0; margin:0 0 4px; padding:14px; border-color:#e3e8f2; background:#fff; }
+.outing-location-section > h3 { margin:0 0 12px; color:#1c2540; font-size:15px; font-weight:700; }
+.outing-location-section .dms-pm-create-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.outing-location-section .dms-form-field { min-width:0; }
 .documents-form-field { display:grid; min-width:0; gap:7px; color:#34405d; font-size:13px; font-weight:700; }
 .documents-form-field.is-wide { grid-column:1/-1; }
 .documents-form-field input,.documents-form-field textarea,.documents-form-field select { width:100%; min-width:0; padding:10px 12px; border:1px solid #dbe1ec; border-radius:11px; background:#f7f9fc; color:#1c2540; font:inherit; font-weight:400; }

@@ -218,7 +218,10 @@ const DETAIL_SQL: Record<Kind, string> = {
                    TIME_FORMAT(out_time,'%H:%i') AS out_time FROM employee_request_timefix_details WHERE request_id = ?`,
   wfh: `SELECT place, plan FROM employee_request_wfh_details WHERE request_id = ?`,
   outing: `SELECT DATE_FORMAT(outing_date,'%Y-%m-%d') AS date, TIME_FORMAT(out_time,'%H:%i') AS out_time,
-                  TIME_FORMAT(back_time,'%H:%i') AS back_time, place FROM employee_request_outing_details WHERE request_id = ?`,
+                  TIME_FORMAT(back_time,'%H:%i') AS back_time, place, company_name, address, province, district,
+                  subdistrict, postal_code, country, latitude, longitude, project_name, customer_name,
+                  customer_position, phone, work_details, remark
+             FROM employee_request_outing_details WHERE request_id = ?`,
   swap: `SELECT DATE_FORMAT(off_date,'%Y-%m-%d') AS off_date, DATE_FORMAT(work_date,'%Y-%m-%d') AS work_date FROM employee_request_swap_details WHERE request_id = ?`,
 }
 
@@ -353,6 +356,7 @@ const firstStage = (user: any): 'pending_mgr' | 'pending_exec' | 'pending_hr' =>
 function headerFields(kind: Kind, v: Values) {
   const s = (key: string) => nz(v[key])
   if (kind === 'leave' || kind === 'wfh') return { start: s('from'), end: s('to'), days: num(v.days), reason: s('reason') }
+  if (kind === 'outing') return { start: s('date'), end: s('date'), days: null, reason: s('workDetails') }
   if (kind === 'swap') return { start: s('offDate'), end: s('offDate'), days: null, reason: s('reason') }
   return { start: s('date'), end: s('date'), days: null, reason: s('reason') }
 }
@@ -451,8 +455,17 @@ export async function store(req: Request, res: Response) {
     } else if (kind === 'wfh') {
       await conn.execute(`INSERT INTO employee_request_wfh_details (request_id, place, plan) VALUES (?, ?, ?)`, [id, s('place'), s('plan')])
     } else if (kind === 'outing') {
-      await conn.execute(`INSERT INTO employee_request_outing_details (request_id, outing_date, out_time, back_time, place) VALUES (?, ?, ?, ?, ?)`,
-        [id, s('date'), s('outTime'), s('backTime'), s('place')])
+      await conn.execute(
+        `INSERT INTO employee_request_outing_details
+          (request_id, outing_date, out_time, back_time, place, company_name, address, province, district,
+           subdistrict, postal_code, country, latitude, longitude, project_name, customer_name,
+           customer_position, phone, work_details, remark)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, s('date'), s('outTime'), s('backTime'), s('address')?.slice(0, 255) ?? null, s('company'), s('address'),
+          s('province'), s('district'), s('subdistrict'), s('postalCode'), s('country'), num(v.latitude),
+          num(v.longitude), s('project'), s('customerName'), s('customerPosition'), s('phone'),
+          s('workDetails'), s('remark')],
+      )
     } else {
       await conn.execute(`INSERT INTO employee_request_swap_details (request_id, off_date, work_date) VALUES (?, ?, ?)`, [id, s('offDate'), s('workDate')])
     }
@@ -772,4 +785,76 @@ export async function people(req: Request, res: Response) {
     emailNotificationsEnabled: row.email_notifications_enabled === null ? null : Boolean(row.email_notifications_enabled),
     sick: Number(row.sick), personal: Number(row.personal), vacation: Number(row.vacation), other: Number(row.other),
   })))
+}
+
+export async function outingReport(req: Request, res: Response) {
+  need(req, PERM.access)
+  const companyId = companyIdOf(req), me = req.user!.id
+  const roleName = String(req.user!.role?.name ?? '').trim().toLowerCase()
+  const departmentName = String(req.user!.department ?? '').trim().toLowerCase()
+  const canSelectEmployee = roleName === 'admin' || departmentName === 'hr div.'
+  const from = String(req.query.from ?? '')
+  const to = String(req.query.to ?? '')
+  const isDate = (value: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+    const date = new Date(`${value}T00:00:00Z`)
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+  }
+  if (!isDate(from) || !isDate(to) || from > to) throw httpError(400, 'ช่วงวันที่รายงานไม่ถูกต้อง')
+
+  const requestedEmployeeId = req.query.employeeId === undefined ? me : Number(req.query.employeeId)
+  if (!Number.isSafeInteger(requestedEmployeeId) || requestedEmployeeId < 1) throw httpError(400, 'รหัสพนักงานไม่ถูกต้อง')
+  if (!canSelectEmployee && requestedEmployeeId !== me) throw httpError(403, 'ไม่มีสิทธิ์ดูรายงานของพนักงานคนนี้')
+
+  const [rows] = await db.query<any[]>(
+    `SELECT r.id, r.request_no, r.status, DATE_FORMAT(o.outing_date, '%Y-%m-%d') AS date,
+            TIME_FORMAT(o.out_time, '%H:%i') AS out_time, TIME_FORMAT(o.back_time, '%H:%i') AS back_time,
+            u.name AS employee_name, o.company_name, o.address, o.province, o.district, o.subdistrict,
+            o.postal_code, o.country, o.latitude, o.longitude, o.project_name, o.customer_name,
+            o.customer_position, o.phone, o.work_details, o.remark,
+            submitter.signature_image AS submitter_signature_image,
+            approved.signer_name AS approved_by, approved.signature_image AS approved_signature_image
+       FROM employee_requests r
+       JOIN employee_request_outing_details o ON o.request_id = r.id
+       JOIN users u ON u.id = r.employee_user_id
+       LEFT JOIN employee_request_signatures submitter
+         ON submitter.request_id = r.id AND submitter.stage = 'submitter' AND submitter.action = 'submitted'
+       LEFT JOIN employee_request_signatures approved
+         ON approved.id = (
+           SELECT latest.id FROM employee_request_signatures latest
+            WHERE latest.request_id = r.id AND latest.action = 'approved'
+            ORDER BY latest.signed_at DESC, latest.id DESC LIMIT 1
+         )
+      WHERE r.company_id = ? AND r.kind = 'outing' AND r.status = 'approved'
+        AND r.employee_user_id = ? AND o.outing_date BETWEEN ? AND ?
+      ORDER BY o.outing_date, o.out_time, r.id`,
+    [companyId, requestedEmployeeId, from, to],
+  )
+  const [signatureRows] = await db.query<any[]>(
+    `SELECT saved.signature_image FROM user_saved_signatures saved
+       JOIN users u ON u.id = saved.user_id AND u.company_id = ? AND u.deleted_at IS NULL
+      WHERE saved.user_id = ? LIMIT 1`, [companyId, requestedEmployeeId],
+  )
+  const [pendingRows] = await db.query<any[]>(
+    `SELECT COUNT(*) AS total FROM employee_requests r
+       JOIN employee_request_outing_details o ON o.request_id = r.id
+      WHERE r.company_id = ? AND r.kind = 'outing'
+        AND r.status IN ('pending_mgr','pending_exec','pending_hr')
+        AND r.employee_user_id = ? AND o.outing_date BETWEEN ? AND ?`,
+    [companyId, requestedEmployeeId, from, to],
+  )
+  let employees: Array<{ id: number; name: string }> = []
+  if (canSelectEmployee) {
+    const [peopleRows] = await db.query<any[]>(
+      `SELECT id, name FROM users WHERE company_id = ? AND deleted_at IS NULL AND is_active = 1 ORDER BY name`,
+      [companyId],
+    )
+    employees = peopleRows
+  }
+  res.json({
+    data: rows.map((row) => camelize(row)),
+    pendingCount: Number(pendingRows[0]?.total ?? 0),
+    employees,
+    submitterSignature: signatureRows[0]?.signature_image ?? null,
+  })
 }

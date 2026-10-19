@@ -126,8 +126,10 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
     add(Boolean(v('date') && v('date') >= today), 'todayOrFuture')
     add(minutes(v('outTime')) >= 0, 'outTimeRequired')
     add(!v('backTime') || minutes(v('backTime')) > minutes(v('outTime')), 'backAfterOut')
-    add(Boolean(v('place')), 'destinationRequired')
-    add(Boolean(v('reason')), 'purposeRequired')
+    add(Boolean(v('company')), 'companyRequired')
+    add(Boolean(v('address')), 'addressRequired')
+    add(Boolean(v('workDetails')), 'workDetailsRequired')
+    add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8), 'phoneInvalid')
   }
 
   if (kind === 'swap') {

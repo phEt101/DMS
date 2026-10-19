@@ -102,6 +102,11 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
     dayType: s(d.dayType), date: s(d.date), task: s(d.task),
     cause: s(d.cause), inTime: s(d.inTime), outTime: s(d.outTime), backTime: s(d.backTime),
     place: s(d.place), plan: s(d.plan), offDate: s(d.offDate), workDate: s(d.workDate), reason: row.reason ?? '',
+    company: s(d.companyName), address: s(d.address), province: s(d.province), district: s(d.district),
+    subdistrict: s(d.subdistrict), postalCode: s(d.postalCode), country: s(d.country),
+    latitude: s(d.latitude), longitude: s(d.longitude), project: s(d.projectName),
+    customerName: s(d.customerName), customerPosition: s(d.customerPosition), phone: s(d.phone),
+    workDetails: s(d.workDetails), remark: s(d.remark),
   }
   const signatures: NonNullable<MockDocument['signatures']> = {}
   const signedActions = ['approved', 'submitted']

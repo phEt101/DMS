@@ -4,7 +4,7 @@ import MapEvents from './survey-mapevents'
 import { DefaultIcon } from './utils'
 import type { LocationPicker } from './useLocationPicker'
 
-export default function MapPicker({ picker, translations }: { picker: LocationPicker, translations?: any }) {
+export default function MapPicker({ picker, translations, height = 380 }: { picker: LocationPicker, translations?: any, height?: number }) {
   const t = translations?.features?.survey ?? {}
   const {
     initialCenter, initialZoom, tempPos, setTempPos, mapRef,
@@ -14,7 +14,7 @@ export default function MapPicker({ picker, translations }: { picker: LocationPi
   } = picker
 
   return (
-    <div style={{ position: 'relative', height: 380, borderRadius: 8, overflow: 'hidden' }}>
+    <div style={{ position: 'relative', height, borderRadius: 8, overflow: 'hidden' }}>
       <MapContainer center={initialCenter} zoom={initialZoom} style={{ height: '100%', width: '100%' }}>
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <MapEvents mapRef={mapRef} onPick={(lat, lng) => setTempPos({ lat, lng })} />

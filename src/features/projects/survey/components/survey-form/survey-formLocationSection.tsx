@@ -8,12 +8,18 @@ export default function LocationSection({
   picker,
   postal,
   translations,
+  sectionTitle,
+  mapHeight,
+  className,
 }: {
   locationValue: any
   updateLocation: (patch: Record<string, any>) => void
   picker: LocationPicker
   postal: PostalApi
   translations?: any
+  sectionTitle?: string
+  mapHeight?: number
+  className?: string
 }) {
   const t = translations?.features?.survey ?? {}
   const { tempPos, confirmLocation } = picker
@@ -29,10 +35,10 @@ export default function LocationSection({
   const hasSavedCoords = !!(locationValue && locationValue.latitude && locationValue.longitude)
 
   return (
-    <section className="dms-pm-create-section">
-      <h3>{t.form?.section?.location ?? 'Project location'}</h3>
+    <section className={`dms-pm-create-section ${className ?? ''}`.trim()}>
+      <h3>{sectionTitle ?? t.form?.section?.location ?? 'Project location'}</h3>
 
-      <MapPicker picker={picker} translations={translations} />
+      <MapPicker picker={picker} translations={translations} height={mapHeight} />
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
         <button type="button" className="dms-create-btn" onClick={() => void confirmLocation()} disabled={!tempPos}>{t.form?.actions?.chooseLocation ?? 'Choose this location'}</button>

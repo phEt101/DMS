@@ -248,7 +248,48 @@
     "report": {
       "kicker": "Report",
       "title": "Usage reports",
-      "subtitle": "View stats and summaries for the system"
+      "subtitle": "View stats and summaries for the system",
+      "outingReport": {
+        "title": "Off-site Work Report",
+        "subtitle": "Approved off-site work requests",
+        "employee": "Employee",
+        "from": "From",
+        "to": "To",
+        "exportExcel": "Export Excel",
+        "exportWord": "Export Word",
+        "exportPdf": "Export PDF",
+        "print": "Print",
+        "approvedCount": "approved requests",
+        "deadline": "Submit by {date} ({days} days left)",
+        "pendingCount": "{count} pending requests",
+        "loading": "Loading report...",
+        "loadError": "Could not load the report",
+        "invalidRange": "The start date must not be after the end date",
+        "empty": "No off-site work requests found for this date range",
+        "signatureHint": "Preparer and approver signatures are shown when saved. Blank signature lines are left for manual signing.",
+        "sheet": {
+          "sale": "Sale",
+          "date": "Date",
+          "page": "Page",
+          "preparedBy": "Prepared by",
+          "approvedBy": "Approved by",
+          "signature": "Signature",
+          "notesTitle": "Notes",
+          "notes": ["Record each day working outside the office", "Submit by the 25th of each month"]
+        },
+        "columns": {
+          "date": "Date",
+          "time": "Departure–return time",
+          "company": "Company",
+          "address": "Address",
+          "project": "Project",
+          "customer": "Customer",
+          "position": "Position",
+          "phone": "Phone",
+          "workDetails": "Work details",
+          "remark": "Remark"
+        }
+      }
     },
     "trash": {
       "kicker": "Trash",

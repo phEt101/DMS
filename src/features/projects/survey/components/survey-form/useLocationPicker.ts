@@ -1,29 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
 import type L from 'leaflet'
-import type { UseFormReturn } from 'react-hook-form'
 import type { Survey } from '../../types'
 import { parseThaiAddress, reverseGeocode, searchPlaces } from './geocode'
 import type { PostalApi } from './usePostalCodes'
 
 export function useLocationPicker({
-  initial,
-  getValues,
+  initialLocation,
+  getLocation,
   updateLocation,
   postal,
 }: {
-  initial?: Survey | null
-  getValues: UseFormReturn<Survey>['getValues']
-  updateLocation: (patch: Record<string, any>) => void
+  initialLocation?: Survey['location'] | null
+  getLocation: () => Survey['location'] | undefined
+  updateLocation: (patch: Partial<NonNullable<Survey['location']>>) => void
   postal: Pick<PostalApi, 'loadDistrictsFor' | 'loadSubdistrictsFor' | 'loadPostalCodeFor'>
 }) {
-  const initialCenter: [number, number] = initial?.location
-    ? [initial.location.latitude ?? 13.736717, initial.location.longitude ?? 100.523186]
+  const initialCenter: [number, number] = initialLocation
+    ? [initialLocation.latitude ?? 13.736717, initialLocation.longitude ?? 100.523186]
     : [13.736717, 100.523186]
-  const initialZoom = initial?.location ? 15 : 6
+  const initialZoom = initialLocation ? 15 : 6
 
   const [tempPos, setTempPos] = useState<{ lat: number; lng: number } | null>(
-    initial?.location && typeof initial.location.latitude === 'number' && typeof initial.location.longitude === 'number'
-      ? { lat: initial.location.latitude as number, lng: initial.location.longitude as number }
+    initialLocation && typeof initialLocation.latitude === 'number' && typeof initialLocation.longitude === 'number'
+      ? { lat: initialLocation.latitude, lng: initialLocation.longitude }
       : null
   )
   const [searchQuery, setSearchQuery] = useState('')
@@ -111,7 +110,7 @@ export function useLocationPicker({
     if (!tempPos) return
     const rev = await reverseGeocode(tempPos.lat, tempPos.lng)
     const geo = parseThaiAddress(rev)
-    const prev = (getValues('location') ?? {}) as any
+    const prev = getLocation() ?? {}
 
     // Preserve existing location where possible; set latitude/longitude/address/country and province
     // (do not clear province when missing)
