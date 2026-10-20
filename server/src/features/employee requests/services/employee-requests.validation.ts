@@ -123,7 +123,8 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
   }
 
   if (kind === 'outing') {
-    add(Boolean(v('date') && v('date') >= today), 'todayOrFuture')
+    add(Boolean(v('from') && v('to') && v('to') >= v('from')), 'validRange')
+    add(Boolean(v('from') && v('from') >= today), 'todayOrFuture')
     add(minutes(v('outTime')) >= 0, 'outTimeRequired')
     add(!v('backTime') || minutes(v('backTime')) > minutes(v('outTime')), 'backAfterOut')
     add(Boolean(v('company')), 'companyRequired')

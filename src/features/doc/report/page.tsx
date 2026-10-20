@@ -10,7 +10,8 @@ type OutingReportRow = {
   reportKind: 'wfh' | 'outing'
   requestNo: string
   employeeName: string
-  date: string
+  fromDate: string
+  toDate: string
   outTime: string | null
   backTime: string | null
   companyName: string | null
@@ -38,6 +39,7 @@ type ReportResponse = {
 }
 type AppliedFilters = { from: string; to: string; employeeId: string }
 type ReportCellRow = OutingReportRow | null
+type ReportPage = { rows: ReportCellRow[] }
 
 const dateInputValue = (date: Date) => {
   const year = date.getFullYear()
@@ -131,12 +133,13 @@ export default function ReportPage({ translations, language }: { translations: T
     ? new Intl.DateTimeFormat(language === 'th' ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${value}T12:00:00`))
     : ''
   const headers = [
-    copy.columns.date, copy.columns.type, copy.columns.time, copy.columns.company, copy.columns.address, copy.columns.project,
-    copy.columns.customer, copy.columns.position, copy.columns.phone, copy.columns.workDetails, copy.columns.remark,
+    copy.columns.kind, copy.columns.date, copy.columns.time, copy.columns.company, copy.columns.address,
+    copy.columns.project, copy.columns.customer, copy.columns.position, copy.columns.phone,
+    copy.columns.workDetails, copy.columns.remark,
   ]
   const rowCells = (row: OutingReportRow) => [
-    dateText(row.date),
     row.reportKind === 'wfh' ? copy.workFromHome : copy.offsiteWork,
+    row.fromDate === row.toDate ? dateText(row.fromDate) : `${dateText(row.fromDate)} – ${dateText(row.toDate)}`,
     [row.outTime, row.backTime].filter(Boolean).join('–'),
     row.companyName,
     [row.address, row.subdistrict, row.district, row.province, row.postalCode, row.country].filter(Boolean).join(' '),
@@ -147,12 +150,12 @@ export default function ReportPage({ translations, language }: { translations: T
     row.workDetails,
     row.remark,
   ]
-  const reportPages = (): ReportCellRow[][] => {
-    const pages: ReportCellRow[][] = []
-    for (let offset = 0; offset < Math.max(rows.length, 1); offset += 22) {
+  const reportPages = (): ReportPage[] => {
+    const pages: ReportPage[] = []
+    for (let offset = 0; offset < rows.length; offset += 22) {
       const page: ReportCellRow[] = rows.slice(offset, offset + 22)
       while (page.length < 22) page.push(null)
-      pages.push(page)
+      pages.push({ rows: page })
     }
     return pages
   }
@@ -167,17 +170,18 @@ export default function ReportPage({ translations, language }: { translations: T
     setAppliedFilters(next)
   }
 
-  const makeSheetHtml = (pageRows: ReportCellRow[], pageIndex: number) => {
-    const reportRows = pageRows.map((row) => row
-      ? `<tr>${rowCells(row).map((cell, index) => `<td${[3, 4, 5, 6, 7, 9, 10].includes(index) ? ' class="l"' : ''}>${escapeHtml(cell)}</td>`).join('')}</tr>`
+  const makeSheetHtml = (page: ReportPage, pageIndex: number) => {
+    const reportRows = page.rows.map((row) => row
+      ? `<tr>${rowCells(row).map((cell, index) => `<td${[4, 5, 6, 7, 9, 10].includes(index) ? ' class="l"' : ''}>${escapeHtml(cell)}</td>`).join('')}</tr>`
       : `<tr>${headers.map(() => '<td></td>').join('')}</tr>`).join('')
-    const approver = rows.find((row) => row.approvedBy || row.approvedSignatureImage)
+    const pageRows = page.rows.filter((row): row is OutingReportRow => row !== null)
+    const approver = pageRows.find((row) => row.approvedBy || row.approvedSignatureImage)
     const pageMark = pages.length > 1 ? ` (${copy.sheet.page} ${pageIndex + 1}/${pages.length})` : ''
     return `<section class="rsheet">
-      <h2>Report</h2>
+      <h2>${escapeHtml(copy.title)}</h2>
       <div class="rl">${escapeHtml(copy.sheet.sale)} : ${escapeHtml(employeeName)}</div>
       <div class="rl">${escapeHtml(copy.sheet.date)} : ${escapeHtml(dateText(reportFrom))} - ${escapeHtml(dateText(reportTo))}${pageMark}</div>
-      <table><colgroup>${[5, 7, 5.5, 11, 13, 12, 8, 6, 5, 17, 10.5].map((width) => `<col style="width:${width}%">`).join('')}</colgroup>
+      <table><colgroup>${[10, 15, 8, 7, 13, 8, 7, 7, 8, 10, 7].map((width) => `<col style="width:${width}%">`).join('')}</colgroup>
         <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
         <tbody>${reportRows}</tbody>
       </table>

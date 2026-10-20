@@ -44,7 +44,7 @@ const FORM_FIELDS_DEFAULT: Record<DocKind, Array<{ key: string; label: string; t
   ot:[{key:'dayType',label:'ประเภทวัน',type:'select',options:{weekday:'วันทำงานปกติ',weekend:'วันหยุดประจำสัปดาห์',holiday:'วันหยุดนักขัตฤกษ์'},wide:true},{key:'date',label:'วันที่ทำ OT',type:'date',wide:true},{key:'start',label:'เวลาเริ่ม',type:'time'},{key:'end',label:'เวลาสิ้นสุด',type:'time'},{key:'hours',label:'รวม (ชั่วโมง)',type:'number',step:.5,wide:true},{key:'task',label:'งาน / โครงการที่ทำ',type:'text',wide:true},{key:'reason',label:'เหตุผลที่ต้องทำ OT',type:'textarea',wide:true}],
   timefix:[{key:'date',label:'วันที่ต้องการแก้ไข',type:'date'},{key:'cause',label:'สาเหตุ',type:'select',options:{forgot:'ลืมสแกนนิ้ว',device:'เครื่องสแกนขัดข้อง',offsite:'ปฏิบัติงานนอกสถานที่',other:'อื่น ๆ'}},{key:'inTime',label:'เวลาเข้างานที่ถูกต้อง',type:'time'},{key:'outTime',label:'เวลาออกงานที่ถูกต้อง',type:'time'},{key:'reason',label:'รายละเอียด',type:'textarea',wide:true}],
   wfh:[{key:'from',label:'ตั้งแต่วันที่',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'days',label:'จำนวนวันทำงาน',type:'number',step:.5,wide:true},{key:'place',label:'สถานที่ทำงาน',type:'text',wide:true},{key:'plan',label:'แผนงานที่จะทำ',type:'textarea',wide:true}],
-  outing:[{key:'date',label:'วันที่',type:'date',wide:true},{key:'outTime',label:'เวลาออก',type:'time'},{key:'backTime',label:'เวลากลับโดยประมาณ',type:'time'},{key:'company',label:'บริษัท',type:'text',wide:true},{key:'project',label:'โครงการ',type:'text',wide:true},{key:'customerName',label:'ชื่อลูกค้า',type:'text'},{key:'customerPosition',label:'ตำแหน่ง',type:'text'},{key:'phone',label:'เบอร์โทร',type:'text',wide:true},{key:'workDetails',label:'รายละเอียดงาน',type:'textarea',wide:true},{key:'remark',label:'หมายเหตุ',type:'textarea',wide:true}],
+  outing:[{key:'from',label:'ตั้งแต่วันที่',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'outTime',label:'เวลาออก',type:'time'},{key:'backTime',label:'เวลากลับโดยประมาณ',type:'time'},{key:'company',label:'บริษัท',type:'text',wide:true},{key:'project',label:'โครงการ',type:'text',wide:true},{key:'customerName',label:'ชื่อลูกค้า',type:'text'},{key:'customerPosition',label:'ตำแหน่ง',type:'text'},{key:'phone',label:'เบอร์โทร',type:'text',wide:true},{key:'workDetails',label:'รายละเอียดงาน',type:'textarea',wide:true},{key:'remark',label:'หมายเหตุ',type:'textarea',wide:true}],
   swap:[],
 }
 
@@ -56,6 +56,16 @@ const daysBetween = (from: string, to: string) => {
   while (date <= end) { if (date.getDay() !== 0 && date.getDay() !== 6) count += 1; date.setDate(date.getDate() + 1) }
   return count
 }
+const todayInBangkok = () => {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const part = (type: Intl.DateTimeFormatPart['type']) => parts.find((item) => item.type === type)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
 const timeMinutes = (value: string) => { const [hour, minute] = value.split(':').map(Number); return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : -1 }
 
 // ใช้เฉพาะโหมด mock (USE_DB = false) — โหมด DB ใช้ผลตรวจจาก server (/validate)
@@ -64,8 +74,8 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
   const add = (ok: boolean, message: string) => checks.push({ ok, message })
   const msg = (key: string, values: Record<string, string | number> = {}) => Object.entries(values).reduce((result, [name, value]) => result.split(`{${name}}`).join(String(value)), copy.validation[key] as string)
   const v = (key: string) => String(values[key] ?? '').trim()
-  const today = new Date(); today.setHours(0,0,0,0)
-  const todayIso = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+  const todayIso = todayInBangkok()
+  const today = new Date(`${todayIso}T00:00:00`)
   if (kind === 'leave') {
     const type = v('leaveType'), from = v('from'), to = v('to'), isHour = type === 'emergency' && values.byHour === true
     let qty = Number(v('days'))
@@ -117,7 +127,7 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
   }
   if (kind === 'timefix') { add(Boolean(v('date') && v('date') < todayIso), msg('pastDate')); const ago = v('date') ? (today.getTime()-new Date(`${v('date')}T00:00:00`).getTime())/86400000 : Infinity; add(ago <= policy.fixDays, msg('fixLimit', { days: policy.fixDays })); add(Boolean(v('inTime') || v('outTime')), msg('timeRequired')); add(Boolean(v('reason')), msg('detailsRequired')) }
   if (kind === 'wfh') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), msg('validRange')); add(Number(v('days')) > 0, msg('daysPositive')); add(Boolean(v('place')), msg('placeRequired')); add(Boolean(v('plan')), msg('planRequired')) }
-  if (kind === 'outing') { add(Boolean(v('date') && v('date') >= todayIso), msg('todayOrFuture')); add(timeMinutes(v('outTime')) >= 0, msg('outTimeRequired')); add(!v('backTime') || timeMinutes(v('backTime')) > timeMinutes(v('outTime')), msg('backAfterOut')); add(Boolean(v('company')), msg('companyRequired')); add(Boolean(v('address')), msg('addressRequired')); add(Boolean(v('workDetails')), msg('workDetailsRequired')); add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8), msg('phoneInvalid')) }
+  if (kind === 'outing') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), msg('dateRange')); add(Boolean(v('from') && v('from') >= todayIso), msg('todayOrFuture')); add(timeMinutes(v('outTime')) >= 0, msg('outTimeRequired')); add(!v('backTime') || timeMinutes(v('backTime')) > timeMinutes(v('outTime')), msg('backAfterOut')); add(Boolean(v('company')), msg('companyRequired')); add(Boolean(v('address')), msg('addressRequired')); add(Boolean(v('workDetails')), msg('workDetailsRequired')); add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8), msg('phoneInvalid')) }
   if (kind === 'swap') { add(Boolean(v('offDate') && v('offDate') >= todayIso), msg('offDateFuture')); add(Boolean(v('workDate') && v('workDate') !== v('offDate')), msg('differentWorkDate')); add(Boolean(v('reason')), msg('reasonRequired')) }
   return checks
 }
@@ -207,6 +217,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const [docsError, setDocsError] = useState('')
   const [detail, setDetail] = useState<{ doc: MockDocument; canApprove: boolean; canCancel: boolean } | null>(null)
   const [serverChecks, setServerChecks] = useState<FormCheck[]>([])
+  const [validatingForm, setValidatingForm] = useState(false)
 
   const showToast = useCallback((message: string) => {
     setToast(message)
@@ -306,12 +317,25 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
 
   // เช็คลิสต์ในฟอร์มจาก server (debounce 300ms)
   useEffect(() => {
-    if (!USE_DB || !selectedKind) { setServerChecks([]); return }
+    if (!USE_DB || !selectedKind) {
+      setServerChecks([])
+      setValidatingForm(false)
+      return
+    }
+    let cancelled = false
+    setServerChecks([])
+    setValidatingForm(true)
     const timer = window.setTimeout(() => {
-      validateRequestDryRun(selectedKind, formValues).then((r) => setServerChecks(toFormChecks(r.checks, copy))).catch(() => {})
+      validateRequestDryRun(selectedKind, formValues)
+        .then((r) => { if (!cancelled) setServerChecks(toFormChecks(r.checks, copy)) })
+        .catch((error: unknown) => { if (!cancelled) setServerChecks([{ ok: false, message: errorText(error) }]) })
+        .finally(() => { if (!cancelled) setValidatingForm(false) })
     }, 300)
-    return () => window.clearTimeout(timer)
-  }, [selectedKind, formValues, copy])
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [selectedKind, formValues, copy, errorText])
 
   useEffect(() => {
     const canvas = signatureCanvas.current
@@ -414,7 +438,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     event.preventDefault()
     if (!selectedKind) return
     if (USE_DB) {
-      if (serverChecks.length === 0 || serverChecks.some((check) => !check.ok)) return
+      if (validatingForm || serverChecks.length === 0 || serverChecks.some((check) => !check.ok)) return
     } else {
       const submitter = mockRole === 'พนักงาน' ? employees[0] : mockRole === 'ผู้จัดการแผนก' ? employees[1] : employees[3]
       const checks = validateSubmission(selectedKind, { ...formValues }, documents, submitter, policy, copy)
@@ -429,7 +453,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     setFormValues((current) => {
       const next = { ...current, [key]:value }
       const dateRange = (next.from && next.to) ? daysBetween(String(next.from), String(next.to)) : 0
-      if ((selectedKind === 'leave' || selectedKind === 'wfh') && (key === 'from' || key === 'to')) {
+      if ((selectedKind === 'leave' || selectedKind === 'wfh' || selectedKind === 'outing') && (key === 'from' || key === 'to')) {
         if (next.from && !next.to) next.to = next.from
         if (next.to && !next.from) next.from = next.to
         next.days = String(daysBetween(String(next.from ?? ''), String(next.to ?? '')) || '')
@@ -543,8 +567,8 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       const date = new Date().toISOString().slice(0,10)
       const leaveLabel = LEAVE_TYPES[value('leaveType')] ?? KIND_INFO[kind].title
       const title = kind === 'leave' ? `${leaveLabel} · ${value('days')} วัน` : kind === 'ot' ? `ทำ OT · ${value('hours')} ชั่วโมง` : KIND_INFO[kind].title
-      const summary = kind === 'leave' ? `${dateText(value('from'))}${value('to') && value('to') !== value('from') ? ` – ${dateText(value('to'))}` : ''} · ${value('reason')}` : kind === 'ot' ? `${dateText(value('date'))} · ${value('start')}–${value('end')} · ${value('task')}` : kind === 'wfh' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('place')}` : kind === 'timefix' ? `${dateText(value('date'))} · ${value('reason')}` : kind === 'outing' ? `${dateText(value('date'))} · ${value('company')} · ${value('address')}` : `${dateText(value('offDate'))} · ${value('reason')}`
-      const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'wfh' ? 'from' : 'date') || value('offDate'), to:value(kind === 'leave' || kind === 'wfh' ? 'to' : kind === 'swap' ? 'workDate' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
+      const summary = kind === 'leave' ? `${dateText(value('from'))}${value('to') && value('to') !== value('from') ? ` – ${dateText(value('to'))}` : ''} · ${value('reason')}` : kind === 'ot' ? `${dateText(value('date'))} · ${value('start')}–${value('end')} · ${value('task')}` : kind === 'wfh' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('place')}` : kind === 'timefix' ? `${dateText(value('date'))} · ${value('reason')}` : kind === 'outing' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('company')} · ${value('address')}` : `${dateText(value('offDate'))} · ${value('reason')}`
+      const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'wfh' || kind === 'outing' ? 'from' : 'date') || value('offDate'), to:value(kind === 'leave' || kind === 'wfh' || kind === 'outing' ? 'to' : kind === 'swap' ? 'workDate' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
       setDocuments((current) => [doc, ...current])
       if (rememberSignature && image) setSavedSignature(image)
       setPendingSubmission(null); setSelectedKind(''); setFormValues({})
@@ -685,7 +709,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={480} height={160} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" onClick={() => void confirmSignature()}>{signatureHasInk ? copy.signature.confirmOrSend : copy.signature.confirmWithoutSign}</button></div></section></div>}
 
     <DocNewDocumentModal
-      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} role={mockRole} copy={copy} translations={translations}
+      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} role={mockRole} copy={copy} translations={translations}
       onSubmit={submitMock}
       onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}) }}
       onClearKind={() => { setSelectedKind(''); setFormValues({}) }}

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useMemo, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react'
 import { FaFileLines, FaFilter, FaList, FaMagnifyingGlass, FaPlus, FaTableCellsLarge, FaUser, FaXmark } from 'react-icons/fa6'
 import { PaginationFooter } from '../../../../components/pagination-footer'
 import { createUser, updateUser, type User } from '../../../settings/users/services/users.service'
@@ -28,6 +28,24 @@ type Draft = Pick<User, 'firstName' | 'lastName' | 'email' | 'role'> & {
 }
 type NewDraft = Draft & { password: string }
 
+// ---------- สี role: คำนวณจากชื่อ role ให้ได้สีเดิมเสมอ ----------
+const ROLE_PALETTE = [
+  { bg: '#f2f0ff', fg: '#5143e8' },
+  { bg: '#e0f2fe', fg: '#0369a1' },
+  { bg: '#fff7e6', fg: '#b45309' },
+  { bg: '#fce7f3', fg: '#be185d' },
+  { bg: '#ccfbf1', fg: '#0f766e' },
+  { bg: '#ede9fe', fg: '#6d28d9' },
+  { bg: '#ffedd5', fg: '#c2410c' },
+]
+const roleStyle = (role: string) => {
+  let hash = 0
+  for (const char of role) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  const color = ROLE_PALETTE[hash % ROLE_PALETTE.length]
+  return { '--emp-bg': color.bg, '--emp-fg': color.fg } as CSSProperties
+}
+const dayText = (value: number | null | undefined) => value === null || value === undefined ? '–' : String(value)
+
 export default function DocDatabaseEmployeesPanel({ users, title, subtitle, companyId, companyName, loading, error, query, onQuery, onUpdated, onCreated, copy: c }: Props) {
   const [selected, setSelected] = useState<User | null>(null)
   const [editing, setEditing] = useState(false)
@@ -51,6 +69,7 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
     if (roleFilter !== 'all' && user.role !== roleFilter) return false
     return true
   }), [users, query, departmentFilter, roleFilter])
+
   const openDetails = (user: User) => { setSelected(user); setEditing(false); setSaveError('') }
   const close = () => { setSelected(null); setEditing(false); setDraft(null); setSaveError('') }
   const beginCreate = async () => {
@@ -133,6 +152,16 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
   const pageSafe = Math.max(1, Math.min(page, empTotalPages))
   const pagedUsers = matches.slice((pageSafe - 1) * pageSize, pageSafe * pageSize)
 
+  // badge สี role + chip วันลาสะสม (ป่วย / กิจ / พักร้อน / อื่น ๆ)
+  const roleBadge = (employee: User) => <span className="emp-badge" style={roleStyle(employee.role)}>{employee.role}</span>
+  const leaveChips = (employee: User) => <div className="emp-leaves">
+    <span className="emp-leave emp-leave--sick">{c.leaveTypes.sick} <b>{dayText(employee.sickLeaveDays)}</b></span>
+    <span className="emp-leave emp-leave--personal">{c.leaveTypes.personal} <b>{dayText(employee.personalLeaveDays)}</b></span>
+    <span className="emp-leave emp-leave--vacation">{c.leaveTypes.vacation} <b>{dayText(employee.vacationLeaveDays)}</b></span>
+    <span className="emp-leave emp-leave--other">{c.employees.leaveOther} <b>{dayText(employee.otherLeaveDays)}</b></span>
+  </div>
+  const statusBadge = (employee: User) => <span className={`dms-card-status ${employee.isActive ? 'is-active' : 'is-cancelled'}`}>{employee.isActive ? c.employees.active : c.employees.inactive}</span>
+
   return <>
     <div className="documents-heading">
       <div><h1>{title}</h1><span>{subtitle}</span></div>
@@ -157,11 +186,14 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
       </form>}
     </div>
     {error && <div className="documents-employee-empty" role="alert">{error}</div>}
-    {loading ? <div className="documents-employee-empty">{c.employees.loading}</div> : pagedUsers.length === 0 ? <div className="documents-employee-empty">{c.employees.noMatches}</div> : layout === 'grid' ? <div className="dms-card-grid dms-survey-grid documents-employee-grid">{pagedUsers.map((employee) => <article key={employee.id} className="dms-project-card documents-employee-card" role="button" tabIndex={0} aria-label={`${c.employees.details}: ${employee.name}`} onClick={() => openDetails(employee)} onKeyDown={(event) => activateCard(event, employee)}>
-      <div className="documents-employee-card-top"><span className="documents-employee-avatar"><FaUser/></span><span className={`dms-card-status ${employee.isActive ? 'is-active' : 'is-cancelled'}`}>{employee.isActive ? c.employees.active : c.employees.inactive}</span></div>
-      <h2 className="documents-employee-name">{employee.name}</h2>
-      <div className="documents-employee-meta">{employee.role}{employee.department && <> · {employee.department}</>}{employee.email && <><br/>{employee.email}</>}</div>
-    </article>)}</div> : <div className="dms-project-table-wrap"><table className="dms-project-table"><thead><tr><th>{c.employees.name}</th><th>{c.employees.systemRole}</th><th>{c.employees.departmentLabel}</th><th>{c.employees.email}</th></tr></thead><tbody>{pagedUsers.map((employee) => <tr key={employee.id} role="button" tabIndex={0} onClick={() => openDetails(employee)} onKeyDown={(event) => activateCard(event, employee)}><td>{employee.name}</td><td>{employee.role}</td><td>{employee.department ?? ''}</td><td>{employee.email}</td></tr>)}</tbody></table></div>}
+    {loading ? <div className="documents-employee-empty">{c.employees.loading}</div> : pagedUsers.length === 0 ? <div className="documents-employee-empty">{c.employees.noMatches}</div> : layout === 'grid'
+      ? <div className="dms-card-grid dms-survey-grid documents-employee-grid">{pagedUsers.map((employee) => <article key={employee.id} className="dms-project-card documents-employee-card" role="button" tabIndex={0} aria-label={`${c.employees.details}: ${employee.name}`} onClick={() => openDetails(employee)} onKeyDown={(event) => activateCard(event, employee)}>
+        <div className="documents-employee-card-top"><span className="documents-employee-avatar"><FaUser/></span>{statusBadge(employee)}</div>
+        <h2 className="documents-employee-name">{employee.name}</h2>
+        <div className="documents-employee-meta">{roleBadge(employee)}{employee.department && <> · {employee.department}</>}{employee.email && <><br/>{employee.email}</>}</div>
+        {leaveChips(employee)}
+      </article>)}</div>
+      : <div className="dms-project-table-wrap"><table className="dms-project-table"><thead><tr><th>{c.employees.name}</th><th>{c.employees.systemRole}</th><th>{c.employees.departmentLabel}</th><th>{c.employees.email}</th><th>{c.employees.entitlements}</th><th>{c.employees.active}</th></tr></thead><tbody>{pagedUsers.map((employee) => <tr key={employee.id} role="button" tabIndex={0} onClick={() => openDetails(employee)} onKeyDown={(event) => activateCard(event, employee)}><td>{employee.name}</td><td>{roleBadge(employee)}</td><td>{employee.department ?? ''}</td><td>{employee.email}</td><td>{leaveChips(employee)}</td><td>{statusBadge(employee)}</td></tr>)}</tbody></table></div>}
     {empTotal > 0 && <PaginationFooter page={pageSafe} pageSize={pageSize} total={empTotal} labels={{ previous: c.filters.previous, next: c.filters.next, page: c.filters.page, perPage: c.filters.perPage }} onPageChange={(p: number) => setPage(Math.max(1, Math.min(p, empTotalPages)))} onPageSizeChange={(s: number) => { setPageSize(s); setPage(1) }} />}
 
     {createOpen && newDraft && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setCreateOpen(false); setSaveError('') } }}><section className="dms-modal dms-create-doc-modal documents-employee-modal" role="dialog" aria-modal="true" aria-labelledby="employee-create-title">

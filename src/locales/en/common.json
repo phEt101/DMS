@@ -251,7 +251,7 @@
       "subtitle": "View stats and summaries for the system",
       "outingReport": {
         "title": "Off-site Work / WFH Report",
-        "subtitle": "Approved WFH and off-site work requests",
+        "subtitle": "Approved WFH and off-site work requests combined in one report",
         "employee": "Employee",
         "workFromHome": "Work from home",
         "offsiteWork": "Off-site work",
@@ -273,7 +273,7 @@
         "signatureHint": "Preparer and approver signatures are shown when saved. Blank signature lines are left for manual signing.",
         "sheet": {
           "sale": "Sale",
-          "date": "Date",
+          "date": "Date (from–to)",
           "page": "Page",
           "preparedBy": "Prepared by",
           "approvedBy": "Approved by",
@@ -282,8 +282,8 @@
           "notes": ["Record each day working from home or outside the office", "Submit by the 25th of each month"]
         },
         "columns": {
-          "date": "Date",
-          "type": "Work type",
+          "kind": "Work type",
+          "date": "Date (from–to)",
           "time": "Departure–return time",
           "company": "Company",
           "address": "Address",

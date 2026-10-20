@@ -45,15 +45,15 @@
       "leave": "Leave request",
       "ot": "Overtime request (OT)",
       "timefix": "Time correction request",
-      "wfh": "Work from home request (multi-day range supported)",
-      "outing": "Off-site work request"
+      "wfh": "Off-site work / WFH request",
+      "outing": "Off-site outing request"
     },
     "kindDescriptions": {
       "leave": "Sick, personal, vacation, maternity, and other leave",
       "ot": "Request approval for overtime dates and hours",
       "timefix": "Report a missed scan or request a time correction",
-      "wfh": "Work from home (WFH) or off-site during the day — choose in the form",
-      "outing": "Request permission to work off-site during the day, or work from home (WFH) — choose in the form",
+      "wfh": "Work off-site or from home, with a date range and work plan",
+      "outing": "Work outside the office, with a date range, time, and location",
       "swap": "Request a day off and specify the make-up workday"
     },
     "sampleDocuments": {
@@ -113,8 +113,8 @@
     "fieldLabels": {
       "leaveType": "Leave type",
       "byHour": "Hourly leave (emergency vacation only · 1 day = 8 hrs)",
-      "from": "Start date",
-      "to": "End date",
+      "from": "From",
+      "to": "To",
       "start": "Start time",
       "end": "End time",
       "days": "Workdays (editable, e.g. 0.5)",
@@ -219,6 +219,7 @@
       "backToKinds": "Back to document types",
       "offsiteType": "Off-site work type",
       "offsiteDescription": "Work from home (WFH) or off-site during the day — choose in the form",
+      "validationChecking": "Validating form...",
       "signAndSend": "Sign and submit",
       "afterSign": "In mode, the document will be sent to",
       "manager": "the department manager",

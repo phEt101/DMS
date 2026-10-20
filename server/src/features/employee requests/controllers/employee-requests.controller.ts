@@ -27,7 +27,16 @@ const companyIdOf = (req: Request) => {
   if (!Number.isSafeInteger(id) || id < 1) throw httpError(403, 'ไม่พบริษัทของผู้ใช้')
   return id
 }
-const todayBangkok = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
+const todayBangkok = () => {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
 const idParam = (req: Request) => {
   const id = Number(req.params.id)
   if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, 'Invalid request id')
@@ -365,7 +374,7 @@ const firstStage = (user: any): 'pending_mgr' | 'pending_exec' | 'pending_hr' =>
 function headerFields(kind: Kind, v: Values) {
   const s = (key: string) => nz(v[key])
   if (kind === 'leave' || kind === 'wfh') return { start: s('from'), end: s('to'), days: num(v.days), reason: s('reason') }
-  if (kind === 'outing') return { start: s('date'), end: s('date'), days: null, reason: s('workDetails') }
+  if (kind === 'outing') return { start: s('from'), end: s('to'), days: null, reason: s('workDetails') }
   if (kind === 'swap') return { start: s('offDate'), end: s('offDate'), days: null, reason: s('reason') }
   return { start: s('date'), end: s('date'), days: null, reason: s('reason') }
 }
@@ -470,7 +479,7 @@ export async function store(req: Request, res: Response) {
            subdistrict, postal_code, country, latitude, longitude, project_name, customer_name,
            customer_position, phone, work_details, remark)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, s('date'), s('outTime'), s('backTime'), s('address')?.slice(0, 255) ?? null, s('company'), s('address'),
+        [id, s('from'), s('outTime'), s('backTime'), s('address')?.slice(0, 255) ?? null, s('company'), s('address'),
           s('province'), s('district'), s('subdistrict'), s('postalCode'), s('country'), num(v.latitude),
           num(v.longitude), s('project'), s('customerName'), s('customerPosition'), s('phone'),
           s('workDetails'), s('remark')],
@@ -816,7 +825,9 @@ export async function outingReport(req: Request, res: Response) {
   if (!canSelectEmployee && requestedEmployeeId !== me) throw httpError(403, 'ไม่มีสิทธิ์ดูรายงานของพนักงานคนนี้')
 
   const [outingRows] = await db.query<any[]>(
-    `SELECT 'outing' AS report_kind, r.id, r.request_no, r.status, DATE_FORMAT(o.outing_date, '%Y-%m-%d') AS date,
+    `SELECT 'outing' AS report_kind, r.id, r.request_no, r.status,
+            DATE_FORMAT(COALESCE(r.start_date, o.outing_date), '%Y-%m-%d') AS from_date,
+            DATE_FORMAT(COALESCE(r.end_date, o.outing_date), '%Y-%m-%d') AS to_date,
             TIME_FORMAT(o.out_time, '%H:%i') AS out_time, TIME_FORMAT(o.back_time, '%H:%i') AS back_time,
             u.name AS employee_name, o.company_name, o.address, o.province, o.district, o.subdistrict,
             o.postal_code, o.country, o.latitude, o.longitude, o.project_name, o.customer_name,
@@ -835,13 +846,15 @@ export async function outingReport(req: Request, res: Response) {
             ORDER BY latest.signed_at DESC, latest.id DESC LIMIT 1
          )
       WHERE r.company_id = ? AND r.kind = 'outing' AND r.status = 'approved'
-        AND r.employee_user_id = ? AND o.outing_date BETWEEN ? AND ?
-      ORDER BY o.outing_date, o.out_time, r.id`,
-    [companyId, requestedEmployeeId, from, to],
+        AND r.employee_user_id = ? AND COALESCE(r.start_date, o.outing_date) <= ?
+        AND COALESCE(r.end_date, o.outing_date) >= ?
+      ORDER BY COALESCE(r.start_date, o.outing_date), o.out_time, r.id`,
+    [companyId, requestedEmployeeId, to, from],
   )
   const [wfhRows] = await db.query<any[]>(
-    `SELECT r.id, r.request_no, DATE_FORMAT(r.start_date, '%Y-%m-%d') AS start_date,
-            DATE_FORMAT(r.end_date, '%Y-%m-%d') AS end_date, r.reason,
+    `SELECT 'wfh' AS report_kind, r.id, r.request_no,
+            DATE_FORMAT(r.start_date, '%Y-%m-%d') AS from_date,
+            DATE_FORMAT(r.end_date, '%Y-%m-%d') AS to_date, r.reason,
             u.name AS employee_name, wfh.place, wfh.plan,
             submitter.signature_image AS submitter_signature_image,
             approved.signer_name AS approved_by, approved.signature_image AS approved_signature_image
@@ -861,42 +874,26 @@ export async function outingReport(req: Request, res: Response) {
       ORDER BY r.start_date, r.id`,
     [companyId, requestedEmployeeId, to, from],
   )
-  const wfhReportRows = wfhRows.flatMap((row) => {
-    const start = row.start_date > from ? row.start_date : from
-    const end = row.end_date < to ? row.end_date : to
-    const date = new Date(`${start}T00:00:00Z`)
-    const lastDate = new Date(`${end}T00:00:00Z`)
-    const reportRows: any[] = []
-    while (date <= lastDate) {
-      const dayOfWeek = date.getUTCDay()
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        reportRows.push({
-          ...row,
-          report_kind: 'wfh',
-          date: date.toISOString().slice(0, 10),
-          out_time: null,
-          back_time: null,
-          company_name: null,
-          address: row.place,
-          province: null,
-          district: null,
-          subdistrict: null,
-          postal_code: null,
-          country: null,
-          project_name: null,
-          customer_name: null,
-          customer_position: null,
-          phone: null,
-          work_details: row.plan,
-          remark: row.reason,
-        })
-      }
-      date.setUTCDate(date.getUTCDate() + 1)
-    }
-    return reportRows
-  })
+  const wfhReportRows = wfhRows.map((row) => ({
+    ...row,
+    address: row.place,
+    company_name: null,
+    province: null,
+    district: null,
+    subdistrict: null,
+    postal_code: null,
+    country: null,
+    project_name: null,
+    customer_name: null,
+    customer_position: null,
+    phone: null,
+    out_time: null,
+    back_time: null,
+    work_details: row.plan,
+    remark: row.reason,
+  }))
   const rows = [...outingRows, ...wfhReportRows].sort((a, b) =>
-    String(a.date).localeCompare(String(b.date))
+    String(a.from_date).localeCompare(String(b.from_date))
     || String(a.out_time ?? '').localeCompare(String(b.out_time ?? ''))
     || Number(a.id) - Number(b.id),
   )
@@ -911,9 +908,9 @@ export async function outingReport(req: Request, res: Response) {
       WHERE r.company_id = ? AND r.kind IN ('outing', 'wfh')
         AND r.status IN ('pending_mgr','pending_exec','pending_hr')
         AND r.employee_user_id = ?
-        AND ((r.kind = 'outing' AND o.outing_date BETWEEN ? AND ?)
+        AND ((r.kind = 'outing' AND COALESCE(r.start_date, o.outing_date) <= ? AND COALESCE(r.end_date, o.outing_date) >= ?)
           OR (r.kind = 'wfh' AND r.start_date <= ? AND r.end_date >= ?))`,
-    [companyId, requestedEmployeeId, from, to, to, from],
+    [companyId, requestedEmployeeId, to, from, to, from],
   )
   let employees: Array<{ id: number; name: string; department: string | null }> = []
   if (canSelectEmployee) {
