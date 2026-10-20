@@ -8,8 +8,6 @@ export default function SettingsUsersPage({ translations }: { translations: Tran
       <header className="users-header">
         <div>
           <p className="feature-kicker settings-feature-kicker">{settingsTranslations.kicker}</p>
-          <h1>{settingsTranslations.title}</h1>
-          <p className="users-header-description">{settingsTranslations.subtitle}</p>
         </div>
       </header>
 

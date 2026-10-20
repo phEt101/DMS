@@ -21,11 +21,19 @@ export function CompaniesSection({ translations }: { translations: Translations 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   useErrorToast(error)
-  const totalPages = Math.max(Math.ceil(items.length / pageSize), 1)
-  const visibleItems = items.slice((page - 1) * pageSize, page * pageSize)
+  const normalizedSearch = search.trim().toLocaleLowerCase()
+  const filteredItems = items.filter((company) => {
+    const matchesSearch = !normalizedSearch || company.name.toLocaleLowerCase().includes(normalizedSearch)
+    const matchesStatus = statusFilter === 'all' || Boolean(company.isActive) === (statusFilter === 'active')
+    return matchesSearch && matchesStatus
+  })
+  const totalPages = Math.max(Math.ceil(filteredItems.length / pageSize), 1)
+  const visibleItems = filteredItems.slice((page - 1) * pageSize, page * pageSize)
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -35,6 +43,7 @@ export function CompaniesSection({ translations }: { translations: Translations 
   }, [copy.companyLoadError])
   useEffect(() => { void load() }, [load])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [page, totalPages])
+  useEffect(() => { setPage(1) }, [search, statusFilter])
 
   function showForm(company?: Company) {
     setEditing(company ?? null)
@@ -60,8 +69,17 @@ export function CompaniesSection({ translations }: { translations: Translations 
 
   return <div className="management-panel">
     <header className="management-header"><div><h1>{copy.companyManagement}</h1><p>{copy.companyHelp}</p></div>{canCreate && <button className="primary-button" type="button" onClick={() => showForm()}>{copy.addCompany}</button>}</header>
+    <div className="users-toolbar">
+      <input type="search" aria-label={copy.companySearchPlaceholder} placeholder={copy.companySearchPlaceholder} value={search} onChange={(event) => setSearch(event.target.value)} />
+      <select aria-label={copy.statusFilter} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+        <option value="all">{copy.allStatuses}</option>
+        <option value="active">{copy.active}</option>
+        <option value="inactive">{copy.inactive}</option>
+      </select>
+      <span className="users-count">{filteredItems.length} {copy.company}</span>
+    </div>
     <div className="users-table-wrap"><table className="users-table"><thead><tr><th>{copy.company}</th><th>{copy.companyLogo}</th><th>{copy.members}</th><th>{copy.status}</th><th>{copy.actions}</th></tr></thead>
-      <tbody>{loading ? <tr><td className="table-message" colSpan={5}>{copy.loading}</td></tr> : items.length === 0 ? <tr><td className="table-message" colSpan={5}>{copy.noCompanies}</td></tr> : visibleItems.map((company) => <tr key={company.id}>
+      <tbody>{loading ? <tr><td className="table-message" colSpan={5}>{copy.loading}</td></tr> : filteredItems.length === 0 ? <tr><td className="table-message" colSpan={5}>{copy.noCompanies}</td></tr> : visibleItems.map((company) => <tr key={company.id}>
         <td data-label={copy.company}><strong>{company.name}</strong></td>
         <td data-label={copy.companyLogo}>{company.logoUrl ? <img className="company-logo-preview" src={company.logoUrl} alt={`${company.name} logo`}/> : <span>—</span>}</td>
         <td data-label={copy.members}>{company.userCount}</td>
@@ -69,7 +87,7 @@ export function CompaniesSection({ translations }: { translations: Translations 
         <td data-label={copy.actions}><div className="row-actions">{canEdit && <button type="button" onClick={() => showForm(company)}>{translations.common.actions.edit}</button>}{canDelete && <button type="button" className="danger-link" onClick={() => void remove(company)}>{translations.common.actions.delete}</button>}</div></td>
       </tr>)}</tbody>
     </table></div>
-    <PaginationFooter page={page} pageSize={pageSize} total={items.length} labels={translations.common.pagination} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}/>
+    <PaginationFooter page={page} pageSize={pageSize} total={filteredItems.length} labels={translations.common.pagination} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}/>
     {open && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false) }}><section className="user-modal" role="dialog" aria-modal="true" aria-labelledby="company-form-title">
       <header><div><p className="feature-kicker">{editing ? translations.common.actions.edit : copy.addCompany}</p><h2 id="company-form-title">{editing ? editing.name : copy.newCompany}</h2></div><button className="modal-close" type="button" onClick={() => setOpen(false)} aria-label={translations.common.actions.cancel}>×</button></header>
       <form onSubmit={(event) => void submit(event)}>

@@ -15,15 +15,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     try {
       const response = await authService.getCurrentUser()
-      // Keep the existing client-side Survey access adjustment for dev admin accounts.
       const u = response.data
-      const roleName = String(u.role?.name || '').trim().toLowerCase()
-      const hasSurvey = Array.isArray(u.permissions) && u.permissions.some((p) => p.module === 'survey')
-      if (!hasSurvey && (roleName === 'admin' || roleName === 'manager')) {
-        setUser({ ...u, permissions: [...u.permissions, { id: -999, name: 'เข้าถึงเมนูแบบสำรวจ', module: 'survey', moduleIconName: null, moduleSortOrder: 999 }] })
-      } else {
-        setUser(u)
-      }
+      setUser(u)
     } catch {
       setUser(null)
     }

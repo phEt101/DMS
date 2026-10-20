@@ -72,6 +72,10 @@ export type UserFeatureCopy = FeatureCopy & {
   searchPlaceholder: string
   statusFilter: string
   allStatuses: string
+  userRoleFilter: string
+  allRoles: string
+  departmentFilter: string
+  allDepartments: string
   active: string
   inactive: string
   users: string
@@ -85,6 +89,7 @@ export type UserFeatureCopy = FeatureCopy & {
   companyHelp: string
   addCompany: string
   newCompany: string
+  companySearchPlaceholder: string
   noCompanies: string
   deleteCompanyConfirm: string
   deleteCompanyError: string
@@ -114,12 +119,19 @@ export type UserFeatureCopy = FeatureCopy & {
   permissionTab: string
   departmentManagement: string
   departmentHelp: string
+  departmentSearchPlaceholder: string
+  companyFilter: string
+  allCompanies: string
   permissionManagement: string
   permissionHelp: string
+  permissionSearchPlaceholder: string
+  moduleFilter: string
+  allModules: string
   accessManagement: string
   accessHelp: string
   moduleManagement: string
   moduleHelp: string
+  moduleSearchPlaceholder: string
   noModules: string
   sortOrder: string
   iconName: string
@@ -139,6 +151,7 @@ export type UserFeatureCopy = FeatureCopy & {
   totalPermissions: string
   roleManagement: string
   roleHelp: string
+  roleSearchPlaceholder: string
   addRole: string
   newRole: string
   noRoles: string
@@ -150,5 +163,5 @@ export type UserFeatureCopy = FeatureCopy & {
   deleteRoleConfirm: string
   deleteRoleError: string
   permissionsFor: string
-  permissionModules: Record<'dashboard' | 'projects' | 'reports' | 'users' | 'roles' | 'departments' | 'permissions' | 'modules' | 'companies' | 'activity_logs', string>
+  permissionModules: Record<'dashboard' | 'projects' | 'projects_cm' | 'survey' | 'documents' | 'documents_pending' | 'documents_ledger' | 'report' | 'documents_employees' | 'documents_policy' | 'documents_notifications' | 'users' | 'roles' | 'departments' | 'permissions' | 'modules' | 'companies' | 'activity_logs', string>
 }

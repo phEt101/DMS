@@ -1,7 +1,7 @@
 import { request } from '../../../../../services/api'
 
-export type Department = { id: number; name: string; isActive: boolean | number; userCount: number }
-export type DepartmentInput = Pick<Department, 'name'> & { isActive: boolean }
+export type Department = { id: number; companyId: number; company: string; name: string; isActive: boolean | number; userCount: number; moduleIds: number[] }
+export type DepartmentInput = Pick<Department, 'companyId' | 'name' | 'moduleIds'> & { isActive: boolean }
 
 export function listDepartments() { return request("/departments") as Promise<{ data: Department[] }> }
 export function createDepartment(input: DepartmentInput) { return request("/departments", { method: "POST", body: JSON.stringify(input) }) as Promise<{ data: Department }> }

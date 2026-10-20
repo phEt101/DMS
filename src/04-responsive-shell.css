@@ -190,6 +190,15 @@
   .users-toolbar input {
     width: 100%;
   }
+  .users-filter-toolbar .users-filter-search,
+  .users-filter-toolbar .users-filter-status,
+  .users-filter-toolbar .users-filter-role,
+  .users-filter-toolbar .users-filter-company,
+  .users-filter-toolbar .users-filter-department {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+  }
   .users-count {
     margin-left: 0;
   }

@@ -7,7 +7,7 @@ import { getLocale } from './locales'
 import { buildPages } from './services/routes/appRoutes'
 import type { AuthUser } from './features/auth/types/auth.types'
 import type { PageKey } from './services/routes/pageTypes'
-import { canViewAllDocumentPages, canViewModule } from './features/auth/permissions'
+import { canViewDepartmentModule } from './features/auth/permissions'
 
 const pathByPage: Record<PageKey, string> = {
   dashboard: '/dashboard',
@@ -35,10 +35,10 @@ const pathByPage: Record<PageKey, string> = {
 const moduleByPage: Record<PageKey, string> = {
   dashboard: 'dashboard',
   projects: 'projects',
-  'projects-cm': 'projects',
-  'projects-cm-create': 'projects',
+  'projects-cm': 'projects_cm',
+  'projects-cm-create': 'projects_cm',
   survey: 'survey',
-  report: 'documents',
+  report: 'report',
   'settings-user': 'users',
   'settings-roles': 'roles',
   'settings-departments': 'departments',
@@ -48,26 +48,17 @@ const moduleByPage: Record<PageKey, string> = {
   'settings-activity': 'activity_logs',
   'documents': 'documents',
   'documents-all': 'documents',
-  'documents-pending': 'documents',
-  'documents-ledger': 'documents',
-  'documents-employees': 'documents',
-  'documents-policy': 'documents',
-  'documents-notifications': 'documents'
+  'documents-pending': 'documents_pending',
+  'documents-ledger': 'documents_ledger',
+  'documents-employees': 'documents_employees',
+  'documents-policy': 'documents_policy',
+  'documents-notifications': 'documents_notifications'
 }
 
 const pageOrder = Object.keys(pathByPage) as PageKey[]
 
 function canAccessPage(user: AuthUser, page: PageKey) {
-  if (moduleByPage[page] === 'documents') {
-    // พนักงานทุกคนที่เห็นเมนูเอกสาร: เอกสารทั้งหมด (ของตัวเอง) / สมุดบันทึกการลา / แจ้งเตือน / รออนุมัติ
-    if (page === 'documents-all' || page === 'documents-ledger' || page === 'documents-notifications' || page === 'documents-pending' || page === 'report') return canViewModule(user, 'documents')
-    // รายชื่อพนักงาน + นโยบาย: admin หรือแผนก HR Div. เท่านั้น
-    if (page === 'documents-employees' || page === 'documents-policy') {
-      return user.role.name.trim().toLocaleLowerCase() === 'admin' || (user.department ?? '').trim().toLocaleLowerCase() === 'hr div.'
-    }
-    return canViewAllDocumentPages(user)
-  }
-  return canViewModule(user, moduleByPage[page])
+  return canViewDepartmentModule(user, moduleByPage[page])
 }
 
 function firstAccessiblePage(user: AuthUser): PageKey | null {

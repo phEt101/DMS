@@ -4,10 +4,10 @@ export type UserRole = string
 export type User = { id: number; email: string; name: string; firstName: string; lastName: string; companyId: number; company: string; companyLogoUrl: string | null; role: UserRole; department: string | null; phone: string | null; employeeCode: string | null; position: string | null; managerUserId: number | null; managerName: string | null; employmentStartDate: string | null; appointedDate: string | null; sickLeaveDays: number | null; personalLeaveDays: number | null; vacationLeaveDays: number | null; otherLeaveDays: number | null; emailNotificationsEnabled: boolean | null; isActive: boolean | number; createdAt: string; updatedAt: string }
 export type UserInput = { email: string; firstName: string; lastName: string; companyId: number; role: UserRole; department: string; phone: string; isActive: boolean; employeeCode?: string | null; position?: string | null; managerUserId?: number | null; employmentStartDate?: string | null; appointedDate?: string | null; sickLeaveDays?: number | null; personalLeaveDays?: number | null; vacationLeaveDays?: number | null; otherLeaveDays?: number | null; emailNotificationsEnabled?: boolean | null; password?: string }
 type UserListResponse = { data: User[]; pagination: { page: number; limit: number; total: number; totalPages: number } }
-type UserListParams = { search?: string; status?: string; page?: number; limit?: number }
+type UserListParams = { search?: string; status?: string; role?: string; companyId?: string; departmentId?: string; page?: number; limit?: number }
 
-export function listUsers({ search = '', status = 'all', page = 1, limit = 10 }: UserListParams = {}) {
-  const query = new URLSearchParams({ search, status, page: String(page), limit: String(limit) })
+export function listUsers({ search = '', status = 'all', role = 'all', companyId = 'all', departmentId = 'all', page = 1, limit = 10 }: UserListParams = {}) {
+  const query = new URLSearchParams({ search, status, role, companyId, departmentId, page: String(page), limit: String(limit) })
   return request(`/users?${query}`) as Promise<UserListResponse>
 }
 

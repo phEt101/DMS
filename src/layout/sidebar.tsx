@@ -5,12 +5,12 @@ import {
   FaFileLines,
   FaGear,
   FaKey,
+  FaLayerGroup,
   FaShieldHalved,
   FaTableCellsLarge,
   FaUser,
   FaWaveSquare,
 } from "react-icons/fa6";
-import * as FaIcons from "react-icons/fa6";
 import type { IconType } from "react-icons";
 import { useAuth } from "../features/auth/hooks/use-auth";
 import { canViewAllDocumentPages, canViewModule } from "../features/auth/permissions";
@@ -159,36 +159,21 @@ export default function Sidebar({
     }
   }, [activeItem, collapsed]);
 
-  const grantedModules = [...new Map(
-    (user?.permissions ?? []).map((permission) => [permission.module, {
-      name: permission.module,
-      iconName: permission.moduleIconName,
-      sortOrder: permission.moduleSortOrder,
-    }]),
-  ).values()];
-  if (user && canViewModule(user, "documents") && !grantedModules.some((module) => module.name === "documents")) {
-    grantedModules.push({ name: "documents", iconName: "FaFolderOpen", sortOrder: 3 });
+  const moduleItems: Array<{ key: SidebarItem; label: string; icon?: IconType }> = [];
+  if (user && canViewModule(user, "dashboard")) moduleItems.push({ key: "dashboard", label: sidebarTranslations.items.dashboard, icon: FaTableCellsLarge });
+  if (user && canViewModule(user, "projects")) moduleItems.push({ key: "projects", label: sidebarTranslations.items.projects, icon: FaFileLines });
+  if (user && canViewModule(user, "documents")) moduleItems.push({ key: "documents", label: sidebarTranslations.items.documents, icon: FaFolderOpen });
+  const settingsModules: Array<[string, SidebarItem, IconType]> = [
+    ["users", "settings-user", FaUser], ["roles", "settings-roles", FaShieldHalved],
+    ["departments", "settings-departments", FaBuilding], ["permissions", "settings-permissions", FaKey],
+    ["modules", "settings-modules", FaLayerGroup], ["companies", "settings-companies", FaBuilding],
+    ["activity_logs", "settings-activity", FaWaveSquare],
+  ];
+  for (const [module, key, icon] of settingsModules) {
+    if (!user || !canViewModule(user, module)) continue;
+    const localizedLabel = sidebarTranslations.items?.[module as keyof typeof sidebarTranslations.items] ?? sidebarTranslations[module as keyof typeof sidebarTranslations];
+    moduleItems.push({ key, label: typeof localizedLabel === "string" ? localizedLabel : module, icon });
   }
-
-  const moduleItems: Array<{ key: SidebarItem; label: string; icon?: IconType }> = grantedModules
-    .filter((module) => Boolean(user && canViewModule(user, module.name)))
-    .sort((left, right) => left.sortOrder - right.sortOrder)
-    .map((module) => {
-      const mainKey = module.name === "reports" ? "report" : module.name;
-      const key = ["dashboard", "projects", "documents", "report"].includes(mainKey)
-        ? mainKey as SidebarItem
-        : `settings-${module.name}` as SidebarItem;
-      const localizedLabel = sidebarTranslations.items?.[module.name as keyof typeof sidebarTranslations.items]
-        ?? sidebarTranslations[module.name as keyof typeof sidebarTranslations];
-      const IconComponent = module.iconName
-        ? FaIcons[module.iconName as keyof typeof FaIcons] as IconType | undefined
-        : undefined;
-      return {
-        key,
-        label: typeof localizedLabel === "string" ? localizedLabel : module.name,
-        icon: IconComponent,
-      };
-    });
 
   const mainItems = moduleItems.filter((item) =>
     ["dashboard", "projects", "documents"].includes(item.key),
@@ -276,24 +261,24 @@ export default function Sidebar({
                   {projectsOpen && (!collapsed || collapsedFlyout === "projects") && (
                     <div className="subnav" style={flyoutStyle}>
                       <strong className="subnav-title">{item.label}</strong>
-                      <button
+                      {canViewModule(user!, "projects") && user && (user.role.name.toLowerCase() === "admin" || user.departmentModules.includes("projects")) && <button
                         className={`nav-item nav-button ${activeItem === 'projects' ? 'is-active' : ''}`}
                         onClick={() => onNavigate?.('projects')}
                       >
                         <span>PM</span>
-                      </button>
-                      <button
+                      </button>}
+                      {user && (user.role.name.toLowerCase() === "admin" || user.departmentModules.includes("projects_cm")) && <button
                         className={`nav-item nav-button ${activeItem === 'projects-cm' ? 'is-active' : ''}`}
                         onClick={() => onNavigate?.('projects-cm')}
                       >
                         <span>CM</span>
-                      </button>
-                      <button
+                      </button>}
+                      {user && (user.role.name.toLowerCase() === "admin" || user.departmentModules.includes("survey")) && <button
                         className={`nav-item nav-button ${activeItem === 'survey' ? 'is-active' : ''}`}
                         onClick={() => onNavigate?.('survey')}
                       >
                         <span>Survey</span>
-                      </button>
+                      </button>}
                     </div>
                   )}
                 </div>
@@ -313,13 +298,14 @@ if (item.key === "documents") {
     { key: "documents-policy", label: documentNavTranslations.policy },
     { key: "documents-notifications", label: documentNavTranslations.notifications },
   ];
-  // admin เห็นทุกหน้า · แผนก HR Div. เห็นทุกหน้ารวมนโยบาย · คนอื่นเห็น all/pending/ledger/notifications
-  const roleName = (user?.role?.name ?? "").trim().toLocaleLowerCase();
-  const department = (user?.department ?? "").trim().toLocaleLowerCase();
-  const visibleDocumentItems = roleName === "admin" || department === "hr div."
-    ? documentItems
-    : documentItems.filter((documentItem) =>
-        ["documents-all", "documents-pending", "documents-ledger", "report", "documents-notifications"].includes(documentItem.key));
+  const documentModuleByPage: Partial<Record<PageKey, string>> = {
+    "documents-all": "documents", "documents-pending": "documents_pending", "documents-ledger": "documents_ledger",
+    report: "report", "documents-employees": "documents_employees", "documents-policy": "documents_policy",
+    "documents-notifications": "documents_notifications",
+  };
+  const visibleDocumentItems = documentItems.filter((documentItem) => user && (
+    user.role.name.trim().toLowerCase() === "admin" || user.departmentModules.includes(documentModuleByPage[documentItem.key] ?? "")
+  ));
 
   return (
     <div

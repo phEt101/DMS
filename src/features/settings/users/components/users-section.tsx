@@ -55,6 +55,9 @@ export function UsersSection({ translations }: { translations: Translations }) {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -70,7 +73,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
     setLoading(true);
     setError("");
     try {
-      const usersResponse = await listUsers({ search, status, page, limit: pageSize });
+      const usersResponse = await listUsers({ search, status, role: roleFilter, companyId: companyFilter, departmentId: departmentFilter, page, limit: pageSize });
       setUsers(usersResponse.data);
       setTotal(usersResponse.pagination.total);
     } catch (caught) {
@@ -78,13 +81,12 @@ export function UsersSection({ translations }: { translations: Translations }) {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, status, settingsTranslations.loadError]);
+  }, [companyFilter, departmentFilter, page, pageSize, roleFilter, search, status, settingsTranslations.loadError]);
 
   useEffect(() => {
     void load();
   }, [load]);
   useEffect(() => {
-    if (!canCreate && !canEdit) return;
     void Promise.all([listRoles(), listDepartments(), listCompanies()])
       .then(([rolesResponse, departmentsResponse, companiesResponse]) => {
         setRoles(rolesResponse.data);
@@ -94,7 +96,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
       .catch((caught: unknown) => {
         setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
       });
-  }, [canCreate, canEdit, settingsTranslations.loadError]);
+  }, [settingsTranslations.loadError]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearch(searchInput.trim());
@@ -179,14 +181,25 @@ export function UsersSection({ translations }: { translations: Translations }) {
 
   return (
     <div className="management-panel">
-      <div className="users-toolbar">
+      <header className="management-header">
+        <div>
+          <h1>{settingsTranslations.title}</h1>
+          <p>{settingsTranslations.subtitle}</p>
+        </div>
+        {canCreate && <button className="primary-button" type="button" onClick={openCreate}>
+          {settingsTranslations.addUser}
+        </button>}
+      </header>
+      <div className="users-toolbar users-filter-toolbar">
         <input
+          className="users-filter-search"
           aria-label={settingsTranslations.searchPlaceholder}
           placeholder={settingsTranslations.searchPlaceholder}
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
         />
         <select
+          className="users-filter-status"
           aria-label={settingsTranslations.statusFilter}
           value={status}
           onChange={(event) => {
@@ -198,12 +211,28 @@ export function UsersSection({ translations }: { translations: Translations }) {
           <option value="active">{settingsTranslations.active}</option>
           <option value="inactive">{settingsTranslations.inactive}</option>
         </select>
+        <select className="users-filter-role" aria-label={settingsTranslations.userRoleFilter} value={roleFilter} onChange={(event) => { setRoleFilter(event.target.value); setPage(1); }}>
+          <option value="all">{settingsTranslations.allRoles}</option>
+          {roles.map((role) => <option key={role.id} value={role.name}>{role.name}</option>)}
+        </select>
+        <select className="users-filter-company" aria-label={settingsTranslations.companyFilter} value={companyFilter} onChange={(event) => {
+          const companyId = event.target.value;
+          setCompanyFilter(companyId);
+          if (departmentFilter !== "all" && !departments.some((department) => String(department.id) === departmentFilter && (companyId === "all" || String(department.companyId) === companyId))) setDepartmentFilter("all");
+          setPage(1);
+        }}>
+          <option value="all">{settingsTranslations.allCompanies}</option>
+          {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+        </select>
+        <select className="users-filter-department" aria-label={settingsTranslations.departmentFilter} value={departmentFilter} onChange={(event) => { setDepartmentFilter(event.target.value); setPage(1); }}>
+          <option value="all">{settingsTranslations.allDepartments}</option>
+          {departments.filter((department) => companyFilter === "all" || String(department.companyId) === companyFilter).map((department) => (
+            <option key={department.id} value={department.id}>{department.name}{companyFilter === "all" ? ` — ${department.company}` : ""}</option>
+          ))}
+        </select>
         <span className="users-count">
           {total} {settingsTranslations.users}
         </span>
-        {canCreate && <button className="primary-button" type="button" onClick={openCreate}>
-          {settingsTranslations.addUser}
-        </button>}
       </div>
 
       <UsersTable
@@ -429,7 +458,11 @@ function UserFormModal({
           <div className="form-grid">
             <label>
               {settingsTranslations.company}
-              <select required value={form.companyId || ''} onChange={(event) => onChange({ ...form, companyId: Number(event.target.value) })}>
+              <select required value={form.companyId || ''} onChange={(event) => {
+                const companyId = Number(event.target.value);
+                const departmentBelongsToCompany = departments.some((department) => department.companyId === companyId && department.name === form.department);
+                onChange({ ...form, companyId, department: departmentBelongsToCompany ? form.department : "" });
+              }}>
                 <option value="">—</option>
                 {companies.filter((company) => Boolean(company.isActive) || company.id === form.companyId).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
               </select>
@@ -446,8 +479,9 @@ function UserFormModal({
                 {departments
                   .filter(
                     (department) =>
-                      Boolean(department.isActive) ||
-                      department.name === form.department,
+                      department.companyId === form.companyId && (
+                        Boolean(department.isActive) || department.name === form.department
+                      ),
                   )
                   .map((department) => (
                     <option key={department.id} value={department.name}>

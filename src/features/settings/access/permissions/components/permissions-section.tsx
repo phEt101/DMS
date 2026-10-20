@@ -34,35 +34,44 @@ export function PermissionsSection({ translations }: { translations: Translation
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   useErrorToast(error);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const totalPages = Math.max(Math.ceil(items.length / pageSize), 1);
-  const visibleItems = items.slice((page - 1) * pageSize, page * pageSize);
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = !normalizedSearch || item.name.toLocaleLowerCase().includes(normalizedSearch);
+    const matchesModule = moduleFilter === "all" || item.module === moduleFilter;
+    const matchesStatus = statusFilter === "all" || Boolean(item.isActive) === (statusFilter === "active");
+    return matchesSearch && matchesModule && matchesStatus;
+  });
+  const totalPages = Math.max(Math.ceil(filteredItems.length / pageSize), 1);
+  const visibleItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const permissionsResponse = await listPermissions();
+      const [permissionsResponse, modulesResponse] = await Promise.all([listPermissions(), listPermissionModules()]);
       setItems(permissionsResponse.data);
-      if (canCreate || canEdit) {
-        setModules((await listPermissionModules()).data);
-      } else {
-        setModules([]);
-      }
+      setModules(modulesResponse.data);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
     } finally {
       setLoading(false);
     }
-  }, [canCreate, canEdit, settingsTranslations.loadError]);
+  }, [settingsTranslations.loadError]);
   useEffect(() => {
     void load();
   }, [load]);
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, moduleFilter, statusFilter]);
 
   function showForm(item?: Permission) {
     setEditing(item ?? null);
@@ -120,6 +129,33 @@ export function PermissionsSection({ translations }: { translations: Translation
           {settingsTranslations.addPermission}
         </button>}
       </header>
+      <div className="users-toolbar">
+        <input
+          type="search"
+          aria-label={settingsTranslations.permissionSearchPlaceholder}
+          placeholder={settingsTranslations.permissionSearchPlaceholder}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <select
+          aria-label={settingsTranslations.moduleFilter}
+          value={moduleFilter}
+          onChange={(event) => setModuleFilter(event.target.value)}
+        >
+          <option value="all">{settingsTranslations.allModules}</option>
+          {modules.map((module) => (
+            <option key={module.id} value={module.name}>
+              {settingsTranslations.permissionModules[module.name as keyof typeof settingsTranslations.permissionModules] ?? module.name}
+            </option>
+          ))}
+        </select>
+        <select aria-label={settingsTranslations.statusFilter} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">{settingsTranslations.allStatuses}</option>
+          <option value="active">{settingsTranslations.active}</option>
+          <option value="inactive">{settingsTranslations.inactive}</option>
+        </select>
+        <span className="users-count">{filteredItems.length} {settingsTranslations.totalPermissions}</span>
+      </div>
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
@@ -138,7 +174,7 @@ export function PermissionsSection({ translations }: { translations: Translation
                   {settingsTranslations.loading}
                 </td>
               </tr>
-            ) : items.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
               <tr>
                 <td className="table-message" colSpan={5}>
                   {settingsTranslations.noPermissions}
@@ -182,7 +218,7 @@ export function PermissionsSection({ translations }: { translations: Translation
       <PaginationFooter
         page={page}
         pageSize={pageSize}
-        total={items.length}
+        total={filteredItems.length}
         labels={translations.common.pagination}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}

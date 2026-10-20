@@ -9,6 +9,7 @@ export interface AuthUser {
   name: string;
   company?: { id: number; name: string; logoUrl: string | null };
   department?: string | null;
+  departmentModules: string[];
   role: {
     id: number;
     name: string;

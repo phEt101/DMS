@@ -12,10 +12,30 @@ import { PaginationFooter } from "../../../../../components/pagination-footer";
 import { useErrorToast } from "../../../../../components/toast-provider";
 import { useAuth } from "../../../../auth/hooks/use-auth";
 import { hasAnyPermission } from "../../../../auth/permissions";
+import { listPermissionModules, type PermissionModule } from "../../modules/services/modules.service";
+import { listCompanies, type Company } from "../../companies/services/companies.service";
 
 const emptyForm: DepartmentInput = {
+  companyId: 0,
   name: "",
   isActive: true,
+  moduleIds: [],
+};
+
+const moduleGroups = [
+  { label: "ทั่วไป", keys: ["dashboard"] },
+  { label: "โครงการทั้งหมด", keys: ["projects", "projects_cm", "survey"] },
+  { label: "จัดการเอกสาร", keys: ["documents", "documents_pending", "documents_ledger", "report", "documents_employees", "documents_policy", "documents_notifications"] },
+  { label: "ตั้งค่า", keys: ["users", "roles", "departments", "permissions", "modules", "companies", "activity_logs"] },
+];
+
+const moduleLabels: Record<string, string> = {
+  dashboard: "แดชบอร์ด", projects: "PM", projects_cm: "CM", survey: "Survey",
+  documents: "รายการใบลา", documents_pending: "รออนุมัติ", documents_ledger: "สมุดบันทึกการลา",
+  report: "รายงานออกนอกสถานที่", documents_employees: "พนักงาน", documents_policy: "นโยบายการลา",
+  documents_notifications: "แจ้งเตือน", users: "ผู้ใช้งาน", roles: "บทบาทและสิทธิ์",
+  departments: "จัดการแผนก", permissions: "สิทธิ์", modules: "โมดูล", companies: "บริษัท",
+  activity_logs: "บันทึกกิจกรรม",
 };
 
 export function DepartmentsSection({ translations }: { translations: Translations }) {
@@ -25,23 +45,38 @@ export function DepartmentsSection({ translations }: { translations: Translation
   const canEdit = Boolean(user && hasAnyPermission(user, "แก้ไขแผนก", "จัดการแผนก"));
   const canDelete = Boolean(user && hasAnyPermission(user, "ลบแผนก", "จัดการแผนก"));
   const [items, setItems] = useState<Department[]>([]);
+  const [modules, setModules] = useState<PermissionModule[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [editing, setEditing] = useState<Department | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   useErrorToast(error);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const totalPages = Math.max(Math.ceil(items.length / pageSize), 1);
-  const visibleItems = items.slice((page - 1) * pageSize, page * pageSize);
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = !normalizedSearch || item.name.toLocaleLowerCase().includes(normalizedSearch);
+    const matchesCompany = companyFilter === "all" || item.companyId === Number(companyFilter);
+    const matchesStatus = statusFilter === "all" || Boolean(item.isActive) === (statusFilter === "active");
+    return matchesSearch && matchesCompany && matchesStatus;
+  });
+  const totalPages = Math.max(Math.ceil(filteredItems.length / pageSize), 1);
+  const visibleItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      setItems((await listDepartments()).data);
+      const [departmentsResponse, modulesResponse, companiesResponse] = await Promise.all([listDepartments(), listPermissionModules(), listCompanies()]);
+      setItems(departmentsResponse.data);
+      setModules(modulesResponse.data.filter((module) => Boolean(module.isActive)));
+      setCompanies(companiesResponse.data);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : settingsTranslations.loadError);
     } finally {
@@ -55,6 +90,9 @@ export function DepartmentsSection({ translations }: { translations: Translation
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, companyFilter, statusFilter]);
 
   function showForm(item?: Department) {
     setEditing(item ?? null);
@@ -62,9 +100,11 @@ export function DepartmentsSection({ translations }: { translations: Translation
       item
         ? {
             name: item.name,
+            companyId: item.companyId,
             isActive: Boolean(item.isActive),
+            moduleIds: item.moduleIds,
           }
-        : emptyForm,
+        : { ...emptyForm, companyId: user?.company?.id ?? companies[0]?.id ?? 0 },
     );
     setOpen(true);
     setError("");
@@ -111,11 +151,31 @@ export function DepartmentsSection({ translations }: { translations: Translation
           {settingsTranslations.addDepartment}
         </button>}
       </header>
+      <div className="users-toolbar">
+        <input
+          type="search"
+          aria-label={settingsTranslations.departmentSearchPlaceholder}
+          placeholder={settingsTranslations.departmentSearchPlaceholder}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <select aria-label={settingsTranslations.companyFilter} value={companyFilter} onChange={(event) => setCompanyFilter(event.target.value)}>
+          <option value="all">{settingsTranslations.allCompanies}</option>
+          {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+        </select>
+        <select aria-label={settingsTranslations.statusFilter} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">{settingsTranslations.allStatuses}</option>
+          <option value="active">{settingsTranslations.active}</option>
+          <option value="inactive">{settingsTranslations.inactive}</option>
+        </select>
+        <span className="users-count">{filteredItems.length} {settingsTranslations.department}</span>
+      </div>
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
             <tr>
               <th>{settingsTranslations.name}</th>
+              <th>{settingsTranslations.company}</th>
               <th>{settingsTranslations.members}</th>
               <th>{settingsTranslations.status}</th>
               <th>{settingsTranslations.actions}</th>
@@ -124,13 +184,13 @@ export function DepartmentsSection({ translations }: { translations: Translation
           <tbody>
             {loading ? (
               <tr>
-                <td className="table-message" colSpan={4}>
+                <td className="table-message" colSpan={5}>
                   {settingsTranslations.loading}
                 </td>
               </tr>
-            ) : items.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
               <tr>
-                <td className="table-message" colSpan={4}>
+                <td className="table-message" colSpan={5}>
                   {settingsTranslations.noDepartments}
                 </td>
               </tr>
@@ -140,6 +200,7 @@ export function DepartmentsSection({ translations }: { translations: Translation
                   <td data-label={settingsTranslations.name}>
                     <strong>{item.name}</strong>
                   </td>
+                  <td data-label={settingsTranslations.company}>{item.company}</td>
                   <td data-label={settingsTranslations.members}>{item.userCount}</td>
                   <td data-label={settingsTranslations.status}>
                     <span
@@ -171,7 +232,7 @@ export function DepartmentsSection({ translations }: { translations: Translation
       <PaginationFooter
         page={page}
         pageSize={pageSize}
-        total={items.length}
+        total={filteredItems.length}
         labels={translations.common.pagination}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
@@ -185,7 +246,7 @@ export function DepartmentsSection({ translations }: { translations: Translation
           }}
         >
           <section
-            className="user-modal"
+            className="user-modal department-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="department-form-title"
@@ -204,6 +265,13 @@ export function DepartmentsSection({ translations }: { translations: Translation
               </button>
             </header>
             <form onSubmit={(event) => void submit(event)}>
+              <label>
+                {settingsTranslations.company}
+                <select required value={form.companyId || ""} onChange={(event) => setForm({ ...form, companyId: Number(event.target.value) })}>
+                  <option value="" disabled>{settingsTranslations.company}</option>
+                  {companies.filter((company) => Boolean(company.isActive) || company.id === form.companyId).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+                </select>
+              </label>
               <label>
                 {settingsTranslations.name}
                 <input
@@ -225,6 +293,28 @@ export function DepartmentsSection({ translations }: { translations: Translation
                 />
                 {settingsTranslations.active}
               </label>
+              <fieldset className="role-permission-picker department-module-picker">
+                <legend>เมนูที่แผนกมองเห็น</legend>
+                <div className="role-permission-picker-grid">
+                  {moduleGroups.map((group) => {
+                    const groupModules = group.keys.map((key) => modules.find((module) => module.name === key)).filter((module): module is PermissionModule => Boolean(module));
+                    const selectedCount = groupModules.filter((module) => form.moduleIds.includes(module.id)).length;
+                    return <section className="role-permission-picker-module" key={group.label}>
+                      <div className="permission-picker-module-header">
+                        <h3>{group.label}</h3>
+                        <label className="permission-select-all"><input type="checkbox" checked={groupModules.length > 0 && selectedCount === groupModules.length} ref={(input) => { if (input) input.indeterminate = selectedCount > 0 && selectedCount < groupModules.length }} onChange={() => {
+                          const ids = groupModules.map((module) => module.id);
+                          setForm({ ...form, moduleIds: selectedCount === groupModules.length ? form.moduleIds.filter((id) => !ids.includes(id)) : [...new Set([...form.moduleIds, ...ids])] });
+                        }} /><span>เลือกทั้งหมดในกลุ่ม</span><small>{selectedCount}/{groupModules.length}</small></label>
+                      </div>
+                      {groupModules.map((module) => <label className="role-permission-option" key={module.id}>
+                        <input type="checkbox" checked={form.moduleIds.includes(module.id)} onChange={() => setForm({ ...form, moduleIds: form.moduleIds.includes(module.id) ? form.moduleIds.filter((id) => id !== module.id) : [...form.moduleIds, module.id] })} />
+                        <span>{moduleLabels[module.name] ?? module.name}</span>
+                      </label>)}
+                    </section>;
+                  })}
+                </div>
+              </fieldset>
               <footer>
                 <button
                   className="secondary-button"

@@ -52,7 +52,7 @@ function groupPermissions(permissions: RolePermission[]) {
 }
 
 function permissionActionOrder(name: string) {
-  if (name.startsWith("เข้าถึงเมนู") || name.startsWith("ดู")) return 0;
+  if (name.startsWith("ดู")) return 0;
   if (name.startsWith("สร้าง") || name.startsWith("เพิ่ม")) return 1;
   if (name.startsWith("แก้ไข")) return 2;
   if (name.startsWith("ลบ")) return 3;
@@ -151,11 +151,16 @@ export function RolesSection({ translations }: { translations: Translations }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
   useErrorToast(error);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const totalPages = Math.max(Math.ceil(roles.length / pageSize), 1);
-  const visibleRoles = roles.slice((page - 1) * pageSize, page * pageSize);
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const filteredRoles = normalizedSearch
+    ? roles.filter((role) => role.name.toLocaleLowerCase().includes(normalizedSearch))
+    : roles;
+  const totalPages = Math.max(Math.ceil(filteredRoles.length / pageSize), 1);
+  const visibleRoles = filteredRoles.slice((page - 1) * pageSize, page * pageSize);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -278,6 +283,9 @@ export function RolesSection({ translations }: { translations: Translations }) {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const displayedPermissionModules = [...new Set(
     [
@@ -300,6 +308,16 @@ export function RolesSection({ translations }: { translations: Translations }) {
           {settingsTranslations.addRole}
         </button>}
       </header>
+      <div className="users-toolbar">
+        <input
+          type="search"
+          aria-label={settingsTranslations.roleSearchPlaceholder}
+          placeholder={settingsTranslations.roleSearchPlaceholder}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <span className="users-count">{filteredRoles.length} {settingsTranslations.role}</span>
+      </div>
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
@@ -318,7 +336,7 @@ export function RolesSection({ translations }: { translations: Translations }) {
                   {settingsTranslations.loading}
                 </td>
               </tr>
-            ) : roles.length === 0 ? (
+            ) : filteredRoles.length === 0 ? (
               <tr>
                 <td className="table-message" colSpan={5}>
                   {settingsTranslations.noRoles}
@@ -374,7 +392,7 @@ export function RolesSection({ translations }: { translations: Translations }) {
       <PaginationFooter
         page={page}
         pageSize={pageSize}
-        total={roles.length}
+        total={filteredRoles.length}
         labels={translations.common.pagination}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}

@@ -124,6 +124,35 @@
 .users-toolbar input {
   width: min(360px, 100%);
 }
+.users-filter-toolbar {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.users-filter-toolbar .users-filter-search {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+.users-filter-toolbar .users-filter-status,
+.users-filter-toolbar .users-filter-role {
+  flex: 0 1 140px;
+  width: 140px;
+  min-width: 0;
+}
+.users-filter-toolbar .users-filter-company {
+  flex: 0 1 170px;
+  width: 170px;
+  min-width: 0;
+}
+.users-filter-toolbar .users-filter-department {
+  flex: 0 1 240px;
+  width: 240px;
+  min-width: 0;
+}
+.users-filter-toolbar .users-count {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
 .users-toolbar input:focus,
 .users-toolbar select:focus,
 .user-modal input:focus,
@@ -337,6 +366,23 @@
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 24px 70px rgba(18, 24, 39, 0.24);
+}
+.department-modal {
+  display: flex;
+  width: min(1120px, calc(100vw - 40px));
+  max-height: calc(100dvh - 24px);
+  flex-direction: column;
+  overflow: hidden;
+}
+.department-modal > header {
+  flex: 0 0 auto;
+  border-bottom: 1px solid #edf0f5;
+}
+.department-modal > form {
+  overflow-y: auto;
+}
+.department-modal .department-module-picker .role-permission-picker-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .user-modal > header {
   padding: 22px 24px 10px;

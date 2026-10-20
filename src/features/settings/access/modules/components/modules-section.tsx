@@ -33,11 +33,20 @@ export function ModulesSection({ translations }: { translations: Translations })
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   useErrorToast(error);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const totalPages = Math.max(Math.ceil(modules.length / pageSize), 1);
-  const visibleModules = modules.slice((page - 1) * pageSize, page * pageSize);
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const filteredModules = modules.filter((module) => {
+    const displayName = settingsTranslations.permissionModules[module.name as keyof typeof settingsTranslations.permissionModules] ?? module.name;
+    const matchesSearch = !normalizedSearch || module.name.toLocaleLowerCase().includes(normalizedSearch) || displayName.toLocaleLowerCase().includes(normalizedSearch);
+    const matchesStatus = statusFilter === "all" || Boolean(module.isActive) === (statusFilter === "active");
+    return matchesSearch && matchesStatus;
+  });
+  const totalPages = Math.max(Math.ceil(filteredModules.length / pageSize), 1);
+  const visibleModules = filteredModules.slice((page - 1) * pageSize, page * pageSize);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +66,10 @@ export function ModulesSection({ translations }: { translations: Translations })
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
 
   function showForm(module?: PermissionModule) {
     setEditing(module ?? null);
@@ -115,6 +128,21 @@ export function ModulesSection({ translations }: { translations: Translations })
           {settingsTranslations.addModule}
         </button>}
       </header>
+      <div className="users-toolbar">
+        <input
+          type="search"
+          aria-label={settingsTranslations.moduleSearchPlaceholder}
+          placeholder={settingsTranslations.moduleSearchPlaceholder}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <select aria-label={settingsTranslations.statusFilter} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">{settingsTranslations.allStatuses}</option>
+          <option value="active">{settingsTranslations.active}</option>
+          <option value="inactive">{settingsTranslations.inactive}</option>
+        </select>
+        <span className="users-count">{filteredModules.length} {settingsTranslations.module}</span>
+      </div>
       <div className="users-table-wrap">
         <table className="users-table">
           <thead>
@@ -133,7 +161,7 @@ export function ModulesSection({ translations }: { translations: Translations })
                   {settingsTranslations.loading}
                 </td>
               </tr>
-            ) : modules.length === 0 ? (
+            ) : filteredModules.length === 0 ? (
               <tr>
                 <td className="table-message" colSpan={5}>
                   {settingsTranslations.noModules}
@@ -143,7 +171,7 @@ export function ModulesSection({ translations }: { translations: Translations })
               visibleModules.map((module) => (
                 <tr key={module.id}>
                   <td data-label={settingsTranslations.name}>
-                    <strong>{module.name}</strong>
+                    <strong>{settingsTranslations.permissionModules[module.name as keyof typeof settingsTranslations.permissionModules] ?? module.name}</strong>
                   </td>
                   <td data-label={settingsTranslations.sortOrder}>{module.sortOrder}</td>
                   <td data-label={settingsTranslations.permissionsCount}>
@@ -180,7 +208,7 @@ export function ModulesSection({ translations }: { translations: Translations })
       <PaginationFooter
         page={page}
         pageSize={pageSize}
-        total={modules.length}
+        total={filteredModules.length}
         labels={translations.common.pagination}
         onPageChange={setPage}
         onPageSizeChange={(size) => {
