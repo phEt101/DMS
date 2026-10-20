@@ -6,9 +6,6 @@ export const roles: Array<readonly [string, string]> = [
 ]
 
 export const departments = [
-  'Project Management',
-  'Service',
-  'Management',
   'Managing Director',
   'Deputy Managing Director',
   'Financial, Accounting Div.',
@@ -25,9 +22,15 @@ export const departments = [
 export const permissionModules: Array<readonly [string, string]> = [
   ['dashboard', 'FaTableCellsLarge'],
   ['projects', 'FaDiagramProject'],
-  ['documents', 'FaFolderOpen'],
-  ['reports', 'FaChartColumn'],
+  ['projects_cm', 'FaDiagramProject'],
   ['survey', 'FaClipboardList'],
+  ['documents', 'FaFolderOpen'],
+  ['documents_pending', 'FaClock'],
+  ['documents_ledger', 'FaBook'],
+  ['report', 'FaChartColumn'],
+  ['documents_employees', 'FaUsers'],
+  ['documents_policy', 'FaSliders'],
+  ['documents_notifications', 'FaBell'],
   ['users', 'FaUser'],
   ['roles', 'FaShieldHalved'],
   ['departments', 'FaBuilding'],
@@ -38,52 +41,35 @@ export const permissionModules: Array<readonly [string, string]> = [
 ]
 
 export const permissions: Array<readonly [string, string]> = [
-  ['เข้าถึงเมนูแดชบอร์ด', 'dashboard'],
-  ['เข้าถึงเมนูโครงการ', 'projects'],
-  ['เข้าถึงเมนูเอกสาร', 'documents'],
   ['สร้างโครงการ', 'projects'],
   ['แก้ไขโครงการ', 'projects'],
   ['ลบโครงการ', 'projects'],
-  ['เข้าถึงเมนูรายงาน', 'reports'],
-  ['เข้าถึงเมนูแบบสำรวจ', 'survey'],
-  ['เข้าถึงเมนูผู้ใช้งาน', 'users'],
   ['สร้างผู้ใช้งาน', 'users'],
   ['แก้ไขผู้ใช้งาน', 'users'],
   ['ลบผู้ใช้งาน', 'users'],
-  ['เข้าถึงเมนูบทบาทและสิทธิ์', 'roles'],
   ['เพิ่มบทบาท', 'roles'],
   ['แก้ไขบทบาทและสิทธิ์', 'roles'],
   ['ลบบทบาท', 'roles'],
-  ['เข้าถึงเมนูแผนก', 'departments'],
   ['เพิ่มแผนก', 'departments'],
   ['แก้ไขแผนก', 'departments'],
   ['ลบแผนก', 'departments'],
-  ['เข้าถึงเมนูสิทธิ์', 'permissions'],
   ['เพิ่มสิทธิ์', 'permissions'],
   ['แก้ไขสิทธิ์', 'permissions'],
   ['ลบสิทธิ์', 'permissions'],
-  ['เข้าถึงเมนูโมดูล', 'modules'],
   ['เพิ่มโมดูล', 'modules'],
   ['แก้ไขโมดูล', 'modules'],
   ['ลบโมดูล', 'modules'],
-  ['เข้าถึงเมนูบริษัท', 'companies'],
   ['เพิ่มบริษัท', 'companies'],
   ['แก้ไขบริษัท', 'companies'],
   ['ลบบริษัท', 'companies'],
-  ['เข้าถึงเมนูบันทึกกิจกรรม', 'activity_logs'],
 ]
 
 export const rolePermissions: Record<string, readonly string[]> = {
   admin: permissions.map(([name]) => name),
   executive: [
-    'เข้าถึงเมนูแดชบอร์ด', 'เข้าถึงเมนูโครงการ', 'สร้างโครงการ', 'แก้ไขโครงการ',
-    'ลบโครงการ', 'เข้าถึงเมนูรายงาน',
-    'เข้าถึงเมนูแบบสำรวจ', 'เข้าถึงเมนูบันทึกกิจกรรม', 'เข้าถึงเมนูผู้ใช้งาน',
+    'สร้างโครงการ', 'แก้ไขโครงการ', 'ลบโครงการ',
     'สร้างผู้ใช้งาน', 'แก้ไขผู้ใช้งาน', 'ลบผู้ใช้งาน',
   ],
-  manager: [
-    'เข้าถึงเมนูแดชบอร์ด', 'เข้าถึงเมนูโครงการ', 'สร้างโครงการ', 'แก้ไขโครงการ',
-    'ลบโครงการ', 'เข้าถึงเมนูรายงาน', 'เข้าถึงเมนูแบบสำรวจ', 'เข้าถึงเมนูบันทึกกิจกรรม',
-  ],
-  user: ['เข้าถึงเมนูแดชบอร์ด', 'เข้าถึงเมนูโครงการ', 'สร้างโครงการ', 'แก้ไขโครงการ'],
+  manager: ['สร้างโครงการ', 'แก้ไขโครงการ', 'ลบโครงการ'],
+  user: ['สร้างโครงการ', 'แก้ไขโครงการ'],
 }

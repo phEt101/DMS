@@ -1,0 +1,25 @@
+CREATE TABLE IF NOT EXISTS leave_policies (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'รหัสนโยบาย',
+  company_id BIGINT UNSIGNED NOT NULL COMMENT 'บริษัทเจ้าของนโยบาย',
+  policy_year SMALLINT UNSIGNED NOT NULL COMMENT 'ปีนโยบาย (พ.ศ.)',
+  year_start DATE NOT NULL COMMENT 'วันเริ่มต้นปีการลา',
+  year_end DATE NOT NULL COMMENT 'วันสิ้นสุดปีการลา (ใช้แสดงวันหมดอายุสิทธิ์)',
+  lead_days_personal SMALLINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'ลากิจ/ลากิจไม่รับค่าจ้าง: ล่วงหน้าอย่างน้อย (วัน)',
+  lead_workdays_vacation SMALLINT UNSIGNED NOT NULL DEFAULT 15 COMMENT 'ลาพักร้อน: ล่วงหน้าอย่างน้อย (วันทำงาน)',
+  hours_per_day DECIMAL(4,2) NOT NULL DEFAULT 8.00 COMMENT 'ชั่วโมงต่อ 1 วันทำงาน',
+  hour_step DECIMAL(4,2) NOT NULL DEFAULT 1.00 COMMENT 'หน่วยขั้นต่ำของการลาเป็นชั่วโมง',
+  certificate_days DECIMAL(4,1) NOT NULL DEFAULT 3.0 COMMENT 'ลาป่วยตั้งแต่กี่วันต้องแนบใบรับรองแพทย์',
+  ot_max_hours DECIMAL(4,2) NOT NULL DEFAULT 4.00 COMMENT 'OT สูงสุดต่อใบ (ชั่วโมง)',
+  timefix_max_days_back SMALLINT UNSIGNED NOT NULL DEFAULT 7 COMMENT 'ขอแก้เวลาย้อนหลังได้ไม่เกิน (วัน)',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE COMMENT '1=ปีนโยบายที่ใช้งาน',
+  updated_by BIGINT UNSIGNED NULL COMMENT 'ผู้แก้ไขล่าสุด',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY leave_policies_company_year_unique (company_id, policy_year),
+  KEY leave_policies_company_active_index (company_id, is_active),
+  CONSTRAINT leave_policies_updated_by_fk FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE SET NULL,
+  CONSTRAINT leave_policies_year_range_chk CHECK (year_end >= year_start),
+  CONSTRAINT leave_policies_hours_chk CHECK (hours_per_day > 0 AND hour_step > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='นโยบายการลาและเงื่อนไขการยื่นเอกสารรายปี';

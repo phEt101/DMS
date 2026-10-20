@@ -1,4 +1,4 @@
-import type { Connection } from 'mysql2/promise'
+import type { Connection, RowDataPacket } from 'mysql2/promise'
 
 // สิทธิ์เอกสารตาม flow:
 //   admin    : ทุกสิทธิ์
@@ -6,35 +6,36 @@ import type { Connection } from 'mysql2/promise'
 //   HR Div.  (ทุก role ในแผนก HR) : ยื่น + พิจารณา + จัดการนโยบายการลา
 //   executive: ยื่น (อนุมัติขั้น executive ด้วย role ไม่ใช่ permission)
 //   user     : ยื่น
-const DOCUMENT_PERMISSIONS = ['เข้าถึงเมนูเอกสาร', 'ยื่นเอกสาร', 'พิจารณาเอกสาร', 'จัดการนโยบายการลา']
+const DOCUMENT_PERMISSIONS = ['ยื่นเอกสาร', 'พิจารณาเอกสาร', 'จัดการนโยบายการลา']
 
 export async function up(connection: Connection) {
-  const [roleRows] = await connection.query<any[]>(
+  const [roleRows] = await connection.query<(RowDataPacket & { id: number; name: string })[]>(
     `SELECT id, name FROM roles WHERE deleted_at IS NULL`,
   )
-  const roleId = new Map<string, number>((roleRows as any[]).map((row) => [String(row.name), Number(row.id)]))
-  const [permissionRows] = await connection.query<any[]>(
-    `SELECT id, name FROM permissions WHERE module_id = (SELECT id FROM permission_modules WHERE name = 'documents' LIMIT 1) AND deleted_at IS NULL`,
+  const roleId = new Map(roleRows.map((row) => [row.name, row.id]))
+  const [permissionRows] = await connection.query<(RowDataPacket & { id: number; name: string })[]>(
+    `SELECT id, name FROM permissions WHERE module_id IN (SELECT id FROM permission_modules WHERE name IN ('documents', 'documents_pending', 'documents_policy')) AND deleted_at IS NULL`,
   )
-  const permissionId = new Map<string, number>((permissionRows as any[]).map((row) => [String(row.name), Number(row.id)]))
+  const permissionId = new Map(permissionRows.map((row) => [row.name, row.id]))
 
-  const grant = async (roleName: string, permissionNames: string[]) => {
+  const grants: Array<[string, string[]]> = [
+    ['admin', DOCUMENT_PERMISSIONS],
+    ['manager', ['ยื่นเอกสาร', 'พิจารณาเอกสาร']],
+    ['executive', ['ยื่นเอกสาร']],
+    ['user', ['ยื่นเอกสาร']],
+  ]
+  const rows = grants.flatMap(([roleName, permissionNames]) => {
     const rid = roleId.get(roleName)
-    if (!rid) return
-    for (const name of permissionNames) {
+    if (!rid) return []
+    return permissionNames.flatMap((name) => {
       const pid = permissionId.get(name)
-      if (!pid) continue
-      await connection.execute(
-        `INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)`,
-        [rid, pid],
-      )
-    }
-  }
+      return pid ? [[rid, pid]] : []
+    })
+  })
 
-  await grant('admin', DOCUMENT_PERMISSIONS)
-  await grant('manager', ['เข้าถึงเมนูเอกสาร', 'ยื่นเอกสาร', 'พิจารณาเอกสาร'])
-  await grant('executive', ['เข้าถึงเมนูเอกสาร', 'ยื่นเอกสาร'])
-  await grant('user', ['เข้าถึงเมนูเอกสาร', 'ยื่นเอกสาร'])
+  if (rows.length > 0) {
+    await connection.query('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES ?', [rows])
+  }
 
   // ผู้ใช้แผนก HR Div. (ทุก role) จัดการนโยบายและพิจารณาเอกสารได้
   await connection.execute(

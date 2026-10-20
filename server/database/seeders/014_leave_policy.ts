@@ -16,17 +16,20 @@ export async function up(connection: Connection) {
        UNION ALL SELECT 'พิจารณาเอกสาร'
        UNION ALL SELECT 'จัดการนโยบายการลา'
      ) AS perms
-     WHERE permission_modules.name = 'documents' AND permission_modules.deleted_at IS NULL
+     WHERE permission_modules.deleted_at IS NULL
+       AND ((permission_modules.name = 'documents' AND perms.permission_name = 'ยื่นเอกสาร')
+         OR (permission_modules.name = 'documents_pending' AND perms.permission_name = 'พิจารณาเอกสาร')
+         OR (permission_modules.name = 'documents_policy' AND perms.permission_name = 'จัดการนโยบายการลา'))
      ON DUPLICATE KEY UPDATE is_active = 1, deleted_at = NULL`,
   )
   await connection.execute(
     `INSERT IGNORE INTO role_permissions (role_id, permission_id)
      SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
-     JOIN permission_modules m ON m.id = p.module_id AND m.name = 'documents'
+     JOIN permission_modules m ON m.id = p.module_id AND m.name IN ('documents', 'documents_pending', 'documents_policy')
      WHERE r.deleted_at IS NULL AND p.deleted_at IS NULL AND p.is_active = 1
-       AND ((r.name = 'admin' AND p.name IN ('เข้าถึงเมนูเอกสาร','ยื่นเอกสาร','พิจารณาเอกสาร','จัดการนโยบายการลา'))
-         OR (r.name = 'manager' AND p.name IN ('เข้าถึงเมนูเอกสาร','ยื่นเอกสาร','พิจารณาเอกสาร'))
-         OR (r.name IN ('executive','user') AND p.name IN ('เข้าถึงเมนูเอกสาร','ยื่นเอกสาร')))`,
+       AND ((r.name = 'admin' AND p.name IN ('ยื่นเอกสาร','พิจารณาเอกสาร','จัดการนโยบายการลา'))
+         OR (r.name = 'manager' AND p.name IN ('ยื่นเอกสาร','พิจารณาเอกสาร'))
+         OR (r.name IN ('executive','user') AND p.name = 'ยื่นเอกสาร'))`,
   )
   // ผู้ใช้แผนก HR Div. ทุกคนได้สิทธิ์พิจารณาเอกสารและจัดการนโยบายการลา
   await connection.execute(
@@ -41,6 +44,7 @@ export async function up(connection: Connection) {
   await connection.execute(
     `INSERT INTO leave_policies (company_id, policy_year, year_start, year_end, is_active)
      SELECT 1, 2569, '2025-11-26', '2026-11-25', 1
+     FROM DUAL
      WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE company_id = 1 AND policy_year = 2569)`,
   )
 }

@@ -226,8 +226,8 @@ export async function up(connection: Connection) {
             roles.id, departments.id, companies.id, 1
      FROM (${rows}) AS seed
      INNER JOIN roles ON roles.name = seed.role_name
-     INNER JOIN departments ON departments.name = seed.department_name
      INNER JOIN companies ON companies.name = seed.company_name
+     INNER JOIN departments ON departments.company_id = companies.id AND departments.name = seed.department_name
      ON DUPLICATE KEY UPDATE
        name = VALUES(name),
        first_name = VALUES(first_name),

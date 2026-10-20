@@ -34,14 +34,3 @@ CREATE TABLE IF NOT EXISTS pm_equipment_uploads (
     REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='รูปภาพก่อนและหลังดำเนินงานของอุปกรณ์ในโครงการ PM';
-
--- MySQL 5.6 ยังไม่มี generated column จึงให้ trigger ดูแลคีย์เฉพาะของไฟล์ที่ใช้งานแทน
-CREATE TRIGGER pm_equipment_uploads_active_slot_insert
-BEFORE INSERT ON pm_equipment_uploads
-FOR EACH ROW
-  SET NEW.active_sort_order = IF(NEW.is_deleted = 0, NEW.sort_order, NULL);
-
-CREATE TRIGGER pm_equipment_uploads_active_slot_update
-BEFORE UPDATE ON pm_equipment_uploads
-FOR EACH ROW
-  SET NEW.active_sort_order = IF(NEW.is_deleted = 0, NEW.sort_order, NULL);

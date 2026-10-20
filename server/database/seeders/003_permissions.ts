@@ -1,13 +1,21 @@
-import type { Connection } from 'mysql2/promise'
+import type { Connection, RowDataPacket } from 'mysql2/promise'
 import { permissions } from './access-control-data.js'
 
 export async function up(connection: Connection) {
-  for (const [name, module] of permissions) {
-    await connection.execute(
-      `INSERT INTO permissions (name, module_id)
-       SELECT ?, id FROM permission_modules WHERE name = ? AND deleted_at IS NULL
-       ON DUPLICATE KEY UPDATE name = VALUES(name), module_id = VALUES(module_id)`,
-      [name, module],
-    )
-  }
+  const [moduleRows] = await connection.query<(RowDataPacket & { id: number; name: string })[]>(
+    'SELECT id, name FROM permission_modules WHERE deleted_at IS NULL',
+  )
+  const moduleIds = new Map(moduleRows.map((row) => [row.name, row.id]))
+  const rows = permissions.map(([name, moduleName]) => {
+    const moduleId = moduleIds.get(moduleName)
+    if (!moduleId) throw new Error(`Permission module ${moduleName} was not seeded`)
+    return [name, moduleId]
+  })
+
+  await connection.query(
+    `INSERT INTO permissions (name, module_id)
+     VALUES ?
+     ON DUPLICATE KEY UPDATE name = VALUES(name), module_id = VALUES(module_id), is_active = 1, deleted_at = NULL`,
+    [rows],
+  )
 }

@@ -21,7 +21,3 @@ CREATE TABLE IF NOT EXISTS employees (
   CONSTRAINT employees_manager_user_fk FOREIGN KEY (manager_user_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='Employee details linked one-to-one with user accounts';
-
-INSERT INTO employees (user_id)
-SELECT users.id FROM users
-ON DUPLICATE KEY UPDATE user_id = VALUES(user_id);

@@ -5,16 +5,14 @@ const seedTypes: Array<{ name: string; slug: string; departmentId: number | null
 ]
 
 export async function up(connection: Connection) {
-  for (const t of seedTypes) {
-    await connection.execute(
-      `INSERT INTO project_types (name, slug, department_id, is_active)
-       VALUES (?, ?, ?, 1)
-       ON DUPLICATE KEY UPDATE
-         slug = ?,
-         department_id = ?,
-         is_active = 1,
-         deleted_at = NULL`,
-      [t.name, t.slug, t.departmentId, t.slug, t.departmentId],
-    )
-  }
+  await connection.query(
+    `INSERT INTO project_types (name, slug, department_id, is_active)
+     VALUES ?
+     ON DUPLICATE KEY UPDATE
+       slug = VALUES(slug),
+       department_id = VALUES(department_id),
+       is_active = 1,
+       deleted_at = NULL`,
+    [seedTypes.map(({ name, slug, departmentId }) => [name, slug, departmentId, 1])],
+  )
 }

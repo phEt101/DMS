@@ -2,20 +2,25 @@ import type { Connection, RowDataPacket } from 'mysql2/promise'
 import { rolePermissions } from './access-control-data.js'
 
 export async function up(connection: Connection) {
-  for (const [roleName, permissionNames] of Object.entries(rolePermissions)) {
-    const [roleRows] = await connection.execute<(RowDataPacket & { id: number })[]>(
-      'SELECT id FROM roles WHERE name = ? LIMIT 1',
-      [roleName],
-    )
-    const roleId = roleRows[0]?.id
+  const [roleRows] = await connection.query<(RowDataPacket & { id: number; name: string })[]>(
+    'SELECT id, name FROM roles WHERE deleted_at IS NULL',
+  )
+  const [permissionRows] = await connection.query<(RowDataPacket & { id: number; name: string })[]>(
+    'SELECT id, name FROM permissions WHERE deleted_at IS NULL',
+  )
+  const roleIds = new Map(roleRows.map((row) => [row.name, row.id]))
+  const permissionIds = new Map(permissionRows.map((row) => [row.name, row.id]))
+  const rows = Object.entries(rolePermissions).flatMap(([roleName, permissionNames]) => {
+    const roleId = roleIds.get(roleName)
     if (!roleId) throw new Error(`Role ${roleName} was not seeded`)
+    return permissionNames.map((permissionName) => {
+      const permissionId = permissionIds.get(permissionName)
+      if (!permissionId) throw new Error(`Permission ${permissionName} was not seeded`)
+      return [roleId, permissionId]
+    })
+  })
 
-    for (const permissionName of permissionNames) {
-      await connection.execute(
-        `INSERT IGNORE INTO role_permissions (role_id, permission_id)
-         SELECT ?, id FROM permissions WHERE name = ? AND deleted_at IS NULL`,
-        [roleId, permissionName],
-      )
-    }
+  if (rows.length > 0) {
+    await connection.query('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES ?', [rows])
   }
 }

@@ -57,7 +57,7 @@ async function readPostalCodeRows(): Promise<PostalCodeRow[]> {
     }
 
     const postalCode = postalCodeRaw.replace(/\D/g, '').slice(0, 5)
-    const countryCode = countryCodeRaw && countryCodeRaw.trim() ? countryCodeRaw.trim() : 'TH'
+    const countryCode = countryCodeRaw?.trim() || 'TH'
 
     if (!postalCode) {
       continue
@@ -75,27 +75,25 @@ async function readPostalCodeRows(): Promise<PostalCodeRow[]> {
   return rows
 }
 
+async function insertPostalCodeBatches(connection: Connection, rows: PostalCodeRow[], offset = 0): Promise<void> {
+  const batch = rows.slice(offset, offset + 500)
+  if (batch.length === 0) return
+
+  await connection.query(
+    `INSERT INTO postal_codes (postal_code, district_name, city_name, province_name, country_code)
+     VALUES ?
+     ON DUPLICATE KEY UPDATE
+       district_name = VALUES(district_name),
+       city_name = VALUES(city_name),
+       province_name = VALUES(province_name),
+       country_code = VALUES(country_code)`,
+    [batch.map((row) => [row.postalCode, row.districtName, row.cityName, row.provinceName, row.countryCode])],
+  )
+
+  await insertPostalCodeBatches(connection, rows, offset + batch.length)
+}
+
 export async function up(connection: Connection) {
   const rows = await readPostalCodeRows()
-
-  if (rows.length === 0) {
-    return
-  }
-
-  const batchSize = 500
-
-  for (let index = 0; index < rows.length; index += batchSize) {
-    const batch = rows.slice(index, index + batchSize)
-
-    await connection.query(
-      `INSERT INTO postal_codes (postal_code, district_name, city_name, province_name, country_code)
-       VALUES ?
-       ON DUPLICATE KEY UPDATE
-         district_name = VALUES(district_name),
-         city_name = VALUES(city_name),
-         province_name = VALUES(province_name),
-         country_code = VALUES(country_code)`,
-      [batch.map((row) => [row.postalCode, row.districtName, row.cityName, row.provinceName, row.countryCode])],
-    )
-  }
+  await insertPostalCodeBatches(connection, rows)
 }
