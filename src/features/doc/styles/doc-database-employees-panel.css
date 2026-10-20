@@ -1,0 +1,46 @@
+/* ===== Employees: สีภายในการ์ด/ตาราง (role badge + วันลาสะสม) ===== */
+
+.emp-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--emp-bg);
+  color: var(--emp-fg);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.emp-leaves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.documents-employee-card .emp-leaves {
+  margin-top: 14px;
+}
+
+.emp-leave {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 9px;
+  background: var(--emp-bg);
+  color: var(--emp-fg);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.emp-leave b {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.emp-leave--sick { --emp-bg: #ffe4e6; --emp-fg: #be123c; }
+.emp-leave--personal { --emp-bg: #e0f2fe; --emp-fg: #0369a1; }
+.emp-leave--vacation { --emp-bg: #dcfce7; --emp-fg: #15803d; }
+.emp-leave--other { --emp-bg: #f1f5f9; --emp-fg: #475569; }
