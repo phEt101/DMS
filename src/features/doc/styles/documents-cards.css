@@ -1,0 +1,344 @@
+.documents-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 18px;
+}
+
+.documents-survey-grid {
+  width: 100%;
+}
+
+.documents-survey-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.documents-survey-card .dms-card-head {
+  align-items: center;
+}
+
+.documents-survey-card .dms-card-name {
+  overflow-wrap: anywhere;
+}
+
+.documents-survey-grid .dms-card-status.is-submitted {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.documents-survey-grid .dms-card-status.is-done {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.documents-survey-grid .dms-card-status.is-cancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.documents-survey-grid .documents-card-note {
+  color: #9e3b3b;
+}
+
+.documents-cancel-card {
+  align-self: flex-start;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #b42335;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.documents-table-summary {
+  display: block;
+  max-width: 360px;
+  margin-top: 3px;
+  overflow: hidden;
+  color: #7a849e;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documents-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #e5e9f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px #23304d08;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+  touch-action: manipulation;
+}
+
+.documents-card-clickable {
+  cursor: pointer;
+}
+
+.documents-card-clickable:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 24px -10px rgba(15, 23, 42, 0.15);
+}
+
+.documents-card-clickable:focus-visible {
+  outline: 3px solid #8e86ff;
+  outline-offset: 2px;
+}
+
+.documents-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+}
+
+.documents-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #5e4bff;
+  font-size: 17px;
+}
+
+.documents-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 3px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.documents-pill.is-pending {
+  background: #fdefcd;
+  color: #8a5c00;
+}
+
+.documents-pill.is-approved {
+  background: #dcf3e7;
+  color: #157a4b;
+}
+
+.documents-pill.is-rejected {
+  background: #fde4ee;
+  color: #b42357;
+}
+
+.documents-number {
+  color: #7a849e;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.documents-card h2 {
+  display: -webkit-box;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.documents-summary {
+  min-height: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.documents-review-note {
+  margin-top: 7px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff4f3;
+  color: #9e3b3b;
+  font-size: 12px;
+}
+
+.documents-card-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.documents-card-foot > div {
+  min-width: 0;
+}
+
+.documents-card-foot b,
+.documents-card-foot small {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.documents-card-foot b {
+  color: #283451;
+  font-size: 13px;
+}
+
+.documents-card-foot small {
+  margin-top: 3px;
+  color: #7a849e;
+  font-size: 11px;
+}
+
+.documents-cards.is-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.documents-cards.is-list .documents-card {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1.25fr) minmax(
+      150px,
+      0.9fr
+    );
+  grid-template-areas: "visual reference summary actions" "visual title note actions";
+  align-items: center;
+  gap: 7px 14px;
+  padding: 14px 17px;
+  border-radius: 16px;
+}
+
+.documents-cards.is-list .documents-card-top {
+  grid-area: visual;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  margin: 0;
+}
+
+.documents-cards.is-list .documents-number {
+  grid-area: reference;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.documents-cards.is-list .documents-card h2 {
+  display: block;
+  grid-area: title;
+  min-width: 0;
+  margin: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
+.documents-cards.is-list .documents-summary {
+  grid-area: summary;
+  min-width: 0;
+  min-height: 0;
+  overflow-wrap: anywhere;
+}
+
+.documents-cards.is-list .documents-card-foot {
+  grid-area: actions;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.documents-cards.is-list .documents-card-foot > div {
+  min-width: 0;
+}
+
+.documents-cards.is-list .documents-card-foot button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.documents-cards.is-list .documents-review-note {
+  grid-area: note;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.documents-empty {
+  padding: 40px 18px;
+  border: 2px dashed #e3e8f2;
+  border-radius: 20px;
+  color: #6a7592;
+  text-align: center;
+}
+
+.documents-card-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 6px;
+}
+
+.documents-card-actions:empty {
+  display: none;
+}
+
+.documents-card-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.documents-toast {
+  position: fixed;
+  z-index: 1100;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 24px);
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: #1c2540;
+  color: #fff;
+  box-shadow: 0 10px 30px #10162940;
+  font-size: 13px;
+}
+
+.documents-card-foot .is-cancel {
+  border-color: #fde4ee;
+  background: #fff6f9;
+  color: #b42357;
+}

@@ -1,0 +1,140 @@
+.documents-modal-backdrop:has(> .documents-signature-modal) {
+  z-index: 1100;
+}
+
+.documents-signature-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.documents-signature-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid #e3e8f2;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.documents-signature-image {
+  display: grid;
+  height: 76px;
+  place-items: center;
+  overflow: hidden;
+  border-bottom: 1px dashed #d8deea;
+  color: #98a1b4;
+  font-size: 11px;
+}
+
+.documents-signature-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.documents-signature-image--empty {
+  font-weight: 500;
+  color: #98a1b4;
+}
+
+.documents-signature-card b {
+  color: #35405d;
+  font-size: 12px;
+}
+
+.documents-signature-card small {
+  color: #7a849e;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.documents-detail-actions,
+.documents-signature-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.documents-detail-close,
+.documents-reject,
+.documents-signature-actions > button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #e3e8f2;
+  border-radius: 11px;
+  background: #fff;
+  color: #35405d;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.documents-signature-actions > button.documents-primary {
+  border: 0;
+  background: #5143e8;
+  color: #fff;
+  box-shadow: 0 10px 22px -10px rgba(81, 67, 232, 0.65);
+}
+
+.documents-signature-actions > button.documents-primary:hover {
+  background: #4032d1;
+}
+
+.documents-signature-actions > button:hover {
+  background: #f4f6fb;
+  border-color: #c9d2e6;
+}
+
+.documents-signature-modal {
+  width: min(480px, 100%);
+}
+
+.documents-signature-pad {
+  overflow: hidden;
+  border: 1px solid #dbe1ec;
+  border-radius: 14px;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    repeating-linear-gradient(0deg, transparent 0 39px, #e8ebf2 40px) border-box;
+}
+
+.documents-signature-pad canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3/1;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.documents-remember-signature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #59657a;
+  font-size: 13px;
+}
+
+.documents-remember-signature input {
+  width: 17px;
+  height: 17px;
+  accent-color: #5143e8;
+}
+
+.documents-signature-actions {
+  justify-content: space-between;
+}
+
+.documents-signature-actions .documents-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

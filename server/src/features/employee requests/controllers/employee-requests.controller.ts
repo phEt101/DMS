@@ -806,8 +806,8 @@ export async function outingReport(req: Request, res: Response) {
   if (!Number.isSafeInteger(requestedEmployeeId) || requestedEmployeeId < 1) throw httpError(400, 'รหัสพนักงานไม่ถูกต้อง')
   if (!canSelectEmployee && requestedEmployeeId !== me) throw httpError(403, 'ไม่มีสิทธิ์ดูรายงานของพนักงานคนนี้')
 
-  const [rows] = await db.query<any[]>(
-    `SELECT r.id, r.request_no, r.status, DATE_FORMAT(o.outing_date, '%Y-%m-%d') AS date,
+  const [outingRows] = await db.query<any[]>(
+    `SELECT 'outing' AS report_kind, r.id, r.request_no, r.status, DATE_FORMAT(o.outing_date, '%Y-%m-%d') AS date,
             TIME_FORMAT(o.out_time, '%H:%i') AS out_time, TIME_FORMAT(o.back_time, '%H:%i') AS back_time,
             u.name AS employee_name, o.company_name, o.address, o.province, o.district, o.subdistrict,
             o.postal_code, o.country, o.latitude, o.longitude, o.project_name, o.customer_name,
@@ -830,6 +830,67 @@ export async function outingReport(req: Request, res: Response) {
       ORDER BY o.outing_date, o.out_time, r.id`,
     [companyId, requestedEmployeeId, from, to],
   )
+  const [wfhRows] = await db.query<any[]>(
+    `SELECT r.id, r.request_no, DATE_FORMAT(r.start_date, '%Y-%m-%d') AS start_date,
+            DATE_FORMAT(r.end_date, '%Y-%m-%d') AS end_date, r.reason,
+            u.name AS employee_name, wfh.place, wfh.plan,
+            submitter.signature_image AS submitter_signature_image,
+            approved.signer_name AS approved_by, approved.signature_image AS approved_signature_image
+       FROM employee_requests r
+       JOIN employee_request_wfh_details wfh ON wfh.request_id = r.id
+       JOIN users u ON u.id = r.employee_user_id
+       LEFT JOIN employee_request_signatures submitter
+         ON submitter.request_id = r.id AND submitter.stage = 'submitter' AND submitter.action = 'submitted'
+       LEFT JOIN employee_request_signatures approved
+         ON approved.id = (
+           SELECT latest.id FROM employee_request_signatures latest
+            WHERE latest.request_id = r.id AND latest.action = 'approved'
+            ORDER BY latest.signed_at DESC, latest.id DESC LIMIT 1
+         )
+      WHERE r.company_id = ? AND r.kind = 'wfh' AND r.status = 'approved'
+        AND r.employee_user_id = ? AND r.start_date <= ? AND r.end_date >= ?
+      ORDER BY r.start_date, r.id`,
+    [companyId, requestedEmployeeId, to, from],
+  )
+  const wfhReportRows = wfhRows.flatMap((row) => {
+    const start = row.start_date > from ? row.start_date : from
+    const end = row.end_date < to ? row.end_date : to
+    const date = new Date(`${start}T00:00:00Z`)
+    const lastDate = new Date(`${end}T00:00:00Z`)
+    const reportRows: any[] = []
+    while (date <= lastDate) {
+      const dayOfWeek = date.getUTCDay()
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        reportRows.push({
+          ...row,
+          report_kind: 'wfh',
+          date: date.toISOString().slice(0, 10),
+          out_time: null,
+          back_time: null,
+          company_name: null,
+          address: row.place,
+          province: null,
+          district: null,
+          subdistrict: null,
+          postal_code: null,
+          country: null,
+          project_name: null,
+          customer_name: null,
+          customer_position: null,
+          phone: null,
+          work_details: row.plan,
+          remark: row.reason,
+        })
+      }
+      date.setUTCDate(date.getUTCDate() + 1)
+    }
+    return reportRows
+  })
+  const rows = [...outingRows, ...wfhReportRows].sort((a, b) =>
+    String(a.date).localeCompare(String(b.date))
+    || String(a.out_time ?? '').localeCompare(String(b.out_time ?? ''))
+    || Number(a.id) - Number(b.id),
+  )
   const [signatureRows] = await db.query<any[]>(
     `SELECT saved.signature_image FROM user_saved_signatures saved
        JOIN users u ON u.id = saved.user_id AND u.company_id = ? AND u.deleted_at IS NULL
@@ -837,16 +898,22 @@ export async function outingReport(req: Request, res: Response) {
   )
   const [pendingRows] = await db.query<any[]>(
     `SELECT COUNT(*) AS total FROM employee_requests r
-       JOIN employee_request_outing_details o ON o.request_id = r.id
-      WHERE r.company_id = ? AND r.kind = 'outing'
+       LEFT JOIN employee_request_outing_details o ON o.request_id = r.id
+      WHERE r.company_id = ? AND r.kind IN ('outing', 'wfh')
         AND r.status IN ('pending_mgr','pending_exec','pending_hr')
-        AND r.employee_user_id = ? AND o.outing_date BETWEEN ? AND ?`,
-    [companyId, requestedEmployeeId, from, to],
+        AND r.employee_user_id = ?
+        AND ((r.kind = 'outing' AND o.outing_date BETWEEN ? AND ?)
+          OR (r.kind = 'wfh' AND r.start_date <= ? AND r.end_date >= ?))`,
+    [companyId, requestedEmployeeId, from, to, to, from],
   )
-  let employees: Array<{ id: number; name: string }> = []
+  let employees: Array<{ id: number; name: string; department: string | null }> = []
   if (canSelectEmployee) {
     const [peopleRows] = await db.query<any[]>(
-      `SELECT id, name FROM users WHERE company_id = ? AND deleted_at IS NULL AND is_active = 1 ORDER BY name`,
+      `SELECT u.id, u.name, departments.name AS department
+         FROM users u
+         LEFT JOIN departments ON departments.id = u.department_id
+        WHERE u.company_id = ? AND u.deleted_at IS NULL AND u.is_active = 1
+        ORDER BY u.name`,
       [companyId],
     )
     employees = peopleRows

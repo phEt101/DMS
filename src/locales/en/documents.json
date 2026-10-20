@@ -2,7 +2,7 @@
   "sidebar": {
     "menuLabel": "Document Management",
     "views": {
-      "all": "All documents",
+      "all": "Individual documents",
       "pending": "Pending approval",
       "ledger": "Leave ledger",
       "report": "Off-site work report",
@@ -14,7 +14,7 @@
   "documentManagement": {
     "dateLocale": "en-GB",
     "section": "Document Management",
-    "allTitle": "All documents",
+    "allTitle": "Individual documents",
     "pendingTitle": "Documents awaiting review",
     "ledgerTitle": "Leave ledger",
     "employeesTitle": "Employees",
@@ -304,6 +304,7 @@
     },
     "ledger": {
       "chooseEmployee": "Select employee",
+      "allDepartments": "All departments",
       "year": "Entitlement year",
       "sick": "Sick leave",
       "personal": "Personal leave",

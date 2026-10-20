@@ -1,13 +1,31 @@
+/* ================= Page layout ================= */
 .outing-report-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
-.outing-report-header {
+/* ล้างระยะห่างส่วนหัวที่มาจาก users-header (CSS กลาง) */
+.outing-report-page .outing-report-header {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+}
+
+.outing-report-header h1 {
+  margin: 2px 0 6px;
+  line-height: 1.2;
+}
+
+.outing-report-header p {
+  margin: 0;
+}
+
+.outing-report-header .feature-kicker {
   margin-bottom: 0;
 }
 
+/* ================= Metrics ================= */
 .outing-report-metrics {
   display: flex;
   flex-wrap: wrap;
@@ -32,21 +50,33 @@
   color: #5143e8;
 }
 
+/* ================= Filters ================= */
+/* label อยู่บนทุกช่อง และจัดแนวล่างให้ตรงกัน */
 .outing-report-filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 12px;
   margin: 0;
 }
 
-.outing-report-filters label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.outing-report-filters label,
+.outing-report-filters .outing-report-department,
+.outing-report-filters .outing-report-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
   color: #1c2540;
   font-size: 14px;
   font-weight: 600;
+}
+
+.outing-report-filters label > span,
+.outing-report-filters .employee-search-select > span {
+  color: #5b6478;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .outing-report-filters .employee-search-select {
@@ -71,6 +101,7 @@
 .outing-report-filters select {
   height: 44px;
   min-width: 150px;
+  box-sizing: border-box;
   padding: 0 12px;
   border: 1px solid #e3e8f2;
   border-radius: 14px;
@@ -79,6 +110,12 @@
   font: inherit;
 }
 
+.outing-report-filters .outing-report-department select {
+  min-width: 170px;
+  font-weight: 600;
+}
+
+/* ================= Action buttons ================= */
 .outing-report-actions {
   display: flex;
   flex-wrap: wrap;
@@ -97,6 +134,7 @@
   color: #1c2540;
   font: inherit;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -128,9 +166,10 @@
   color: #5143c8;
 }
 
+/* ================= Hint / status ================= */
 .outing-report-hint,
 .outing-report-status {
-  margin: -4px 0 0;
+  margin: 0;
   color: #6a7592;
   font-size: 13px;
 }
@@ -140,6 +179,7 @@
   color: #b42323;
 }
 
+/* ================= Sheet preview ================= */
 .outing-report-sheets {
   overflow-x: auto;
   border: 1px solid #e3e8f2;
@@ -231,6 +271,7 @@
   font-weight: 700;
 }
 
+/* ================= Responsive ================= */
 @media (max-width: 760px) {
   .outing-report-actions {
     width: 100%;
@@ -242,6 +283,7 @@
   }
 }
 
+/* ================= Print ================= */
 @media print {
   body:has(.outing-report-page) * {
     visibility: hidden;

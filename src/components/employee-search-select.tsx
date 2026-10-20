@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 
-export type EmployeeOption = { id: string; name: string }
+export type EmployeeOption = { id: string; name: string; detail?: string }
 
 type Props = {
   label: string
@@ -19,7 +19,7 @@ export default function EmployeeSearchSelect({ label, value, options, onChange }
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase()
     return normalized
-      ? options.filter((option) => option.name.toLocaleLowerCase().includes(normalized))
+      ? options.filter((option) => `${option.name} ${option.detail ?? ''}`.toLocaleLowerCase().includes(normalized))
       : options
   }, [options, query])
 
@@ -87,7 +87,7 @@ export default function EmployeeSearchSelect({ label, value, options, onChange }
         className={index === activeIndex ? 'is-active' : ''}
         onPointerDown={(event) => event.preventDefault()}
         onClick={() => choose(option)}
-      >{option.name}</button>) : <span className="employee-search-empty">—</span>}
+      ><span>{option.name}</span>{option.detail && <small>{option.detail}</small>}</button>) : <span className="employee-search-empty">—</span>}
     </div>}
   </div>
 }

@@ -597,7 +597,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href=url; anchor.download=`ใบลา_${ledgerEmployee.name.replace(/ /g,'_')}_2569.csv`; anchor.click(); URL.revokeObjectURL(url)
   }
 
-  return <section className="feature-page documents-page">
+  return <section className="feature-page feature-page--wide documents-page">
     <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
     {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
     {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} copy={copy} />}
