@@ -5,14 +5,21 @@ import { validateRequest, type Kind, type LeaveTypeRow, type Policy, type Valida
 import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
 
 // ใช้สิทธิ์เดิมของโมดูลเอกสาร + เพิ่ม 'จัดการนโยบายการลา' 1 รายการ (ต้อง seed ในตาราง permissions)
-const PERM = { access: 'เข้าถึงเมนูเอกสาร', submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
+const PERM = { submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
 const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'wfh', 'outing', 'swap']
 const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', wfh: 'WFH', outing: 'OUT', swap: 'SW' }
 const STATUSES = ['pending_mgr', 'pending_exec', 'pending_hr', 'approved', 'rejected', 'cancelled']
 const MAX_SIGNATURE_LENGTH = 200_000
 
-const has = (req: Request, name: string) => Boolean(req.user?.permissions.some((permission) => permission.name === name))
+const has = (req: Request, name: string) => {
+  return Boolean(req.user?.permissions.some((permission) => permission.name === name))
+}
 const need = (req: Request, name: string) => { if (!has(req, name)) throw httpError(403, 'ไม่มีสิทธิ์ดำเนินการกับเอกสาร') }
+const needDocumentModule = (req: Request) => {
+  const allowed = req.user && (req.user.role.name.trim().toLowerCase() === 'admin'
+    || req.user.departmentModules.some((module) => module === 'documents' || module.startsWith('documents_') || module === 'report'))
+  if (!allowed) throw httpError(403, 'ไม่มีสิทธิ์เข้าถึงเอกสาร')
+}
 // req.user มี company ในรูป { id, name, logoUrl } ตาม require-auth.middleware.ts
 const companyIdOf = (req: Request) => {
   const raw = (req.user as any)?.company?.id ?? (req.user as any)?.companyId
@@ -57,7 +64,7 @@ async function loadPolicy(companyId: number, today: string) {
 }
 
 export async function policy(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   res.json(await loadPolicy(companyIdOf(req), todayBangkok()))
 }
 
@@ -122,12 +129,12 @@ export async function updatePolicy(req: Request, res: Response) {
 
 // ---------- ลายเซ็นที่จดจำไว้ ----------
 export async function mySignature(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const [rows] = await db.query<any[]>(`SELECT signature_image FROM user_saved_signatures WHERE user_id = ? LIMIT 1`, [req.user!.id])
   res.json({ signature: rows[0]?.signature_image ?? '' })
 }
 export async function saveMySignature(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const image = checkSignature(req.body?.signature, true)
   await db.execute(
     `INSERT INTO user_saved_signatures (user_id, signature_image) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature_image = VALUES(signature_image)`,
@@ -148,7 +155,7 @@ const myManagedDeptId = async (conn: any, req: Request): Promise<number | null> 
 
 // ---------- รายการ / รายละเอียด ----------
 export async function index(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const companyId = companyIdOf(req), me = req.user!.id
   // HR = มีสิทธิ์พิจารณา + อยู่แผนก HR Div. (กัน role user ที่โดนแถมสิทธิ์มองเห็นทั้งบริษัท)
   const isHr = has(req, PERM.review) && String((req.user as any)?.department ?? '').trim().toLowerCase() === 'hr div.'
@@ -228,7 +235,7 @@ const DETAIL_SQL: Record<Kind, string> = {
 }
 
 export async function show(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id, isHr = has(req, PERM.review)
   const detailRoleName = String(req.user!.role?.name ?? '')
   const detailIsExec = detailRoleName === 'executive'
@@ -509,7 +516,7 @@ export async function store(req: Request, res: Response) {
 
 // ---------- อนุมัติ / ไม่อนุมัติ / ยกเลิก ----------
 async function decide(req: Request, res: Response, action: 'approve' | 'reject') {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id, isHr = has(req, PERM.review)
   const note = nz(req.body?.note)
   if (action === 'reject' && !note) throw httpError(400, 'กรุณาระบุเหตุผลที่ไม่อนุมัติ')
@@ -590,7 +597,7 @@ export const approve = (req: Request, res: Response) => decide(req, res, 'approv
 export const reject = (req: Request, res: Response) => decide(req, res, 'reject')
 
 export async function cancel(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const id = idParam(req)
   const companyId = companyIdOf(req)
   const [result] = await db.execute<any>(
@@ -655,7 +662,7 @@ const LIST_JOINS = `JOIN users eu ON eu.id = r.employee_user_id
 const listRow = (row: any) => ({ ...camelize(row), days: row.days === null ? null : Number(row.days), otHours: row.ot_hours === null ? null : Number(row.ot_hours) })
 
 export async function notifications(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const [rows] = await db.query<any[]>(
     `SELECT n.id AS notification_id, n.event, n.is_read, n.created_at, ${LIST_COLUMNS}
        FROM employee_request_notifications n
@@ -668,7 +675,7 @@ export async function notifications(req: Request, res: Response) {
 }
 
 export async function readNotifications(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const id = req.body?.id === undefined ? null : Number(req.body.id)
   if (id !== null && (!Number.isSafeInteger(id) || id < 1)) throw httpError(400, 'Invalid notification id')
   await db.execute(
@@ -680,7 +687,7 @@ export async function readNotifications(req: Request, res: Response) {
 
 // ---------- badge (sidebar): เอกสารรอตนเซ็น + แจ้งเตือนยังไม่อ่าน ----------
 export async function badges(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const companyId = companyIdOf(req), me = req.user!.id
   const myRole = String(req.user!.role?.name ?? '')
   const isExec = myRole === 'executive', isAdmin = myRole === 'admin'
@@ -704,7 +711,7 @@ export async function badges(req: Request, res: Response) {
 
 // ---------- สรุปสำหรับ dashboard (เอกสารของตัวเอง + โควตาลาคงเหลือ) ----------
 export async function dashboardSummary(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const companyId = companyIdOf(req), me = req.user!.id, today = todayBangkok()
   const [policyRowData] = await db.query<any[]>(
     `${POLICY_SELECT} WHERE company_id = ? AND is_active = 1
@@ -757,7 +764,7 @@ export async function dashboardSummary(req: Request, res: Response) {
 // ---------- รายชื่อพนักงาน + โควตาลา (หน้า ledger) ----------
 // มองเห็น: admin/HR เห็นทั้งบริษัท · ผู้จัดการเห็นลูกน้องในแผนกตัวเอง · คนอื่นเห็นตัวเอง
 export async function people(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const me = req.user!.id
   // HR = มีสิทธิ์พิจารณา + อยู่แผนก HR Div.
   const isHr = has(req, PERM.review) && String((req.user as any)?.department ?? '').trim().toLowerCase() === 'hr div.'
@@ -790,7 +797,7 @@ export async function people(req: Request, res: Response) {
 }
 
 export async function outingReport(req: Request, res: Response) {
-  need(req, PERM.access)
+  needDocumentModule(req)
   const companyId = companyIdOf(req), me = req.user!.id
   const roleName = String(req.user!.role?.name ?? '').trim().toLowerCase()
   const departmentName = String(req.user!.department ?? '').trim().toLowerCase()

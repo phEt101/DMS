@@ -304,10 +304,7 @@ export async function syncPermissions(
       }
     }
 
-    await connection.execute(
-      `DELETE FROM role_permissions WHERE role_id = ?`,
-      [id],
-    );
+    await connection.execute(`DELETE FROM role_permissions WHERE role_id = ?`, [id]);
 
     await connection.execute(
       `UPDATE roles SET is_active = ? WHERE id = ?`,

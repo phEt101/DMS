@@ -72,6 +72,9 @@ interface CreateUserInput extends Required<Omit<UserWriteInput, "department" | "
 interface FindUsersOptions {
   search?: string;
   status?: "all" | "active" | "inactive";
+  role?: string;
+  companyId?: number;
+  departmentId?: number;
   limit?: number;
   offset?: number;
 }
@@ -108,12 +111,12 @@ async function resolveRoleId(name: string) {
   return rows[0].id;
 }
 
-async function resolveDepartmentId(name: string | null) {
+async function resolveDepartmentId(name: string | null, companyId: number) {
   if (!name) return null;
   const [rows] = await db.execute<(RowDataPacket & { id: number })[]>(
     // ไม่บังคับ is_active เพื่อให้ยังอ้างอิงแผนกเดิมที่ถูกปิดใช้งานได้ (เช่นตอนแก้ไขพนักงานที่ยังสังกัดแผนกนั้น)
-    "SELECT id FROM departments WHERE name = ? AND deleted_at IS NULL LIMIT 1",
-    [name],
+    "SELECT id FROM departments WHERE company_id = ? AND name = ? AND deleted_at IS NULL LIMIT 1",
+    [companyId, name],
   );
   if (!rows[0]) throw httpError(400, "Invalid department");
   return rows[0].id;
@@ -130,6 +133,9 @@ async function resolveCompanyId(id: number) {
 export async function findAll({
   search = "",
   status = "all",
+  role = "",
+  companyId,
+  departmentId,
   limit = 20,
   offset = 0,
 }: FindUsersOptions = {}) {
@@ -141,6 +147,18 @@ export async function findAll({
   }
   if (status === "active") conditions.push("users.is_active = 1");
   if (status === "inactive") conditions.push("users.is_active = 0");
+  if (role) {
+    conditions.push("roles.name = ?");
+    values.push(role);
+  }
+  if (companyId) {
+    conditions.push("users.company_id = ?");
+    values.push(companyId);
+  }
+  if (departmentId) {
+    conditions.push("users.department_id = ?");
+    values.push(departmentId);
+  }
 
   const where = `WHERE ${conditions.join(" AND ")}`;
   const [countRows] = await db.query<(RowDataPacket & { total: number })[]>(
@@ -195,9 +213,9 @@ export async function create({
   otherLeaveDays,
   emailNotificationsEnabled,
 }: CreateUserInput) {
-  const roleId = await resolveRoleId(role);
-  const departmentId = await resolveDepartmentId(department);
   const resolvedCompanyId = await resolveCompanyId(companyId);
+  const roleId = await resolveRoleId(role);
+  const departmentId = await resolveDepartmentId(department, resolvedCompanyId);
   const connection = await db.getConnection();
   let userId: number;
   try {
@@ -228,20 +246,24 @@ export async function create({
 export async function update(id: number | string, input: UserWriteInput) {
   const normalized: Record<string, string | number | boolean | null> = { ...input };
   const current = await findById(id);
+  if (!current) return null;
+  const resolvedCompanyId = input.companyId !== undefined
+    ? await resolveCompanyId(input.companyId)
+    : current.companyId;
   if (input.role !== undefined && input.role !== current?.role) {
     normalized.roleId = await resolveRoleId(input.role);
     delete normalized.role;
   } else if (input.role !== undefined) {
     delete normalized.role;
   }
-  if (input.department !== undefined && input.department !== (current?.department ?? "")) {
-    normalized.departmentId = await resolveDepartmentId(input.department);
+  if (input.department !== undefined || (input.companyId !== undefined && input.companyId !== current.companyId)) {
+    normalized.departmentId = await resolveDepartmentId(input.department ?? current.department, resolvedCompanyId);
     delete normalized.department;
   } else if (input.department !== undefined) {
     // แผนกไม่เปลี่ยน — ไม่ต้อง resolve/update ที่ DB
     delete normalized.department;
   }
-  if (input.companyId !== undefined) normalized.companyId = await resolveCompanyId(input.companyId)
+  if (input.companyId !== undefined) normalized.companyId = resolvedCompanyId
   const userFields: string[] = [];
   const userValues: Array<string | number | boolean | null> = [];
   const userColumns = {

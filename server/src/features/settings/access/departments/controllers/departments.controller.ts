@@ -13,6 +13,11 @@ function validate(body: unknown, partial = false): DepartmentInput {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw httpError(400, 'Request body must be an object')
   const input = body as Record<string, unknown>
   const output: DepartmentInput = {}
+  if (!partial || Object.hasOwn(input, 'companyId')) {
+    const companyId = Number(input.companyId)
+    if (!Number.isSafeInteger(companyId) || companyId < 1) throw httpError(400, 'Valid company is required')
+    output.companyId = companyId
+  }
   if (!partial || Object.hasOwn(input, 'name')) {
     const name = typeof input.name === 'string' ? input.name.trim() : ''
     if (!name || name.length > 150) throw httpError(400, 'Valid department name is required')
@@ -22,13 +27,17 @@ function validate(body: unknown, partial = false): DepartmentInput {
     if (typeof input.isActive !== 'boolean') throw httpError(400, 'isActive must be a boolean')
     output.isActive = input.isActive
   } else if (!partial) output.isActive = true
+  if (Object.hasOwn(input, 'moduleIds')) {
+    if (!Array.isArray(input.moduleIds) || input.moduleIds.some((value) => !Number.isSafeInteger(value) || Number(value) < 1)) throw httpError(400, 'moduleIds must contain positive integers')
+    output.moduleIds = [...new Set(input.moduleIds.map(Number))]
+  } else if (!partial) output.moduleIds = []
   return output
 }
 
 function collectChanges(current: departments.DepartmentRow, input: DepartmentInput) {
   return (Object.keys(input) as Array<keyof DepartmentInput>).flatMap((field) => {
-    const from = field === 'isActive' ? Boolean(current[field]) : current[field]
-    const to = field === 'isActive' ? Boolean(input[field]) : input[field]
+    const from = field === 'isActive' ? Boolean(current[field]) : field === 'moduleIds' ? [...current.moduleIds].sort().join(',') : current[field]
+    const to = field === 'isActive' ? Boolean(input[field]) : field === 'moduleIds' ? [...(input.moduleIds ?? [])].sort().join(',') : input[field]
     return from === to ? [] : [{ field, from, to }]
   })
 }
@@ -37,7 +46,7 @@ export const index: RequestHandler = async (_req, res) => res.json({ data: await
 
 export const store: RequestHandler = async (req, res) => {
   const input = validate(req.body) as Required<DepartmentInput>
-  if (await departments.findDuplicate(input.name)) throw httpError(409, 'Department name already exists')
+  if (await departments.findDuplicate(input.companyId, input.name)) throw httpError(409, 'Department name already exists in this company')
   const data = await departments.create(input)
   await logActivity({
     userId: req.user?.id,
@@ -57,7 +66,7 @@ export const patch: RequestHandler = async (req, res) => {
   if (!current) throw httpError(404, 'Department not found')
   const input = validate(req.body, true)
   const changes = collectChanges(current, input)
-  if (await departments.findDuplicate(input.name ?? current.name, departmentId)) throw httpError(409, 'Department name already exists')
+  if (await departments.findDuplicate(input.companyId ?? current.companyId, input.name ?? current.name, departmentId)) throw httpError(409, 'Department name already exists in this company')
   const data = await departments.update(departmentId, input)
   if (changes.length > 0) {
     const statusChange = changes.length === 1 && changes[0]?.field === 'isActive'

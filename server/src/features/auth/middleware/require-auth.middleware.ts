@@ -41,6 +41,7 @@ export const requireAuth: RequestHandler = async (
   const permissions = await authRepository.findActivePermissionsByRoleId(
     session.roleId,
   );
+  const departmentModules = await authRepository.findActiveModuleNamesByDepartmentId(session.departmentId);
 
   req.user = {
     id: session.userId,
@@ -48,6 +49,7 @@ export const requireAuth: RequestHandler = async (
     name: session.name,
     company: { id: session.companyId, name: session.companyName, logoUrl: session.companyLogoUrl },
     department: session.departmentName,
+    departmentModules,
     role: {
       id: session.roleId,
       name: session.roleName,

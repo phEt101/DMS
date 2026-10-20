@@ -162,9 +162,18 @@ export const index: RequestHandler = async (req, res) => {
   const status = req.query.status === "active" || req.query.status === "inactive"
     ? req.query.status
     : "all";
+  const optionalId = (value: unknown) => {
+    if (value === undefined || value === "" || value === "all") return undefined;
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed) || parsed < 1) throw httpError(400, "Invalid filter id");
+    return parsed;
+  };
   const result = await users.findAll({
     search: typeof req.query.search === "string" ? req.query.search.trim() : "",
     status,
+    role: typeof req.query.role === "string" && req.query.role !== "all" ? req.query.role.trim() : "",
+    companyId: optionalId(req.query.companyId),
+    departmentId: optionalId(req.query.departmentId),
     limit,
     offset: (page - 1) * limit,
   });

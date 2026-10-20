@@ -10,6 +10,7 @@ export interface AuthUserRow extends RowDataPacket {
   companyName: string;
   companyLogoUrl: string | null;
   departmentName: string | null;
+  departmentId: number | null;
   isActive: boolean;
   roleId: number;
   roleName: string;
@@ -35,6 +36,7 @@ export interface AuthSessionRow extends RowDataPacket {
   companyName: string;
   companyLogoUrl: string | null;
   departmentName: string | null;
+  departmentId: number | null;
   userIsActive: boolean;
   roleId: number;
   roleName: string;
@@ -61,6 +63,7 @@ export async function findUserByEmail(
             companies.id AS companyId,
             companies.name AS companyName,
             companies.logo_url AS companyLogoUrl,
+            departments.id AS departmentId,
             departments.name AS departmentName,
             users.is_active AS isActive,
             roles.id AS roleId,
@@ -71,10 +74,15 @@ export async function findUserByEmail(
             ON roles.id = users.role_id
         LEFT JOIN departments
             ON departments.id = users.department_id
+            AND departments.company_id = users.company_id
+            AND departments.deleted_at IS NULL
         INNER JOIN companies ON companies.id = users.company_id
         WHERE users.email = ? 
             AND users.deleted_at IS NULL
             AND roles.deleted_at IS NULL
+            AND companies.is_active = 1
+            AND companies.deleted_at IS NULL
+            AND (users.department_id IS NULL OR departments.id IS NOT NULL)
         LIMIT 1`,
     [email],
   );
@@ -114,6 +122,7 @@ export async function findSessionByTokenHash(
        companies.id AS companyId,
        companies.name AS companyName,
        companies.logo_url AS companyLogoUrl,
+       departments.id AS departmentId,
        departments.name AS departmentName,
        users.is_active AS userIsActive,
 
@@ -131,6 +140,8 @@ export async function findSessionByTokenHash(
 
      LEFT JOIN departments
        ON departments.id = users.department_id
+       AND departments.company_id = users.company_id
+       AND departments.deleted_at IS NULL
      INNER JOIN companies ON companies.id = users.company_id
 
      WHERE user_sessions.token_hash = ?
@@ -138,6 +149,9 @@ export async function findSessionByTokenHash(
        AND user_sessions.expires_at > CURRENT_TIMESTAMP
        AND users.deleted_at IS NULL
        AND roles.deleted_at IS NULL
+       AND companies.is_active = 1
+       AND companies.deleted_at IS NULL
+       AND (users.department_id IS NULL OR departments.id IS NOT NULL)
 
      LIMIT 1`,
     [tokenHash],
@@ -165,6 +179,18 @@ export async function findActivePermissionsByRoleId(
     [roleId],
   );
   return rows;
+}
+
+export async function findActiveModuleNamesByDepartmentId(departmentId: number | null): Promise<string[]> {
+  if (!departmentId) return [];
+  const [rows] = await db.execute<(RowDataPacket & { name: string })[]>(
+    `SELECT permission_modules.name FROM department_modules
+     INNER JOIN permission_modules ON permission_modules.id = department_modules.module_id
+     WHERE department_modules.department_id = ? AND permission_modules.is_active = 1
+       AND permission_modules.deleted_at IS NULL ORDER BY permission_modules.sort_order`,
+    [departmentId],
+  );
+  return rows.map((row) => row.name);
 }
 
 export async function updateSessionLastUsed(

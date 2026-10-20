@@ -25,6 +25,7 @@ export interface AuthenticatedUser {
   name: string;
   company: { id: number; name: string; logoUrl: string | null };
   department: string | null;
+  departmentModules: string[];
   role: {
     id: number;
     name: string;
@@ -95,6 +96,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
   });
 
   const permissions = await authRepository.findActivePermissionsByRoleId(user.roleId);
+  const departmentModules = await authRepository.findActiveModuleNamesByDepartmentId(user.departmentId);
 
   return {
     token,
@@ -105,6 +107,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
       name: user.name,
       company: { id: user.companyId, name: user.companyName, logoUrl: user.companyLogoUrl },
       department: user.departmentName,
+      departmentModules,
       role: {
         id: user.roleId,
         name: user.roleName,

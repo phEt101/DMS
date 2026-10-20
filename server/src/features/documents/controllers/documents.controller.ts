@@ -9,6 +9,11 @@ function requireDocumentPermission(req: Request, permissionName: string) {
   if (!req.user?.permissions.some((permission) => permission.name === permissionName)) throw httpError(403, 'ไม่มีสิทธิ์ดำเนินการกับเอกสาร')
 }
 
+function requireDocumentModule(req: Request) {
+  const isAdmin = req.user?.role.name.trim().toLowerCase() === 'admin'
+  if (!isAdmin && !req.user?.departmentModules.includes('documents')) throw httpError(403, 'ไม่มีสิทธิ์เข้าถึงเอกสาร')
+}
+
 function publicRow(row: any) {
   return {
     id: row.id,
@@ -28,7 +33,7 @@ function publicRow(row: any) {
 }
 
 export async function index(req: Request, res: Response) {
-  requireDocumentPermission(req, 'เข้าถึงเมนูเอกสาร')
+  requireDocumentModule(req)
   const status = String(req.query.status ?? 'all')
   const allowed = ['all', 'pending', 'approved', 'rejected']
   if (!allowed.includes(status)) throw httpError(400, 'Invalid document status')
@@ -47,6 +52,7 @@ export async function index(req: Request, res: Response) {
 }
 
 export async function store(req: Request, res: Response) {
+  requireDocumentModule(req)
   requireDocumentPermission(req, 'ยื่นเอกสาร')
   const title = String(req.body?.title ?? '').trim()
   const description = String(req.body?.description ?? '').trim() || null
@@ -75,6 +81,7 @@ export async function store(req: Request, res: Response) {
 }
 
 export async function review(req: Request, res: Response) {
+  requireDocumentModule(req)
   requireDocumentPermission(req, 'พิจารณาเอกสาร')
   const id = Number(req.params.id)
   const status = req.body?.status
@@ -91,7 +98,7 @@ export async function review(req: Request, res: Response) {
 }
 
 export async function file(req: Request, res: Response) {
-  requireDocumentPermission(req, 'เข้าถึงเมนูเอกสาร')
+  requireDocumentModule(req)
   const id = Number(req.params.id)
   if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, 'Invalid document id')
   const [rows] = await db.execute<any[]>(`SELECT storage_path, original_name, mime_type FROM documents WHERE id = ? LIMIT 1`, [id])
@@ -105,6 +112,7 @@ export async function file(req: Request, res: Response) {
 }
 
 export async function destroy(req: Request, res: Response) {
+  requireDocumentModule(req)
   requireDocumentPermission(req, 'ลบเอกสาร')
   const id = Number(req.params.id)
   if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, 'Invalid document id')
