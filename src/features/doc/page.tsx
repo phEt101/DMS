@@ -12,6 +12,7 @@ import DocNotificationsPanel from './notifications/components/doc-notifications-
 import DocLeaveLedgerSummary from './leave-ledger/components/doc-leave-ledger-summary'
 import DocNewDocumentModal from './submission/components/doc-new-document-modal'
 import DocPendingApproval from './pending-approval/components/doc-pending-approval'
+import { PaginationFooter } from '../../components/pagination-footer'
 import type { DocKind, FormValues, MockDocument, MockEmployee, MockNotification, MockPolicy, SignatureStage, Status } from './document-types'
 import { listUsers, type User } from '../settings/users/services/users.service'
 import { useAuth } from '../auth/hooks/use-auth'
@@ -33,6 +34,7 @@ const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; i
   ot: { title: 'ขอทำงานล่วงเวลา (OT)', description: 'ขออนุมัติวันและเวลาทำงานล่วงเวลา', icon: FaClock, group: 'ot' },
   timefix: { title: 'ขอแก้ไขเวลาเข้า–ออกงาน', description: 'แจ้งลืมสแกนหรือแก้ไขเวลาเข้างาน', icon: FaFileLines, group: 'other' },
   wfh: { title: 'ขอทำงานนอกสถานที่ / WFH', description: 'แจ้งสถานที่และแผนงานในวันที่ทำงาน', icon: FaHouse, group: 'other' },
+  // outing รวมกับ wfh แล้ว (เลือกย่อยในฟอร์ม) และ swap ถูกยกเลิกการใช้งาน — ทั้งสองซ่อนจากหน้าเลือกประเภท แต่คงไว้เพื่อเอกสารเก่า
   outing: { title: 'ขอออกนอกสถานที่', description: 'ขออนุญาตออกไปปฏิบัติงานระหว่างวัน', icon: FaLocationDot, group: 'other' },
   swap: { title: 'ขอสลับวันหยุด / วันทำงาน', description: 'ขอหยุดและระบุวันที่มาทำงานชดเชย', icon: FaRotate, group: 'other' },
 }
@@ -43,7 +45,7 @@ const FORM_FIELDS_DEFAULT: Record<DocKind, Array<{ key: string; label: string; t
   timefix:[{key:'date',label:'วันที่ต้องการแก้ไข',type:'date'},{key:'cause',label:'สาเหตุ',type:'select',options:{forgot:'ลืมสแกนนิ้ว',device:'เครื่องสแกนขัดข้อง',offsite:'ปฏิบัติงานนอกสถานที่',other:'อื่น ๆ'}},{key:'inTime',label:'เวลาเข้างานที่ถูกต้อง',type:'time'},{key:'outTime',label:'เวลาออกงานที่ถูกต้อง',type:'time'},{key:'reason',label:'รายละเอียด',type:'textarea',wide:true}],
   wfh:[{key:'from',label:'ตั้งแต่วันที่',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'days',label:'จำนวนวันทำงาน',type:'number',step:.5,wide:true},{key:'place',label:'สถานที่ทำงาน',type:'text',wide:true},{key:'plan',label:'แผนงานที่จะทำ',type:'textarea',wide:true}],
   outing:[{key:'date',label:'วันที่',type:'date',wide:true},{key:'outTime',label:'เวลาออก',type:'time'},{key:'backTime',label:'เวลากลับโดยประมาณ',type:'time'},{key:'company',label:'บริษัท',type:'text',wide:true},{key:'project',label:'โครงการ',type:'text',wide:true},{key:'customerName',label:'ชื่อลูกค้า',type:'text'},{key:'customerPosition',label:'ตำแหน่ง',type:'text'},{key:'phone',label:'เบอร์โทร',type:'text',wide:true},{key:'workDetails',label:'รายละเอียดงาน',type:'textarea',wide:true},{key:'remark',label:'หมายเหตุ',type:'textarea',wide:true}],
-  swap:[{key:'offDate',label:'วันที่ขอหยุด',type:'date'},{key:'workDate',label:'วันที่มาทำงานแทน',type:'date'},{key:'reason',label:'เหตุผล',type:'textarea',wide:true}],
+  swap:[],
 }
 
 const daysBetween = (from: string, to: string) => {
@@ -192,6 +194,8 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const [draftStatus, setDraftStatus] = useState('all')
   const [draftKind, setDraftKind] = useState('all')
   const [layout, setLayout] = useState<'grid' | 'list'>('grid')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [formOpen, setFormOpen] = useState(false)
   const [selectedKind, setSelectedKind] = useState<DocKind | ''>('')
   const [formValues, setFormValues] = useState<FormValues>({})
@@ -352,6 +356,13 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documents, kindFilter, mockRole, search, statusFilter, view, copy])
+
+  // แบ่งหน้า (เหมือนหน้าจอ survey): ทั้ง pending และ all ใช้ pagination
+  const totalDocs = visibleDocs.length
+  const totalPages = Math.max(Math.ceil(totalDocs / pageSize), 1)
+  const pageSafe = Math.max(1, Math.min(page, totalPages))
+  const pagedDocs = visibleDocs.slice((pageSafe - 1) * pageSize, pageSafe * pageSize)
+  const resetPage = () => setPage(1)
 
   // สมุดบันทึกการลา: โหมด DB แสดงของตัวเองเป็นค่าเริ่มต้น (ถ้าอยู่ในรายชื่อ) — ถ้าจะดูของคนอื่นค่อยเลือกจาก dropdown
   useEffect(() => {
@@ -588,12 +599,12 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
 
   return <section className="feature-page documents-page">
     <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
-    {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'employees' ? copy.employeesSubtitle : view === 'policy' ? copy.policySubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
+    {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
     {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} copy={copy} />}
 
     {view === 'ledger' && <DocLeaveLedgerSummary employees={employees} employee={ledgerEmployee} employeeId={ledgerEmployeeId} onEmployee={setLedgerEmployeeId} rows={ledgerRows} statusInfo={STATUS_INFO} onExport={exportLedgerCsv} copy={copy} />}
 
-    {view === 'employees' && <DocDatabaseEmployeesPanel users={dbEmployees} companyId={user?.company?.id ?? 0} companyName={user?.company?.name ?? ''} loading={dbEmployeesLoading} error={dbEmployeesError} query={employeeQuery} onQuery={setEmployeeQuery} onUpdated={(updated) => setDbEmployees((current) => current.map((employee) => employee.id === updated.id ? updated : employee))} onCreated={(created) => setDbEmployees((current) => [created, ...current])} copy={copy} />}
+    {view === 'employees' && <DocDatabaseEmployeesPanel users={dbEmployees} title={pageTitle} subtitle={copy.employeesSubtitle} companyId={user?.company?.id ?? 0} companyName={user?.company?.name ?? ''} loading={dbEmployeesLoading} error={dbEmployeesError} query={employeeQuery} onQuery={setEmployeeQuery} onUpdated={(updated) => setDbEmployees((current) => current.map((employee) => employee.id === updated.id ? updated : employee))} onCreated={(created) => setDbEmployees((current) => [created, ...current])} copy={copy} />}
 
     {view === 'policy' && <DocLeavePolicySettings
       policyDraft={policyDraft}
@@ -623,18 +634,28 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       search={search} onSearch={setSearch} layout={layout} onLayout={setLayout} status={statusFilter} kind={kindFilter}
       draftStatus={draftStatus} draftKind={draftKind} onDraftStatus={setDraftStatus} onDraftKind={setDraftKind}
       filterOpen={filterOpen} onToggle={() => { setDraftStatus(statusFilter); setDraftKind(kindFilter); setFilterOpen(open => !open) }} count={visibleDocs.length}
-      onApply={() => { setStatusFilter(draftStatus); setKindFilter(draftKind); setFilterOpen(false) }}
-      onReset={() => { setDraftStatus('all'); setDraftKind('all'); setStatusFilter('all'); setKindFilter('all'); setFilterOpen(false) }} copy={copy}
+      onApply={() => { setStatusFilter(draftStatus); setKindFilter(draftKind); setPage(1); setFilterOpen(false) }}
+      onReset={() => { setDraftStatus('all'); setDraftKind('all'); setStatusFilter('all'); setKindFilter('all'); setPage(1); setFilterOpen(false) }} copy={copy}
     />}
 
     {view === 'all' && <DocAllDocumentsList
-      documents={visibleDocs} layout={layout} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
+      documents={pagedDocs} layout={layout} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
       onSelect={setSelectedDocumentId}
       onCancel={(id) => { if (USE_DB) void dbCancel(id); else setDocuments((current) => current.filter((doc) => doc.id !== id)) }}
       canCancel={USE_DB ? false : canCancel} copy={copy}
     />}
+    {view === 'all' && totalDocs > 0 && <PaginationFooter
+      page={pageSafe} pageSize={pageSize} total={totalDocs}
+      labels={{ previous: copy.filters.previous, next: copy.filters.next, page: copy.filters.page, perPage: copy.filters.perPage }}
+      onPageChange={(p: number) => setPage(Math.max(1, Math.min(p, totalPages)))}
+      onPageSizeChange={(s: number) => { setPageSize(s); setPage(1) }}
+    />}
     {view === 'pending' && <DocPendingApproval
-      documents={visibleDocs} mockRole={mockRole} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
+      documents={pagedDocs} totalDocs={totalDocs} page={pageSafe} totalPages={totalPages} pageSize={pageSize}
+      layout={layout} onLayout={setLayout} search={search} onSearch={(value) => { setSearch(value); setPage(1) }}
+      onPageChange={(p) => setPage(Math.max(1, Math.min(p, totalPages)))}
+      onPageSizeChange={(s) => { setPageSize(s); setPage(1) }} mockRole={mockRole}
+      kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
       onSelect={setSelectedDocumentId}
       onCancel={(id) => { if (!USE_DB) setDocuments((current) => current.filter((doc) => doc.id !== id)) }} copy={copy}
     />}
@@ -664,7 +685,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       onSubmit={submitMock}
       onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}) }}
       onClearKind={() => { setSelectedKind(''); setFormValues({}) }}
-      onPickKind={(kind) => { setSelectedKind(kind); setFormValues(Object.fromEntries(FORM_FIELDS[kind].map(field => [field.key, field.type === 'select' ? Object.keys(field.options ?? {})[0] : field.type === 'checkbox' ? false : '']))) }}
+      onPickKind={(kind) => { setSelectedKind(kind); setFormValues((current) => (kind === 'wfh' || kind === 'outing') && (selectedKind === 'wfh' || selectedKind === 'outing') ? current : Object.fromEntries(FORM_FIELDS[kind].map(field => [field.key, field.type === 'select' ? Object.keys(field.options ?? {})[0] : field.type === 'checkbox' ? false : '']))) }}
       onChange={updateFormValue}
     />
     {toast && <div className="documents-toast" role="status">{toast}</div>}

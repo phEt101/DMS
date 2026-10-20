@@ -49,6 +49,24 @@
   font-weight: 600;
 }
 
+.outing-report-filters .employee-search-select {
+  min-width: 240px;
+}
+
+.outing-report-filters .employee-search-select > input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #e3e8f2;
+  border-radius: 14px;
+  background: #f7f9fc;
+  color: #1c2540;
+  font: inherit;
+}
+
+.outing-report-filters .employee-search-options {
+  top: calc(100% + 2px);
+}
+
 .outing-report-filters input[type="date"],
 .outing-report-filters select {
   height: 44px;

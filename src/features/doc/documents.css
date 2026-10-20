@@ -72,6 +72,13 @@
 .documents-cards.is-list .documents-review-note { grid-area:note; min-width:0; margin:0; overflow-wrap:anywhere; }
 .documents-empty { padding:40px 18px; border:2px dashed #e3e8f2; border-radius:20px; color:#6a7592; text-align:center; }
 .documents-ledger-summary { display:grid; grid-template-columns:1fr auto; gap:8px 15px; margin-bottom:18px; padding:18px; border:1px solid #e3e8f2; border-radius:18px; background:#fff; }
+.employee-search-select { position:relative; display:flex; min-width:200px; flex-direction:column; gap:5px; color:#35405d; font-size:13px; }
+.employee-search-select-label { font-weight:700; }
+.employee-search-select > input { width:100%; min-height:42px; padding:0 12px; border:1px solid #e3e8f2; border-radius:11px; background:#fff; color:#1c2540; font:inherit; }
+.employee-search-options { position:absolute; z-index:80; top:100%; left:0; display:grid; width:100%; max-height:240px; overflow:auto; padding:4px; border:1px solid #e3e8f2; border-radius:11px; background:#fff; box-shadow:0 12px 30px #10162924; }
+.employee-search-options button { min-height:36px; padding:7px 10px; border:0; border-radius:7px; background:transparent; color:#35405d; font:inherit; text-align:left; cursor:pointer; }
+.employee-search-options button:hover,.employee-search-options button.is-active { background:#f2f0ff; color:#5143e8; }
+.employee-search-empty { padding:8px 10px; color:#6a7592; }
 .documents-ledger-summary > span { color:#6a7592; }
 .documents-balances { display:flex; flex-wrap:wrap; gap:10px; grid-column:1/-1; }
 .documents-balances span { padding:9px 12px; border-radius:12px; background:#f7f9fc; color:#6a7592; font-size:13px; }
@@ -235,8 +242,7 @@
 .documents-card-foot .is-cancel { border-color:#fde4ee; background:#fff6f9; color:#b42357; }
 .leave-ledger-screen { margin-top:18px; }
 .leave-ledger-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin:0 0 15px; }
-.leave-ledger-toolbar label { display:flex; align-items:center; gap:9px; margin-right:auto; font-weight:700; }
-.leave-ledger-toolbar select { height:44px; padding:0 13px; border:1px solid #e3e8f2; border-radius:14px; background:#f7f9fc; color:#283451; font:inherit; }
+.leave-ledger-toolbar .employee-search-select { min-width:min(320px,100%); margin-right:auto; }
 .leave-ledger-toolbar button { display:inline-flex; align-items:center; justify-content:center; min-height:42px; padding:0 15px; border:1px solid #e3e8f2; border-radius:13px; background:#fff; color:#35405d; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
 .leave-ledger-toolbar button:hover { border-color:#5143e8; color:#5143e8; }
 .leave-sheet-scroll { overflow:auto; border:1px solid #e3e8f2; border-radius:18px; background:#fff; }
@@ -276,6 +282,7 @@
   .documents-tools { align-items:stretch; }
   .documents-filter-tools { width:100%; justify-content:space-between; margin-left:0; }
   .documents-search { flex-basis:100%; }
+  .employee-search-select { min-width:100%; }
   .documents-tools select { flex:1 1 130px; }
   .documents-view-toggle { margin-left:auto; }
   .documents-cards.is-list .documents-card { display:flex; align-items:stretch; gap:0; }
@@ -306,7 +313,8 @@
 }
 @media (prefers-color-scheme:dark) {
   .documents-page { color:#e8ecf6; }
-  .documents-mock-note,.documents-search,.documents-stat,.documents-tools select,.documents-view-toggle,.documents-filter-trigger,.documents-filter-panel,.documents-card,.documents-ledger-summary,.documents-modal,.documents-ledger-table-wrap,.documents-employee-card,.documents-notification,.documents-email-preview article { background:#161d2d; border-color:#27304a; color:#e8ecf6; }
+  .documents-mock-note,.documents-search,.documents-stat,.documents-tools select,.documents-view-toggle,.documents-filter-trigger,.documents-filter-panel,.documents-card,.documents-ledger-summary,.documents-modal,.documents-ledger-table-wrap,.documents-employee-card,.documents-notification,.documents-email-preview article,.employee-search-select > input,.employee-search-options { background:#161d2d; border-color:#27304a; color:#e8ecf6; }
+  .employee-search-select,.employee-search-options button { color:#e8ecf6; }
   .documents-search input,.documents-card h2,.documents-card-foot b,.documents-balances b,.documents-modal,.documents-modal input,.documents-modal textarea { color:#e8ecf6; }
   .documents-card-foot { border-color:#27304a; }
   .documents-detail-fields,.documents-signature-card { background:#1b2336; border-color:#27304a; }
