@@ -101,11 +101,6 @@
     })
   }
 
-  export const trashIndex: RequestHandler = async (_req, res) => {
-    const data = await projects.findAll({ deleted: true })
-    res.json({ data: data.map(publicProject) })
-  }
-
   export const show: RequestHandler = async (req, res) => {
     const data = await projectFromRoute(req.params.encryptedId)
     if (!data) return res.status(404).json({ message: 'Project not found' })
@@ -223,15 +218,6 @@
       ipAddress: req.ip,
     })
     res.status(204).end()
-  }
-
-  export const restore: RequestHandler = async (req, res) => {
-    const project = await projectFromRoute(req.params.encryptedId)
-    if (!project) return res.status(404).json({ message: 'Deleted project not found' })
-    const id = project.id
-    if (!await projects.restore(id)) return res.status(404).json({ message: 'Deleted project not found' })
-    const restored = await projects.findById(id)
-    res.json({ data: restored ? publicProject(restored) : null })
   }
 
   export const updateProjectStatus: RequestHandler = async (req, res) => {

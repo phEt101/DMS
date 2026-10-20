@@ -4,7 +4,7 @@ import { FaFilter } from "react-icons/fa6";
 import type { CommonTranslations, ProjectTranslations } from "../page";
 
 export interface ProjectFilters {
-  status: "" | "draft" | "approved" | "archived" | "trash";
+  status: "" | "draft" | "approved" | "archived";
   projectTypeId: string;
   dateFrom: string;
   dateTo: string;

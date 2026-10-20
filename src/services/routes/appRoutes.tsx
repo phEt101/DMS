@@ -4,7 +4,6 @@ import CmProjectsPage from '../../features/projects/projects-cm/page'
 import CmCreatePage from '../../features/projects/projects-cm/create'
 import SurveyPage from '../../features/projects/survey/page'
 import ReportPage from '../../features/report/page'
-import TrashPage from '../../features/trash/page'
 import SettingsAccessPage from '../../features/settings/access/page'
 import SettingsUsersPage from '../../features/settings/users/page'
 import SettingsActivityPage from '../../features/settings/activity/page'
@@ -20,7 +19,6 @@ export function buildPages(translations: Translations, language: Language, onNav
     'projects-cm-create': <CmCreatePage translations={translations} language={language} />,
     survey: <SurveyPage translations={translations} language={language} />,
     report: <ReportPage translations={translations} language={language} />,
-    trash: <TrashPage translations={translations} />,
     'settings-user': <SettingsUsersPage translations={translations} />,
     'settings-roles': <SettingsAccessPage translations={translations} section="roles" />,
     'settings-departments': <SettingsAccessPage translations={translations} section="departments" />,

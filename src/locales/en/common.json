@@ -291,11 +291,6 @@
         }
       }
     },
-    "trash": {
-      "kicker": "Trash",
-      "title": "Deleted items",
-      "subtitle": "Review and restore deleted files"
-    },
     "settingsUser": {
       "kicker": "Settings",
       "title": "User management",
@@ -393,7 +388,6 @@
         "projects": "Projects",
         "documents": "Document Management",
         "reports": "Reports",
-        "trash": "Trash",
         "users": "Users",
         "roles": "Roles and permissions",
         "departments": "Departments",
@@ -443,7 +437,6 @@
         "documents": "Document management",
         "survey": "Survey",
         "reports": "Reports",
-        "trash": "Trash",
         "activity_logs": "Activity log",
         "system": "System"
       },
@@ -631,7 +624,6 @@
       "dashboard": "Dashboard",
       "projects": "All Projects",
       "report": "Report",
-      "trash": "Trash",
       "companies": "Companies"
     }
   },

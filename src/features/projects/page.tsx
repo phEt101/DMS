@@ -39,7 +39,7 @@ export interface ApiProjectItem {
   plannedEndDate: string | null;
   projectManagerName: string | null;
   customerName: string | null;
-  status: "draft" | "approved" | "archived" | "trash";
+  status: "draft" | "approved" | "archived";
   createdAt: string | null;
   updatedAt: string | null;
   deletedAt: string | null;

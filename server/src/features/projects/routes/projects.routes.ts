@@ -6,12 +6,10 @@ import { equipmentImagesUpload } from '../middleware/equipment-images.middleware
 export const projectsRouter = Router()
 
 projectsRouter.get('/', asyncHandler(controller.index))
-projectsRouter.get('/trash', asyncHandler(controller.trashIndex))
 projectsRouter.get('/:encryptedId', asyncHandler(controller.show))
 projectsRouter.post('/', asyncHandler(controller.store))
 projectsRouter.patch('/:encryptedId', asyncHandler(controller.patch))
 projectsRouter.delete('/:encryptedId', asyncHandler(controller.destroy))
-projectsRouter.post('/:encryptedId/restore', asyncHandler(controller.restore))
 projectsRouter.patch('/:encryptedId/project-status', asyncHandler(controller.updateProjectStatus))
 projectsRouter.get('/:encryptedId/equipment', asyncHandler(controller.equipmentIndex))
 projectsRouter.post('/:encryptedId/equipment', asyncHandler(controller.equipmentStore))

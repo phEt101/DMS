@@ -12,7 +12,6 @@ export type PageKey =
   | 'documents-policy'
   | 'documents-notifications'
   | 'report'
-  | 'trash'
   | 'settings-user'
   | 'settings-roles'
   | 'settings-departments'
@@ -22,5 +21,5 @@ export type PageKey =
   | 'settings-activity'
 
 export const pageKeys: PageKey[] = [
-  'dashboard','projects','projects-cm','projects-cm-create','survey','documents','documents-all','documents-pending','documents-ledger','report','documents-employees','documents-policy','documents-notifications','trash','settings-user','settings-roles','settings-departments','settings-permissions','settings-modules','settings-companies','settings-activity'
+  'dashboard','projects','projects-cm','projects-cm-create','survey','documents','documents-all','documents-pending','documents-ledger','report','documents-employees','documents-policy','documents-notifications','settings-user','settings-roles','settings-departments','settings-permissions','settings-modules','settings-companies','settings-activity'
 ]

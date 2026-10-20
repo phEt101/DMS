@@ -34,7 +34,6 @@ interface ProjectInput {
 }
 
 interface FindOptions {
-  deleted?: boolean
   search?: string
   status?: ProjectRow['status']
   projectTypeId?: number
@@ -46,7 +45,7 @@ interface FindOptions {
 }
 
 function buildConditions(options: FindOptions) {
-  const conditions = [options.deleted ? 'd.deleted_at IS NOT NULL' : 'd.deleted_at IS NULL']
+  const conditions = ['d.deleted_at IS NULL']
   const values: Array<string | number> = []
 
   if (options.search) {
@@ -302,45 +301,6 @@ export async function trash(id: number | string, deletedBy: number | null) {
        JOIN pm_projects project ON project.id = detail.pm_project_id
        SET upload.is_deleted = 1, upload.deleted_at = CURRENT_TIMESTAMP, upload.deleted_by = ?
        WHERE project.project_id = ? AND upload.is_deleted = 0`, [deletedBy, id],
-    )
-    await connection.commit()
-    return true
-  } catch (error) {
-    await connection.rollback()
-    throw error
-  } finally {
-    connection.release()
-  }
-}
-
-export async function restore(id: number | string) {
-  const connection = await db.getConnection()
-  try {
-    await connection.beginTransaction()
-    const [result] = await connection.execute<ResultSetHeader>(
-      "UPDATE projects SET status = 'draft', deleted_at = NULL, deleted_by = NULL WHERE id = ? AND deleted_at IS NOT NULL", [id],
-    )
-    if (!result.affectedRows) { await connection.rollback(); return false }
-    await connection.execute(
-      `UPDATE pm_projects
-       SET project_status = 'planning', is_deleted = 0, deleted_at = NULL, deleted_by = NULL
-       WHERE project_id = ? AND is_deleted = 1`, [id],
-    )
-    await connection.execute(
-      `UPDATE pm_equipment detail JOIN pm_projects project ON project.id = detail.pm_project_id
-       SET detail.is_deleted = 0, detail.deleted_at = NULL, detail.deleted_by = NULL WHERE project.project_id = ? AND detail.is_deleted = 1`, [id],
-    )
-    await connection.execute(
-      `UPDATE pm_equipment_work_details item JOIN pm_equipment detail ON detail.id = item.pm_equipment_id
-       JOIN pm_projects project ON project.id = detail.pm_project_id
-       SET item.is_deleted = 0, item.deleted_at = NULL, item.deleted_by = NULL WHERE project.project_id = ? AND item.is_deleted = 1`, [id],
-    )
-    await connection.execute(
-      `UPDATE pm_equipment_uploads upload
-       JOIN pm_equipment detail ON detail.id = upload.pm_equipment_id
-       JOIN pm_projects project ON project.id = detail.pm_project_id
-       SET upload.is_deleted = 0, upload.deleted_at = NULL, upload.deleted_by = NULL
-       WHERE project.project_id = ? AND upload.is_deleted = 1`, [id],
     )
     await connection.commit()
     return true

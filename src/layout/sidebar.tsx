@@ -7,7 +7,6 @@ import {
   FaKey,
   FaShieldHalved,
   FaTableCellsLarge,
-  FaTrashCan,
   FaUser,
   FaWaveSquare,
 } from "react-icons/fa6";
@@ -25,7 +24,6 @@ const icons = {
   projects: FaFileLines,
   documents: FaFolderOpen,
   report: FaChartColumn,
-  trash: FaTrashCan,
   settings: FaGear,
   user: FaUser,
   activity: FaWaveSquare,
@@ -48,7 +46,6 @@ type SidebarItem =
   | "documents-policy"
   | "documents-notifications"
   | "report"
-  | "trash"
   | "settings-user"
   | "settings-roles"
   | "settings-departments"
@@ -178,7 +175,7 @@ export default function Sidebar({
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((module) => {
       const mainKey = module.name === "reports" ? "report" : module.name;
-      const key = ["dashboard", "projects", "documents", "report", "trash"].includes(mainKey)
+      const key = ["dashboard", "projects", "documents", "report"].includes(mainKey)
         ? mainKey as SidebarItem
         : `settings-${module.name}` as SidebarItem;
       const localizedLabel = sidebarTranslations.items?.[module.name as keyof typeof sidebarTranslations.items]
@@ -194,7 +191,7 @@ export default function Sidebar({
     });
 
   const mainItems = moduleItems.filter((item) =>
-    ["dashboard", "projects", "documents", "trash"].includes(item.key),
+    ["dashboard", "projects", "documents"].includes(item.key),
   );
   const accessItems = moduleItems.filter((item) => sidebarModuleKeys.has(item.key));
   const companiesIndex = accessItems.findIndex((item) => item.key === "settings-companies");
