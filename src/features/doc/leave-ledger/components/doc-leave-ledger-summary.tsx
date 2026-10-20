@@ -1,4 +1,5 @@
 import type { MockDocument, MockEmployee } from '../../document-types'
+import EmployeeSearchSelect from '../../../../components/employee-search-select'
 
 type Props = {
   employees: MockEmployee[]
@@ -18,9 +19,7 @@ export default function DocLeaveLedgerSummary({ employees, employee, employeeId,
 
   return <>
     <div className="documents-ledger-summary">
-      <label>{c.ledger.chooseEmployee}<select value={employeeId} onChange={(event) => onEmployee(event.target.value)}>
-        {employees.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}
-      </select></label>
+      <EmployeeSearchSelect label={c.ledger.chooseEmployee} value={employeeId} options={employees.map((person) => ({ id: person.id, name: person.name }))} onChange={onEmployee} />
       <span>{c.ledger.year} 2569</span>
       <div className="documents-balances">
         <span>{c.ledger.sick} <b>{employee.sick} {c.ledger.day} · {c.ledger.used} {used('sick')}</b></span>

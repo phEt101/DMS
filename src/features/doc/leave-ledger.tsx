@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import EmployeeSearchSelect from '../../components/employee-search-select'
 
 export interface LedgerPerson {
   id: string
@@ -59,7 +60,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
 
   return <div className="leave-ledger-screen">
     <div className="leave-ledger-toolbar">
-      {people.length > 1 && <label>{c.ledger.chooseEmployee}<select value={person.id} onChange={(event) => onPersonChange(event.target.value)}>{people.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label>}
+      {people.length > 1 && <EmployeeSearchSelect label={c.ledger.chooseEmployee} value={person.id} options={people.map((employee) => ({ id: employee.id, name: employee.name }))} onChange={onPersonChange} />}
       <button type="button" className="leave-export-btn is-excel" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportCsv() }}>{c.ledger.exportExcel}</button>
       <button type="button" className="leave-export-btn is-word" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportWord() }}>{c.ledger.word}</button>
       <button type="button" className="leave-export-btn is-pdf" onClick={() => { if (window.confirm(c.ledger.exportConfirmPdf)) window.print() }}>{c.ledger.pdf}</button>

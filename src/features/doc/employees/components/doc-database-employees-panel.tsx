@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { FaMagnifyingGlass, FaPlus, FaUser, FaXmark } from 'react-icons/fa6'
+import { FaFileLines, FaFilter, FaList, FaMagnifyingGlass, FaPlus, FaTableCellsLarge, FaUser, FaXmark } from 'react-icons/fa6'
+import { PaginationFooter } from '../../../../components/pagination-footer'
 import { createUser, updateUser, type User } from '../../../settings/users/services/users.service'
 import { listDepartments, type Department } from '../../../settings/access/departments/services/departments.service'
 import { listRoles, type Role } from '../../../settings/access/roles/services/roles.service'
@@ -7,6 +8,8 @@ import type { Translations } from '../../../../locales'
 
 type Props = {
   users: User[]
+  title: string
+  subtitle: string
   companyId: number
   companyName: string
   loading: boolean
@@ -25,7 +28,7 @@ type Draft = Pick<User, 'firstName' | 'lastName' | 'email' | 'role'> & {
 }
 type NewDraft = Draft & { password: string }
 
-export default function DocDatabaseEmployeesPanel({ users, companyId, companyName, loading, error, query, onQuery, onUpdated, onCreated, copy: c }: Props) {
+export default function DocDatabaseEmployeesPanel({ users, title, subtitle, companyId, companyName, loading, error, query, onQuery, onUpdated, onCreated, copy: c }: Props) {
   const [selected, setSelected] = useState<User | null>(null)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -35,7 +38,19 @@ export default function DocDatabaseEmployeesPanel({ users, companyId, companyNam
   const [departments, setDepartments] = useState<Department[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [newDraft, setNewDraft] = useState<NewDraft | null>(null)
-  const matches = useMemo(() => users.filter((user) => `${user.name} ${user.email} ${user.department ?? ''} ${user.role}`.toLocaleLowerCase('th').includes(query.toLocaleLowerCase('th'))), [users, query])
+  // filter แบบหน้าจัดการเอกสาร: ปุ่ม Filter เปิดแผ่นกรองแผนก/บทบาท (apply/reset)
+  const [departmentFilter, setDepartmentFilter] = useState('all')
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [draftDepartment, setDraftDepartment] = useState('all')
+  const [draftRole, setDraftRole] = useState('all')
+  const departmentOptions = useMemo(() => Array.from(new Set(users.map((user) => user.department).filter(Boolean) as string[])).sort(), [users])
+  const roleOptions = useMemo(() => Array.from(new Set(users.map((user) => user.role).filter(Boolean) as string[])).sort(), [users])
+  const matches = useMemo(() => users.filter((user) => {
+    if (query && !`${user.name} ${user.email} ${user.department ?? ''} ${user.role}`.toLocaleLowerCase('th').includes(query.toLocaleLowerCase('th'))) return false
+    if (departmentFilter !== 'all' && (user.department ?? '') !== departmentFilter) return false
+    if (roleFilter !== 'all' && user.role !== roleFilter) return false
+    return true
+  }), [users, query, departmentFilter, roleFilter])
   const openDetails = (user: User) => { setSelected(user); setEditing(false); setSaveError('') }
   const close = () => { setSelected(null); setEditing(false); setDraft(null); setSaveError('') }
   const beginCreate = async () => {
@@ -105,18 +120,49 @@ export default function DocDatabaseEmployeesPanel({ users, companyId, companyNam
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openDetails(user) }
   }
 
+  // toolbar แบบหน้าจัดการเอกสาร: Filter + Card/List toggle + Pagination
+  const [layout, setLayout] = useState<'grid' | 'list'>('grid')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const activeCount = (departmentFilter !== 'all' ? 1 : 0) + (roleFilter !== 'all' ? 1 : 0)
+  const applyFilters = () => { setDepartmentFilter(draftDepartment); setRoleFilter(draftRole); setPage(1) }
+  const resetFilters = () => { setDraftDepartment('all'); setDraftRole('all'); setDepartmentFilter('all'); setRoleFilter('all'); setPage(1) }
+  const empTotal = matches.length
+  const empTotalPages = Math.max(Math.ceil(empTotal / pageSize), 1)
+  const pageSafe = Math.max(1, Math.min(page, empTotalPages))
+  const pagedUsers = matches.slice((pageSafe - 1) * pageSize, pageSafe * pageSize)
+
   return <>
-    <div className="dms-title-search-row documents-employee-toolbar">
-      <div className="dms-search-wrap"><FaMagnifyingGlass className="dms-search-icon"/><input value={query} onChange={(event) => onQuery(event.target.value)} placeholder={c.employees.search} aria-label={c.employees.searchLabel}/></div>
-      <div className="dms-stats-group"><div className="dms-stats-pill">{matches.length} {c.employees.count}</div></div>
-      <div className="dms-create-actions"><button className="dms-create-btn" type="button" onClick={() => void beginCreate()}><FaPlus/>{c.employees.add}</button></div>
+    <div className="documents-heading">
+      <div><h1>{title}</h1><span>{subtitle}</span></div>
+      <button type="button" className="documents-primary" onClick={() => void beginCreate()}><FaPlus /> {c.employees.add}</button>
+    </div>
+    <div className="documents-filter-wrap">
+      <div className="documents-tools documents-filter-row">
+        <label className="documents-search"><FaMagnifyingGlass /><input value={query} onChange={(event) => { onQuery(event.target.value); setPage(1) }} placeholder={c.employees.search} aria-label={c.employees.searchLabel} /></label>
+        <div className="documents-filter-tools">
+          <button type="button" className={`documents-filter-trigger ${activeCount ? 'is-active' : ''}`} aria-expanded={filterOpen} aria-controls="documents-filter-panel" onClick={() => { setFilterOpen(!filterOpen); setDraftDepartment(departmentFilter); setDraftRole(roleFilter) }}><FaFilter/> {c.filters.filter}{activeCount > 0 && ` (${activeCount})`}</button>
+          <div className="documents-view-toggle">
+            <button aria-label={c.filters.cardView} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}><FaTableCellsLarge /></button>
+            <button aria-label={c.filters.listView} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}><FaList /></button>
+          </div>
+          <span className="documents-stat"><FaFileLines /> {empTotal} {c.employees.count}</span>
+        </div>
+      </div>
+      {filterOpen && <form id="documents-filter-panel" className="documents-filter-panel" onSubmit={(event) => { event.preventDefault(); applyFilters() }}>
+        <label className="documents-filter-field"><span>{c.employees.departmentLabel}</span><select value={draftDepartment} onChange={(event) => setDraftDepartment(event.target.value)}><option value="all">{c.employees.allDepartments}</option>{departmentOptions.map((department) => <option key={department} value={department}>{department}</option>)}</select></label>
+        <label className="documents-filter-field"><span>{c.employees.role}</span><select value={draftRole} onChange={(event) => setDraftRole(event.target.value)}><option value="all">{c.employees.allRoles}</option>{roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}</select></label>
+        <div className="documents-filter-actions"><button type="button" className="documents-filter-reset" onClick={resetFilters}>{c.filters.clear}</button><button type="submit" className="documents-filter-apply">{c.filters.apply}</button></div>
+      </form>}
     </div>
     {error && <div className="documents-employee-empty" role="alert">{error}</div>}
-    {loading ? <div className="documents-employee-empty">{c.employees.loading}</div> : matches.length ? <div className="dms-card-grid dms-survey-grid documents-employee-grid">{matches.map((employee) => <article key={employee.id} className="dms-project-card documents-employee-card" role="button" tabIndex={0} aria-label={`${c.employees.details}: ${employee.name}`} onClick={() => openDetails(employee)} onKeyDown={(event) => activateCard(event, employee)}>
+    {loading ? <div className="documents-employee-empty">{c.employees.loading}</div> : pagedUsers.length === 0 ? <div className="documents-employee-empty">{c.employees.noMatches}</div> : layout === 'grid' ? <div className="dms-card-grid dms-survey-grid documents-employee-grid">{pagedUsers.map((employee) => <article key={employee.id} className="dms-project-card documents-employee-card" role="button" tabIndex={0} aria-label={`${c.employees.details}: ${employee.name}`} onClick={() => openDetails(employee)} onKeyDown={(event) => activateCard(event, employee)}>
       <div className="documents-employee-card-top"><span className="documents-employee-avatar"><FaUser/></span><span className={`dms-card-status ${employee.isActive ? 'is-active' : 'is-cancelled'}`}>{employee.isActive ? c.employees.active : c.employees.inactive}</span></div>
       <h2 className="documents-employee-name">{employee.name}</h2>
       <div className="documents-employee-meta">{employee.role}{employee.department && <> · {employee.department}</>}{employee.email && <><br/>{employee.email}</>}</div>
-    </article>)}</div> : <div className="documents-employee-empty">{c.employees.noMatches}</div>}
+    </article>)}</div> : <div className="dms-project-table-wrap"><table className="dms-project-table"><thead><tr><th>{c.employees.name}</th><th>{c.employees.systemRole}</th><th>{c.employees.departmentLabel}</th><th>{c.employees.email}</th></tr></thead><tbody>{pagedUsers.map((employee) => <tr key={employee.id} role="button" tabIndex={0} onClick={() => openDetails(employee)} onKeyDown={(event) => activateCard(event, employee)}><td>{employee.name}</td><td>{employee.role}</td><td>{employee.department ?? ''}</td><td>{employee.email}</td></tr>)}</tbody></table></div>}
+    {empTotal > 0 && <PaginationFooter page={pageSafe} pageSize={pageSize} total={empTotal} labels={{ previous: c.filters.previous, next: c.filters.next, page: c.filters.page, perPage: c.filters.perPage }} onPageChange={(p: number) => setPage(Math.max(1, Math.min(p, empTotalPages)))} onPageSizeChange={(s: number) => { setPageSize(s); setPage(1) }} />}
 
     {createOpen && newDraft && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setCreateOpen(false); setSaveError('') } }}><section className="dms-modal dms-create-doc-modal documents-employee-modal" role="dialog" aria-modal="true" aria-labelledby="employee-create-title">
       <h2 className="dms-modal-title" id="employee-create-title">{c.employees.add}</h2>

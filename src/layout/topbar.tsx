@@ -8,6 +8,29 @@ import { getBadges, listNotifications, markNotificationsRead } from "../features
 // โหมด DB: แจ้งเตือนจริงจาก /employee-requests/notifications (เหมือนหน้าจอการแจ้งเตือน)
 type TopbarNotification = { id: number; notificationId: number; documentId: number; title: string; body: string; date: string; read: boolean };
 const OPEN_DOCUMENT_KEY = "dms-open-doc";
+
+// เสียงแจ้งเตือน (สร้างด้วย Web Audio API — ไม่ต้องมีไฟล์เสียง)
+let notificationSoundCtx: AudioContext | null = null;
+const playNotificationSound = () => {
+  try {
+    notificationSoundCtx ??= new AudioContext();
+    if (notificationSoundCtx.state === "suspended") void notificationSoundCtx.resume();
+    const ctx = notificationSoundCtx;
+    const now = ctx.currentTime;
+    for (const [freq, delay] of [[880, 0], [1320, 0.18]] as const) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + delay);
+      gain.gain.exponentialRampToValueAtTime(0.25, now + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.35);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + delay);
+      osc.stop(now + delay + 0.4);
+    }
+  } catch { /* เบราว์เซอร์ไม่รองรับเสียง — ข้ามไป */ }
+};
 const TOPBAR_NOTIFICATION_KEY = "boswell-topbar-notifications-mock";
 type MockTopbarNotification = { id: number; title: string; body: string; date: string; read: boolean };
 const INITIAL_TOPBAR_NOTIFICATIONS: MockTopbarNotification[] = [
@@ -80,6 +103,8 @@ export default function Topbar({
   const [dbNotifications, setDbNotifications] = useState<TopbarNotification[] | null>(null);
   const [mockNotifications, setMockNotifications] = useState(readTopbarNotifications);
   const [dbBadge, setDbBadge] = useState(0);
+  // เอฟเฟคกระดิ่ง: true เมื่อเพิ่งมีแจ้งเตือนใหม่ (กระดิ่งสั่น + วงแหวน ping) จนกว่าจะเปิด dropdown
+  const [bellPing, setBellPing] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const isThai = language === "th";
@@ -118,12 +143,22 @@ export default function Topbar({
   }, [mockNotifications]);
 
   // โหลดแจ้งเตือนจริงจาก DB (ตอนเปิด dropdown และ poll ทุก 30 วินาที)
+  const prevUnreadRef = useRef<number | null>(null);
   const loadDbNotifications = () => {
     listNotifications().then((rows) => setDbNotifications(mapApiNotifications(rows))).catch(() => {});
-    getBadges().then((badges) => setDbBadge(badges.unreadNotifications)).catch(() => {});
+    getBadges().then((badges) => {
+      setDbBadge(badges.unreadNotifications);
+      // เสียงแจ้งเตือน: ดังเฉพาะเมื่อจำนวนที่ยังไม่อ่านเพิ่มขึ้น (ข้ามครั้งแรกหลังโหลดหน้า)
+      const prev = prevUnreadRef.current;
+      if (prev !== null && badges.unreadNotifications > prev) {
+        playNotificationSound();
+        setBellPing(true);
+      }
+      prevUnreadRef.current = badges.unreadNotifications;
+    }).catch(() => {});
   };
   useEffect(() => { loadDbNotifications(); const timer = window.setInterval(loadDbNotifications, 30000); return () => window.clearInterval(timer); }, []);
-  useEffect(() => { if (notificationsOpen) loadDbNotifications(); }, [notificationsOpen]);
+  useEffect(() => { if (notificationsOpen) { setBellPing(false); loadDbNotifications(); } }, [notificationsOpen]);
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -191,7 +226,7 @@ export default function Topbar({
         <div className="notification-menu" ref={notificationsRef}>
           <button
             type="button"
-            className="icon-button notification-button"
+            className={`icon-button notification-button ${unreadCount > 0 ? "has-unread" : ""} ${bellPing ? "is-pinging" : ""}`}
             aria-label={`${topbarTranslations.notifications}${unreadCount ? `, ${unreadCount}` : ""}`}
             aria-expanded={notificationsOpen}
             aria-controls="topbar-notifications-panel"

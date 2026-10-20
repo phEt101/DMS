@@ -45,16 +45,15 @@
       "leave": "Leave request",
       "ot": "Overtime request (OT)",
       "timefix": "Time correction request",
-      "wfh": "Work from home request",
-      "outing": "Off-site work request",
-      "swap": "Swap day off / workday"
+      "wfh": "Work from home request (multi-day range supported)",
+      "outing": "Off-site work request"
     },
     "kindDescriptions": {
       "leave": "Sick, personal, vacation, maternity, and other leave",
       "ot": "Request approval for overtime dates and hours",
       "timefix": "Report a missed scan or request a time correction",
-      "wfh": "Provide work location and plan for the day",
-      "outing": "Request permission to work off-site during the day",
+      "wfh": "Work from home (WFH) or off-site during the day — choose in the form",
+      "outing": "Request permission to work off-site during the day, or work from home (WFH) — choose in the form",
       "swap": "Request a day off and specify the make-up workday"
     },
     "sampleDocuments": {
@@ -169,7 +168,11 @@
       "pending": "Pending review",
       "clear": "Clear filters",
       "apply": "Apply",
-      "empty": "No documents found. Try changing your search or filters."
+      "empty": "No documents found. Try changing your search or filters.",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page",
+      "perPage": "per page"
     },
     "table": {
       "numberKind": "Number / document type",
@@ -212,6 +215,8 @@
       "instructions": "Complete the details, review the requirements, then sign to submit",
       "changeKind": "‹ Change document type",
       "backToKinds": "Back to document types",
+      "offsiteType": "Off-site work type",
+      "offsiteDescription": "Work from home (WFH) or off-site during the day — choose in the form",
       "signAndSend": "Sign and submit",
       "afterSign": "In mode, the document will be sent to",
       "manager": "the department manager",
@@ -232,6 +237,9 @@
       "search": "Search name, email, department, or role",
       "searchLabel": "Search employees",
       "count": "employees",
+      "allDepartments": "All departments",
+      "allRoles": "All roles",
+      "systemRole": "System role",
       "loading": "Loading employees...",
       "loadError": "Could not load employees",
       "details": "Employee details",

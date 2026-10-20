@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FaClock, FaLocationDot } from 'react-icons/fa6'
 import { request } from '../../services/api'
+import EmployeeSearchSelect from '../../components/employee-search-select'
 import type { Language, Translations } from '../../locales'
 import { useAuth } from '../auth/hooks/use-auth'
 import './outing-report.css'
@@ -195,13 +196,10 @@ export default function ReportPage({ translations, language }: { translations: T
       {pendingCount > 0 && <span className="outing-report-chip">{copy.pendingCount.replace('{count}', String(pendingCount))}</span>}
     </div>
     <form className="outing-report-filters" onSubmit={(event) => event.preventDefault()}>
-      {isPrivileged && <label>{copy.employee}<select value={employeeId} onChange={(event) => {
-        const nextEmployeeId = event.target.value
+      {isPrivileged && <EmployeeSearchSelect label={copy.employee} value={employeeId} options={employees.map((employee) => ({ id: String(employee.id), name: employee.name }))} onChange={(nextEmployeeId) => {
         setEmployeeId(nextEmployeeId)
         updateFilters({ from, to, employeeId: nextEmployeeId })
-      }}>
-        {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
-      </select></label>}
+      }} />}
       <label>{copy.from}<input type="date" value={from} onChange={(event) => {
         const nextFrom = event.target.value
         const nextTo = to < nextFrom ? nextFrom : to

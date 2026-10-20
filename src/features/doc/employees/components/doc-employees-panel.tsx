@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { FaMagnifyingGlass, FaPlus, FaUser, FaXmark } from 'react-icons/fa6'
+import { FaFilter, FaList, FaMagnifyingGlass, FaPlus, FaTableCellsLarge, FaUser, FaXmark } from 'react-icons/fa6'
+import { PaginationFooter } from '../../../../components/pagination-footer'
 import type { MockDocument, MockEmployee } from '../../document-types'
 
 type Props = {
@@ -29,6 +30,10 @@ export default function DocEmployeesPanel({ employees, documents, policyStart, p
   const [formOpen, setFormOpen] = useState(false)
   const [draft, setDraft] = useState<Draft>(blankEmployee)
   const [formError, setFormError] = useState('')
+  // pagination + card/list toggle (เหมือนหน้าจอ survey)
+  const [empLayout, setEmpLayout] = useState<'grid' | 'list'>('grid')
+  const [empPage, setEmpPage] = useState(1)
+  const [empPageSize, setEmpPageSize] = useState(10)
   const managers = useMemo(() => employees.filter((employee) => employee.role === 'ผู้จัดการแผนก' && employee.id !== editing?.id), [employees, editing?.id])
 
   const openForm = (employee?: MockEmployee) => {
@@ -56,20 +61,31 @@ export default function DocEmployeesPanel({ employees, documents, policyStart, p
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openForm(employee) }
   }
 
+  // pagination: กลับหน้า 1 เมื่อค้นหาเปลี่ยน
+  const empTotal = matches.length
+  const empTotalPages = Math.max(Math.ceil(empTotal / empPageSize), 1)
+  const empPageSafe = Math.max(1, Math.min(empPage, empTotalPages))
+  const empPaged = useMemo(() => matches.slice((empPageSafe - 1) * empPageSize, empPageSafe * empPageSize), [matches, empPageSafe, empPageSize])
+  const handleQuery = (value: string) => { onQuery(value); setEmpPage(1) }
+
   return <>
     <div className="dms-title-search-row documents-employee-toolbar">
-      <div className="dms-search-wrap"><FaMagnifyingGlass className="dms-search-icon"/><input value={query} onChange={(event) => onQuery(event.target.value)} placeholder={c.employees.search} aria-label={c.employees.searchLabel}/></div>
-      <div className="dms-stats-group"><div className="dms-stats-pill">{matches.length} {c.employees.count}</div></div>
+      <div className="dms-search-wrap"><FaMagnifyingGlass className="dms-search-icon"/><input value={query} onChange={(event) => handleQuery(event.target.value)} placeholder={c.employees.search} aria-label={c.employees.searchLabel}/></div>
+      <div className="documents-filter-tools">
+        <div className="documents-view-toggle"><button aria-label={c.filters.cardView} aria-pressed={empLayout==='grid'} onClick={()=>setEmpLayout('grid')}><FaTableCellsLarge/></button><button aria-label={c.filters.listView} aria-pressed={empLayout==='list'} onClick={()=>setEmpLayout('list')}><FaList/></button></div>
+        <div className="dms-stats-group"><div className="dms-stats-pill">{empTotal} {c.employees.count}</div></div>
+      </div>
       {!readOnly && mockRole === 'HR' && <div className="dms-create-actions"><button className="dms-create-btn" onClick={() => openForm()}><FaPlus/> {c.employees.add}</button></div>}
     </div>
 
     {error && <div className="documents-employee-empty" role="alert">{error}</div>}
-    {loading ? <div className="documents-employee-empty">{c.employees.loading}</div> : matches.length ? <div className="dms-card-grid dms-survey-grid documents-employee-grid">{matches.map((employee) => <article key={employee.id} className="dms-project-card documents-employee-card" role={readOnly ? undefined : 'button'} tabIndex={readOnly ? undefined : 0} aria-label={readOnly ? undefined : `แก้ไขข้อมูล ${employee.name}`} onClick={readOnly ? undefined : () => openForm(employee)} onKeyDown={readOnly ? undefined : (event) => activateCard(event, employee)}>
+    {loading ? <div className="documents-employee-empty">{c.employees.loading}</div> : empPaged.length === 0 ? <div className="documents-employee-empty">{c.employees.noMatches}</div> : empLayout === 'grid' ? <div className="dms-card-grid dms-survey-grid documents-employee-grid">{empPaged.map((employee) => <article key={employee.id} className="dms-project-card documents-employee-card" role={readOnly ? undefined : 'button'} tabIndex={readOnly ? undefined : 0} aria-label={readOnly ? undefined : `แก้ไขข้อมูล ${employee.name}`} onClick={readOnly ? undefined : () => openForm(employee)} onKeyDown={readOnly ? undefined : (event) => activateCard(event, employee)}>
       <div className="documents-employee-card-top"><span className="documents-employee-avatar"><FaUser/></span><span className={`dms-card-status ${employee.active ? 'is-active' : 'is-cancelled'}`}>{employee.active ? c.roles[employee.role === 'พนักงาน' ? 'employee' : employee.role === 'HR' ? 'hr' : 'manager'] : c.employees.inactive}</span></div>
       <h2 className="documents-employee-name">{employee.name}</h2>
       <div className="documents-employee-meta">{readOnly ? (employee.position || '') : employee.role === 'HR' ? c.roles.hr : employee.role === 'ผู้จัดการแผนก' ? c.roles.manager : c.roles.employee}{employee.department && <> · {employee.department}</>}{employee.email && <><br/>{employee.email}</>}{employee.position && <><br/>{employee.position}</>}{employee.code && <><br/>{employee.code}</>}</div>
       {!readOnly && <><div className="documents-employee-balances"><span>{c.employees.leaveSick} <b>{remaining(employee, 'sick')}/{employee.sick}</b></span><span>{c.employees.leavePersonal} <b>{remaining(employee, 'personal')}/{employee.personal}</b></span><span>{c.employees.leaveVacation} <b>{remaining(employee, 'vacation')}/{employee.vacation}</b></span></div><div className="documents-employee-manager">{c.employees.manager}: {employee.manager || '—'}</div></>}
-    </article>)}</div> : <div className="documents-employee-empty">{c.employees.noMatches}</div>}
+    </article>)}</div> : <div className="dms-project-table-wrap"><table className="dms-project-table"><thead><tr><th>{c.employees.name}</th><th>{c.employees.code}</th><th>{c.employees.departmentLabel}</th><th>{c.employees.position}</th><th>{c.employees.email}</th></tr></thead><tbody>{empPaged.map((employee) => <tr key={employee.id} role={readOnly ? undefined : 'button'} tabIndex={readOnly ? undefined : 0} onClick={readOnly ? undefined : () => openForm(employee)} onKeyDown={readOnly ? undefined : (event) => activateCard(event, employee)}><td>{employee.name}</td><td>{employee.code}</td><td>{employee.department || c.employees.noDepartment}</td><td>{employee.position || c.employees.noPosition}</td><td>{employee.email}</td></tr>)}</tbody></table></div>}
+    {empTotal > 0 && <PaginationFooter page={empPageSafe} pageSize={empPageSize} total={empTotal} labels={{ previous: c.filters.previous, next: c.filters.next, page: c.filters.page, perPage: c.filters.perPage }} onPageChange={(p: number) => setEmpPage(Math.max(1, Math.min(p, empTotalPages)))} onPageSizeChange={(s: number) => { setEmpPageSize(s); setEmpPage(1) }} />}
 
     {!readOnly && formOpen && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm() }}><form className="dms-modal dms-create-doc-modal documents-employee-modal" onSubmit={save}>
       <h2 className="dms-modal-title">{editing ? c.employees.edit : c.employees.add}</h2><p className="dms-modal-subtitle">{editing ? `${editing.code} · ${c.employees.formSubtitleEdit}` : c.employees.formSubtitleAdd}</p>
