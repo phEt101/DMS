@@ -25,7 +25,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/database/migrations ./database/migrations
 COPY --from=build /app/database/files ./dist/database/files
 
-RUN mkdir -p /app/storage/projects && chown -R node:node /app
+RUN mkdir -p /app/storage/projects /app/storage/documents /app/storage/medical-certificates && chown -R node:node /app
 
 USER node
 EXPOSE 3000

@@ -77,7 +77,7 @@
       "days": "จำนวนวันทำงาน (แก้ไขได้ เช่น 0.5)",
       "hours": "รวมชั่วโมง (คำนวณอัตโนมัติ)",
       "reason": "เหตุผล",
-      "cert": "แนบใบรับรองแพทย์แล้ว",
+      "cert": "ใบรับรองแพทย์",
       "dayType": "ประเภทวัน",
       "date": "วันที่",
       "task": "งาน / โครงการที่ทำ",
@@ -181,7 +181,11 @@
       "afterSign": "หลังเซ็น ระบบตจะส่งอกสารไปยัง",
       "manager": "ผู้จัดการแผนก",
       "hr": "HR",
-      "noResults": "ไม่พบเอกสาร ลองเปลี่ยนคำค้นหาหรือตัวกรอง"
+      "noResults": "ไม่พบเอกสาร ลองเปลี่ยนคำค้นหาหรือตัวกรอง",
+      "medicalCertificateLabel": "แนบใบรับรองแพทย์",
+      "medicalCertificateHelp": "รองรับ PDF, JPG, PNG ขนาดไม่เกิน 10 MB ไฟล์นี้จะเห็นได้เฉพาะคุณ, HR Div. และ admin",
+      "medicalCertificateTooLarge": "ไฟล์ต้องมีขนาดไม่เกิน 10 MB",
+      "removeCertificate": "นำไฟล์ออก"
     },
     "signature": {
       "submitter": "เซ็นชื่อผู้ยื่น",
@@ -277,8 +281,12 @@
       "days": "จำนวนวัน",
       "reason": "เหตุผล",
       "status": "สถานะ",
+      "certificateAttached": "แนบแล้ว",
+      "certificateMissing": "ไม่มีไฟล์แนบ",
+      "exportConfirmTitle": "ยืนยันการส่งออก",
       "exportConfirmExcel": "ยืนยันส่งออกสมุดบันทึกการลาเป็น Excel หรือไม่?",
       "exportConfirmPdf": "ยืนยันส่งออกสมุดบันทึกการลาเป็น PDF หรือไม่?",
+      "exportReady": "เตรียมไฟล์ส่งออกแล้ว",
       "word": "ส่งออก Word",
       "pdf": "ส่งออก PDF",
       "print": "พิมพ์",
@@ -326,6 +334,14 @@
       "recipientOne": "นภา วงศ์สุข",
       "recipientTwo": "ศิริพร แก้วมณี"
     },
+    "reject": {
+      "title": "ไม่อนุมัติเอกสาร",
+      "reasonLabel": "เหตุผลที่ไม่อนุมัติ",
+      "placeholder": "ระบุเหตุผลเพื่อให้ผู้ยื่นทราบ",
+      "required": "กรุณากรอกเหตุผล",
+      "cancel": "ยกเลิก",
+      "confirm": "ยืนยันไม่อนุมัติ"
+    },
     "sampleNotifications": {},
     "messages": {
       "mockPendingCount": "รายการรอตรวจ",
@@ -333,6 +349,12 @@
       "item": "รายการ",
       "notFound": "ไม่พบเอกสาร",
       "rejectPrompt": "ระบุเหตุผลที่ไม่อนุมัติ",
+      "confirm": "ยืนยัน",
+      "cancel": "ยกเลิก",
+      "cancelDocumentTitle": "ยืนยันยกเลิกเอกสาร",
+      "cancelDocumentConfirm": "ต้องการยกเลิกเอกสารนี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้",
+      "cancelledToast": "ยกเลิกเอกสารแล้ว",
+      "downloadCertificate": "เปิด/ดาวน์โหลดใบรับรองแพทย์",
       "rejectedToast": "ไม่อนุมัติเอกสารแล้ว",
       "forwardedToast": "ส่งต่อให้ HR แล้ว",
       "approvedToast": "อนุมัติเอกสารแล้ว",

@@ -65,6 +65,13 @@
   font-size: 12px;
 }
 
+.leave-certificate-label {
+  display: block;
+  color: #5b4bca;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .leave-ledger-screen {
   margin-top: 18px;
 }

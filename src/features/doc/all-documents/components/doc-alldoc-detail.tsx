@@ -1,4 +1,5 @@
 import type { MockDocument, FormValues, SignatureStage } from '../../document-types'
+import { medicalCertificateUrl } from '../../services/employee-requests.service'
 import { FaPenNib } from 'react-icons/fa6'
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
   dateText: (value: string) => string
   canApprove: boolean
   canCancel: boolean
+  canViewMedicalCertificate: boolean
   onClose: () => void
   onSign: () => void
   onReject: () => void
@@ -20,7 +22,7 @@ function DetailField({ label, value, full = false }: { label: string; value?: st
   return <div className={`dms-form-field documents-readonly-field${full ? ' dms-form-field--full' : ''}`}><span className="dms-form-label">{label}</span><div className="documents-readonly-value">{value}</div></div>
 }
 
-export default function DocAllDocumentsDetail({ document: doc, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, onClose, onSign, onReject, onCancel, copy: c }: Props) {
+export default function DocAllDocumentsDetail({ document: doc, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, canViewMedicalCertificate, onClose, onSign, onReject, onCancel, copy: c }: Props) {
   const leaveNames: Record<string, string> = c.leaveTypes
   const statusStyle = doc.status === 'approved' ? 'is-done' : doc.status === 'rejected' ? 'is-cancelled' : 'is-submitted'
   const outingAddress = [detailValues.address, detailValues.subdistrict, detailValues.district, detailValues.province, detailValues.postalCode, detailValues.country].map((value) => String(value ?? '').trim()).filter(Boolean).join(' ')
@@ -31,7 +33,31 @@ export default function DocAllDocumentsDetail({ document: doc, detailValues, kin
       <div className="documents-detail-header"><div><span className={`dms-card-status ${statusStyle}`}>{statusLabel}</span><h2 id="document-detail-title">{doc.title}</h2></div></div>
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.submitterInfo}</h3><div className="dms-pm-create-grid"><DetailField label={c.detail.fullName} value={doc.employee} /><DetailField label={c.detail.department} value={doc.department} /><DetailField label={c.detail.kind} value={kindTitle} /><DetailField label={c.detail.date} value={dateText(doc.date)} /><DetailField label={c.detail.number} value={doc.no} /><DetailField label={c.detail.status} value={statusLabel} /></div></section>
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.request}</h3><div className="dms-pm-create-grid">
-        {doc.kind === 'leave' && <><DetailField label={c.fieldLabels.leaveType} value={leaveNames[String(detailValues.leaveType ?? doc.leaveType ?? '')] ?? String(detailValues.leaveType ?? doc.leaveType ?? '')} /><DetailField label={c.fieldLabels.from} value={doc.from ? dateText(doc.from) : ''} /><DetailField label={c.fieldLabels.to} value={doc.to ? dateText(doc.to) : ''} /><DetailField label={c.fieldLabels.days} value={doc.days ? `${doc.days} ${c.ledger.day}` : ''} /><DetailField label={c.fieldLabels.start} value={String(detailValues.start ?? '')} /><DetailField label={c.fieldLabels.end} value={String(detailValues.end ?? '')} /><DetailField label={c.fieldLabels.hours} value={String(detailValues.hours ?? '')} /><DetailField label={c.fieldLabels.reason} value={doc.reason ?? ''} full /><DetailField label={c.fieldLabels.cert} value={detailValues.cert === true ? (c.leaveTypes.sick === 'Sick leave' ? 'Attached' : 'แนบแล้ว') : detailValues.leaveType === 'sick' ? (c.leaveTypes.sick === 'Sick leave' ? 'Not attached' : 'ยังไม่ได้แนบ') : ''} /><DetailField label={c.fieldLabels.byHour} value={detailValues.byHour === true ? (c.leaveTypes.sick === 'Sick leave' ? 'Yes' : 'ใช่') : ''} /></>}
+        {doc.kind === 'leave' && <>
+          <DetailField label={c.fieldLabels.leaveType} value={leaveNames[String(detailValues.leaveType ?? doc.leaveType ?? '')] ?? String(detailValues.leaveType ?? doc.leaveType ?? '')} />
+          <DetailField label={c.fieldLabels.from} value={doc.from ? dateText(doc.from) : ''} />
+          <DetailField label={c.fieldLabels.to} value={doc.to ? dateText(doc.to) : ''} />
+          <DetailField label={c.fieldLabels.days} value={doc.days ? `${doc.days} ${c.ledger.day}` : ''} />
+          <DetailField label={c.fieldLabels.start} value={String(detailValues.start ?? '')} />
+          <DetailField label={c.fieldLabels.end} value={String(detailValues.end ?? '')} />
+          <DetailField label={c.fieldLabels.hours} value={String(detailValues.hours ?? '')} />
+          <DetailField label={c.fieldLabels.reason} value={doc.reason ?? ''} full />
+          {detailValues.leaveType === 'sick' && canViewMedicalCertificate && <>
+            <DetailField
+              label={c.fieldLabels.cert}
+              value={doc.medicalCertificateAvailable ? c.ledger.certificateAttached : c.ledger.certificateMissing}
+            />
+            {doc.medicalCertificateAvailable && canViewMedicalCertificate && (
+              <div className="dms-form-field">
+                <span className="dms-form-label">{c.fieldLabels.cert}</span>
+                <a className="dms-back-btn" download href={medicalCertificateUrl(doc.id)}>
+                  {c.messages.downloadCertificate}
+                </a>
+              </div>
+            )}
+          </>}
+          <DetailField label={c.fieldLabels.byHour} value={detailValues.byHour === true ? (c.leaveTypes.sick === 'Sick leave' ? 'Yes' : 'ใช่') : ''} />
+        </>}
         {doc.kind === 'ot' && <><DetailField label={c.fieldLabels.dayType} value={c.fieldOptions[String(detailValues.dayType)] ?? ''} /><DetailField label={c.fieldLabels.date} value={detailValues.date ? dateText(String(detailValues.date)) : doc.from ? dateText(doc.from) : ''} /><DetailField label={c.fieldLabels.start} value={String(detailValues.start ?? '')} /><DetailField label={c.fieldLabels.end} value={String(detailValues.end ?? '')} /><DetailField label={c.fieldLabels.hours} value={detailValues.hours ? `${detailValues.hours} ${c.ledger.hour}` : ''} /><DetailField label={c.fieldLabels.task} value={String(detailValues.task ?? '')} full /><DetailField label={c.fieldLabels.reason} value={String(detailValues.reason ?? doc.reason ?? '')} full /></>}
         {doc.kind === 'timefix' && <><DetailField label={c.fieldLabels.date} value={detailValues.date ? dateText(String(detailValues.date)) : doc.from ? dateText(doc.from) : ''} /><DetailField label={c.fieldLabels.cause} value={c.fieldOptions[String(detailValues.cause)] ?? ''} /><DetailField label={c.fieldLabels.inTime} value={String(detailValues.inTime ?? '')} /><DetailField label={c.fieldLabels.outTime} value={String(detailValues.outTime ?? '')} /><DetailField label={c.fieldLabels.reason} value={String(detailValues.reason ?? doc.reason ?? '')} full /></>}
         {doc.kind === 'wfh' && <><DetailField label={c.fieldLabels.from} value={doc.from ? dateText(doc.from) : ''} /><DetailField label={c.fieldLabels.to} value={doc.to ? dateText(doc.to) : ''} /><DetailField label={c.fieldLabels.days} value={doc.days ? `${doc.days} ${c.ledger.day}` : ''} /><DetailField label={c.fieldLabels.place} value={String(detailValues.place ?? '')} /><DetailField label={c.fieldLabels.plan} value={String(detailValues.plan ?? '')} full /></>}

@@ -223,6 +223,14 @@
   gap: 13px;
 }
 
+.documents-certificate-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+
 .documents-form-fields > .outing-location-section {
   grid-column: 1/-1;
   min-width: 0;

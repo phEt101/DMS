@@ -13,6 +13,8 @@ import DocLeaveLedgerSummary from './leave-ledger/components/doc-leave-ledger-su
 import DocNewDocumentModal from './submission/components/doc-new-document-modal'
 import DocPendingApproval from './pending-approval/components/doc-pending-approval'
 import { PaginationFooter } from '../../components/pagination-footer'
+import ConfirmDialog from '../../components/confirm-dialog'
+import { useToast } from '../../components/toast-provider'
 import type { DocKind, FormValues, MockDocument, MockEmployee, MockNotification, MockPolicy, SignatureStage, Status } from './document-types'
 import { listUsers, type User } from '../settings/users/services/users.service'
 import { useAuth } from '../auth/hooks/use-auth'
@@ -20,13 +22,14 @@ import {
   ApiError, approveRequest, cancelRequest, createRequest, getMySignature, getPolicy, getRequest,
   listNotifications, listPeople, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, toFormChecks, validateRequestDryRun,
 } from './services/employee-requests.service'
+import DocRejectModal from './all-documents/components/doc-reject-modal'
 
 // true = ใช้ข้อมูลจริงจาก /api/employee-requests (all, pending, ส่งเอกสาร, เซ็น/ไม่อนุมัติ, ยกเลิก, นโยบาย)
 // false = กลับไปใช้ mock + localStorage เหมือนเดิม
 const USE_DB = true
 
 type View = 'all' | 'pending' | 'ledger' | 'employees' | 'policy' | 'notifications'
-type FormCheck = { ok: boolean; message: string }
+type FormCheck = { ok: boolean; message: string; key?: string }
 const INITIAL_POLICY: MockPolicy = { year:2569, expiry:'25 พฤศจิกายน 2569', yearStart:'2025-11-26', yearEnd:'2026-11-25', leadPersonal:1, leadVacation:15, hoursPerDay:8, hourStep:1, certDays:3, otMax:4, fixDays:7 }
 
 const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; icon: typeof FaFileLines; group: 'leave' | 'ot' | 'other' }> = {
@@ -40,7 +43,7 @@ const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; i
 }
 const LEAVE_TYPES_DEFAULT: Record<string, string> = { personal:'ลากิจ', sick:'ลาป่วย', vacation:'ลาพักร้อน', emergency:'ลาพักร้อนฉุกเฉิน', unpaid:'ลากิจไม่รับค่าจ้าง', maternity:'ลาคลอด', ordain:'ลาบวช', marriage:'ลาสมรส', other:'ลาอื่น ๆ' }
 const FORM_FIELDS_DEFAULT: Record<DocKind, Array<{ key: string; label: string; type: 'text' | 'date' | 'time' | 'number' | 'textarea' | 'select' | 'checkbox'; options?: Record<string, string>; step?: number; wide?: boolean }>> = {
-  leave:[{key:'leaveType',label:'ประเภทการลา',type:'select',options:LEAVE_TYPES_DEFAULT,wide:true},{key:'byHour',label:'ลาเป็นชั่วโมง (ลาพักร้อนฉุกเฉินเท่านั้น · 1 วัน = 8 ชม.)',type:'checkbox',wide:true},{key:'from',label:'วันที่ลา',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'start',label:'เวลาเริ่มลา',type:'time'},{key:'end',label:'เวลาสิ้นสุดลา',type:'time'},{key:'days',label:'จำนวนวันทำงาน (แก้ไขได้ เช่น 0.5)',type:'number',step:.5,wide:true},{key:'hours',label:'รวมชั่วโมง (คำนวณอัตโนมัติ)',type:'number',step:.5,wide:true},{key:'reason',label:'เหตุผลการลา',type:'textarea',wide:true},{key:'cert',label:'แนบใบรับรองแพทย์แล้ว',type:'checkbox',wide:true}],
+  leave:[{key:'leaveType',label:'ประเภทการลา',type:'select',options:LEAVE_TYPES_DEFAULT,wide:true},{key:'byHour',label:'ลาเป็นชั่วโมง (ลาพักร้อนฉุกเฉินเท่านั้น · 1 วัน = 8 ชม.)',type:'checkbox',wide:true},{key:'from',label:'วันที่ลา',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'start',label:'เวลาเริ่มลา',type:'time'},{key:'end',label:'เวลาสิ้นสุดลา',type:'time'},{key:'days',label:'จำนวนวันทำงาน (แก้ไขได้ เช่น 0.5)',type:'number',step:.5,wide:true},{key:'hours',label:'รวมชั่วโมง (คำนวณอัตโนมัติ)',type:'number',step:.5,wide:true},{key:'reason',label:'เหตุผลการลา',type:'textarea',wide:true}],
   ot:[{key:'dayType',label:'ประเภทวัน',type:'select',options:{weekday:'วันทำงานปกติ',weekend:'วันหยุดประจำสัปดาห์',holiday:'วันหยุดนักขัตฤกษ์'},wide:true},{key:'date',label:'วันที่ทำ OT',type:'date',wide:true},{key:'start',label:'เวลาเริ่ม',type:'time'},{key:'end',label:'เวลาสิ้นสุด',type:'time'},{key:'hours',label:'รวม (ชั่วโมง)',type:'number',step:.5,wide:true},{key:'task',label:'งาน / โครงการที่ทำ',type:'text',wide:true},{key:'reason',label:'เหตุผลที่ต้องทำ OT',type:'textarea',wide:true}],
   timefix:[{key:'date',label:'วันที่ต้องการแก้ไข',type:'date'},{key:'cause',label:'สาเหตุ',type:'select',options:{forgot:'ลืมสแกนนิ้ว',device:'เครื่องสแกนขัดข้อง',offsite:'ปฏิบัติงานนอกสถานที่',other:'อื่น ๆ'}},{key:'inTime',label:'เวลาเข้างานที่ถูกต้อง',type:'time'},{key:'outTime',label:'เวลาออกงานที่ถูกต้อง',type:'time'},{key:'reason',label:'รายละเอียด',type:'textarea',wide:true}],
   wfh:[{key:'from',label:'ตั้งแต่วันที่',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'days',label:'จำนวนวันทำงาน',type:'number',step:.5,wide:true},{key:'place',label:'สถานที่ทำงาน',type:'text',wide:true},{key:'plan',label:'แผนงานที่จะทำ',type:'textarea',wide:true}],
@@ -71,7 +74,7 @@ const timeMinutes = (value: string) => { const [hour, minute] = value.split(':')
 // ใช้เฉพาะโหมด mock (USE_DB = false) — โหมด DB ใช้ผลตรวจจาก server (/validate)
 const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocument[], employee: MockEmployee, policy: MockPolicy, copy: any): FormCheck[] => {
   const checks: FormCheck[] = []
-  const add = (ok: boolean, message: string) => checks.push({ ok, message })
+  const add = (ok: boolean, message: string, key?: string) => checks.push({ ok, message, key })
   const msg = (key: string, values: Record<string, string | number> = {}) => Object.entries(values).reduce((result, [name, value]) => result.split(`{${name}}`).join(String(value)), copy.validation[key] as string)
   const v = (key: string) => String(values[key] ?? '').trim()
   const todayIso = todayInBangkok()
@@ -115,7 +118,7 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     if (type === 'sick' && from && to && to >= from) {
       const a = new Date(`${from}T00:00:00`), b = new Date(`${to}T00:00:00`)
       const needsCert = qty >= policy.certDays || [1,5].includes(a.getDay()) || [1,5].includes(b.getDay()) || daysBetween(from,to) < Math.round((b.getTime()-a.getTime())/86400000)+1
-      if (needsCert) add(values.cert === true, msg('certificateRequired'))
+      if (needsCert) add(values.cert === true, msg('certificateRequired'), 'certificateRequired')
     }
   }
   if (kind === 'ot') {
@@ -169,6 +172,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   // โหมด DB: ตัดข้อความตัวอย่างของ mock ออก เพราะ id จริงจะชนกับ id ของตัวอย่าง
   const copy: any = useMemo(() => USE_DB ? { ...rawCopy, sampleDocuments: {}, sampleNotifications: {} } : rawCopy, [rawCopy])
   const { user } = useAuth()
+  const { showToast } = useToast()
   const dateText = (value: string) => new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${value}T00:00:00`))
   const KIND_INFO = Object.fromEntries(Object.entries(KIND_INFO_DEFAULT).map(([key, info]) => [key, { ...info, title: copy.kinds[key as DocKind], description: copy.kindDescriptions[key as DocKind] }])) as typeof KIND_INFO_DEFAULT
   const LEAVE_TYPES = copy.leaveTypes
@@ -212,18 +216,18 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const [formOpen, setFormOpen] = useState(false)
   const [selectedKind, setSelectedKind] = useState<DocKind | ''>('')
   const [formValues, setFormValues] = useState<FormValues>({})
+  const [medicalCertificateFile, setMedicalCertificateFile] = useState<File | null>(null)
   const [pendingSubmission, setPendingSubmission] = useState<{ kind: DocKind; values: FormValues } | null>(null)
-  const [toast, setToast] = useState('')
+  const [rejectTarget, setRejectTarget] = useState<MockDocument | null>(null)
+  const [rejectSubmitting, setRejectSubmitting] = useState(false)
+  const [cancelTargetId, setCancelTargetId] = useState<number | null>(null)
+  const [cancelSubmitting, setCancelSubmitting] = useState(false)
   const [docsLoading, setDocsLoading] = useState(false)
   const [docsError, setDocsError] = useState('')
-  const [detail, setDetail] = useState<{ doc: MockDocument; canApprove: boolean; canCancel: boolean } | null>(null)
+  const [detail, setDetail] = useState<{ doc: MockDocument; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean } | null>(null)
   const [serverChecks, setServerChecks] = useState<FormCheck[]>([])
   const [validatingForm, setValidatingForm] = useState(false)
 
-  const showToast = useCallback((message: string) => {
-    setToast(message)
-    window.setTimeout(() => setToast(''), 3200)
-  }, [])
   const mapperText = useMemo(() => ({ locale: copy.dateLocale, kinds: copy.kinds, leaveTypes: copy.leaveTypes, day: copy.ledger.day, hour: copy.ledger.hour }), [copy])
   const errorText = useCallback((error: unknown) => error instanceof ApiError && error.errors?.length
     ? toFormChecks(error.errors.map((item) => ({ ok: false, ...item })), copy).map((item) => item.message).join(' / ')
@@ -244,6 +248,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const currentSubmitterName = USE_DB ? ((user as unknown as { name?: string } | null)?.name ?? '') : currentSubmitter.name
   const canCancel = mockRole === 'พนักงาน'
   const formChecks = USE_DB ? serverChecks : selectedKind ? validateSubmission(selectedKind, { ...formValues }, documents, currentSubmitter, policy, copy) : []
+  const certificateRequired = formChecks.some((check) => !check.ok && check.key === 'certificateRequired')
   // โหมด DB: ผู้ยื่นเซ็นตอนส่งเอกสารแล้ว จึงไม่มีขั้น "เซ็นภายหลัง"
   const canSignAsSubmitter = (doc: MockDocument) => !USE_DB && mockRole === 'พนักงาน' && doc.employee === 'สมชาย ใจดี' && doc.status.startsWith('pending') && !doc.signatures?.['ผู้ยื่น']
   // โหมด DB: ถ้าอยู่ในหน้ารายละเอียด ให้ปุ่มเซ็นเปิด dialog ทับ popup รายละเอียดได้ตั้งใจ — แต่ต้องตั้ง signingDocumentId เองเท่านั้น
@@ -276,8 +281,10 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
         documentId: row.id,
         event: row.event,
       })))
-    } catch { /* เงียบไว้ — หน้าแจ้งเตือนใช้รายการว่าง */ }
-  }, [mapperText])
+    } catch (error) {
+      showToast(errorText(error), 'error')
+    }
+  }, [mapperText, errorText, showToast])
   useEffect(() => { if (USE_DB && view === 'notifications') void reloadNotifications() }, [view, reloadNotifications])
 
   // Topbar คลิกแจ้งเตือน → ส่ง document id มาทาง sessionStorage + custom event → เปิด popup รายละเอียดเอกสารทันที
@@ -300,10 +307,10 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   // นโยบาย + ลายเซ็นที่จดจำไว้ + รายชื่อพนักงาน (ledger)
   useEffect(() => {
     if (!USE_DB) return
-    getPolicy().then((p) => { const next: MockPolicy = { ...INITIAL_POLICY, ...p, expiry: p.expiryDate }; setPolicy(next); setPolicyDraft(next) }).catch(() => {})
-    getMySignature().then((r) => setSavedSignature(r.signature)).catch(() => {})
-    listPeople().then((rows) => setDbPeople(rows)).catch(() => {})
-  }, [])
+    getPolicy().then((p) => { const next: MockPolicy = { ...INITIAL_POLICY, ...p, expiry: p.expiryDate }; setPolicy(next); setPolicyDraft(next) }).catch((error) => showToast(errorText(error), 'error'))
+    getMySignature().then((r) => setSavedSignature(r.signature)).catch((error) => showToast(errorText(error), 'error'))
+    listPeople().then((rows) => setDbPeople(rows)).catch((error) => showToast(errorText(error), 'error'))
+  }, [errorText, showToast])
 
   // รายละเอียดเอกสาร (ลายเซ็น, formData, canApprove/canCancel จาก server)
   useEffect(() => {
@@ -311,8 +318,8 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     if (selectedDocumentId === null) { setDetail(null); return }
     let cancelled = false
     getRequest(selectedDocumentId)
-      .then((row) => { if (!cancelled) setDetail({ doc: mapDetail(row, mapperText), canApprove: row.canApprove, canCancel: row.canCancel }) })
-      .catch((error) => { if (!cancelled) { showToast(errorText(error)); setSelectedDocumentId(null) } })
+      .then((row) => { if (!cancelled) setDetail({ doc: mapDetail(row, mapperText), canApprove: row.canApprove, canCancel: row.canCancel, canViewMedicalCertificate: row.canViewMedicalCertificate }) })
+      .catch((error) => { if (!cancelled) { showToast(errorText(error), 'error'); setSelectedDocumentId(null) } })
     return () => { cancelled = true }
   }, [selectedDocumentId, mapperText, errorText, showToast])
 
@@ -452,6 +459,10 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   }
 
   const updateFormValue = (key: string, value: string | boolean) => {
+    if (key === 'leaveType' && value !== 'sick') {
+      setMedicalCertificateFile(null)
+      setFormValues((current) => ({ ...current, cert: false }))
+    }
     setFormValues((current) => {
       const next = { ...current, [key]:value }
       const dateRange = (next.from && next.to) ? daysBetween(String(next.from), String(next.to)) : 0
@@ -475,35 +486,55 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     })
   }
 
+  const updateMedicalCertificate = (file: File | null) => {
+    if (file && file.size > 10 * 1024 * 1024) {
+      setMedicalCertificateFile(null)
+      setFormValues((current) => ({ ...current, cert: false }))
+      showToast(copy.submission.medicalCertificateTooLarge, 'error')
+      return
+    }
+    setMedicalCertificateFile(file)
+    setFormValues((current) => ({ ...current, cert: Boolean(file) }))
+  }
+
   const cancelPendingSubmission = () => { setPendingSubmission(null); setFormOpen(true) }
 
-  const mockDecision = (doc: MockDocument, reject = false, signature?: string) => {
-    const note = reject ? window.prompt(copy.messages.rejectPrompt)?.trim() : ''
-    if (reject && !note) return
+  const mockDecision = (doc: MockDocument, reject = false, signature?: string, note = '') => {
     const nextStatus: Status = reject ? 'rejected' : doc.status === 'pending_mgr' || doc.status === 'pending_exec' ? 'pending_hr' : 'approved'
     const stage: SignatureStage = doc.status === 'pending_mgr' ? 'ผู้จัดการแผนก' : doc.status === 'pending_exec' ? 'ผู้ประกอบการ' : 'HR'
     const reviewer = stage === 'HR' ? employees.find((employee) => employee.role === 'HR') : employees.find((employee) => employee.role === mockRole)
     setDocuments((current) => current.map((item) => item.id === doc.id ? { ...item, status:nextStatus, ...(reject ? { note, rejectedBy:stage === 'ผู้จัดการแผนก' ? 'manager' as const : 'hr' as const } : {}), ...(signature ? { signatures: { ...item.signatures, [stage]: { image:signature, name:reviewer?.name ?? mockRole, date:new Date().toISOString().slice(0,10) } } } : {}) } : item))
-    showToast(reject ? copy.messages.rejectedToast : doc.status === 'pending_mgr' ? copy.messages.forwardedToast : copy.messages.approvedToast)
+    showToast(reject ? copy.messages.rejectedToast : doc.status === 'pending_mgr' ? copy.messages.forwardedToast : copy.messages.approvedToast, 'success')
   }
 
-  // ---------- โหมด DB: ไม่อนุมัติ / ยกเลิก ----------
-  const dbReject = async (doc: MockDocument) => {
-    const note = window.prompt(copy.messages.rejectPrompt)?.trim()
-    if (!note) return
+  // ---------- ไม่อนุมัติ / ยกเลิก ----------
+  const rejectDocument = async (note: string) => {
+    const doc = rejectTarget
+    if (!doc || rejectSubmitting) return
+    setRejectSubmitting(true)
     try {
-      await rejectRequest(doc.id, note)
+      if (USE_DB) await rejectRequest(doc.id, note)
+      else mockDecision(doc, true, undefined, note)
+      setRejectTarget(null)
       setSelectedDocumentId(null)
-      showToast(copy.messages.rejectedToast)
+      if (USE_DB) showToast(copy.messages.rejectedToast, 'success')
       await reload()
-    } catch (error) { showToast(errorText(error)) }
+    } catch (error) { showToast(errorText(error), 'error') }
+    finally { setRejectSubmitting(false) }
   }
-  const dbCancel = async (id: number) => {
+  const cancelDocument = async () => {
+    const id = cancelTargetId
+    if (id === null || cancelSubmitting) return
+    setCancelSubmitting(true)
     try {
-      await cancelRequest(id)
+      if (USE_DB) await cancelRequest(id)
+      else setDocuments((current) => current.filter((doc) => doc.id !== id))
+      setCancelTargetId(null)
       setSelectedDocumentId(null)
-      await reload()
-    } catch (error) { showToast(errorText(error)) }
+      showToast(copy.messages.cancelledToast, 'success')
+      if (USE_DB) await reload()
+    } catch (error) { showToast(errorText(error), 'error') }
+    finally { setCancelSubmitting(false) }
   }
 
   const signaturePoint = (event: PointerEventType<HTMLCanvasElement>) => {
@@ -550,17 +581,21 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     if (USE_DB) {
       try {
         if (pendingSubmission) {
-          await createRequest({ kind: pendingSubmission.kind, values: pendingSubmission.values, signature: image, rememberSignature })
+          await createRequest(
+            { kind: pendingSubmission.kind, values: pendingSubmission.values, signature: image, rememberSignature },
+            medicalCertificateFile ?? undefined,
+          )
           setPendingSubmission(null); setSelectedKind(''); setFormValues({})
-          showToast(copy.messages.submittedToast)
+          setMedicalCertificateFile(null)
+          showToast(copy.messages.submittedToast, 'success')
         } else if (signingDocument) {
           const result = await approveRequest(signingDocument.id, { signature: image, rememberSignature })
           setSigningDocumentId(null); setSelectedDocumentId(null)
-          showToast(result.status === 'pending_hr' || result.status === 'pending_exec' ? copy.messages.forwardedToast : copy.messages.approvedToast)
+          showToast(result.status === 'pending_hr' || result.status === 'pending_exec' ? copy.messages.forwardedToast : copy.messages.approvedToast, 'success')
         }
         if (rememberSignature && image) setSavedSignature(image)
         await reload()
-      } catch (error) { showToast(errorText(error)) }
+      } catch (error) { showToast(errorText(error), 'error') }
       return
     }
 
@@ -573,17 +608,18 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       const leaveLabel = LEAVE_TYPES[value('leaveType')] ?? KIND_INFO[kind].title
       const title = kind === 'leave' ? `${leaveLabel} · ${value('days')} วัน` : kind === 'ot' ? `ทำ OT · ${value('hours')} ชั่วโมง` : KIND_INFO[kind].title
       const summary = kind === 'leave' ? `${dateText(value('from'))}${value('to') && value('to') !== value('from') ? ` – ${dateText(value('to'))}` : ''} · ${value('reason')}` : kind === 'ot' ? `${dateText(value('date'))} · ${value('start')}–${value('end')} · ${value('task')}` : kind === 'wfh' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('place')}` : kind === 'timefix' ? `${dateText(value('date'))} · ${value('reason')}` : kind === 'outing' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('company')} · ${value('address')}` : `${dateText(value('offDate'))} · ${value('reason')}`
-      const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'wfh' || kind === 'outing' ? 'from' : 'date') || value('offDate'), to:value(kind === 'leave' || kind === 'wfh' || kind === 'outing' ? 'to' : kind === 'swap' ? 'workDate' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
+      const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'wfh' || kind === 'outing' ? 'from' : 'date') || value('offDate'), to:value(kind === 'leave' || kind === 'wfh' || kind === 'outing' ? 'to' : kind === 'swap' ? 'workDate' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, medicalCertificateAvailable:Boolean(medicalCertificateFile), formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
       setDocuments((current) => [doc, ...current])
       if (rememberSignature && image) setSavedSignature(image)
       setPendingSubmission(null); setSelectedKind(''); setFormValues({})
-      showToast(copy.messages.submittedToast)
+      setMedicalCertificateFile(null)
+      showToast(copy.messages.submittedToast, 'success')
       return
     }
     if (!signingDocument) return
     if (canSignAsSubmitter(signingDocument)) {
       setDocuments((current) => current.map((doc) => doc.id === signingDocument.id ? { ...doc, signatures:{ ...doc.signatures, 'ผู้ยื่น':{ image, name:doc.employee, date:new Date().toISOString().slice(0,10) } } } : doc))
-      showToast(copy.messages.signedToast)
+      showToast(copy.messages.signedToast, 'success')
     } else {
       mockDecision(signingDocument, false, image)
     }
@@ -593,8 +629,8 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
 
   // ---------- นโยบาย ----------
   const savePolicyDraft = async () => {
-    if (!policyDraft.yearStart || !policyDraft.yearEnd || policyDraft.yearEnd < policyDraft.yearStart) { showToast(copy.messages.policyInvalid); return }
-    if (!USE_DB) { setPolicy({ ...policyDraft }); showToast(copy.messages.policySaved); return }
+    if (!policyDraft.yearStart || !policyDraft.yearEnd || policyDraft.yearEnd < policyDraft.yearStart) { showToast(copy.messages.policyInvalid, 'error'); return }
+    if (!USE_DB) { setPolicy({ ...policyDraft }); showToast(copy.messages.policySaved, 'success'); return }
     try {
       const saved = await savePolicy({
         year: policyDraft.year, yearStart: policyDraft.yearStart, yearEnd: policyDraft.yearEnd,
@@ -604,22 +640,25 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       })
       const next: MockPolicy = { ...INITIAL_POLICY, ...saved, expiry: saved.expiryDate }
       setPolicy(next); setPolicyDraft(next)
-      showToast(copy.messages.policySaved)
-    } catch (error) { showToast(errorText(error)) }
+      showToast(copy.messages.policySaved, 'success')
+    } catch (error) { showToast(errorText(error), 'error') }
   }
   const resetPolicyAndMock = () => {
     if (USE_DB) { setPolicyDraft({ ...policy }); return } // โหมด DB: คืนค่าที่บันทึกล่าสุด ไม่ล้างข้อมูลจริง
-    if (!window.confirm(copy.messages.resetConfirm)) return
     setPolicy({ ...INITIAL_POLICY }); setPolicyDraft({ ...INITIAL_POLICY }); setDocuments(INITIAL_DOCS); setEmployees(INITIAL_EMPLOYEES); setNotifications(INITIAL_NOTIFICATIONS)
-    setMockRole('พนักงาน'); setLedgerEmployeeId('e1'); setEmailEnabled(true); setSavedSignature(''); setToast(copy.messages.resetDone)
+    setMockRole('พนักงาน'); setLedgerEmployeeId('e1'); setEmailEnabled(true); setSavedSignature(''); showToast(copy.messages.resetDone, 'success')
   }
 
   const markAllRead = () => {
     if (USE_DB) {
-      markNotificationsRead().then(() => reloadNotifications()).catch(() => {})
+      markNotificationsRead()
+        .then(() => reloadNotifications())
+        .then(() => showToast(copy.notifications.readAll, 'success'))
+        .catch((error) => showToast(errorText(error), 'error'))
       return
     }
     setNotifications((current) => current.map((notification) => ({ ...notification, read:true })))
+    showToast(copy.notifications.readAll, 'success')
   }
   const exportLedgerCsv = () => {
     const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
@@ -653,7 +692,9 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       // คลิกแจ้งเตือน: ทำเครื่องหมายว่าอ่านแล้ว แล้วเปิด popup รายละเอียดเอกสารทันที
       onOpen={(notification) => {
         const docId = notification.documentId ?? null
-        if (USE_DB) void markNotificationsRead(notification.id).then(() => reloadNotifications())
+        if (USE_DB) void markNotificationsRead(notification.id)
+          .then(() => reloadNotifications())
+          .catch((error) => showToast(errorText(error), 'error'))
         else setNotifications(current => current.map(item => item.id === notification.id ? {...item,read:true} : item))
         if (docId !== null) setSelectedDocumentId(docId)
       }}
@@ -674,7 +715,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     {view === 'all' && <DocAllDocumentsList
       documents={pagedDocs} layout={layout} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
       onSelect={setSelectedDocumentId}
-      onCancel={(id) => { if (USE_DB) void dbCancel(id); else setDocuments((current) => current.filter((doc) => doc.id !== id)) }}
+      onCancel={(id) => setCancelTargetId(id)}
       canCancel={USE_DB ? false : canCancel} copy={copy}
     />}
     {view === 'all' && totalDocs > 0 && <PaginationFooter
@@ -690,7 +731,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       onPageSizeChange={(s) => { setPageSize(s); setPage(1) }} mockRole={mockRole}
       kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
       onSelect={setSelectedDocumentId}
-      onCancel={(id) => { if (!USE_DB) setDocuments((current) => current.filter((doc) => doc.id !== id)) }} copy={copy}
+      onCancel={(id) => setCancelTargetId(id)} copy={copy}
     />}
 
     {selectedDocument && <DocAllDocumentsDetail
@@ -702,25 +743,52 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       copy={copy}
       canApprove={USE_DB ? Boolean(detail?.canApprove) : false}
       canCancel={USE_DB ? Boolean(detail?.canCancel) : false}
+      canViewMedicalCertificate={USE_DB ? Boolean(detail?.canViewMedicalCertificate) : false}
       onClose={() => setSelectedDocumentId(null)}
       onSign={() => setSigningDocumentId(selectedDocument.id)}
-      onReject={() => { if (USE_DB) void dbReject(selectedDocument); else mockDecision(selectedDocument, true) }}
-      onCancel={() => {
-        if (USE_DB) void dbCancel(selectedDocument.id)
-        else { setDocuments((current) => current.filter((doc) => doc.id !== selectedDocument.id)); setSelectedDocumentId(null) }
-      }}
+      onReject={() => setRejectTarget(selectedDocument)}
+      onCancel={() => setCancelTargetId(selectedDocument.id)}
     />}
+
+    <DocRejectModal
+      open={rejectTarget !== null}
+      title={rejectTarget?.title ?? ''}
+      subtitle={rejectTarget?.no}
+      submitting={rejectSubmitting}
+      onClose={() => setRejectTarget(null)}
+      onConfirm={(note) => void rejectDocument(note)}
+      copy={copy}
+    />
+    <ConfirmDialog
+      open={cancelTargetId !== null}
+      title={copy.messages.cancelDocumentTitle}
+      description={copy.messages.cancelDocumentConfirm}
+      confirmLabel={copy.messages.confirm}
+      cancelLabel={copy.messages.cancel}
+      loading={cancelSubmitting}
+      variant="danger"
+      onOpenChange={(open) => { if (!open) setCancelTargetId(null) }}
+      onConfirm={() => void cancelDocument()}
+    />
 
     {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={480} height={160} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" onClick={() => void confirmSignature()}>{signatureHasInk ? copy.signature.confirmOrSend : copy.signature.confirmWithoutSign}</button></div></section></div>}
 
     <DocNewDocumentModal
       open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} role={mockRole} copy={copy} translations={translations}
       onSubmit={submitMock}
-      onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}) }}
-      onClearKind={() => { setSelectedKind(''); setFormValues({}) }}
-      onPickKind={(kind) => { setSelectedKind(kind); setFormValues((current) => (kind === 'wfh' || kind === 'outing') && (selectedKind === 'wfh' || selectedKind === 'outing') ? current : Object.fromEntries(FORM_FIELDS[kind].map(field => [field.key, field.type === 'select' ? Object.keys(field.options ?? {})[0] : field.type === 'checkbox' ? false : '']))) }}
+      onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}
+      onClearKind={() => { setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}
+      onPickKind={(kind) => {
+        setSelectedKind(kind)
+        setMedicalCertificateFile(null)
+        setFormValues((current) => (kind === 'wfh' || kind === 'outing') && (selectedKind === 'wfh' || selectedKind === 'outing')
+          ? current
+          : Object.fromEntries(FORM_FIELDS[kind].map((field) => [field.key, field.type === 'select' ? Object.keys(field.options ?? {})[0] : field.type === 'checkbox' ? false : ''])))
+      }}
       onChange={updateFormValue}
+      medicalCertificateFile={medicalCertificateFile}
+      certificateRequired={certificateRequired}
+      onMedicalCertificateFile={updateMedicalCertificate}
     />
-    {toast && <div className="documents-toast" role="status">{toast}</div>}
   </section>
 }

@@ -8,10 +8,11 @@ export class ApiError extends Error {
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const isFormData = init.body instanceof FormData
   const response = await fetch(apiUrl(`${BASE}${path}`), {
     credentials: 'include',
     ...init,
-    headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
+    headers: { ...(init.body && !isFormData ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
   })
   if (response.status === 204) return undefined as T
   const json = await response.json().catch(() => ({}))
@@ -25,7 +26,7 @@ export type ApiListRow = {
   id: number; requestNo: string; kind: DocKind; status: Status | 'cancelled'
   days: number | null; reason: string | null; rejectionNote: string | null; rejectedStage: 'manager' | 'executive' | 'hr' | null
   submittedAt: string; startDate: string | null; endDate: string | null
-  employeeUserId: number; employeeName: string; departmentName: string | null
+  employeeUserId: number; employeeName: string; departmentName: string | null; medicalCertificateAvailable?: boolean
   leaveType: string | null; otHours: number | null; otTask: string | null; place: string | null
   mgrSignerName: string | null; mgrSignedAt: string | null; mgrSignatureImage: string | null
   execSignerName: string | null; execSignedAt: string | null; execSignatureImage: string | null
@@ -33,7 +34,7 @@ export type ApiListRow = {
   submitterName: string | null; submitterSignatureImage: string | null
 }
 export type ApiSignature = { stage: 'submitter' | 'manager' | 'executive' | 'hr'; action: string; signerName: string; signatureImage: string | null; note: string | null; signedAt: string }
-export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean }
+export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean }
 export type ApiCheck = { ok: boolean; key: string; params?: Record<string, string | number> }
 export type ApiNotification = ApiListRow & { notificationId: number; event: string; isRead: boolean; createdAt: string }
 export type ApiPolicy = { id: number; year: number; yearStart: string; yearEnd: string; expiryDate: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number; certDays: number; otMax: number; fixDays: number }
@@ -46,7 +47,16 @@ export const listRequests = (params: { status?: string; kind?: string; awaiting?
   return call<ApiListRow[]>(`/${query.size ? `?${query}` : ''}`)
 }
 export const getRequest = (id: number) => call<ApiDetail>(`/${id}`)
-export const createRequest = (data: { kind: DocKind; values: FormValues; signature: string; rememberSignature: boolean }) => call<{ id: number; requestNo: string; status: Status }>('/', body(data))
+export const createRequest = (data: { kind: DocKind; values: FormValues; signature: string; rememberSignature: boolean }, medicalCertificate?: File) => {
+  const form = new FormData()
+  form.set('kind', data.kind)
+  form.set('values', JSON.stringify(data.values))
+  form.set('signature', data.signature)
+  form.set('rememberSignature', String(data.rememberSignature))
+  if (medicalCertificate) form.set('medicalCertificate', medicalCertificate)
+  return call<{ id: number; requestNo: string; status: Status }>('/', { method: 'POST', body: form })
+}
+export const medicalCertificateUrl = (id: number) => apiUrl(`${BASE}/${id}/medical-certificate`)
 export const approveRequest = (id: number, data: { signature?: string; rememberSignature?: boolean }) => call<{ id: number; status: Status }>(`/${id}/approve`, body(data))
 export const decideRequest = (id: number, action: 'approve' | 'reject', data: { signature: string; rememberSignature?: boolean; note?: string }) => call<{ id: number; status: Status }>(`/${id}/${action}`, body(data))
 export const rejectRequest = (id: number, note: string) => call<{ id: number; status: Status }>(`/${id}/reject`, body({ note }))
@@ -75,6 +85,7 @@ export function mapListRow(row: ApiListRow, t: MapperText): MockDocument {
   const extra = row.kind === 'ot' ? row.otTask : row.place ?? row.reason
   return {
     id: row.id, no: row.requestNo, kind: row.kind, title, summary: [range, extra].filter(Boolean).join(' · '),
+    medicalCertificateAvailable: row.medicalCertificateAvailable,
     employee: row.employeeName, department: row.departmentName ?? '', date: bangkokDate(row.submittedAt),
     status: row.status as Status, leaveType: (row.leaveType ?? undefined) as MockDocument['leaveType'],
     from: row.startDate ?? undefined, to: row.endDate ?? undefined, days: row.days ?? undefined,
@@ -115,7 +126,7 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
     // ยืนยันโดยไม่เซ็น = signatureImage เป็น null → ยังคงแสดงในขั้นตอน แต่ไม่มีรูปลายเซ็น
     if (signedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage ?? '', name: sig.signerName, date: bangkokDate(sig.signedAt) }
   }
-  return { ...base, formData, signatures } as MockDocument
+  return { ...base, formData, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures } as MockDocument
 }
 
 // แปลง checks จาก server ให้เป็นรูปแบบเดิมที่ฟอร์มใช้ ({ ok, message })
@@ -124,6 +135,6 @@ export function toFormChecks(checks: ApiCheck[], copy: any) {
     const params = { ...(check.params ?? {}) } as Record<string, string | number>
     if (typeof params.type === 'string') params.type = copy.leaveTypes[params.type] ?? params.type
     const message = Object.entries(params).reduce((text, [name, value]) => text.split(`{${name}}`).join(String(value)), String(copy.validation[check.key] ?? check.key))
-    return { ok: check.ok, message }
+    return { ok: check.ok, message, key: check.key }
   })
 }

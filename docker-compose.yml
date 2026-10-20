@@ -19,6 +19,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./server/.env
+    volumes:
+      - employee_request_storage:/app/storage
     environment:
       NODE_ENV: production
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
@@ -48,3 +50,6 @@ networks:
   shared_database:
     external: true
     name: shared-database
+
+volumes:
+  employee_request_storage:

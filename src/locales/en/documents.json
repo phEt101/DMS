@@ -120,7 +120,7 @@
       "days": "Workdays (editable, e.g. 0.5)",
       "hours": "Total hours (calculated automatically)",
       "reason": "Reason",
-      "cert": "Medical certificate attached",
+      "cert": "Medical certificate",
       "dayType": "Day type",
       "date": "Date",
       "task": "Task / project",
@@ -164,6 +164,8 @@
       "ot": "Overtime (OT)",
       "other": "Other documents",
       "status": "Status",
+      "certificateAttached": "Attached",
+      "certificateMissing": "No file attached",
       "allStatuses": "All statuses",
       "pending": "Pending review",
       "clear": "Clear filters",
@@ -224,7 +226,11 @@
       "afterSign": "In mode, the document will be sent to",
       "manager": "the department manager",
       "hr": "HR",
-      "noResults": "No documents found. Try changing your search or filters."
+      "noResults": "No documents found. Try changing your search or filters.",
+      "medicalCertificateLabel": "Attach medical certificate",
+      "medicalCertificateHelp": "PDF, JPG, or PNG, up to 10 MB. Only you, HR Div., and admins can view this file.",
+      "medicalCertificateTooLarge": "The file must be no larger than 10 MB",
+      "removeCertificate": "Remove file"
     },
     "signature": {
       "submitter": "Sign as submitter",
@@ -320,8 +326,10 @@
       "days": "Days",
       "reason": "Reason",
       "status": "Status",
+      "exportConfirmTitle": "Confirm export",
       "exportConfirmExcel": "Export the leave ledger as Excel?",
       "exportConfirmPdf": "Export the leave ledger as PDF?",
+      "exportReady": "Export is ready",
       "word": "Export Word",
       "pdf": "Export PDF",
       "print": "Print",
@@ -369,6 +377,14 @@
       "recipientOne": "Napa Wongsuk",
       "recipientTwo": "Siriporn Kaewmanee"
     },
+    "reject": {
+      "title": "Reject document",
+      "reasonLabel": "Reason for rejection",
+      "placeholder": "Enter a reason so the submitter understands",
+      "required": "Please enter a reason",
+      "cancel": "Cancel",
+      "confirm": "Confirm rejection"
+    },
     "sampleNotifications": {
       "1": {
         "title": "Veera's OT request is awaiting review",
@@ -389,6 +405,12 @@
       "item": "Item",
       "notFound": "Document not found",
       "rejectPrompt": "Enter a reason for rejection",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "cancelDocumentTitle": "Cancel document?",
+      "cancelDocumentConfirm": "Are you sure you want to cancel this document? This action cannot be undone.",
+      "cancelledToast": "Document cancelled",
+      "downloadCertificate": "Open/download medical certificate",
       "rejectedToast": "document rejected",
       "forwardedToast": "forwarded to HR",
       "approvedToast": "document approved",

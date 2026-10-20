@@ -1,9 +1,12 @@
 import type { Request, Response } from 'express'
+import fs from 'node:fs'
+import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { db } from '../../../config/database.js'
 import { httpError } from '../../../middleware/errors.js'
 import { validateRequest, type Kind, type LeaveTypeRow, type Policy, type ValidationContext, type Values } from '../services/employee-requests.validation.js'
 import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
+import { medicalCertificateDirectory } from '../middleware/medical-certificate-upload.middleware.js'
 
 // ใช้สิทธิ์เดิมของโมดูลเอกสาร + เพิ่ม 'จัดการนโยบายการลา' 1 รายการ (ต้อง seed ในตาราง permissions)
 const PERM = { submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
@@ -199,6 +202,7 @@ export async function index(req: Request, res: Response) {
   const listRoleName = String(req.user!.role?.name ?? '')
   const listIsExec = listRoleName === 'executive'
   const isAdmin = listRoleName === 'admin'
+  const canViewCompanyCertificates = isAdmin || await isHrDivisionMember(me, companyId)
   const myDept = await myManagedDeptId(db as any, req)
   const status = String(req.query.status ?? 'all'), kind = String(req.query.kind ?? 'all'), awaitingMe = req.query.awaiting === 'me', mineOnly = req.query.mine === 'me'
   if (status !== 'all' && status !== 'pending' && !STATUSES.includes(status)) throw httpError(400, 'Invalid status')
@@ -231,6 +235,7 @@ export async function index(req: Request, res: Response) {
             r.employee_user_id, eu.name AS employee_name, dep.name AS department_name,
             lt.code AS leave_type, ot.hours AS ot_hours, ot.task AS ot_task,
             COALESCE(wfh.place, outing.place) AS place,
+            (medical_certificate.request_id IS NOT NULL) AS medical_certificate_available,
             sm.signer_name AS mgr_signer_name, DATE_FORMAT(sm.signed_at,'%Y-%m-%d') AS mgr_signed_at,
             se.signer_name AS exec_signer_name, DATE_FORMAT(se.signed_at,'%Y-%m-%d') AS exec_signed_at,
             sh.signer_name AS hr_signer_name, DATE_FORMAT(sh.signed_at,'%Y-%m-%d') AS hr_signed_at,
@@ -244,6 +249,7 @@ export async function index(req: Request, res: Response) {
        LEFT JOIN employee_request_ot_details ot ON ot.request_id = r.id
        LEFT JOIN employee_request_wfh_details wfh ON wfh.request_id = r.id
        LEFT JOIN employee_request_outing_details outing ON outing.request_id = r.id
+       LEFT JOIN employee_request_medical_certificates medical_certificate ON medical_certificate.request_id = r.id
         LEFT JOIN employee_request_signatures sm ON sm.request_id = r.id AND sm.stage = 'manager' AND sm.action = 'approved'
        LEFT JOIN employee_request_signatures se ON se.request_id = r.id AND se.stage = 'executive' AND se.action = 'approved'
        LEFT JOIN employee_request_signatures sh ON sh.request_id = r.id AND sh.stage = 'hr' AND sh.action = 'approved'
@@ -255,7 +261,13 @@ export async function index(req: Request, res: Response) {
       WHERE ${where.join(' AND ')}
       ORDER BY r.submitted_at DESC, r.id DESC LIMIT 1000`, params,
   )
-  res.json(rows.map((row) => ({ ...camelize(row), days: row.days === null ? null : Number(row.days), otHours: row.ot_hours === null ? null : Number(row.ot_hours) })))
+  res.json(rows.map((row) => ({
+    ...camelize(row),
+    medicalCertificateAvailable: Boolean(row.medical_certificate_available)
+      && (canViewCompanyCertificates || Number(row.employee_user_id) === me),
+    days: row.days === null ? null : Number(row.days),
+    otHours: row.ot_hours === null ? null : Number(row.ot_hours),
+  })))
 }
 
 const DETAIL_SQL: Record<Kind, string> = {
@@ -273,6 +285,23 @@ const DETAIL_SQL: Record<Kind, string> = {
                   customer_position, phone, work_details, remark
              FROM employee_request_outing_details WHERE request_id = ?`,
   swap: `SELECT DATE_FORMAT(off_date,'%Y-%m-%d') AS off_date, DATE_FORMAT(work_date,'%Y-%m-%d') AS work_date FROM employee_request_swap_details WHERE request_id = ?`,
+}
+
+async function isHrDivisionMember(userId: number, companyId: number): Promise<boolean> {
+  const [rows] = await db.query<any[]>(
+    `SELECT 1 FROM users u
+       JOIN departments d ON d.id = u.department_id
+      WHERE u.id = ? AND u.company_id = ? AND u.is_active = 1 AND u.deleted_at IS NULL
+        AND LOWER(TRIM(d.name)) = 'hr div.' AND d.deleted_at IS NULL LIMIT 1`,
+    [userId, companyId],
+  )
+  return rows.length > 0
+}
+
+async function canViewMedicalCertificate(userId: number, ownerId: number, companyId: number, roleName: string): Promise<boolean> {
+  return roleName.trim().toLowerCase() === 'admin'
+    || userId === ownerId
+    || await isHrDivisionMember(userId, companyId)
 }
 
 export async function show(req: Request, res: Response) {
@@ -298,7 +327,16 @@ export async function show(req: Request, res: Response) {
   if (!detailSql) throw httpError(404, 'Request not found')
   const [detailRows] = await db.query<any[]>(detailSql, [id])
   const detail = detailRows[0] ? camelize(detailRows[0]) as any : null
-  if (detail && row.kind === 'leave') { detail.byHour = Boolean(detail.byHour); detail.hasMedicalCertificate = Boolean(detail.hasMedicalCertificate) }
+  const [certificateRows] = await db.query<any[]>(
+    `SELECT request_id FROM employee_request_medical_certificates WHERE request_id = ? LIMIT 1`, [id],
+  )
+  const canViewCertificate = await canViewMedicalCertificate(me, Number(row.employee_user_id), companyId, detailRoleName)
+  const hasCertificateFile = certificateRows.length > 0
+  if (detail && row.kind === 'leave') {
+    detail.byHour = Boolean(detail.byHour)
+    detail.hasMedicalCertificate = canViewCertificate && hasCertificateFile
+    detail.medicalCertificateAvailable = canViewCertificate && hasCertificateFile
+  }
   const [signatures] = await db.query<any[]>(
     `SELECT signature.stage, signature.action, signature.signer_name, image.signature_image, signature.note, signature.signed_at
        FROM employee_request_signatures signature
@@ -316,6 +354,7 @@ export async function show(req: Request, res: Response) {
   const { manager_user_id: _manager, executive_user_id: _exec, department_id: _dep, ...publicRow } = row as any
   res.json({
     ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map(camelize),
+    canViewMedicalCertificate: canViewCertificate,
     canApprove: notSelf && (
       (row.status === 'pending_mgr' && (row.manager_user_id === me || isDeptMgr))
       || (row.status === 'pending_exec' && (isExec || isAdmin))
@@ -445,12 +484,33 @@ const oneOf = (value: unknown, allowed: string[], message: string) => {
 }
 
 export async function store(req: Request, res: Response) {
+  const uploadedCertificate = req.file
+  const uploadedCertificateBytes = uploadedCertificate ? fs.readFileSync(uploadedCertificate.path) : Buffer.alloc(0)
+  let certificateCommitted = false
+  try {
   need(req, PERM.submit)
   const companyId = companyIdOf(req), me = req.user!.id, today = todayBangkok()
   const kind = req.body?.kind as Kind
   if (!KINDS.includes(kind)) throw httpError(400, 'ประเภทเอกสารไม่ถูกต้อง')
-  const raw = req.body?.values
+  let raw = req.body?.values
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw) } catch { throw httpError(400, 'ข้อมูลเอกสารไม่ถูกต้อง') }
+  }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw httpError(400, 'ข้อมูลเอกสารไม่ถูกต้อง')
+  if (uploadedCertificate && (kind !== 'leave' || String((raw as Values).leaveType ?? '') !== 'sick')) {
+    throw httpError(400, 'แนบใบรับรองแพทย์ได้เฉพาะคำขอลาป่วย')
+  }
+  const valuesWithCertificate = { ...(raw as Values), cert: Boolean(uploadedCertificate) }
+  if (uploadedCertificate) {
+    const validFile = uploadedCertificate.mimetype === 'application/pdf'
+      ? uploadedCertificateBytes.subarray(0, 5).toString('ascii') === '%PDF-'
+      : uploadedCertificate.mimetype === 'image/png'
+        ? uploadedCertificateBytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+        : uploadedCertificate.mimetype === 'image/jpeg'
+          && uploadedCertificateBytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
+    if (!validFile) throw httpError(400, 'รูปแบบไฟล์ใบรับรองแพทย์ไม่ถูกต้อง')
+    if (path.basename(uploadedCertificate.originalname).length > 255) throw httpError(400, 'ชื่อไฟล์ยาวเกินไป')
+  }
   // ยื่นเอกสาร: ลายเซ็นเป็น optional — กดยืนยันโดยไม่เซ็นก็ได้ (บันทึกเป็น NULL)
   const signature = checkSignature(req.body?.signature, false)
 
@@ -466,10 +526,14 @@ export async function store(req: Request, res: Response) {
   if (!user) throw httpError(404, 'User not found')
 
   const policy = await loadPolicy(companyId, today)
-  const ctx = await buildContext(kind, raw as Values, user, policy, today)
-  const { checks, values: v } = validateRequest(kind, raw as Values, ctx)
+  const ctx = await buildContext(kind, valuesWithCertificate, user, policy, today)
+  const { checks, values: v } = validateRequest(kind, valuesWithCertificate, ctx)
   const failed = checks.filter((check: { ok: any }) => !check.ok)
-  if (failed.length) { res.status(422).json({ message: 'ข้อมูลไม่ผ่านการตรวจสอบ', errors: failed.map((check) => ({ key: check.key, params: check.params })) }); return }
+  if (failed.length) {
+    if (uploadedCertificate) fs.rmSync(uploadedCertificate.path, { force: true })
+    res.status(422).json({ message: 'ข้อมูลไม่ผ่านการตรวจสอบ', errors: failed.map((check) => ({ key: check.key, params: check.params })) })
+    return
+  }
 
   if (kind === 'ot') oneOf(v.dayType, ['weekday', 'weekend', 'holiday'], 'ประเภทวันไม่ถูกต้อง')
   if (kind === 'timefix') oneOf(v.cause, ['forgot', 'device', 'offsite', 'other'], 'สาเหตุไม่ถูกต้อง')
@@ -497,8 +561,18 @@ export async function store(req: Request, res: Response) {
     if (kind === 'leave') {
       await conn.execute(
         `INSERT INTO employee_request_leave_details (request_id, leave_type_id, by_hour, start_time, end_time, hours, has_medical_certificate) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, ctx.leaveType!.id, ctx.leaveType!.allowByHour && v.byHour === true ? 1 : 0, s('start'), s('end'), num(v.hours), v.cert === true ? 1 : 0],
+        [id, ctx.leaveType!.id, ctx.leaveType!.allowByHour && v.byHour === true ? 1 : 0, s('start'), s('end'), num(v.hours), Boolean(uploadedCertificate) ? 1 : 0],
       )
+      if (uploadedCertificate) {
+        const fileHash = createHash('sha256').update(uploadedCertificateBytes).digest('hex')
+        await conn.execute(
+          `INSERT INTO employee_request_medical_certificates
+            (request_id, stored_name, original_name, mime_type, file_size, file_hash, storage_path, uploaded_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, path.basename(uploadedCertificate.filename), path.basename(uploadedCertificate.originalname),
+            uploadedCertificate.mimetype, uploadedCertificate.size, fileHash, uploadedCertificate.path, me],
+        )
+      }
     } else if (kind === 'ot') {
       await conn.execute(`INSERT INTO employee_request_ot_details (request_id, day_type, work_date, start_time, end_time, hours, task) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [id, String(v.dayType), s('date'), s('start'), s('end'), num(v.hours), s('task')])
@@ -527,7 +601,7 @@ export async function store(req: Request, res: Response) {
       `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_file_id) VALUES (?, 'submitter', 'submitted', ?, ?, ?)`,
       [id, me, user.name, signatureFileId],
     )
-    if (req.body?.rememberSignature === true && signatureFileId !== null) {
+    if ((req.body?.rememberSignature === true || req.body?.rememberSignature === 'true') && signatureFileId !== null) {
       await conn.execute(
         `INSERT INTO user_saved_signatures (user_id, signature_file_id) VALUES (?, ?)
          ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`, [me, signatureFileId],
@@ -544,6 +618,7 @@ export async function store(req: Request, res: Response) {
         : await findHrUserIds(conn, companyId, me)
     await notify(conn, recipients, id, 'submitted')
     await conn.commit()
+    certificateCommitted = Boolean(uploadedCertificate)
     await logActivity({
       userId: me,
       module: 'documents',
@@ -560,6 +635,36 @@ export async function store(req: Request, res: Response) {
   } finally {
     conn.release()
   }
+  } catch (error) {
+    if (uploadedCertificate && !certificateCommitted) fs.rmSync(uploadedCertificate.path, { force: true })
+    throw error
+  }
+}
+
+export async function medicalCertificate(req: Request, res: Response) {
+  needDocumentModule(req)
+  const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id
+  const [rows] = await db.query<any[]>(
+    `SELECT request.employee_user_id, certificate.storage_path, certificate.original_name, certificate.mime_type
+       FROM employee_requests request
+       JOIN employee_request_medical_certificates certificate ON certificate.request_id = request.id
+      WHERE request.id = ? AND request.company_id = ? LIMIT 1`,
+    [id, companyId],
+  )
+  const certificate = rows[0]
+  if (!certificate) throw httpError(404, 'ไม่พบใบรับรองแพทย์')
+  const roleName = String(req.user!.role?.name ?? '')
+  if (!(await canViewMedicalCertificate(me, Number(certificate.employee_user_id), companyId, roleName))) {
+    throw httpError(404, 'ไม่พบใบรับรองแพทย์')
+  }
+  const resolved = path.resolve(certificate.storage_path)
+  if (!resolved.startsWith(`${medicalCertificateDirectory}${path.sep}`) || !fs.existsSync(resolved)) {
+    throw httpError(404, 'ไม่พบไฟล์ใบรับรองแพทย์')
+  }
+  res.setHeader('Cache-Control', 'private, no-store')
+  res.download(resolved, path.basename(certificate.original_name), (error) => {
+    if (error && !res.headersSent) res.status(500).end()
+  })
 }
 
 // ---------- อนุมัติ / ไม่อนุมัติ / ยกเลิก ----------

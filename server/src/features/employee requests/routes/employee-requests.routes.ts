@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { asyncHandler } from '../../../middleware/errors.js'
 import * as controller from '../controllers/employee-requests.controller.js'
+import { medicalCertificateUpload } from '../middleware/medical-certificate-upload.middleware.js'
 
 
 // mount ที่ /api/employee-requests (เช่นเดียวกับ documentsRouter)
@@ -18,9 +19,10 @@ employeeRequestsRouter.get('/badges', asyncHandler(controller.badges))
 employeeRequestsRouter.get('/summary', asyncHandler(controller.dashboardSummary))
 employeeRequestsRouter.post('/notifications/read', asyncHandler(controller.readNotifications))
 employeeRequestsRouter.post('/validate', asyncHandler(controller.validate))
+employeeRequestsRouter.get('/:id/medical-certificate', asyncHandler(controller.medicalCertificate))
 
 employeeRequestsRouter.get('/', asyncHandler(controller.index))
-employeeRequestsRouter.post('/', asyncHandler(controller.store))
+employeeRequestsRouter.post('/', medicalCertificateUpload.single('medicalCertificate'), asyncHandler(controller.store))
 employeeRequestsRouter.get('/:id', asyncHandler(controller.show))
 employeeRequestsRouter.post('/:id/approve', asyncHandler(controller.approve))
 employeeRequestsRouter.post('/:id/reject', asyncHandler(controller.reject))

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import EmployeeSearchSelect from '../../components/employee-search-select'
+import ConfirmDialog from '../../components/confirm-dialog'
+import { useToast } from '../../components/toast-provider'
 
 export interface LedgerPerson {
   id: string
@@ -22,6 +24,7 @@ export interface LedgerEntry {
   from?: string
   to?: string
   days?: number
+  medicalCertificateAvailable?: boolean
   reason?: string
   rejectedBy?: 'manager' | 'executive' | 'hr'
   signatures?: Partial<Record<'ผู้ยื่น' | 'ผู้จัดการแผนก' | 'ผู้ประกอบการ' | 'HR', { image: string; name: string; date: string }>>
@@ -38,6 +41,8 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
   const notes: string[] = c.ledger.noteItems
   const departments = useMemo(() => Array.from(new Set(people.map((employee) => employee.department).filter(Boolean))).sort(), [people])
   const [departmentFilter, setDepartmentFilter] = useState('')
+  const [confirmExport, setConfirmExport] = useState<'excel' | 'word' | 'pdf' | null>(null)
+  const { showToast } = useToast()
   const filteredPeople = useMemo(() => departmentFilter ? people.filter((employee) => employee.department === departmentFilter) : people, [people, departmentFilter])
   const rows = useMemo(() => [...entries].sort((a, b) => (a.from ?? '').localeCompare(b.from ?? '')).slice(0, 15), [entries])
   const used = (type: (typeof categories)[number]) => entries.filter((entry) => entry.leaveType === type && entry.status === 'approved').reduce((total, entry) => total + (entry.days ?? 0), 0)
@@ -60,6 +65,21 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
     const url = URL.createObjectURL(blob); const link = document.createElement('a')
     link.href = url; link.download = `ใบลา_${person.name.replace(/\s+/g, '_')}_2569.doc`; link.click(); URL.revokeObjectURL(url)
   }
+  const runExport = () => {
+    if (confirmExport === 'pdf') {
+      setConfirmExport(null)
+      showToast(c.ledger.exportReady, 'success')
+      window.setTimeout(() => window.print(), 0)
+      return
+    }
+    if (confirmExport === 'excel') exportCsv()
+    else if (confirmExport === 'word') exportWord()
+    if (confirmExport) showToast(c.ledger.exportReady, 'success')
+    setConfirmExport(null)
+  }
+  const confirmDescription = confirmExport === 'pdf'
+    ? c.ledger.exportConfirmPdf
+    : c.ledger.exportConfirmExcel
 
   return <div className="leave-ledger-screen">
     <div className="leave-ledger-toolbar">
@@ -81,9 +101,9 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
         <EmployeeSearchSelect label={c.ledger.chooseEmployee} value={person.id} options={filteredPeople.map((employee) => ({ id: employee.id, name: employee.name, detail: [employee.code, employee.department].filter(Boolean).join(' · ') }))} onChange={onPersonChange} />
       </>}
       <div className="leave-export-group">
-        <button type="button" className="leave-export-btn is-excel" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportCsv() }}>{c.ledger.exportExcel}</button>
-        <button type="button" className="leave-export-btn is-word" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportWord() }}>{c.ledger.word}</button>
-        <button type="button" className="leave-export-btn is-pdf" onClick={() => { if (window.confirm(c.ledger.exportConfirmPdf)) window.print() }}>{c.ledger.pdf}</button>
+        <button type="button" className="leave-export-btn is-excel" onClick={() => setConfirmExport('excel')}>{c.ledger.exportExcel}</button>
+        <button type="button" className="leave-export-btn is-word" onClick={() => setConfirmExport('word')}>{c.ledger.word}</button>
+        <button type="button" className="leave-export-btn is-pdf" onClick={() => setConfirmExport('pdf')}>{c.ledger.pdf}</button>
         <button type="button" className="leave-export-btn is-print" onClick={() => window.print()}>{c.ledger.print}</button>
       </div>
     </div>
@@ -114,7 +134,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
             <div className="leave-approver-name">{entry.hrSignerName}</div>
             <div className="leave-approver-sub">{entry.rejectedBy === 'hr' ? <span className="leave-approver-state">{c.statuses.rejected}</span> : <span className="leave-approver-state">{c.statuses.approved} {approvedDate(entry.hrSignedAt)}</span>}</div>
           </div> : entry?.status === 'pending_hr' ? <span className="leave-approver-state">{c.statuses.pending_hr}</span> : ''
-          return <tr key={entry?.id ?? `empty-${index}`}><td>{index + 1}</td><td>{formatDate(entry?.from, locale)}</td><td>{formatDate(entry?.to, locale)}</td>{categories.map((type) => <td key={type}>{entry?.leaveType === type ? entry.days : ''}</td>)}<td>{entry?.days ?? ''}</td><td className="leave-sheet-reason">{entry ? c.sampleDocuments[String(entry.id)]?.reason ?? entry.reason : ''}</td><td className="leave-sheet-approval">{requestCell}</td><td className="leave-sheet-approval">{mgrCell}</td><td className="leave-sheet-approval">{hrCell}</td>
+          return <tr key={entry?.id ?? `empty-${index}`}><td>{index + 1}</td><td>{formatDate(entry?.from, locale)}</td><td>{formatDate(entry?.to, locale)}</td>{categories.map((type) => <td key={type}>{entry?.leaveType === type ? entry.days : ''}</td>)}<td>{entry?.days ?? ''}</td><td className="leave-sheet-reason">{entry ? <>{c.sampleDocuments[String(entry.id)]?.reason ?? entry.reason}{entry.medicalCertificateAvailable&&<small className="leave-certificate-label">{c.ledger.certificateAttached}</small>}</> : ''}</td><td className="leave-sheet-approval">{requestCell}</td><td className="leave-sheet-approval">{mgrCell}</td><td className="leave-sheet-approval">{hrCell}</td>
           </tr>
         })}</tbody>
       </table>
@@ -124,5 +144,14 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
         <strong className="leave-expiry">***{c.ledger.expiryNote} {c.ledger.expiryDate}***</strong>
       </div>
     </article></div>
+    <ConfirmDialog
+      open={confirmExport !== null}
+      title={c.ledger.exportConfirmTitle}
+      description={confirmDescription}
+      confirmLabel={c.messages.confirm}
+      cancelLabel={c.messages.cancel}
+      onOpenChange={(open) => { if (!open) setConfirmExport(null) }}
+      onConfirm={runExport}
+    />
   </div>
 }
