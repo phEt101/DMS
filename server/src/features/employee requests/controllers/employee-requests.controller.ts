@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express'
+import { createHash } from 'node:crypto'
 import { db } from '../../../config/database.js'
 import { httpError } from '../../../middleware/errors.js'
 import { validateRequest, type Kind, type LeaveTypeRow, type Policy, type ValidationContext, type Values } from '../services/employee-requests.validation.js'
@@ -10,6 +11,16 @@ const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'wfh', 'outing', 'swap']
 const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', wfh: 'WFH', outing: 'OUT', swap: 'SW' }
 const STATUSES = ['pending_mgr', 'pending_exec', 'pending_hr', 'approved', 'rejected', 'cancelled']
 const MAX_SIGNATURE_LENGTH = 200_000
+
+async function storeSignatureImage(conn: any, image: string): Promise<number> {
+  const contentHash = createHash('sha256').update(image).digest('hex')
+  const [result] = await conn.execute(
+    `INSERT INTO signature_images (content_hash, signature_image) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
+    [contentHash, image],
+  )
+  return Number(result.insertId)
+}
 
 const has = (req: Request, name: string) => {
   return Boolean(req.user?.permissions.some((permission) => permission.name === name))
@@ -139,16 +150,33 @@ export async function updatePolicy(req: Request, res: Response) {
 // ---------- ลายเซ็นที่จดจำไว้ ----------
 export async function mySignature(req: Request, res: Response) {
   needDocumentModule(req)
-  const [rows] = await db.query<any[]>(`SELECT signature_image FROM user_saved_signatures WHERE user_id = ? LIMIT 1`, [req.user!.id])
+  const [rows] = await db.query<any[]>(
+    `SELECT image.signature_image FROM user_saved_signatures saved
+       JOIN signature_images image ON image.id = saved.signature_file_id
+      WHERE saved.user_id = ? LIMIT 1`, [req.user!.id],
+  )
   res.json({ signature: rows[0]?.signature_image ?? '' })
 }
 export async function saveMySignature(req: Request, res: Response) {
   needDocumentModule(req)
   const image = checkSignature(req.body?.signature, true)
-  await db.execute(
-    `INSERT INTO user_saved_signatures (user_id, signature_image) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature_image = VALUES(signature_image)`,
-    [req.user!.id, image],
-  )
+  if (!image) throw httpError(400, 'กรุณาลงลายมือชื่อ')
+  const conn = await db.getConnection()
+  try {
+    await conn.beginTransaction()
+    const signatureFileId = await storeSignatureImage(conn, image)
+    await conn.execute(
+      `INSERT INTO user_saved_signatures (user_id, signature_file_id) VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`,
+      [req.user!.id, signatureFileId],
+    )
+    await conn.commit()
+  } catch (error) {
+    await conn.rollback()
+    throw error
+  } finally {
+    conn.release()
+  }
   res.status(204).end()
 }
 
@@ -206,8 +234,8 @@ export async function index(req: Request, res: Response) {
             sm.signer_name AS mgr_signer_name, DATE_FORMAT(sm.signed_at,'%Y-%m-%d') AS mgr_signed_at,
             se.signer_name AS exec_signer_name, DATE_FORMAT(se.signed_at,'%Y-%m-%d') AS exec_signed_at,
             sh.signer_name AS hr_signer_name, DATE_FORMAT(sh.signed_at,'%Y-%m-%d') AS hr_signed_at,
-            sm.signature_image AS mgr_signature_image, se.signature_image AS exec_signature_image, sh.signature_image AS hr_signature_image,
-            ss.signer_name AS submitter_name, ss.signature_image AS submitter_signature_image
+            smi.signature_image AS mgr_signature_image, sei.signature_image AS exec_signature_image, shi.signature_image AS hr_signature_image,
+            ss.signer_name AS submitter_name, ssi.signature_image AS submitter_signature_image
        FROM employee_requests r
        JOIN users eu ON eu.id = r.employee_user_id
        LEFT JOIN departments dep ON dep.id = r.department_id
@@ -220,6 +248,10 @@ export async function index(req: Request, res: Response) {
        LEFT JOIN employee_request_signatures se ON se.request_id = r.id AND se.stage = 'executive' AND se.action = 'approved'
        LEFT JOIN employee_request_signatures sh ON sh.request_id = r.id AND sh.stage = 'hr' AND sh.action = 'approved'
        LEFT JOIN employee_request_signatures ss ON ss.request_id = r.id AND ss.stage = 'submitter' AND ss.action = 'submitted'
+        LEFT JOIN signature_images smi ON smi.id = sm.signature_file_id
+        LEFT JOIN signature_images sei ON sei.id = se.signature_file_id
+        LEFT JOIN signature_images shi ON shi.id = sh.signature_file_id
+        LEFT JOIN signature_images ssi ON ssi.id = ss.signature_file_id
       WHERE ${where.join(' AND ')}
       ORDER BY r.submitted_at DESC, r.id DESC LIMIT 1000`, params,
   )
@@ -268,7 +300,10 @@ export async function show(req: Request, res: Response) {
   const detail = detailRows[0] ? camelize(detailRows[0]) as any : null
   if (detail && row.kind === 'leave') { detail.byHour = Boolean(detail.byHour); detail.hasMedicalCertificate = Boolean(detail.hasMedicalCertificate) }
   const [signatures] = await db.query<any[]>(
-    `SELECT stage, action, signer_name, signature_image, note, signed_at FROM employee_request_signatures WHERE request_id = ? ORDER BY signed_at, id`, [id],
+    `SELECT signature.stage, signature.action, signature.signer_name, image.signature_image, signature.note, signature.signed_at
+       FROM employee_request_signatures signature
+       LEFT JOIN signature_images image ON image.id = signature.signature_file_id
+      WHERE signature.request_id = ? ORDER BY signature.signed_at, signature.id`, [id],
   )
   const notSelf = row.employee_user_id !== me
   const isExec = detailIsExec, isAdmin = detailIsAdmin
@@ -487,12 +522,16 @@ export async function store(req: Request, res: Response) {
     } else {
       await conn.execute(`INSERT INTO employee_request_swap_details (request_id, off_date, work_date) VALUES (?, ?, ?)`, [id, s('offDate'), s('workDate')])
     }
+    const signatureFileId = signature ? await storeSignatureImage(conn, signature) : null
     await conn.execute(
-      `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_image) VALUES (?, 'submitter', 'submitted', ?, ?, ?)`,
-      [id, me, user.name, signature],
+      `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_file_id) VALUES (?, 'submitter', 'submitted', ?, ?, ?)`,
+      [id, me, user.name, signatureFileId],
     )
-    if (req.body?.rememberSignature === true && signature) {
-      await conn.execute(`INSERT INTO user_saved_signatures (user_id, signature_image) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature_image = VALUES(signature_image)`, [me, signature])
+    if (req.body?.rememberSignature === true && signatureFileId !== null) {
+      await conn.execute(
+        `INSERT INTO user_saved_signatures (user_id, signature_file_id) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`, [me, signatureFileId],
+      )
     }
     // pending_mgr: แจ้ง manager ทุกคนในแผนก + manager ที่ผูกไว้ (notify กรองซ้ำให้)
     const recipients = status === 'pending_mgr'
@@ -570,13 +609,17 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
     )
     if (!update.affectedRows) throw httpError(409, 'เอกสารไม่อยู่ในสถานะรออนุมัติแล้ว')
     const [names] = await conn.query<any[]>(`SELECT name FROM users WHERE id = ? LIMIT 1`, [me])
+    const signatureFileId = signature ? await storeSignatureImage(conn, signature) : null
     await conn.execute(
-      `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_image, note) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, stage, action === 'approve' ? 'approved' : 'rejected', me, names[0]?.name ?? '', signature, note],
+      `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_file_id, note) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, stage, action === 'approve' ? 'approved' : 'rejected', me, names[0]?.name ?? '', signatureFileId, note],
     )
     // จดจำลายเซ็นเฉพาะเมื่อมีลายเซ็นจริง (กดยืนยันโดยไม่เซ็น = ไม่บันทึก)
-    if (action === 'approve' && req.body?.rememberSignature === true && signature) {
-      await conn.execute(`INSERT INTO user_saved_signatures (user_id, signature_image) VALUES (?, ?) ON DUPLICATE KEY UPDATE signature_image = VALUES(signature_image)`, [me, signature])
+    if (action === 'approve' && req.body?.rememberSignature === true && signatureFileId !== null) {
+      await conn.execute(
+        `INSERT INTO user_saved_signatures (user_id, signature_file_id) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`, [me, signatureFileId],
+      )
     }
     await notify(conn, [row.employee_user_id], id, next === 'pending_hr' ? 'forwarded_to_hr' : next)
     if (next === 'pending_hr') {
@@ -832,8 +875,8 @@ export async function outingReport(req: Request, res: Response) {
             u.name AS employee_name, o.company_name, o.address, o.province, o.district, o.subdistrict,
             o.postal_code, o.country, o.latitude, o.longitude, o.project_name, o.customer_name,
             o.customer_position, o.phone, o.work_details, o.remark,
-            submitter.signature_image AS submitter_signature_image,
-            approved.signer_name AS approved_by, approved.signature_image AS approved_signature_image
+            submitter_image.signature_image AS submitter_signature_image,
+            approved.signer_name AS approved_by, approved_image.signature_image AS approved_signature_image
        FROM employee_requests r
        JOIN employee_request_outing_details o ON o.request_id = r.id
        JOIN users u ON u.id = r.employee_user_id
@@ -845,6 +888,8 @@ export async function outingReport(req: Request, res: Response) {
             WHERE latest.request_id = r.id AND latest.action = 'approved'
             ORDER BY latest.signed_at DESC, latest.id DESC LIMIT 1
          )
+       LEFT JOIN signature_images submitter_image ON submitter_image.id = submitter.signature_file_id
+       LEFT JOIN signature_images approved_image ON approved_image.id = approved.signature_file_id
       WHERE r.company_id = ? AND r.kind = 'outing' AND r.status = 'approved'
         AND r.employee_user_id = ? AND COALESCE(r.start_date, o.outing_date) <= ?
         AND COALESCE(r.end_date, o.outing_date) >= ?
@@ -856,8 +901,8 @@ export async function outingReport(req: Request, res: Response) {
             DATE_FORMAT(r.start_date, '%Y-%m-%d') AS from_date,
             DATE_FORMAT(r.end_date, '%Y-%m-%d') AS to_date, r.reason,
             u.name AS employee_name, wfh.place, wfh.plan,
-            submitter.signature_image AS submitter_signature_image,
-            approved.signer_name AS approved_by, approved.signature_image AS approved_signature_image
+            submitter_image.signature_image AS submitter_signature_image,
+            approved.signer_name AS approved_by, approved_image.signature_image AS approved_signature_image
        FROM employee_requests r
        JOIN employee_request_wfh_details wfh ON wfh.request_id = r.id
        JOIN users u ON u.id = r.employee_user_id
@@ -869,6 +914,8 @@ export async function outingReport(req: Request, res: Response) {
             WHERE latest.request_id = r.id AND latest.action = 'approved'
             ORDER BY latest.signed_at DESC, latest.id DESC LIMIT 1
          )
+       LEFT JOIN signature_images submitter_image ON submitter_image.id = submitter.signature_file_id
+       LEFT JOIN signature_images approved_image ON approved_image.id = approved.signature_file_id
       WHERE r.company_id = ? AND r.kind = 'wfh' AND r.status = 'approved'
         AND r.employee_user_id = ? AND r.start_date <= ? AND r.end_date >= ?
       ORDER BY r.start_date, r.id`,
@@ -898,7 +945,8 @@ export async function outingReport(req: Request, res: Response) {
     || Number(a.id) - Number(b.id),
   )
   const [signatureRows] = await db.query<any[]>(
-    `SELECT saved.signature_image FROM user_saved_signatures saved
+    `SELECT image.signature_image FROM user_saved_signatures saved
+       JOIN signature_images image ON image.id = saved.signature_file_id
        JOIN users u ON u.id = saved.user_id AND u.company_id = ? AND u.deleted_at IS NULL
       WHERE saved.user_id = ? LIMIT 1`, [companyId, requestedEmployeeId],
   )

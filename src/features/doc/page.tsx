@@ -193,6 +193,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const [signingDocumentId, setSigningDocumentId] = useState<number | null>(null)
   const [savedSignature, setSavedSignature] = useState(() => readMockSnapshot().savedSignature ?? '')
   const [signatureHasInk, setSignatureHasInk] = useState(false)
+  const [signatureEdited, setSignatureEdited] = useState(false)
   const [rememberSignature, setRememberSignature] = useState(true)
   const signatureCanvas = useRef<HTMLCanvasElement>(null)
   const signatureDrawing = useRef(false)
@@ -344,6 +345,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     if (!context) return
     context.clearRect(0, 0, canvas.width, canvas.height)
     setSignatureHasInk(false)
+    setSignatureEdited(false)
     if (!savedSignature) return
     let cancelled = false
     const image = new Image()
@@ -518,7 +520,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     const point = signaturePoint(event)
     context.beginPath(); context.moveTo(point.x, point.y); context.lineTo(point.x + .1, point.y + .1)
     context.lineWidth = 4; context.lineCap = 'round'; context.lineJoin = 'round'; context.strokeStyle = '#172554'; context.stroke()
-    signatureDrawing.current = true; setSignatureHasInk(true)
+    signatureDrawing.current = true; setSignatureHasInk(true); setSignatureEdited(true)
   }
   const drawSignature = (event: PointerEventType<HTMLCanvasElement>) => {
     if (!signatureDrawing.current) return
@@ -536,11 +538,14 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     }
     signatureDrawing.current = false
     setSignatureHasInk(false)
+    setSignatureEdited(true)
   }
   const confirmSignature = async () => {
     if (!signingDocument && !pendingSubmission) return
     // เซ็นหรือไม่เซ็นก็ได้ — ไม่เซ็นส่ง image ว่างไป (server บันทึกเป็น null = ยืนยันโดยไม่เซ็น)
-    const image = signatureHasInk ? (signatureCanvas.current?.toDataURL('image/png') ?? '') : ''
+    const image = signatureHasInk
+      ? !signatureEdited && savedSignature ? savedSignature : signatureCanvas.current?.toDataURL('image/png') ?? ''
+      : ''
 
     if (USE_DB) {
       try {
