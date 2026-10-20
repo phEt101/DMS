@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import EmployeeSearchSelect from '../../components/employee-search-select'
 
 export interface LedgerPerson {
@@ -36,6 +36,9 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
   const labels: Record<(typeof categories)[number], string> = { personal:c.ledger.personal, sick:c.ledger.sick, vacation:c.ledger.vacation, unpaid:c.leaveTypes.unpaid, other:c.leaveTypes.other }
   const locale = c.dateLocale
   const notes: string[] = c.ledger.noteItems
+  const departments = useMemo(() => Array.from(new Set(people.map((employee) => employee.department).filter(Boolean))).sort(), [people])
+  const [departmentFilter, setDepartmentFilter] = useState('')
+  const filteredPeople = useMemo(() => departmentFilter ? people.filter((employee) => employee.department === departmentFilter) : people, [people, departmentFilter])
   const rows = useMemo(() => [...entries].sort((a, b) => (a.from ?? '').localeCompare(b.from ?? '')).slice(0, 15), [entries])
   const used = (type: (typeof categories)[number]) => entries.filter((entry) => entry.leaveType === type && entry.status === 'approved').reduce((total, entry) => total + (entry.days ?? 0), 0)
   const printRows = Array.from({ length:15 }, (_, index) => rows[index] ?? null)
@@ -60,11 +63,29 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
 
   return <div className="leave-ledger-screen">
     <div className="leave-ledger-toolbar">
-      {people.length > 1 && <EmployeeSearchSelect label={c.ledger.chooseEmployee} value={person.id} options={people.map((employee) => ({ id: employee.id, name: employee.name }))} onChange={onPersonChange} />}
-      <button type="button" className="leave-export-btn is-excel" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportCsv() }}>{c.ledger.exportExcel}</button>
-      <button type="button" className="leave-export-btn is-word" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportWord() }}>{c.ledger.word}</button>
-      <button type="button" className="leave-export-btn is-pdf" onClick={() => { if (window.confirm(c.ledger.exportConfirmPdf)) window.print() }}>{c.ledger.pdf}</button>
-      <button type="button" className="leave-export-btn is-print" onClick={() => window.print()}>{c.ledger.print}</button>
+      {people.length > 1 && <>
+        <label className="leave-department-filter">
+          <span>{c.ledger.department}</span>
+          <select value={departmentFilter} onChange={(event) => {
+            const nextDepartment = event.target.value
+            setDepartmentFilter(nextDepartment)
+            if (nextDepartment && person.department !== nextDepartment) {
+              const firstMatch = people.find((employee) => employee.department === nextDepartment)
+              if (firstMatch) onPersonChange(firstMatch.id)
+            }
+          }}>
+            <option value="">{c.ledger.allDepartments}</option>
+            {departments.map((department) => <option key={department} value={department}>{department}</option>)}
+          </select>
+        </label>
+        <EmployeeSearchSelect label={c.ledger.chooseEmployee} value={person.id} options={filteredPeople.map((employee) => ({ id: employee.id, name: employee.name, detail: [employee.code, employee.department].filter(Boolean).join(' · ') }))} onChange={onPersonChange} />
+      </>}
+      <div className="leave-export-group">
+        <button type="button" className="leave-export-btn is-excel" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportCsv() }}>{c.ledger.exportExcel}</button>
+        <button type="button" className="leave-export-btn is-word" onClick={() => { if (window.confirm(c.ledger.exportConfirmExcel)) exportWord() }}>{c.ledger.word}</button>
+        <button type="button" className="leave-export-btn is-pdf" onClick={() => { if (window.confirm(c.ledger.exportConfirmPdf)) window.print() }}>{c.ledger.pdf}</button>
+        <button type="button" className="leave-export-btn is-print" onClick={() => window.print()}>{c.ledger.print}</button>
+      </div>
     </div>
     <div className="leave-sheet-scroll"><article className="leave-sheet">
       <h2>{c.ledger.companyName}</h2>

@@ -1,17 +1,17 @@
-import { useEffect, useState } from 'react'
-import { FaClock, FaLocationDot } from 'react-icons/fa6'
-import { request } from '../../services/api'
-import EmployeeSearchSelect from '../../components/employee-search-select'
-import type { Language, Translations } from '../../locales'
-import { useAuth } from '../auth/hooks/use-auth'
+import { useEffect, useMemo, useState } from 'react'
+import { request } from '../../../services/api'
+import EmployeeSearchSelect from '../../../components/employee-search-select'
+import type { Language, Translations } from '../../../locales'
+import { useAuth } from '../../auth/hooks/use-auth'
 import './outing-report.css'
 
 type OutingReportRow = {
   id: number
+  reportKind: 'wfh' | 'outing'
   requestNo: string
   employeeName: string
   date: string
-  outTime: string
+  outTime: string | null
   backTime: string | null
   companyName: string | null
   address: string | null
@@ -29,7 +29,7 @@ type OutingReportRow = {
   approvedBy: string | null
   approvedSignatureImage: string | null
 }
-type ReportEmployee = { id: number; name: string }
+type ReportEmployee = { id: number; name: string; department: string | null }
 type ReportResponse = {
   data: OutingReportRow[]
   pendingCount: number
@@ -66,6 +66,7 @@ export default function ReportPage({ translations, language }: { translations: T
   const [rows, setRows] = useState<OutingReportRow[]>([])
   const [employees, setEmployees] = useState<ReportEmployee[]>([])
   const [pendingCount, setPendingCount] = useState(0)
+  const [departmentFilter, setDepartmentFilter] = useState('')
   const [submitterSignature, setSubmitterSignature] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -105,16 +106,37 @@ export default function ReportPage({ translations, language }: { translations: T
   const selectedEmployeeName = employees.find((employee) => String(employee.id) === (appliedFilters?.employeeId ?? employeeId))?.name
     ?? user?.name
     ?? ''
+  const departments = useMemo(() => {
+    const uniqueDepartments = new Set(employees.map((employee) => employee.department).filter((department): department is string => Boolean(department)))
+    return Array.from(uniqueDepartments).sort((a, b) => a.localeCompare(b, language === 'th' ? 'th' : 'en'))
+  }, [employees, language])
+  const filteredEmployees = useMemo(() => departmentFilter
+    ? employees.filter((employee) => employee.department === departmentFilter)
+    : employees, [employees, departmentFilter])
+  const changeDepartment = (nextDepartment: string) => {
+    setDepartmentFilter(nextDepartment)
+    if (!nextDepartment) return
+    const selectedId = appliedFilters?.employeeId ?? employeeId
+    const selected = employees.find((employee) => String(employee.id) === selectedId)
+    if (selected && selected.department !== nextDepartment) {
+      const firstMatch = employees.find((employee) => employee.department === nextDepartment)
+      if (firstMatch) {
+        setEmployeeId(String(firstMatch.id))
+        updateFilters({ from, to, employeeId: String(firstMatch.id) })
+      }
+    }
+  }
   const employeeName = language === 'th' ? `คุณ ${selectedEmployeeName}` : selectedEmployeeName
   const dateText = (value: string) => value
     ? new Intl.DateTimeFormat(language === 'th' ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${value}T12:00:00`))
     : ''
   const headers = [
-    copy.columns.date, copy.columns.time, copy.columns.company, copy.columns.address, copy.columns.project,
+    copy.columns.date, copy.columns.type, copy.columns.time, copy.columns.company, copy.columns.address, copy.columns.project,
     copy.columns.customer, copy.columns.position, copy.columns.phone, copy.columns.workDetails, copy.columns.remark,
   ]
   const rowCells = (row: OutingReportRow) => [
     dateText(row.date),
+    row.reportKind === 'wfh' ? copy.workFromHome : copy.offsiteWork,
     [row.outTime, row.backTime].filter(Boolean).join('–'),
     row.companyName,
     [row.address, row.subdistrict, row.district, row.province, row.postalCode, row.country].filter(Boolean).join(' '),
@@ -136,11 +158,6 @@ export default function ReportPage({ translations, language }: { translations: T
   }
   const pages = reportPages()
   const currentDate = isoDate(new Date())
-  const [year, month] = currentDate.split('-').map(Number)
-  const dueDate = currentDate.slice(-2) <= '25'
-    ? `${currentDate.slice(0, 8)}25`
-    : `${year + (month === 12 ? 1 : 0)}-${String(month === 12 ? 1 : month + 1).padStart(2, '0')}-25`
-  const daysToDue = Math.round((new Date(`${dueDate}T12:00:00`).getTime() - new Date(`${currentDate}T12:00:00`).getTime()) / 86400000)
   const reportFrom = appliedFilters?.from ?? initialBounds.from
   const reportTo = appliedFilters?.to ?? initialBounds.to
   const reportName = (name: string) => `Report_${name.replace(/^คุณ\s*/, '').replace(/\s+/g, '_')}_${reportFrom}_${reportTo}`
@@ -152,7 +169,7 @@ export default function ReportPage({ translations, language }: { translations: T
 
   const makeSheetHtml = (pageRows: ReportCellRow[], pageIndex: number) => {
     const reportRows = pageRows.map((row) => row
-      ? `<tr>${rowCells(row).map((cell, index) => `<td${[2, 3, 4, 5, 6, 8, 9].includes(index) ? ' class="l"' : ''}>${escapeHtml(cell)}</td>`).join('')}</tr>`
+      ? `<tr>${rowCells(row).map((cell, index) => `<td${[3, 4, 5, 6, 7, 9, 10].includes(index) ? ' class="l"' : ''}>${escapeHtml(cell)}</td>`).join('')}</tr>`
       : `<tr>${headers.map(() => '<td></td>').join('')}</tr>`).join('')
     const approver = rows.find((row) => row.approvedBy || row.approvedSignatureImage)
     const pageMark = pages.length > 1 ? ` (${copy.sheet.page} ${pageIndex + 1}/${pages.length})` : ''
@@ -160,7 +177,7 @@ export default function ReportPage({ translations, language }: { translations: T
       <h2>Report</h2>
       <div class="rl">${escapeHtml(copy.sheet.sale)} : ${escapeHtml(employeeName)}</div>
       <div class="rl">${escapeHtml(copy.sheet.date)} : ${escapeHtml(dateText(reportFrom))} - ${escapeHtml(dateText(reportTo))}${pageMark}</div>
-      <table><colgroup>${[4.9, 5.5, 14.6, 14.1, 14.2, 8.5, 6, 4.9, 17.4, 9.8].map((width) => `<col style="width:${width}%">`).join('')}</colgroup>
+      <table><colgroup>${[5, 7, 5.5, 11, 13, 12, 8, 6, 5, 17, 10.5].map((width) => `<col style="width:${width}%">`).join('')}</colgroup>
         <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
         <tbody>${reportRows}</tbody>
       </table>
@@ -186,34 +203,47 @@ export default function ReportPage({ translations, language }: { translations: T
     window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
+  const filterUserId = isPrivileged ? employeeId : String(user?.id ?? '')
+
   return <section className="feature-page feature-page--wide outing-report-page">
     <header className="users-header outing-report-header">
       <div><p className="feature-kicker">{translations.features.report.kicker}</p><h1>{copy.title}</h1><p>{copy.subtitle}</p></div>
     </header>
-    <div className="outing-report-metrics">
-      <span className="outing-report-chip"><FaLocationDot />{rows.length} {copy.approvedCount}</span>
-      <span className="outing-report-chip"><FaClock />{copy.deadline.replace('{date}', dateText(dueDate)).replace('{days}', String(daysToDue))}</span>
-      {pendingCount > 0 && <span className="outing-report-chip">{copy.pendingCount.replace('{count}', String(pendingCount))}</span>}
-    </div>
+    {pendingCount > 0 && <div className="outing-report-metrics">
+      <span className="outing-report-chip">{copy.pendingCount.replace('{count}', String(pendingCount))}</span>
+    </div>}
     <form className="outing-report-filters" onSubmit={(event) => event.preventDefault()}>
-      {isPrivileged && <EmployeeSearchSelect label={copy.employee} value={employeeId} options={employees.map((employee) => ({ id: String(employee.id), name: employee.name }))} onChange={(nextEmployeeId) => {
+      {isPrivileged && <label className="outing-report-department">
+        <span>{copy.department}</span>
+        <select value={departmentFilter} onChange={(event) => changeDepartment(event.target.value)}>
+          <option value="">{copy.allDepartments}</option>
+          {departments.map((department) => <option key={department} value={department}>{department}</option>)}
+        </select>
+      </label>}
+      {isPrivileged && <EmployeeSearchSelect label={copy.employee} value={employeeId} options={filteredEmployees.map((employee) => ({ id: String(employee.id), name: employee.name, detail: employee.department ?? '' }))} onChange={(nextEmployeeId) => {
         setEmployeeId(nextEmployeeId)
         updateFilters({ from, to, employeeId: nextEmployeeId })
       }} />}
-      <label>{copy.from}<input type="date" value={from} onChange={(event) => {
-        const nextFrom = event.target.value
-        const nextTo = to < nextFrom ? nextFrom : to
-        setFrom(nextFrom)
-        setTo(nextTo)
-        updateFilters({ from: nextFrom, to: nextTo, employeeId: isPrivileged ? employeeId : String(user?.id ?? '') })
-      }} required /></label>
-      <label>{copy.to}<input type="date" value={to} onChange={(event) => {
-        const nextTo = event.target.value
-        const nextFrom = from > nextTo ? nextTo : from
-        setFrom(nextFrom)
-        setTo(nextTo)
-        updateFilters({ from: nextFrom, to: nextTo, employeeId: isPrivileged ? employeeId : String(user?.id ?? '') })
-      }} required /></label>
+      <label className="outing-report-field">
+        <span>{copy.from}</span>
+        <input type="date" value={from} onChange={(event) => {
+          const nextFrom = event.target.value
+          const nextTo = to < nextFrom ? nextFrom : to
+          setFrom(nextFrom)
+          setTo(nextTo)
+          updateFilters({ from: nextFrom, to: nextTo, employeeId: filterUserId })
+        }} required />
+      </label>
+      <label className="outing-report-field">
+        <span>{copy.to}</span>
+        <input type="date" value={to} onChange={(event) => {
+          const nextTo = event.target.value
+          const nextFrom = from > nextTo ? nextTo : from
+          setFrom(nextFrom)
+          setTo(nextTo)
+          updateFilters({ from: nextFrom, to: nextTo, employeeId: filterUserId })
+        }} required />
+      </label>
       <div className="outing-report-actions">
         <button type="button" className="is-excel" onClick={() => downloadReport('xls')}>{copy.exportExcel}</button>
         <button type="button" className="is-word" onClick={() => downloadReport('doc')}>{copy.exportWord}</button>

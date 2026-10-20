@@ -1,0 +1,370 @@
+.documents-ledger-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 15px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid #e3e8f2;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.documents-ledger-summary > span {
+  color: #6a7592;
+}
+
+.documents-mock-role select,
+.documents-ledger-summary select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #e3e8f2;
+  border-radius: 10px;
+  background: #fff;
+  color: #35405d;
+  font: inherit;
+}
+
+.documents-ledger-summary label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.documents-ledger-actions {
+  display: flex;
+  grid-column: 1/-1;
+  gap: 8px;
+}
+
+.documents-ledger-table-wrap {
+  overflow: auto;
+  margin-top: 14px;
+  border: 1px solid #e3e8f2;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.documents-ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+}
+
+.documents-ledger-table th,
+.documents-ledger-table td {
+  padding: 12px;
+  border-bottom: 1px solid #edf0f5;
+  text-align: left;
+  vertical-align: top;
+}
+
+.documents-ledger-table th {
+  background: #f7f9fc;
+  color: #6a7592;
+  font-size: 12px;
+}
+
+.leave-ledger-screen {
+  margin-top: 18px;
+}
+
+.leave-ledger-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 15px;
+}
+
+.leave-ledger-toolbar .leave-department-filter {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-right: auto;
+}
+
+.leave-ledger-toolbar .leave-department-filter span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #5b6478;
+}
+
+.leave-ledger-toolbar .leave-department-filter select {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #e3e8f2;
+  border-radius: 13px;
+  background: #fff;
+  color: #35405d;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.leave-ledger-toolbar .leave-export-btn {
+  white-space: nowrap;
+}
+
+.leave-ledger-toolbar .leave-export-group {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.leave-ledger-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid #e3e8f2;
+  border-radius: 13px;
+  background: #fff;
+  color: #35405d;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.leave-ledger-toolbar button:hover {
+  border-color: #5143e8;
+  color: #5143e8;
+}
+
+.leave-sheet-scroll {
+  overflow: auto;
+  border: 1px solid #e3e8f2;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.leave-sheet {
+  width: 1120px;
+  max-width: none;
+  margin: auto;
+  padding: 18px 20px;
+  background: #fff;
+  color: #000;
+  font-family: "Sarabun", "Noto Sans Thai Looped", Tahoma, sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.leave-sheet h2 {
+  margin: 0 0 8px;
+  color: #000;
+  text-align: center;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.leave-sheet-info {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr;
+  gap: 2px 16px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.leave-sheet-info span:nth-child(3),
+.leave-sheet-info span:nth-child(6) {
+  text-align: right;
+}
+
+.leave-sheet-table,
+.leave-balance-table table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.leave-sheet-table th,
+.leave-sheet-table td,
+.leave-balance-table th,
+.leave-balance-table td {
+  height: 30px;
+  padding: 2px 4px;
+  border: 1px solid #111;
+  color: #000;
+  text-align: center;
+  vertical-align: middle;
+  word-break: break-word;
+}
+
+.leave-sheet-table th,
+.leave-balance-table th {
+  background: #e9e9e9;
+  font-weight: 700;
+}
+
+.leave-sheet-table .c-no {
+  width: 44px;
+}
+
+.leave-sheet-table .c-date {
+  width: 84px;
+}
+
+.leave-sheet-table .c-type {
+  width: 44px;
+}
+
+.leave-sheet-table .c-vacation {
+  width: 56px;
+}
+
+.leave-sheet-table .c-unpaid {
+  width: 72px;
+}
+
+.leave-sheet-table .c-other {
+  width: 48px;
+}
+
+.leave-sheet-table .c-total {
+  width: 58px;
+}
+
+.leave-sheet-table .c-approval {
+  width: 130px;
+}
+
+.leave-sheet-table .c-review {
+  width: 120px;
+}
+
+.leave-sheet-table .leave-sheet-reason {
+  text-align: left;
+}
+
+.leave-sheet-table .leave-sheet-approval {
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.leave-sheet-table .leave-approver {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.leave-sheet-table .leave-approver-name {
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leave-sheet-table .leave-signature-img {
+  display: block;
+  max-width: 100%;
+  width: 96px;
+  height: 32px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.leave-sheet-table .leave-approver-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+
+.leave-sheet-table .leave-approver-state {
+  color: #333;
+  font-size: 10px;
+}
+
+.leave-sheet-footer {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 12px 16px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.leave-balance-table table {
+  table-layout: auto;
+}
+
+.leave-balance-table th,
+.leave-balance-table td {
+  height: 22px;
+}
+
+.leave-notes b {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.leave-notes ol {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leave-expiry {
+  grid-column: 1/-1;
+  text-align: center;
+}
+
+.documents-page:has(.leave-sheet) .documents-mock-note {
+  display: none;
+}
+
+.documents-page:has(.leave-sheet) .documents-ledger-summary,
+.documents-page:has(.leave-sheet) .documents-ledger-table-wrap {
+  display: none !important;
+}
+
+.documents-ledger-title {
+  margin: 0 0 12px;
+}
+
+.leave-ledger-toolbar button.leave-export-btn,
+.documents-ledger-actions button.leave-export-btn {
+  border: 1px solid transparent;
+  font-weight: 700;
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
+}
+
+.leave-ledger-toolbar button.leave-export-btn:hover,
+.documents-ledger-actions button.leave-export-btn:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.leave-export-btn.is-excel {
+  border-color: #a7dfbb !important;
+  background: #eaf8ef !important;
+  color: #187443 !important;
+}
+
+.leave-export-btn.is-word {
+  border-color: #b7cefa !important;
+  background: #edf4ff !important;
+  color: #2457ad !important;
+}
+
+.leave-export-btn.is-pdf {
+  border-color: #f3b8b8 !important;
+  background: #fff0f0 !important;
+  color: #b42323 !important;
+}
+
+.leave-export-btn.is-print {
+  border-color: #d9d3ff !important;
+  background: #f3f1ff !important;
+  color: #5143c8 !important;
+}

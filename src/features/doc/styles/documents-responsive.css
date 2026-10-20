@@ -1,0 +1,213 @@
+@media (max-width: 640px) {
+  .documents-employee-form-grid,
+  .documents-employee-entitlements {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .documents-employee-toolbar .dms-create-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+  .documents-employee-toolbar .dms-create-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 720px) {
+  .leave-ledger-toolbar .leave-export-group {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 720px) {
+  .documents-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .documents-tools {
+    align-items: stretch;
+  }
+  .documents-filter-tools {
+    width: 100%;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+  .documents-search {
+    flex-basis: 100%;
+  }
+  .employee-search-select {
+    min-width: 100%;
+  }
+  .documents-tools select {
+    flex: 1 1 130px;
+  }
+  .documents-view-toggle {
+    margin-left: auto;
+  }
+  .documents-cards.is-list .documents-card {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+  .documents-cards.is-list .documents-card-top {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .documents-cards.is-list .documents-card-top,
+  .documents-cards.is-list .documents-number,
+  .documents-cards.is-list .documents-card h2,
+  .documents-cards.is-list .documents-summary,
+  .documents-cards.is-list .documents-review-note,
+  .documents-cards.is-list .documents-card-foot {
+    width: 100%;
+    max-width: 100%;
+  }
+  .documents-cards.is-list .documents-card-foot {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #edf0f5;
+  }
+  .documents-cards.is-list .documents-card-foot > div {
+    flex: 1 1 130px;
+  }
+  .documents-cards.is-list .documents-card-foot button {
+    flex: 0 1 auto;
+  }
+  .documents-notification-tabs {
+    flex-wrap: wrap;
+  }
+  .documents-modal-actions {
+    flex-wrap: wrap;
+  }
+  .documents-signature-list {
+    grid-template-columns: 1fr;
+  }
+  .documents-signature-image {
+    height: 56px;
+  }
+  .documents-detail-fields {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .documents-detail-fields dd {
+    margin-bottom: 7px;
+  }
+  .documents-detail-body {
+    padding: 14px 18px 22px;
+  }
+  .documents-workflow-steps {
+    grid-template-columns: 1fr;
+  }
+  .documents-detail-actions > button {
+    flex: 1 1 auto;
+  }
+  .documents-kind-grid {
+    grid-template-columns: 1fr;
+  }
+  .documents-form-fields {
+    grid-template-columns: 1fr;
+  }
+  .documents-form-field.is-wide {
+    grid-column: auto;
+  }
+  .documents-submission-body {
+    padding: 14px 18px 22px;
+  }
+  .documents-modal {
+    padding: 18px;
+    border-radius: 19px;
+  }
+  .documents-filter-panel {
+    position: fixed;
+    top: 50%;
+    right: auto;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1050px) {
+  .documents-cards.is-list .documents-card {
+    grid-template-columns: 48px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "visual reference actions" "visual title actions" "visual summary summary" "visual note note";
+  }
+  .documents-cards.is-list .documents-card-foot {
+    grid-column: 3;
+    grid-row: 1/3;
+  }
+}
+
+@media print {
+  .documents-heading > button,
+  .documents-mock-note,
+  .documents-mock-role,
+  .documents-tools,
+  .documents-ledger-actions {
+    display: none !important;
+  }
+  .documents-page {
+    max-width: none;
+  }
+}
+
+@page {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
+  body:has(.leave-sheet) {
+    background: #fff !important;
+  }
+  body:has(.leave-sheet) .app-shell * {
+    visibility: hidden;
+  }
+  body:has(.leave-sheet) .leave-sheet,
+  body:has(.leave-sheet) .leave-sheet * {
+    visibility: visible;
+  }
+  body:has(.leave-sheet) .documents-page:has(.leave-sheet) {
+    position: static;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  body:has(.leave-sheet) .leave-ledger-screen {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+  }
+  body:has(.leave-sheet) .leave-ledger-toolbar,
+  .documents-mock-role {
+    display: none !important;
+  }
+  body:has(.leave-sheet) .leave-sheet-scroll {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+  }
+  body:has(.leave-sheet) .leave-sheet {
+    width: 100%;
+    padding: 0;
+    font-size: 9pt;
+  }
+  body:has(.leave-sheet) .leave-sheet-table th,
+  body:has(.leave-sheet) .leave-sheet-table td {
+    height: 22px;
+  }
+}
+
+@media (max-width: 640px) {
+  .documents-policy-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .documents-policy-intro {
+    flex-direction: column;
+  }
+}

@@ -246,13 +246,17 @@
       }
     },
     "report": {
-      "kicker": "Report",
+      "kicker": "Document Management",
       "title": "Usage reports",
       "subtitle": "View stats and summaries for the system",
       "outingReport": {
-        "title": "Off-site Work Report",
-        "subtitle": "Approved off-site work requests",
+        "title": "Off-site Work / WFH Report",
+        "subtitle": "Approved WFH and off-site work requests",
         "employee": "Employee",
+        "workFromHome": "Work from home",
+        "offsiteWork": "Off-site work",
+        "department": "Department",
+        "allDepartments": "All departments",
         "from": "From",
         "to": "To",
         "exportExcel": "Export Excel",
@@ -265,7 +269,7 @@
         "loading": "Loading report...",
         "loadError": "Could not load the report",
         "invalidRange": "The start date must not be after the end date",
-        "empty": "No off-site work requests found for this date range",
+        "empty": "No WFH or off-site work requests found for this date range",
         "signatureHint": "Preparer and approver signatures are shown when saved. Blank signature lines are left for manual signing.",
         "sheet": {
           "sale": "Sale",
@@ -275,10 +279,11 @@
           "approvedBy": "Approved by",
           "signature": "Signature",
           "notesTitle": "Notes",
-          "notes": ["Record each day working outside the office", "Submit by the 25th of each month"]
+          "notes": ["Record each day working from home or outside the office", "Submit by the 25th of each month"]
         },
         "columns": {
           "date": "Date",
+          "type": "Work type",
           "time": "Departure–return time",
           "company": "Company",
           "address": "Address",

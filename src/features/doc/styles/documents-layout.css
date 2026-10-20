@@ -1,0 +1,96 @@
+.documents-page {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  color: #1c2540;
+}
+
+.documents-page *,
+.documents-page *::before,
+.documents-page *::after {
+  box-sizing: border-box;
+}
+
+.documents-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 20px;
+}
+
+.documents-heading h1 {
+  margin: 0 0 5px;
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 800;
+}
+
+.documents-heading > div > span {
+  color: #6a7592;
+}
+
+.documents-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 15px;
+  background: #5143e8;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  box-shadow: 0 10px 22px -10px rgba(81, 67, 232, 0.65);
+  cursor: pointer;
+}
+
+.documents-primary:hover {
+  background: #4032d1;
+}
+
+.documents-primary:focus-visible,
+.documents-page button:focus-visible,
+.documents-page input:focus-visible,
+.documents-page select:focus-visible,
+.documents-page textarea:focus-visible {
+  outline: 3px solid #8e86ff;
+  outline-offset: 2px;
+}
+
+.documents-mock-note {
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  border: 1px solid #e3e8f2;
+  border-radius: 12px;
+  background: #f7f9fc;
+  color: #6a7592;
+  font-size: 13px;
+}
+
+.documents-page .dms-project-table tr[role="button"] {
+  cursor: pointer;
+}
+
+.documents-balances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  grid-column: 1/-1;
+}
+
+.documents-balances span {
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: #f7f9fc;
+  color: #6a7592;
+  font-size: 13px;
+}
+
+.documents-balances b {
+  margin-left: 5px;
+  color: #283451;
+}

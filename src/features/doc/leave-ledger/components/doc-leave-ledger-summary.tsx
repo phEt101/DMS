@@ -19,7 +19,7 @@ export default function DocLeaveLedgerSummary({ employees, employee, employeeId,
 
   return <>
     <div className="documents-ledger-summary">
-      <EmployeeSearchSelect label={c.ledger.chooseEmployee} value={employeeId} options={employees.map((person) => ({ id: person.id, name: person.name }))} onChange={onEmployee} />
+      <EmployeeSearchSelect label={c.ledger.chooseEmployee} value={employeeId} options={employees.map((person) => ({ id: person.id, name: person.name, detail: `${person.code} · ${person.department}` }))} onChange={onEmployee} />
       <span>{c.ledger.year} 2569</span>
       <div className="documents-balances">
         <span>{c.ledger.sick} <b>{employee.sick} {c.ledger.day} · {c.ledger.used} {used('sick')}</b></span>

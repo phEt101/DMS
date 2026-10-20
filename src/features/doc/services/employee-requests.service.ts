@@ -40,7 +40,7 @@ export type ApiPolicy = { id: number; year: number; yearStart: string; yearEnd: 
 export type ApiPerson = { id: number; name: string; email: string; isActive: boolean; departmentName: string | null; employeeCode: string | null; position: string | null; managerName: string | null; sick: number; personal: number; vacation: number; other: number; startDate: string | null; appointedDate: string | null; emailNotificationsEnabled: boolean | null }
 
 // ---------- calls ----------
-export const listRequests = (params: { status?: string; kind?: string; awaiting?: 'me'; employeeId?: number } = {}) => {
+export const listRequests = (params: { status?: string; kind?: string; awaiting?: 'me'; mine?: 'me'; employeeId?: number } = {}) => {
   const query = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== 'all') query.set(key, String(value)) })
   return call<ApiListRow[]>(`/${query.size ? `?${query}` : ''}`)

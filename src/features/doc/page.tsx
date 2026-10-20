@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as PointerEventType } from 'react'
-import { FaCalendarDays, FaClock, FaFileLines, FaHouse, FaLocationDot, FaRotate, FaPlus, FaXmark } from 'react-icons/fa6'
+import { FaCalendarDays, FaClock, FaFileLines, FaHouse, FaLocationDot, FaRotate, FaPlus, FaUser, FaUsers, FaXmark } from 'react-icons/fa6'
 import type { Translations } from '../../locales'
 import { LeaveLedger, type LedgerEntry } from './leave-ledger'
 import './documents.css'
@@ -189,6 +189,8 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const signaturePreviewImage = useRef<HTMLImageElement | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  // ขอบเขตการแสดงผล: 'mine' = เฉพาะเอกสารของตัวเอง · 'related' = ของตัวเอง + ที่เกี่ยวข้อง (ค่าเริ่มต้นของ server)
+  const [scope, setScope] = useState<'mine' | 'related'>('related')
   const [kindFilter, setKindFilter] = useState('all')
   const [filterOpen, setFilterOpen] = useState(false)
   const [draftStatus, setDraftStatus] = useState('all')
@@ -240,10 +242,11 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     if (!USE_DB) return
     setDocsLoading(true); setDocsError('')
     try {
-      const rows = await listRequests(view === 'pending' ? { awaiting: 'me' } : {})
+      // หน้าเอกสารรายบุคคล (view 'all'): ปุ่มสลับ "ของตัวเอง" / "ที่เกี่ยวข้อง" — mine=me ให้ server กรองเฉพาะเอกสารของผู้ใช้
+      const rows = await listRequests(view === 'pending' ? { awaiting: 'me' } : view === 'all' && scope === 'mine' ? { mine: 'me' } : {})
       setDocuments(rows.filter((row) => row.status !== 'cancelled').map((row) => mapListRow(row, mapperText)))
     } catch (error) { setDocsError(errorText(error)) } finally { setDocsLoading(false) }
-  }, [view, mapperText, errorText])
+  }, [view, scope, mapperText, errorText])
 
   useEffect(() => { if (USE_DB && ['all', 'pending', 'ledger'].includes(view)) void reload() }, [view, reload])
 
@@ -597,7 +600,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href=url; anchor.download=`ใบลา_${ledgerEmployee.name.replace(/ /g,'_')}_2569.csv`; anchor.click(); URL.revokeObjectURL(url)
   }
 
-  return <section className="feature-page documents-page">
+  return <section className="feature-page feature-page--wide documents-page">
     <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
     {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
     {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} copy={copy} />}
@@ -635,6 +638,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       draftStatus={draftStatus} draftKind={draftKind} onDraftStatus={setDraftStatus} onDraftKind={setDraftKind}
       filterOpen={filterOpen} onToggle={() => { setDraftStatus(statusFilter); setDraftKind(kindFilter); setFilterOpen(open => !open) }} count={visibleDocs.length}
       onApply={() => { setStatusFilter(draftStatus); setKindFilter(draftKind); setPage(1); setFilterOpen(false) }}
+      scope={scope} onScope={(next) => { if (next !== scope) { setScope(next); setPage(1) } }}
       onReset={() => { setDraftStatus('all'); setDraftKind('all'); setStatusFilter('all'); setKindFilter('all'); setPage(1); setFilterOpen(false) }} copy={copy}
     />}
 
