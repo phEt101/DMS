@@ -156,7 +156,7 @@ export async function index(req: Request, res: Response) {
   const listIsExec = listRoleName === 'executive'
   const isAdmin = listRoleName === 'admin'
   const myDept = await myManagedDeptId(db as any, req)
-  const status = String(req.query.status ?? 'all'), kind = String(req.query.kind ?? 'all'), awaitingMe = req.query.awaiting === 'me'
+  const status = String(req.query.status ?? 'all'), kind = String(req.query.kind ?? 'all'), awaitingMe = req.query.awaiting === 'me', mineOnly = req.query.mine === 'me'
   if (status !== 'all' && status !== 'pending' && !STATUSES.includes(status)) throw httpError(400, 'Invalid status')
   if (!['all', 'leave', 'ot', 'other', ...KINDS].includes(kind)) throw httpError(400, 'Invalid kind')
 
@@ -166,6 +166,8 @@ export async function index(req: Request, res: Response) {
   else if (isHr) { /* ทุกเอกสาร */ }
   else if (listIsExec) { where.push(`(r.employee_user_id = ? OR r.manager_user_id = ? OR r.status = 'pending_exec')`); params.push(me, me) }
   else { where.push('(r.employee_user_id = ? OR r.manager_user_id = ? OR r.department_id = ?)'); params.push(me, me, myDept ?? -1) }
+  // ของตัวเองเท่านั้น (ปุ่มสลับ "ของตัวเอง" บนหน้าเอกสารรายบุคคล)
+  if (mineOnly && !awaitingMe) { where.push('r.employee_user_id = ?'); params.push(me) }
   if (status === 'pending') where.push(`r.status IN ('pending_mgr','pending_exec','pending_hr')`)
   else if (status !== 'all') { where.push('r.status = ?'); params.push(status) }
   const employeeId = req.query.employeeId === undefined ? null : Number(req.query.employeeId)

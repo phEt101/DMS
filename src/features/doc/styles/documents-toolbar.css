@@ -199,3 +199,11 @@
   color: #7a849e;
   font-size: 12px;
 }
+
+
+/* ปุ่มสลับขอบเขตเอกสาร: ของฉัน / ที่เกี่ยวข้อง (หน้าเอกสารรายบุคคล) */
+.documents-scope-toggle button[aria-pressed="true"] {
+  background: #5143e8;
+  color: #fff;
+  box-shadow: none;
+}

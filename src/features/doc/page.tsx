@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as PointerEventType } from 'react'
-import { FaCalendarDays, FaClock, FaFileLines, FaHouse, FaLocationDot, FaRotate, FaPlus, FaXmark } from 'react-icons/fa6'
+import { FaCalendarDays, FaClock, FaFileLines, FaHouse, FaLocationDot, FaRotate, FaPlus, FaUser, FaUsers, FaXmark } from 'react-icons/fa6'
 import type { Translations } from '../../locales'
 import { LeaveLedger, type LedgerEntry } from './leave-ledger'
 import './documents.css'
@@ -189,6 +189,8 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const signaturePreviewImage = useRef<HTMLImageElement | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  // ขอบเขตการแสดงผล: 'mine' = เฉพาะเอกสารของตัวเอง · 'related' = ของตัวเอง + ที่เกี่ยวข้อง (ค่าเริ่มต้นของ server)
+  const [scope, setScope] = useState<'mine' | 'related'>('related')
   const [kindFilter, setKindFilter] = useState('all')
   const [filterOpen, setFilterOpen] = useState(false)
   const [draftStatus, setDraftStatus] = useState('all')
@@ -240,10 +242,11 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     if (!USE_DB) return
     setDocsLoading(true); setDocsError('')
     try {
-      const rows = await listRequests(view === 'pending' ? { awaiting: 'me' } : {})
+      // หน้าเอกสารรายบุคคล (view 'all'): ปุ่มสลับ "ของตัวเอง" / "ที่เกี่ยวข้อง" — mine=me ให้ server กรองเฉพาะเอกสารของผู้ใช้
+      const rows = await listRequests(view === 'pending' ? { awaiting: 'me' } : view === 'all' && scope === 'mine' ? { mine: 'me' } : {})
       setDocuments(rows.filter((row) => row.status !== 'cancelled').map((row) => mapListRow(row, mapperText)))
     } catch (error) { setDocsError(errorText(error)) } finally { setDocsLoading(false) }
-  }, [view, mapperText, errorText])
+  }, [view, scope, mapperText, errorText])
 
   useEffect(() => { if (USE_DB && ['all', 'pending', 'ledger'].includes(view)) void reload() }, [view, reload])
 
@@ -635,6 +638,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       draftStatus={draftStatus} draftKind={draftKind} onDraftStatus={setDraftStatus} onDraftKind={setDraftKind}
       filterOpen={filterOpen} onToggle={() => { setDraftStatus(statusFilter); setDraftKind(kindFilter); setFilterOpen(open => !open) }} count={visibleDocs.length}
       onApply={() => { setStatusFilter(draftStatus); setKindFilter(draftKind); setPage(1); setFilterOpen(false) }}
+      scope={scope} onScope={(next) => { if (next !== scope) { setScope(next); setPage(1) } }}
       onReset={() => { setDraftStatus('all'); setDraftKind('all'); setStatusFilter('all'); setKindFilter('all'); setPage(1); setFilterOpen(false) }} copy={copy}
     />}
 
