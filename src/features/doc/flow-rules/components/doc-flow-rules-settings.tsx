@@ -156,6 +156,20 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
     { value: 'all', label: c.flow.kindAll as string },
     ...Object.entries(c.kinds as Record<string, string>).map(([value, label]) => ({ value, label })),
   ]
+  // ภาพรวม: ซ่อน admin และแผนกที่ไม่มีกฎเกี่ยวข้อง — เริ่มต้นแสดง กรรมการผู้จัดการ/ผู้จัดการ/พนักงาน
+  // + แผนก/บทบาทที่มีกฎอ้างถึงเท่านั้น (เช่นเพิ่มกฎของ HR Div. → แสดงแผนก HR เพิ่ม)
+  const activeRules = rules.filter((rule) => rule.isActive)
+  const ruleDepartments = [...new Set(activeRules.filter((rule) => rule.scope === 'department' && rule.departmentId !== null).map((rule) => rule.departmentId!))]
+  const ruleRoleIds = [...new Set(activeRules.filter((rule) => rule.scope === 'role' && rule.roleId !== null).map((rule) => rule.roleId!))]
+  const DEFAULT_OVERVIEW_ROLES = ['executive', 'manager', 'user']
+  const overviewRoles = options
+    ? options.roles.filter((role) => role.name !== 'admin'
+      && (DEFAULT_OVERVIEW_ROLES.includes(role.name) || ruleRoleIds.includes(role.id)))
+    : []
+  const overviewDepartments = options
+    ? [{ id: null, name: c.flow.noDepartment as string, isHrDepartment: false },
+       ...options.departments.filter((department) => ruleDepartments.includes(department.id))]
+    : []
 
   return <section className="documents-policy-panel documents-flow-panel">
     <div className="documents-policy-intro"><div>
@@ -235,15 +249,15 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
         <section className="documents-flow-overview-section">
           <div className="documents-flow-overview-section-title">
             <h3>{c.flow.accessByGroup}</h3>
-            <span>{(options.departments.length + 1) * options.roles.length} {c.flow.groupCombinations}</span>
+            <span>{overviewDepartments.length * overviewRoles.length} {c.flow.groupCombinations}</span>
           </div>
           <p className="documents-flow-matrix-note">{c.flow.accessByGroupNote}</p>
           <div className="documents-flow-matrix">
-            {[{ id: null, name: c.flow.noDepartment, isHrDepartment: false }, ...options.departments].map((department) => (
+            {overviewDepartments.map((department) => (
               <details className="documents-flow-matrix-department" key={department.id ?? 'no-department'}>
                 <summary>{department.name}</summary>
                 <div className="documents-flow-matrix-roles">
-                  {options.roles.map((role) => (
+                  {overviewRoles.map((role) => (
                     <details className="documents-flow-matrix-role" key={`${department.id ?? 'none'}-${role.id}`}>
                       <summary>{roleLabel(role.name)}</summary>
                       <div className="documents-flow-matrix-routes">
