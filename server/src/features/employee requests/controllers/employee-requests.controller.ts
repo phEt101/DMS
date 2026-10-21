@@ -947,7 +947,7 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
 
     // เอกสารที่ต้องผ่าน HR จะบันทึกหลัง HR อนุมัติเท่านั้น แม้ snapshot เก่าจะระบุขั้นก่อนหน้า
     let flowSnapshot: { manager: boolean; executive: boolean; hr: boolean; stages?: string[]; recordAfterStage?: string } | null = null
-    try { flowSnapshot = row.flow_json ? JSON.parse(row.flow_json) : null } catch { flowSnapshot = null }
+    flowSnapshot = parseFlowJson(row.flow_json)
     const requiresHr = !flowSnapshot || flowSnapshot.hr === true || flowSnapshot.stages?.includes('pending_hr') === true
     const isRecordStage = requiresHr ? stage === 'hr' : flowSnapshot?.recordAfterStage === stage
     const next = action === 'reject' ? 'rejected'
