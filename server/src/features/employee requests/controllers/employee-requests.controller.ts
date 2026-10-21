@@ -238,10 +238,17 @@ export async function index(req: Request, res: Response) {
   if (!['all', 'leave', 'ot', 'other', ...KINDS].includes(kind)) throw httpError(400, 'Invalid kind')
 
   const where = ['r.company_id = ?'], params: any[] = [companyId]
-  // มองเห็น: admin เห็นทุกเอกสาร · HR เห็นทั้งบริษัท · executive เห็นของตัวเอง + pending_exec · manager เห็นของตัวเอง + ที่ผูกกับตน + ทั้งแผนกที่ตนดูแล · คนอื่นเห็นของตัวเอง
+  // มองเห็น: admin/HR เห็นทั้งหมด · executive เห็นของตัวเอง, pending_exec และเอกสารที่ตนอนุมัติ · manager เห็นของตัวเอง + ที่ผูกกับตน + ทั้งแผนกที่ตนดูแล · คนอื่นเห็นของตัวเอง
   if (isAdmin) { /* ทุกเอกสาร */ }
   else if (isHr) { /* ทุกเอกสาร */ }
-  else if (listIsExec) { where.push(`(r.employee_user_id = ? OR r.manager_user_id = ? OR r.status = 'pending_exec')`); params.push(me, me) }
+  else if (listIsExec) {
+    where.push(`(r.employee_user_id = ? OR r.manager_user_id = ? OR r.status = 'pending_exec'
+      OR EXISTS (
+        SELECT 1 FROM employee_request_signatures signed
+         WHERE signed.request_id = r.id AND signed.signer_user_id = ? AND signed.stage = 'executive' AND signed.action = 'approved'
+      ))`)
+    params.push(me, me, me)
+  }
   else { where.push('(r.employee_user_id = ? OR r.manager_user_id = ? OR r.department_id = ?)'); params.push(me, me, myDept ?? -1) }
   // ของตัวเองเท่านั้น (ปุ่มสลับ "ของตัวเอง" บนหน้าเอกสารรายบุคคล)
   if (mineOnly && !awaitingMe) { where.push('r.employee_user_id = ?'); params.push(me) }
@@ -352,8 +359,16 @@ export async function show(req: Request, res: Response) {
   const row = rows[0]
   // manager ทุกคนในแผนกเดียวกับใบ (department_id snapshot ตอนยื่น) เห็น/อนุมัติขั้น manager ได้
   const isDeptMgr = Boolean(row) && myDept !== null && Number(row.department_id) === myDept
+  const [signedRows] = detailIsExec && row
+    ? await db.query<any[]>(
+        `SELECT 1 FROM employee_request_signatures
+          WHERE request_id = ? AND signer_user_id = ? AND stage = 'executive' AND action = 'approved' LIMIT 1`,
+        [id, me],
+      )
+    : [[]]
+  const signedByMe = signedRows.length > 0
   if (!row || !(detailIsAdmin || isHr || row.employee_user_id === me || row.manager_user_id === me || isDeptMgr
-    || (detailIsExec && row.status === 'pending_exec'))) throw httpError(404, 'Request not found')
+    || (detailIsExec && (row.status === 'pending_exec' || signedByMe)))) throw httpError(404, 'Request not found')
   const detailSql = DETAIL_SQL[row.kind as Kind]
   if (!detailSql) throw httpError(404, 'Request not found')
   const [detailRows] = await db.query<any[]>(detailSql, [id])
@@ -392,7 +407,11 @@ export async function show(req: Request, res: Response) {
       || (row.status === 'pending_exec' && (isExec || isAdmin))
       || (row.status === 'pending_hr' && ((isHrMember && !isAdminFallback) || isAdminFallback))
     ),
-    canCancel: !notSelf && (row.status === 'pending_mgr' || (row.status === 'pending_hr' && row.manager_user_id === null)),
+    canCancel: !notSelf && (
+      row.status === 'pending_mgr'
+      || row.status === 'pending_exec'
+      || (row.status === 'pending_hr' && row.manager_user_id === null)
+    ),
   })
 }
 
@@ -464,13 +483,9 @@ const findDeptManagerIds = async (conn: any, companyId: number, departmentId: nu
   )
   return (rows as any[]).map((row: any) => Number(row.id))
 }
-// ขั้นแรกตาม role + แผนกของผู้ยื่น (flow เริ่มต้นที่เขียนไว้ในโค้ด):
-//   executive -> HR ทั้งหมดเลย (จบที่ HR)
-//   HR Div. (user/manager ก็ตาม) -> executive -> HR คนอื่น (ไม่ใช่ตัวเอง)
-//   manager แผนกอื่น -> executive -> HR
-//   user/admin ทั่วไป -> manager ของแผนกตัวเอง (ถ้าไม่มี manager → HR)
+// ขั้นแรกตาม role + แผนกของผู้ยื่นสำหรับ flow เริ่มต้น
 const firstStage = (user: any): 'pending_mgr' | 'pending_exec' | 'pending_hr' => {
-  const role = String(user.role_name ?? '')
+  const role = String(user.role_name ?? '').trim().toLowerCase()
   if (role === 'executive') return 'pending_hr'
   if (user.isHrDept) return 'pending_exec'
   if (role === 'user' || role === 'admin') return user.manager_user_id ? 'pending_mgr' : 'pending_hr'
@@ -492,6 +507,17 @@ const FLOW_DEFAULT = {
   managerUserId: null as number | null, executiveUserId: null as number | null,
   requireManagerStage: true, requireExecutiveStage: false, requireHrStage: true,
   recordAfterStage: null as 'manager' | 'executive' | 'hr' | null, visibleInRecords: true,
+}
+const defaultFlowFor = (user: any) => {
+  const role = String(user.role_name ?? '').trim().toLowerCase()
+  const isHrSubmitter = role === 'hr' || Boolean(Number(user.isHrDept))
+  if (role === 'executive') {
+    return { requireManagerStage: false, requireExecutiveStage: false, requireHrStage: true }
+  }
+  if (role === 'manager' || isHrSubmitter) {
+    return { requireManagerStage: false, requireExecutiveStage: true, requireHrStage: true }
+  }
+  return { requireManagerStage: true, requireExecutiveStage: false, requireHrStage: true }
 }
 const flowRuleRow = (r: any): FlowRuleRow => ({
   scope: String(r.scope) as FlowRuleRow['scope'], departmentId: r.department_id === null ? null : Number(r.department_id),
@@ -521,9 +547,10 @@ const matchFlowRule = (rules: FlowRuleRow[], user: any, kind: Kind): FlowRuleRow
 const computeFlow = (rule: FlowRuleRow | null, user: any, deptManagerId: number | null) => {
   const managerUserId = rule?.managerUserId ?? deptManagerId
   const executiveUserId = rule?.executiveUserId ?? null
-  const mgr = Boolean(rule ? rule.requireManagerStage : FLOW_DEFAULT.requireManagerStage)
-  const exec = Boolean(rule ? rule.requireExecutiveStage : FLOW_DEFAULT.requireExecutiveStage)
-  const hr = Boolean(rule ? rule.requireHrStage : FLOW_DEFAULT.requireHrStage)
+  const defaults = defaultFlowFor(user)
+  const mgr = Boolean(rule ? rule.requireManagerStage : defaults.requireManagerStage)
+  const exec = Boolean(rule ? rule.requireExecutiveStage : defaults.requireExecutiveStage)
+  const hr = Boolean(rule ? rule.requireHrStage : defaults.requireHrStage)
   let first: 'pending_mgr' | 'pending_exec' | 'pending_hr'
   if (!rule || rule.firstStage === 'default') first = firstStage({ ...user, manager_user_id: managerUserId })
   else first = rule.firstStage

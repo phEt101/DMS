@@ -342,7 +342,8 @@
       "roleManager": "ผู้จัดการ",
       "roleExecutive": "กรรมการผู้จัดการ",
       "roleHr": "HR",
-      "defaultEmployeeRoute": "ผู้จัดการประจำตัว (ถ้ามี) → HR; ถ้าไม่มีผู้จัดการ ส่งตรง HR"
+      "defaultEmployeeRoute": "ผู้จัดการแผนก (ถ้ามี) → HR; ถ้าไม่มีผู้จัดการ ส่งตรง HR",
+      "defaultHrRoute": "กรรมการผู้จัดการ → HR คนอื่น (ไม่ใช่ผู้ยื่น)"
     },
     "ledger": {
       "chooseEmployee": "เลือกพนักงาน",

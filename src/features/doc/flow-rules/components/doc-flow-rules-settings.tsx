@@ -120,11 +120,11 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
 
     const stages = role.name === 'executive'
       ? [c.flow.stageHr]
-      : department.isHrDepartment
-        ? [c.flow.autoManager, c.flow.stageHr]
-        : role.name === 'user' || role.name === 'admin'
-        ? [c.flow.defaultEmployeeRoute]
-        : [c.flow.autoManager, c.flow.stageHr]
+      : department.isHrDepartment || role.name === 'hr'
+        ? [c.flow.defaultHrRoute]
+        : role.name === 'manager'
+          ? [c.flow.autoExecutive, c.flow.stageHr]
+          : [c.flow.defaultEmployeeRoute]
     return {
       route: [c.flow.submitter, ...stages].join(' → '),
       source: c.flow.defaultFlow,

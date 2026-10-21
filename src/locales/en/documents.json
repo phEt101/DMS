@@ -386,7 +386,8 @@
       "roleManager": "Manager",
       "roleExecutive": "Managing director",
       "roleHr": "HR",
-      "defaultEmployeeRoute": "Assigned department manager (if any) → HR; otherwise sent directly to HR"
+      "defaultEmployeeRoute": "Department manager (if any) → HR; otherwise sent directly to HR",
+      "defaultHrRoute": "Managing director → another HR approver (not the submitter)"
     },
     "ledger": {
       "chooseEmployee": "Select employee",
