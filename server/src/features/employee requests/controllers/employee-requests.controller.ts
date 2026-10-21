@@ -56,6 +56,32 @@ const idParam = (req: Request) => {
   if (!Number.isSafeInteger(id) || id < 1) throw httpError(400, 'Invalid request id')
   return id
 }
+// helper (วางใกล้ๆ const nz)
+const parseFlowJson = (value: unknown): any => {
+  if (!value) return null
+  if (typeof value === 'object') return value
+  try { return JSON.parse(String(value)) } catch { return null }
+}
+const stageKeyOf = { pending_mgr: 'manager', pending_exec: 'executive', pending_hr: 'hr' } as const
+// snapshot ของ flow ณ ตอนยื่น — เก็บลง flow_json เพื่อให้เอกสารเก่าแสดงขั้นตอนตามกฎที่ใช้ตอนยื่น แม้กฎจะถูกแก้ไปภายหลัง
+const flowSnapshotOf = (flow: ReturnType<typeof computeFlow>) => ({
+  manager: flow.nextStages.includes('pending_mgr'),
+  executive: flow.nextStages.includes('pending_exec'),
+  hr: flow.nextStages.includes('pending_hr'),
+  recordAfterStage: flow.recordAfterStage,
+  visibleInRecords: flow.visibleInRecords !== false,
+  stages: [flow.firstStage, ...flow.nextStages],
+})
+// snapshot ในรูปที่ frontend ใช้แสดงขั้นตอน (stages เป็น manager/executive/hr + ขั้นบันทึก)
+const flowViewOf = (row: { flow_json?: unknown } | null | undefined) => {
+  const snap = parseFlowJson(row?.flow_json)
+  return snap && Array.isArray(snap.stages)
+    ? {
+        stages: (snap.stages as string[]).map((s) => stageKeyOf[s as keyof typeof stageKeyOf]).filter(Boolean),
+        recordAfterStage: snap.recordAfterStage ?? null,
+      }
+    : null
+}
 const nz = (value: unknown) => { const text = String(value ?? '').trim(); return text || null }
 const num = (value: unknown) => { const n = Number(value); return Number.isFinite(n) && String(value ?? '') !== '' ? n : null }
 const camel = (text: string) => text.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
@@ -314,7 +340,7 @@ export async function show(req: Request, res: Response) {
   const [rows] = await db.query<any[]>(
     `SELECT r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at, r.decided_at,
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
-            r.employee_user_id, r.manager_user_id, r.department_id, eu.name AS employee_name, dep.name AS department_name
+            r.employee_user_id, r.manager_user_id, r.department_id, r.flow_json, eu.name AS employee_name, dep.name AS department_name
        FROM employee_requests r JOIN users eu ON eu.id = r.employee_user_id LEFT JOIN departments dep ON dep.id = r.department_id
       WHERE r.id = ? AND r.company_id = ? LIMIT 1`, [id, companyId],
   )
@@ -351,9 +377,10 @@ export async function show(req: Request, res: Response) {
   // ขั้น HR: เฉพาะสมาชิก HR Div. (ยกเว้นผู้ยื่น) — ถ้าไม่มี HR คนอื่น admin fallback
   const hrMemberIds = await findHrUserIds(db as any, companyId)
   const isHrMember = hrMemberIds.includes(me)
-  const { manager_user_id: _manager, executive_user_id: _exec, department_id: _dep, ...publicRow } = row as any
+  const { manager_user_id: _manager, executive_user_id: _exec, department_id: _dep, flow_json: _flow, ...publicRow } = row as any
   res.json({
     ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map(camelize),
+    flow: flowViewOf(row),
     canViewMedicalCertificate: canViewCertificate,
     canApprove: notSelf && (
       (row.status === 'pending_mgr' && (row.manager_user_id === me || isDeptMgr))
@@ -755,7 +782,7 @@ export async function store(req: Request, res: Response) {
       `INSERT INTO employee_requests (company_id, request_no, kind, employee_user_id, department_id, manager_user_id, executive_user_id, policy_id, status, flow_json, start_date, end_date, days, reason)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [companyId, requestNo, kind, me, user.department_id, flow.managerUserId, flow.executiveUserId, policy.id, status,
-        JSON.stringify({ manager: flow.nextStages.includes('pending_mgr'), executive: flow.nextStages.includes('pending_exec'), hr: flow.nextStages.includes('pending_hr'), recordAfterStage: flow.recordAfterStage, visibleInRecords: flow.visibleInRecords !== false }),
+        JSON.stringify(flowSnapshotOf(flow)),
         head.start, head.end, head.days, head.reason],
     )
     const id = result.insertId as number

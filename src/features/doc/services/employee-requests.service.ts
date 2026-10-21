@@ -34,7 +34,7 @@ export type ApiListRow = {
   submitterName: string | null; submitterSignatureImage: string | null
 }
 export type ApiSignature = { stage: 'submitter' | 'manager' | 'executive' | 'hr'; action: string; signerName: string; signatureImage: string | null; note: string | null; signedAt: string }
-export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean }
+export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean; flow?: { stages: Array<'manager' | 'executive' | 'hr'>; recordAfterStage: string | null } | null }
 export type ApiCheck = { ok: boolean; key: string; params?: Record<string, string | number> }
 export type ApiNotification = ApiListRow & { notificationId: number; event: string; isRead: boolean; createdAt: string }
 export type ApiPolicy = { id: number; year: number; yearStart: string; yearEnd: string; expiryDate: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number; certDays: number; otMax: number; fixDays: number }
@@ -70,7 +70,6 @@ export const getMySignature = () => call<{ signature: string }>('/signature/me')
 export const listPeople = () => call<ApiPerson[]>('/people')
 export type ApiBadges = { pendingApproval: number; unreadNotifications: number }
 export const getBadges = () => call<ApiBadges>('/badges')
-
 // ---------- กำหนดสิทธิ์ในการยื่นเอกสาร (Flow Rules) ----------
 export type ApiFlowRule = {
   id: number; scope: 'department' | 'role'; departmentId: number | null; roleId: number | null; kind: string;
@@ -146,7 +145,7 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
     // ยืนยันโดยไม่เซ็น = signatureImage เป็น null → ยังคงแสดงในขั้นตอน แต่ไม่มีรูปลายเซ็น
     if (signedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage ?? '', name: sig.signerName, date: bangkokDate(sig.signedAt) }
   }
-  return { ...base, formData, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures } as MockDocument
+  return { ...base, formData, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures, flow: row.flow ?? null } as MockDocument
 }
 
 // แปลง checks จาก server ให้เป็นรูปแบบเดิมที่ฟอร์มใช้ ({ ok, message })
@@ -157,4 +156,5 @@ export function toFormChecks(checks: ApiCheck[], copy: any) {
     const message = Object.entries(params).reduce((text, [name, value]) => text.split(`{${name}}`).join(String(value)), String(copy.validation[check.key] ?? check.key))
     return { ok: check.ok, message, key: check.key }
   })
+  
 }
