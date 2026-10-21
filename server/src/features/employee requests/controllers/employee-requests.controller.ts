@@ -563,7 +563,8 @@ export async function flowRules(req: Request, res: Response) {
       WHERE rule.company_id = ? ORDER BY rule.scope, rule.kind, rule.id`, [companyId],
   )
   const [departments] = await db.query<any[]>(
-    `SELECT id, name FROM departments WHERE company_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY name`, [companyId],
+    `SELECT id, name, name = 'HR Div.' AS is_hr_department
+       FROM departments WHERE company_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY name`, [companyId],
   )
   const [roles] = await db.query<any[]>(
     `SELECT id, name FROM roles WHERE is_active = 1 AND deleted_at IS NULL ORDER BY name`,
@@ -582,7 +583,7 @@ export async function flowRules(req: Request, res: Response) {
       roleName: rules[index].role_name ?? '', departmentName: rules[index].department_name ?? '',
       steps: stepsOf(rule),
     })),
-    departments: departments.map((row) => ({ id: Number(row.id), name: String(row.name) })),
+    departments: departments.map((row) => ({ id: Number(row.id), name: String(row.name), isHrDepartment: Boolean(Number(row.is_hr_department)) })),
     roles: roles.map((row) => ({ id: Number(row.id), name: String(row.name) })),
     approvers: approvers.map((row) => ({ id: Number(row.id), name: String(row.name), roleName: String(row.role_name), departmentName: String(row.department_name ?? '') })),
     defaultFlow: { ...FLOW_DEFAULT, steps: stepsOf({ firstStage: 'default', requireManagerStage: FLOW_DEFAULT.requireManagerStage, requireExecutiveStage: FLOW_DEFAULT.requireExecutiveStage, requireHrStage: FLOW_DEFAULT.requireHrStage, recordAfterStage: FLOW_DEFAULT.recordAfterStage }) },

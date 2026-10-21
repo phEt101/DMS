@@ -82,7 +82,7 @@ export type ApiFlowRule = {
   managerName?: string; executiveName?: string; roleName?: string; departmentName?: string;
 }
 export type ApiFlowOptions = {
-  departments: Array<{ id: number; name: string }>;
+  departments: Array<{ id: number; name: string; isHrDepartment: boolean }>;
   roles: Array<{ id: number; name: string }>;
   approvers: Array<{ id: number; name: string; roleName: string; departmentName: string }>;
 }

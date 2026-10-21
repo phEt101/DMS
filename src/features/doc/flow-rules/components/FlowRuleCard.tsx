@@ -157,7 +157,7 @@ export function FlowRuleCard({ rule, options, onChange, onRemove, t, kindOptions
                       onChange(s.key === 'manager' ? { managerUserId: v } : { executiveUserId: v })
                     }}
                   >
-                    <option value="">{tr(s.key === 'manager' ? 'autoManager' : 'autoExecutive')}</option>
+                    <option value="">{tr(s.key === 'manager' ? 'autoManagerPlaceholder' : 'autoExecutivePlaceholder')}</option>
                     {options.approvers.map((a) => <option key={a.id} value={a.id}>{a.name} · {a.departmentName}</option>)}
                   </select>
                 )}
