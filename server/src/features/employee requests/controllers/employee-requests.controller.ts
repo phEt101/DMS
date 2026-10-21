@@ -591,9 +591,11 @@ export async function flowRules(req: Request, res: Response) {
 
 export async function updateFlowRules(req: Request, res: Response) {
   needDocumentModule(req)
-  const roleName = String(req.user!.role?.name ?? '').trim().toLocaleLowerCase()
-  if (roleName !== 'admin') throw httpError(403, 'ไม่มีสิทธิ์กำหนดสิทธิ์การยื่นเอกสาร')
   const companyId = companyIdOf(req)
+  const roleName = String(req.user!.role?.name ?? '').trim().toLocaleLowerCase()
+  if (roleName !== 'admin' && !(await isHrDivisionMember(req.user!.id, companyId))) {
+    throw httpError(403, 'ไม่มีสิทธิ์กำหนดสิทธิ์การยื่นเอกสาร')
+  }
   const incoming = req.body?.rules
   if (!Array.isArray(incoming)) throw httpError(400, 'ข้อมูลกฎ flow ไม่ถูกต้อง')
   for (const item of incoming) {
