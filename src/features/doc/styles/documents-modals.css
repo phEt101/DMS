@@ -179,6 +179,17 @@
   min-width: 0;
 }
 
+/* คำอธิบายใต้ช่องกรอกของฟอร์มยื่นเอกสาร */
+.dms-submission-field .dms-form-hint {
+  font-size: 11.5px;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-top: -2px;
+}
+.dms-submission-field.is-checkbox .dms-form-hint {
+  display: none;
+}
+
 .dms-submission-field.is-checkbox {
   display: flex !important;
   align-items: center;

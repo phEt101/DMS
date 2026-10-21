@@ -152,6 +152,33 @@
       "offsite": "Working off-site",
       "other": "Other"
     },
+    "fieldHints": {
+      "leaveType": "Choose a leave type, e.g. personal, sick, vacation",
+      "from": "Start date — pick from the calendar",
+      "to": "Last day — must not be before the start date",
+      "date": "Date of the event — pick from the calendar",
+      "start": "Start time, format 08:30",
+      "end": "End time, format 17:30 (must be after the start time)",
+      "days": "Number of workdays, e.g. 1 or 0.5 (half day)",
+      "hours": "Calculated automatically from the times entered",
+      "reason": "Briefly explain the reason, e.g. official business",
+      "task": "Task / project, e.g. on-site system installation for Customer A",
+      "place": "Work location, e.g. home, customer's office",
+      "plan": "Work plan for that day",
+      "outTime": "Time leaving the office, format 13:30",
+      "backTime": "Estimated return time (optional if unsure)",
+      "company": "Company / customer you are visiting",
+      "address": "Address of the work site, e.g. building, road, district",
+      "workDetails": "Work to be done, e.g. client meeting, site survey",
+      "phone": "Contact number, e.g. 081-234-5678",
+      "inTime": "Correct arrival time, format 08:30"
+    },
+    "kindFieldHints": {
+      "timefix": {
+        "inTime": "Correct arrival time, format 08:30",
+        "outTime": "Correct departure time, format 17:30"
+      }
+    },
     "filters": {
       "search": "Search documents or employee names",
       "cardView": "Card view",
@@ -223,14 +250,18 @@
       "offsiteDescription": "Work from home (WFH) or off-site during the day — choose in the form",
       "validationChecking": "Validating form...",
       "signAndSend": "Sign and submit",
-      "afterSign": "In mode, the document will be sent to",
+      "afterSign": "After signing, the document will be sent to",
       "manager": "the department manager",
       "hr": "HR",
       "noResults": "No documents found. Try changing your search or filters.",
       "medicalCertificateLabel": "Attach medical certificate",
       "medicalCertificateHelp": "PDF, JPG, or PNG, up to 10 MB. Only you, HR Div., and admins can view this file.",
       "medicalCertificateTooLarge": "The file must be no larger than 10 MB",
-      "removeCertificate": "Remove file"
+      "removeCertificate": "Remove file",
+      "clickToFix": "Click to go to the field that needs fixing",
+      "hintDate": "Pick from the calendar",
+      "hintTime": "Format HH:MM, e.g. 08:30",
+      "hintNumber": "Enter a number, e.g. 1"
     },
     "signature": {
       "submitter": "Sign as submitter",
@@ -404,6 +435,8 @@
       "days": "Days",
       "reason": "Reason",
       "status": "Status",
+      "certificateAttached": "Attached",
+      "certificateMissing": "No file attached",
       "exportConfirmTitle": "Confirm export",
       "exportConfirmExcel": "Export the leave ledger as Excel?",
       "exportConfirmPdf": "Export the leave ledger as PDF?",
