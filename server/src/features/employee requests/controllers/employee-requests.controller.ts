@@ -64,21 +64,24 @@ const parseFlowJson = (value: unknown): any => {
 }
 const stageKeyOf = { pending_mgr: 'manager', pending_exec: 'executive', pending_hr: 'hr' } as const
 // snapshot ของ flow ณ ตอนยื่น — เก็บลง flow_json เพื่อให้เอกสารเก่าแสดงขั้นตอนตามกฎที่ใช้ตอนยื่น แม้กฎจะถูกแก้ไปภายหลัง
-const flowSnapshotOf = (flow: ReturnType<typeof computeFlow>) => ({
-  manager: flow.nextStages.includes('pending_mgr'),
-  executive: flow.nextStages.includes('pending_exec'),
-  hr: flow.nextStages.includes('pending_hr'),
-  recordAfterStage: flow.recordAfterStage,
-  visibleInRecords: flow.visibleInRecords !== false,
-  stages: [flow.firstStage, ...flow.nextStages],
-})
+const flowSnapshotOf = (flow: ReturnType<typeof computeFlow>) => {
+  const stages = [flow.firstStage, ...flow.nextStages]
+  return {
+    manager: stages.includes('pending_mgr'),
+    executive: stages.includes('pending_exec'),
+    hr: stages.includes('pending_hr'),
+    recordAfterStage: flow.recordAfterStage,
+    visibleInRecords: flow.visibleInRecords !== false,
+    stages,
+  }
+}
 // snapshot ในรูปที่ frontend ใช้แสดงขั้นตอน (stages เป็น manager/executive/hr + ขั้นบันทึก)
 const flowViewOf = (row: { flow_json?: unknown } | null | undefined) => {
   const snap = parseFlowJson(row?.flow_json)
   return snap && Array.isArray(snap.stages)
     ? {
         stages: (snap.stages as string[]).map((s) => stageKeyOf[s as keyof typeof stageKeyOf]).filter(Boolean),
-        recordAfterStage: snap.recordAfterStage ?? null,
+        recordAfterStage: snap.hr === true || snap.stages.includes('pending_hr') ? 'hr' : snap.recordAfterStage ?? null,
       }
     : null
 }
@@ -252,7 +255,10 @@ export async function index(req: Request, res: Response) {
   if (kind === 'other') where.push(`r.kind IN ('timefix','wfh','outing','swap')`)
   else if (kind !== 'all') { where.push('r.kind = ?'); params.push(kind) }
   if (awaitingMe) {
-    where.push(`r.employee_user_id <> ? AND ((r.status = 'pending_mgr' AND (r.manager_user_id = ? OR r.department_id = ?)) ${listIsExec ? `OR r.status = 'pending_exec'` : ''} ${isHr ? `OR r.status = 'pending_hr'` : ''})`)
+    // ขั้น exec/hr: นับเฉพาะเอกสารที่ flow จริงมีขั้นนั้น (ตาม flow_json) — กันเอกสารที่ flow ไม่มีขั้นนี้มาโผล่ในรายการรอตนอนุมัติ
+    const execFilter = listIsExec ? `OR (r.status = 'pending_exec' AND (r.flow_json IS NULL OR JSON_EXTRACT(r.flow_json, '$.executive') IN (1, true)))` : ''
+    const hrFilter = isHr ? `OR (r.status = 'pending_hr' AND (r.flow_json IS NULL OR JSON_EXTRACT(r.flow_json, '$.hr') IN (1, true)))` : ''
+    where.push(`r.employee_user_id <> ? AND ((r.status = 'pending_mgr' AND (r.manager_user_id = ? OR r.department_id = ?)) ${execFilter} ${hrFilter})`)
     params.push(me, me, myDept ?? -1)
   }
   const [rows] = await db.query<any[]>(
@@ -529,12 +535,14 @@ const computeFlow = (rule: FlowRuleRow | null, user: any, deptManagerId: number 
   if (stages.length === 0) stages.push('pending_hr')
   if (!stages.includes(first)) first = stages[0]!
   const nextStages = stages.slice(stages.indexOf(first) + 1)
-  // ขั้นสุดท้ายของ flow = ขั้นที่อนุมัติแล้วเอกสารถือว่าจบ (บันทึกลงสมุด/รายงาน) — ถ้ากฎกำหนด recordAfterStage ให้ใช้ตามนั้น
+  // ถ้าต้องผ่าน HR ให้จบและบันทึกหลัง HR เท่านั้น
   const lastStage = stages[stages.length - 1]!
   const stageToStatus = { manager: 'pending_mgr', executive: 'pending_exec', hr: 'pending_hr' } as const
-  const recordAfterStage = rule?.recordAfterStage && stages.includes(stageToStatus[rule.recordAfterStage])
-    ? rule.recordAfterStage
-    : ({ manager: 'manager', executive: 'executive', hr: 'hr' } as const)[lastStage === 'pending_mgr' ? 'manager' : lastStage === 'pending_exec' ? 'executive' : 'hr']
+  const recordAfterStage = hr
+    ? 'hr'
+    : rule?.recordAfterStage && stages.includes(stageToStatus[rule.recordAfterStage])
+      ? rule.recordAfterStage
+      : ({ manager: 'manager', executive: 'executive', hr: 'hr' } as const)[lastStage === 'pending_mgr' ? 'manager' : lastStage === 'pending_exec' ? 'executive' : 'hr']
   return {
     firstStage: first,
     nextStages,
@@ -558,7 +566,9 @@ const stepsOf = (rule: Pick<FlowRuleRow, 'firstStage' | 'requireManagerStage' | 
   if (!stages.includes(first)) first = stages[0]!
   return {
     stages: stages.slice(stages.indexOf(first)),
-    recordAfterStage: rule.recordAfterStage ?? (stages[stages.length - 1] === 'pending_mgr' ? 'manager' : stages[stages.length - 1] === 'pending_exec' ? 'executive' : 'hr'),
+    recordAfterStage: rule.requireHrStage
+      ? 'hr'
+      : rule.recordAfterStage ?? (stages[stages.length - 1] === 'pending_mgr' ? 'manager' : stages[stages.length - 1] === 'pending_exec' ? 'executive' : 'hr'),
   }
 }
 
@@ -935,14 +945,15 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
       if (!meIsHrMember) throw httpError(403, 'ไม่มีสิทธิ์พิจารณาเอกสารนี้')
     }
 
-    // อนุมัติขั้นนี้แล้วจบไหม: ดูจาก flow_json (snapshot ของ flow ที่ใช้ตอนยื่น) — ถ้าขั้นนี้เป็นขั้นบันทึก = approved เลย
-    let flowSnapshot: { manager: boolean; executive: boolean; hr: boolean; recordAfterStage?: string } | null = null
+    // เอกสารที่ต้องผ่าน HR จะบันทึกหลัง HR อนุมัติเท่านั้น แม้ snapshot เก่าจะระบุขั้นก่อนหน้า
+    let flowSnapshot: { manager: boolean; executive: boolean; hr: boolean; stages?: string[]; recordAfterStage?: string } | null = null
     try { flowSnapshot = row.flow_json ? JSON.parse(row.flow_json) : null } catch { flowSnapshot = null }
-    const isRecordStage = flowSnapshot?.recordAfterStage === stage
+    const requiresHr = !flowSnapshot || flowSnapshot.hr === true || flowSnapshot.stages?.includes('pending_hr') === true
+    const isRecordStage = requiresHr ? stage === 'hr' : flowSnapshot?.recordAfterStage === stage
     const next = action === 'reject' ? 'rejected'
       : isRecordStage ? 'approved'
         : row.status === 'pending_mgr' && flowSnapshot?.executive === true ? 'pending_exec'
-          : row.status !== 'pending_hr' && flowSnapshot?.hr === true ? 'pending_hr'
+          : row.status !== 'pending_hr' && requiresHr ? 'pending_hr'
             : 'approved'
     const [update] = await conn.execute<any>(
       `UPDATE employee_requests SET status = ?, rejected_stage = ?, rejection_note = ?, decided_at = IF(? IN ('approved','rejected'), CURRENT_TIMESTAMP, NULL)
@@ -1093,12 +1104,14 @@ export async function badges(req: Request, res: Response) {
   const isHrBadge = has(req, PERM.review) && (await findHrUserIds(db as any, companyId)).includes(me)
   const myDept = await myManagedDeptId(db as any, req)
   // รอนุมัติ: ตามขั้นตอนของแต่ละ role — manager ตาม snapshot หรือแผนกที่ดูแล, executive/admin ขั้น exec, HR Div. ขั้น HR (ไม่รวมเอกสารของตนเอง)
+  // ขั้น exec: นับเฉพาะเอกสารที่ flow จริงมีขั้น exec (flow_json.executive) — เอกสารที่ flow ไม่มีขั้นนี้ (ข้อมูลเก่า/null) ไม่นับเพื่อไม่ให้ badge โป่ง
   const [pendingRows] = await db.query<any[]>(
     `SELECT COUNT(*) AS n FROM employee_requests r
       WHERE r.company_id = ? AND r.employee_user_id <> ?
         AND ((r.status = 'pending_mgr' AND (r.manager_user_id = ? OR r.department_id = ?))
-          ${isExec || isAdmin ? `OR r.status = 'pending_exec'` : ''}
-          ${isHrBadge ? `OR r.status = 'pending_hr'` : ''})`, [companyId, me, me, myDept ?? -1],
+          ${isExec || isAdmin ? `OR (r.status = 'pending_exec' AND (r.flow_json IS NULL OR JSON_EXTRACT(r.flow_json, '$.executive') IN (1, true)))` : ''}
+          ${isHrBadge ? `OR (r.status = 'pending_hr' AND (r.flow_json IS NULL OR JSON_EXTRACT(r.flow_json, '$.hr') IN (1, true)))` : ''})`,
+    [companyId, me, me, myDept ?? -1],
   )
   const [unreadRows] = await db.query<any[]>(
     `SELECT COUNT(*) AS n FROM employee_request_notifications n

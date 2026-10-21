@@ -18,7 +18,8 @@ const toDraft = (rule: ApiFlowRule): DraftRule => ({
   managerUserId: rule.managerUserId, executiveUserId: rule.executiveUserId,
   requireManagerStage: rule.requireManagerStage, requireExecutiveStage: rule.requireExecutiveStage,
   requireHrStage: rule.requireHrStage,
-  recordAfterStage: rule.recordAfterStage, visibleInRecords: rule.visibleInRecords, isActive: rule.isActive,
+  recordAfterStage: rule.requireHrStage ? 'hr' : rule.recordAfterStage,
+  visibleInRecords: rule.visibleInRecords, isActive: rule.isActive,
 })
 
 export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {

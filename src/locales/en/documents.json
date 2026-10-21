@@ -353,6 +353,7 @@
       "currentRulesUnit": "custom rule(s)",
       "recordAfter": "Stage after which the document is recorded",
       "recordAfterAuto": "— Last stage of the flow —",
+      "recordAfterHrOnly": "Wait for HR approval before recording",
       "visibleInRecords": "Show in leave ledger / WFH report",
       "hiddenFromRecords": "Hidden from ledger / report",
       "overviewButton": "View flow overview",

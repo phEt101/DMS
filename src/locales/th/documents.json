@@ -308,6 +308,7 @@
       "currentRulesUnit": "กฎ",
       "recordAfter": "ขั้นที่อนุมัติแล้วบันทึกลงสมุด/รายงาน",
       "recordAfterAuto": "— ขั้นสุดท้ายของ flow —",
+      "recordAfterHrOnly": "ต้องรอ HR อนุมัติก่อนจึงบันทึก",
       "visibleInRecords": "แสดงในสมุดบันทึกการลา/รายงาน",
       "hiddenFromRecords": "ไม่แสดงในสมุดบันทึก/รายงาน",
       "overviewButton": "ดูภาพรวม Flow",

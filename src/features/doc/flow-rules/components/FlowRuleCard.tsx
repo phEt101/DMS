@@ -48,6 +48,7 @@ const enabledOf = (r: FlowRuleLike): Record<Stage, boolean> => ({
 export function effectiveRecordStage(r: FlowRuleLike): Stage {
   const on = enabledOf(r)
   const active = STAGES.filter((s) => on[s.key]).map((s) => s.key)
+  if (r.requireHrStage) return 'hr'
   if (!active.length) return 'hr'
   if (r.recordAfterStage && on[r.recordAfterStage]) return r.recordAfterStage
   return active[active.length - 1]
@@ -166,10 +167,12 @@ export function FlowRuleCard({ rule, options, onChange, onRemove, t, kindOptions
                   <i aria-hidden="true" /><span>{enabled ? tr('stageOn') : tr('stageOff')}</span>
                 </label>
                 {enabled && (
-                  <button type="button" className={`flow-record${isRecord ? ' is-on' : ''}`} aria-pressed={isRecord}
-                    onClick={() => onChange({ recordAfterStage: s.key })}>
-                    {isRecord ? `● ${tr('recordedHere')}` : `○ ${tr('recordHere')}`}
-                  </button>
+                  rule.requireHrStage && s.key !== 'hr'
+                    ? <small className="flow-after-note">{tr('recordAfterHrOnly')}</small>
+                    : <button type="button" className={`flow-record${isRecord ? ' is-on' : ''}`} aria-pressed={isRecord}
+                      onClick={() => onChange({ recordAfterStage: s.key })}>
+                      {isRecord ? `● ${tr('recordedHere')}` : `○ ${tr('recordHere')}`}
+                    </button>
                 )}
                 {afterRecord && <small className="flow-after-note">{tr('afterRecordNote')}</small>}
               </div>

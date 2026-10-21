@@ -34,11 +34,26 @@ CREATE TABLE IF NOT EXISTS document_flow_rules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='กำหนดสิทธิ์ในการยื่นเอกสาร: แผนก/บทบาทยื่นแล้วไปให้ใครอนุมัติ';
 
--- เพิ่ม snapshot ของ flow ที่ใช้ ณ ตอนยื่น (กันกฎถูกแก้ภายหลังแล้วเอกสารเก่าเดินตามกฎใหม่)
-ALTER TABLE employee_requests
-  ADD COLUMN flow_json JSON NULL COMMENT 'flow ที่ใช้ ณ ตอนยื่น: {manager,executive,hr} ขั้นที่ต้องผ่านหลังขั้นแรก' AFTER route_to;
+-- เพิ่ม snapshot ของ flow ที่ใช้ ณ ตอนยื่น (กันกฎถูกแก้ภายหลังแล้วเอกสารเก่าเดินตามกฎใหม่) — เฉพาะเมื่อยังไม่มีคอลัมน์นี้
+SET @has_flow_json := (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'employee_requests' AND column_name = 'flow_json');
+SET @ddl_flow_json := IF(@has_flow_json = 0,
+  'ALTER TABLE employee_requests ADD COLUMN flow_json JSON NULL COMMENT ''flow ที่ใช้ ณ ตอนยื่น: {manager,executive,hr} ขั้นที่ต้องผ่านหลังขั้นแรก'' AFTER route_to',
+  'SELECT 1');
+PREPARE stmt_flow_json FROM @ddl_flow_json; EXECUTE stmt_flow_json; DEALLOCATE PREPARE stmt_flow_json;
 
--- เพิ่มคอลัมน์ของ flow rules (จบที่ขั้นไหนถึงบันทึก + ซ่อนจากสมุด/รายงาน) — สำหรับฐานข้อมูลที่สร้างตารางไปแล้ว
-ALTER TABLE document_flow_rules
-  ADD COLUMN record_after_stage ENUM('manager','executive','hr') NULL COMMENT 'ขั้นที่อนุมัติแล้วเอกสารถือว่าจบ (approved) และเริ่มบันทึกลงสมุด/รายงาน — NULL=ขั้นสุดท้ายของ flow' AFTER require_hr_stage,
-  ADD COLUMN visible_in_records BOOLEAN NOT NULL DEFAULT TRUE COMMENT '0=ประเภทเอกสารนี้แสดงเฉพาะตอนยื่น/พิจารณา ไม่แสดงในสมุดบันทึกการลา/รายงาน' AFTER record_after_stage;
+-- เพิ่มคอลัมน์ของ flow rules (จบที่ขั้นไหนถึงบันทึก + ซ่อนจากสมุด/รายงาน) — เฉพาะเมื่อยังไม่มีคอลัมน์นี้
+-- (สำหรับฐานข้อมูลเดิมที่สร้างตารางไปก่อนหน้านี้ — CREATE TABLE ด้านบนรวมคอลัมน์นี้ไว้แล้ว เลยต้องเช็คก่อนเพิ่ม)
+SET @has_record_after := (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'document_flow_rules' AND column_name = 'record_after_stage');
+SET @ddl_record_after := IF(@has_record_after = 0,
+  'ALTER TABLE document_flow_rules ADD COLUMN record_after_stage ENUM(''manager'',''executive'',''hr'') NULL COMMENT ''ขั้นที่อนุมัติแล้วเอกสารถือว่าจบ (approved) และเริ่มบันทึกลงสมุด/รายงาน — NULL=ขั้นสุดท้ายของ flow'' AFTER require_hr_stage',
+  'SELECT 1');
+PREPARE stmt_record_after FROM @ddl_record_after; EXECUTE stmt_record_after; DEALLOCATE PREPARE stmt_record_after;
+
+SET @has_visible := (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'document_flow_rules' AND column_name = 'visible_in_records');
+SET @ddl_visible := IF(@has_visible = 0,
+  'ALTER TABLE document_flow_rules ADD COLUMN visible_in_records BOOLEAN NOT NULL DEFAULT TRUE COMMENT ''0=ประเภทเอกสารนี้แสดงเฉพาะตอนยื่น/พิจารณา ไม่แสดงในสมุดบันทึกการลา/รายงาน'' AFTER record_after_stage',
+  'SELECT 1');
+PREPARE stmt_visible FROM @ddl_visible; EXECUTE stmt_visible; DEALLOCATE PREPARE stmt_visible;
