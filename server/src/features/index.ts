@@ -19,8 +19,21 @@ import { asyncHandler } from "../middleware/errors.js";
 import { requireAuth } from "./auth/middleware/require-auth.middleware.js";
 
 export const apiRouter = Router();
-
 apiRouter.use("/health", healthRouter);
+// โลโก้บริษัท (public — ไม่ต้องล็อกอิน เพราะต้องแสดงใน sidebar/login ได้ทันที)
+import fs from "node:fs";
+import path from "node:path";
+const brandingDir = path.resolve(process.cwd(), "storage", "branding");
+apiRouter.get("/branding/:file", (req, res) => {
+  const name = path.basename(String(req.params.file));
+  if (!/^[A-Za-z0-9._-]+\.(svg|png|jpg|jpeg|webp)$/i.test(name)) return res.status(400).json({ error: "invalid file" });
+  const resolved = path.resolve(brandingDir, name);
+  if (!resolved.startsWith(brandingDir + path.sep) || !fs.existsSync(resolved)) return res.status(404).json({ error: "not found" });
+  const mime = { ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" } as Record<string, string>;
+  res.setHeader("Content-Type", mime[path.extname(resolved).toLowerCase()] ?? "application/octet-stream");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.sendFile(resolved);
+});
 apiRouter.use("/auth", authRouter);
 
 apiRouter.use(asyncHandler(requireAuth));

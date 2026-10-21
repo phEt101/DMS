@@ -20,7 +20,9 @@ function validate(body: unknown, partial = false): CompanyInput {
   }
   if (!partial || Object.hasOwn(input, 'logoUrl')) {
     const logoUrl = input.logoUrl == null || input.logoUrl === '' ? null : typeof input.logoUrl === 'string' ? input.logoUrl.trim() : undefined
-    if (logoUrl === undefined || (logoUrl !== null && (logoUrl.length > 2048 || !/^https:\/\//i.test(logoUrl)))) throw httpError(400, 'Logo must be a valid https URL')
+    // ยอมรับ https URL หรือ path ภายใน (/boswell-api/v1/branding/...) — โลโก้ที่อัปโหลดไว้ใน server
+    const internal = typeof logoUrl === 'string' && /^\/boswell-api\/v1\/branding\/[A-Za-z0-9._-]+\.(svg|png|jpe?g|webp)$/i.test(logoUrl)
+    if (logoUrl === undefined || (logoUrl !== null && !internal && (logoUrl.length > 2048 || !/^https:\/\//i.test(logoUrl)))) throw httpError(400, 'Logo must be a valid https URL or internal branding path')
     output.logoUrl = logoUrl
   }
   if (Object.hasOwn(input, 'isActive')) {

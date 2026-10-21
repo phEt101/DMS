@@ -184,10 +184,7 @@ export function FlowRuleCard({ rule, options, onChange, onRemove, t, kindOptions
           <div className="flow-dot">📒</div>
           <div className="flow-node-body">
             <b>{tr('ledger')}</b>
-            <label className="flow-switch flow-switch--sm">
-              <input type="checkbox" checked={rule.visibleInRecords} onChange={(e) => onChange({ visibleInRecords: e.target.checked })} />
-              <i aria-hidden="true" /><span>{rule.visibleInRecords ? tr('visibleInRecords') : tr('hiddenFromRecords')}</span>
-            </label>
+            <small className="flow-after-note">{tr('visibleInRecords')}</small>
           </div>
         </li>
       </ol>

@@ -19,7 +19,8 @@ const toDraft = (rule: ApiFlowRule): DraftRule => ({
   requireManagerStage: rule.requireManagerStage, requireExecutiveStage: rule.requireExecutiveStage,
   requireHrStage: rule.requireHrStage,
   recordAfterStage: rule.requireHrStage ? 'hr' : rule.recordAfterStage,
-  visibleInRecords: rule.visibleInRecords, isActive: rule.isActive,
+  // สมุดบันทึก/รายงานบันทึกเสมอ — เดิมมี toggle ให้ปิด แต่ไม่ใช้แล้ว (บังคับเป็น true ตอน save)
+  visibleInRecords: true, isActive: rule.isActive,
 })
 
 export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
@@ -62,7 +63,7 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
     if (invalid) { showToast(c.flow.ruleIncomplete, 'error'); return }
     setSaving(true)
     try {
-      await saveFlowRules(rules.map(({ key: _key, id: _id, ...rest }) => rest))
+      await saveFlowRules(rules.map(({ key: _key, id: _id, ...rest }) => ({ ...rest, visibleInRecords: true })))
       showToast(c.flow.saved, 'success')
       const data = await getFlowRules()
       setOptions(data); setRules(data.rules.map(toDraft))
