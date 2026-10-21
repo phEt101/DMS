@@ -584,8 +584,7 @@
         "ot": "Overtime request",
         "timefix": "Time correction request",
         "wfh": "Work-from-home request",
-        "outing": "Outing request",
-        "swap": "Day-off swap request"
+        "outing": "Outing request"
       },
       "documentStatuses": {
         "pending_mgr": "Awaiting manager",

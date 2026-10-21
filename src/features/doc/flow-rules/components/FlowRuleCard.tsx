@@ -27,11 +27,11 @@ const DEFAULT_TEXT: Record<string, string> = {
   stageOn: 'ต้องผ่านขั้นนี้', stageOff: 'ข้ามขั้นนี้', recordHere: 'ให้จบ/บันทึกที่ขั้นนี้', recordedHere: 'อนุมัติแล้วบันทึกลงสมุด',
   afterRecordNote: 'ไม่ถูกใช้ — เอกสารจบที่ขั้นก่อนหน้า', ledger: 'สมุดบันทึก / รายงาน', route: 'เส้นทาง',
   noStageWarn: '⚠ ไม่ได้เปิดขั้นอนุมัติใดเลย ระบบจะส่งให้ HR อัตโนมัติ',
-  kindAll: 'ทุกประเภท', kindLeave: 'ลา', kindOt: 'OT', kindTimefix: 'แก้เวลา', kindWfh: 'WFH', kindOuting: 'ออกนอกสถานที่', kindSwap: 'สลับวันหยุด',
+  kindAll: 'ทุกประเภท', kindLeave: 'ลา', kindOt: 'OT', kindTimefix: 'แก้เวลา', kindWfh: 'WFH', kindOuting: 'ออกนอกสถานที่',
 }
 const DEFAULT_KINDS = [
   { value: 'all', k: 'kindAll' }, { value: 'leave', k: 'kindLeave' }, { value: 'ot', k: 'kindOt' },
-  { value: 'timefix', k: 'kindTimefix' }, { value: 'wfh', k: 'kindWfh' }, { value: 'outing', k: 'kindOuting' }, { value: 'swap', k: 'kindSwap' },
+  { value: 'timefix', k: 'kindTimefix' }, { value: 'wfh', k: 'kindWfh' }, { value: 'outing', k: 'kindOuting' },
 ]
 
 const STAGES: Array<{ key: Stage; status: Exclude<FirstStage, 'default'>; label: string; field: 'requireManagerStage' | 'requireExecutiveStage' | 'requireHrStage' }> = [

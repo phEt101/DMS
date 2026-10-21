@@ -207,7 +207,7 @@ export default function ReportPage({ translations, language }: { translations: T
     window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  const filterUserId = isPrivileged ? employeeId : String(user?.id ?? '')
+  const filterUserId = employeeId || String(user?.id ?? '')
 
   return <section className="feature-page feature-page--wide outing-report-page">
     <header className="users-header outing-report-header">
@@ -224,7 +224,7 @@ export default function ReportPage({ translations, language }: { translations: T
           {departments.map((department) => <option key={department} value={department}>{department}</option>)}
         </select>
       </label>}
-      {isPrivileged && <EmployeeSearchSelect label={copy.employee} value={employeeId} options={filteredEmployees.map((employee) => ({ id: String(employee.id), name: employee.name, detail: employee.department ?? '' }))} onChange={(nextEmployeeId) => {
+      {(isPrivileged || employees.length > 1) && <EmployeeSearchSelect label={copy.employee} value={employeeId} options={filteredEmployees.map((employee) => ({ id: String(employee.id), name: employee.name, detail: employee.department ?? '' }))} onChange={(nextEmployeeId) => {
         setEmployeeId(nextEmployeeId)
         updateFilters({ from, to, employeeId: nextEmployeeId })
       }} />}

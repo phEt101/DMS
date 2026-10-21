@@ -56,8 +56,7 @@
       "ot": "Request approval for overtime dates and hours",
       "timefix": "Report a missed scan or request a time correction",
       "wfh": "Work off-site or from home, with a date range and work plan",
-      "outing": "Work outside the office, with a date range, time, and location",
-      "swap": "Request a day off and specify the make-up workday"
+      "outing": "Work outside the office, with a date range, time, and location"
     },
     "sampleDocuments": {
       "1": {
@@ -142,9 +141,7 @@
       "workDetails": "Work details",
       "remark": "Remark",
       "coordinates": "Coordinates",
-      "outingLocation": "Off-site work location",
-      "offDate": "Requested day off",
-      "workDate": "Make-up workday"
+      "outingLocation": "Off-site work location"
     },
     "fieldOptions": {
       "weekday": "Regular workday",
@@ -539,10 +536,7 @@
       "workDetailsRequired": "Enter work details",
       "phoneInvalid": "Enter a valid phone number",
       "destinationRequired": "Enter a destination",
-      "purposeRequired": "Enter a purpose",
-      "offDateFuture": "The day off must be today or in the future",
-      "differentWorkDate": "The make-up workday must be a different date",
-      "reasonRequired": "Enter a reason"
+      "purposeRequired": "Enter a purpose"
     }
   }
 }

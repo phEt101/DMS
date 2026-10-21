@@ -1,4 +1,4 @@
-export type Kind = 'leave' | 'ot' | 'timefix' | 'wfh' | 'outing' | 'swap'
+export type Kind = 'leave' | 'ot' | 'timefix' | 'wfh' | 'outing'
 export type Values = Record<string, string | boolean>
 
 export type Policy = {
@@ -37,7 +37,7 @@ const minutes = (value: string) => {
   return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : -1
 }
 
-const DATE_KEYS = ['from', 'to', 'date', 'offDate', 'workDate']
+const DATE_KEYS = ['from', 'to', 'date']
 const TIME_KEYS = ['start', 'end', 'inTime', 'outTime', 'backTime']
 
 export function validateRequest(kind: Kind, input: Values, ctx: ValidationContext): { checks: Check[]; values: Values } {
@@ -131,12 +131,6 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
     add(Boolean(v('address')), 'addressRequired')
     add(Boolean(v('workDetails')), 'workDetailsRequired')
     add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8), 'phoneInvalid')
-  }
-
-  if (kind === 'swap') {
-    add(Boolean(v('offDate') && v('offDate') >= today), 'offDateFuture')
-    add(Boolean(v('workDate') && v('workDate') !== v('offDate')), 'differentWorkDate')
-    add(Boolean(v('reason')), 'reasonRequired')
   }
 
   return { checks, values }

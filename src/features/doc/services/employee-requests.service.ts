@@ -132,7 +132,7 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
     dayType: s(d.dayType), date: s(d.date), task: s(d.task),
     from: row.startDate ?? s(d.date), to: row.endDate ?? s(d.date),
     cause: s(d.cause), inTime: s(d.inTime), outTime: s(d.outTime), backTime: s(d.backTime),
-    place: s(d.place), plan: s(d.plan), offDate: s(d.offDate), workDate: s(d.workDate), reason: row.reason ?? '',
+    place: s(d.place), plan: s(d.plan), reason: row.reason ?? '',
     company: s(d.companyName), address: s(d.address), province: s(d.province), district: s(d.district),
     subdistrict: s(d.subdistrict), postalCode: s(d.postalCode), country: s(d.country),
     latitude: s(d.latitude), longitude: s(d.longitude), project: s(d.projectName),

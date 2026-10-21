@@ -10,8 +10,8 @@ import { medicalCertificateDirectory } from '../middleware/medical-certificate-u
 
 // ใช้สิทธิ์เดิมของโมดูลเอกสาร + เพิ่ม 'จัดการนโยบายการลา' 1 รายการ (ต้อง seed ในตาราง permissions)
 const PERM = { submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
-const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'wfh', 'outing', 'swap']
-const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', wfh: 'WFH', outing: 'OUT', swap: 'SW' }
+const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'wfh', 'outing']
+const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', wfh: 'WFH', outing: 'OUT' }
 const STATUSES = ['pending_mgr', 'pending_exec', 'pending_hr', 'approved', 'rejected', 'cancelled']
 const MAX_SIGNATURE_LENGTH = 200_000
 
@@ -252,7 +252,7 @@ export async function index(req: Request, res: Response) {
     if (!Number.isSafeInteger(employeeId) || employeeId < 1) throw httpError(400, 'Invalid employee id')
     where.push('r.employee_user_id = ?'); params.push(employeeId)
   }
-  if (kind === 'other') where.push(`r.kind IN ('timefix','wfh','outing','swap')`)
+  if (kind === 'other') where.push(`r.kind IN ('timefix','wfh','outing')`)
   else if (kind !== 'all') { where.push('r.kind = ?'); params.push(kind) }
   if (awaitingMe) {
     // ขั้น exec/hr: นับเฉพาะเอกสารที่ flow จริงมีขั้นนั้น (ตาม flow_json) — กันเอกสารที่ flow ไม่มีขั้นนี้มาโผล่ในรายการรอตนอนุมัติ
@@ -315,9 +315,8 @@ const DETAIL_SQL: Record<Kind, string> = {
                   TIME_FORMAT(back_time,'%H:%i') AS back_time, place, company_name, address, province, district,
                   subdistrict, postal_code, country, latitude, longitude, project_name, customer_name,
                   customer_position, phone, work_details, remark
-             FROM employee_request_outing_details WHERE request_id = ?`,
-  swap: `SELECT DATE_FORMAT(off_date,'%Y-%m-%d') AS off_date, DATE_FORMAT(work_date,'%Y-%m-%d') AS work_date FROM employee_request_swap_details WHERE request_id = ?`,
-}
+                                FROM employee_request_outing_details WHERE request_id = ?`,
+             }
 
 async function isHrDivisionMember(userId: number, companyId: number): Promise<boolean> {
   const [rows] = await db.query<any[]>(
@@ -683,7 +682,6 @@ function headerFields(kind: Kind, v: Values) {
   const s = (key: string) => nz(v[key])
   if (kind === 'leave' || kind === 'wfh') return { start: s('from'), end: s('to'), days: num(v.days), reason: s('reason') }
   if (kind === 'outing') return { start: s('from'), end: s('to'), days: null, reason: s('workDetails') }
-  if (kind === 'swap') return { start: s('offDate'), end: s('offDate'), days: null, reason: s('reason') }
   return { start: s('date'), end: s('date'), days: null, reason: s('reason') }
 }
 
@@ -832,8 +830,6 @@ export async function store(req: Request, res: Response) {
           num(v.longitude), s('project'), s('customerName'), s('customerPosition'), s('phone'),
           s('workDetails'), s('remark')],
       )
-    } else {
-      await conn.execute(`INSERT INTO employee_request_swap_details (request_id, off_date, work_date) VALUES (?, ?, ?)`, [id, s('offDate'), s('workDate')])
     }
     const signatureFileId = signature ? await storeSignatureImage(conn, signature) : null
     await conn.execute(
@@ -1225,7 +1221,26 @@ export async function outingReport(req: Request, res: Response) {
 
   const requestedEmployeeId = req.query.employeeId === undefined ? me : Number(req.query.employeeId)
   if (!Number.isSafeInteger(requestedEmployeeId) || requestedEmployeeId < 1) throw httpError(400, 'รหัสพนักงานไม่ถูกต้อง')
-  if (!canSelectEmployee && requestedEmployeeId !== me) throw httpError(403, 'ไม่มีสิทธิ์ดูรายงานของพนักงานคนนี้')
+  if (!canSelectEmployee && requestedEmployeeId !== me) {
+    const [relatedRows] = await db.query<any[]>(
+      `SELECT 1
+         FROM employee_requests related
+         JOIN employee_request_signatures signature
+           ON signature.request_id = related.id AND signature.signer_user_id = ? AND signature.action = 'approved'
+        WHERE related.company_id = ? AND related.employee_user_id = ?
+          AND related.kind IN ('outing', 'wfh') AND related.status = 'approved'
+        LIMIT 1`,
+      [me, companyId, requestedEmployeeId],
+    )
+    if (!relatedRows.length) throw httpError(403, 'ไม่มีสิทธิ์ดูรายงานของพนักงานคนนี้')
+  }
+  const relatedRequestsOnly = !canSelectEmployee && requestedEmployeeId !== me
+    ? `AND EXISTS (
+         SELECT 1 FROM employee_request_signatures related
+          WHERE related.request_id = r.id AND related.signer_user_id = ? AND related.action = 'approved'
+       )`
+    : ''
+  const relatedRequestParams = relatedRequestsOnly ? [me] : []
 
   const [outingRows] = await db.query<any[]>(
     `SELECT 'outing' AS report_kind, r.id, r.request_no, r.status,
@@ -1251,10 +1266,10 @@ export async function outingReport(req: Request, res: Response) {
        LEFT JOIN signature_images submitter_image ON submitter_image.id = submitter.signature_file_id
        LEFT JOIN signature_images approved_image ON approved_image.id = approved.signature_file_id
       WHERE r.company_id = ? AND r.kind = 'outing' AND r.status = 'approved'
-        AND r.employee_user_id = ? AND COALESCE(r.start_date, o.outing_date) <= ?
+         AND r.employee_user_id = ? ${relatedRequestsOnly} AND COALESCE(r.start_date, o.outing_date) <= ?
         AND COALESCE(r.end_date, o.outing_date) >= ?
       ORDER BY COALESCE(r.start_date, o.outing_date), o.out_time, r.id`,
-    [companyId, requestedEmployeeId, to, from],
+    [companyId, requestedEmployeeId, ...relatedRequestParams, to, from],
   )
   const [wfhRows] = await db.query<any[]>(
     `SELECT 'wfh' AS report_kind, r.id, r.request_no,
@@ -1277,9 +1292,9 @@ export async function outingReport(req: Request, res: Response) {
        LEFT JOIN signature_images submitter_image ON submitter_image.id = submitter.signature_file_id
        LEFT JOIN signature_images approved_image ON approved_image.id = approved.signature_file_id
       WHERE r.company_id = ? AND r.kind = 'wfh' AND r.status = 'approved'
-        AND r.employee_user_id = ? AND r.start_date <= ? AND r.end_date >= ?
+         AND r.employee_user_id = ? ${relatedRequestsOnly} AND r.start_date <= ? AND r.end_date >= ?
       ORDER BY r.start_date, r.id`,
-    [companyId, requestedEmployeeId, to, from],
+    [companyId, requestedEmployeeId, ...relatedRequestParams, to, from],
   )
   const wfhReportRows = wfhRows.map((row) => ({
     ...row,
@@ -1315,10 +1330,10 @@ export async function outingReport(req: Request, res: Response) {
        LEFT JOIN employee_request_outing_details o ON o.request_id = r.id
       WHERE r.company_id = ? AND r.kind IN ('outing', 'wfh')
         AND r.status IN ('pending_mgr','pending_exec','pending_hr')
-        AND r.employee_user_id = ?
+        AND r.employee_user_id = ? ${relatedRequestsOnly}
         AND ((r.kind = 'outing' AND COALESCE(r.start_date, o.outing_date) <= ? AND COALESCE(r.end_date, o.outing_date) >= ?)
           OR (r.kind = 'wfh' AND r.start_date <= ? AND r.end_date >= ?))`,
-    [companyId, requestedEmployeeId, to, from, to, from],
+    [companyId, requestedEmployeeId, ...relatedRequestParams, to, from, to, from],
   )
   let employees: Array<{ id: number; name: string; department: string | null }> = []
   if (canSelectEmployee) {
@@ -1329,6 +1344,24 @@ export async function outingReport(req: Request, res: Response) {
         WHERE u.company_id = ? AND u.deleted_at IS NULL AND u.is_active = 1
         ORDER BY u.name`,
       [companyId],
+    )
+    employees = peopleRows
+  } else {
+    const [peopleRows] = await db.query<any[]>(
+      `SELECT DISTINCT u.id, u.name, departments.name AS department
+         FROM users u
+         LEFT JOIN departments ON departments.id = u.department_id
+        WHERE u.company_id = ? AND u.deleted_at IS NULL AND u.is_active = 1
+          AND (u.id = ? OR EXISTS (
+            SELECT 1
+              FROM employee_requests related
+              JOIN employee_request_signatures signature
+                ON signature.request_id = related.id AND signature.signer_user_id = ? AND signature.action = 'approved'
+             WHERE related.company_id = u.company_id AND related.employee_user_id = u.id
+               AND related.kind IN ('outing', 'wfh') AND related.status = 'approved'
+          ))
+        ORDER BY u.name`,
+      [companyId, me, me],
     )
     employees = peopleRows
   }

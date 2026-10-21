@@ -99,9 +99,7 @@
       "workDetails": "รายละเอียดงาน",
       "remark": "หมายเหตุ",
       "coordinates": "พิกัด",
-      "outingLocation": "ตำแหน่งสถานที่ออกไปปฏิบัติงาน",
-      "offDate": "วันที่ขอหยุด",
-      "workDate": "วันที่มาทำงานแทน"
+      "outingLocation": "ตำแหน่งสถานที่ออกไปปฏิบัติงาน"
     },
     "fieldOptions": {
       "weekday": "วันทำงานปกติ",
@@ -483,10 +481,7 @@
       "workDetailsRequired": "ระบุรายละเอียดงาน",
       "phoneInvalid": "รูปแบบเบอร์โทรไม่ถูกต้อง",
       "destinationRequired": "ระบุสถานที่ที่ไป",
-      "purposeRequired": "ระบุวัตถุประสงค์",
-      "offDateFuture": "วันที่ขอหยุดต้องเป็นวันนี้หรืออนาคต",
-      "differentWorkDate": "วันที่มาทำงานแทนต้องเป็นคนละวัน",
-      "reasonRequired": "ระบุเหตุผล"
+      "purposeRequired": "ระบุวัตถุประสงค์"
     }
   }
 }
