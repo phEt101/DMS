@@ -432,7 +432,7 @@ const findDeptManagerIds = async (conn: any, companyId: number, departmentId: nu
   )
   return (rows as any[]).map((row: any) => Number(row.id))
 }
-// ขั้นแรกตาม role + แผนกของผู้ยื่น:
+// ขั้นแรกตาม role + แผนกของผู้ยื่น (flow เริ่มต้นที่เขียนไว้ในโค้ด):
 //   executive -> HR ทั้งหมดเลย (จบที่ HR)
 //   HR Div. (user/manager ก็ตาม) -> executive -> HR คนอื่น (ไม่ใช่ตัวเอง)
 //   manager แผนกอื่น -> executive -> HR
@@ -443,6 +443,200 @@ const firstStage = (user: any): 'pending_mgr' | 'pending_exec' | 'pending_hr' =>
   if (user.isHrDept) return 'pending_exec'
   if (role === 'user' || role === 'admin') return user.manager_user_id ? 'pending_mgr' : 'pending_hr'
   return 'pending_exec'
+}
+
+// ---------- กำหนดสิทธิ์ในการยื่นเอกสาร (Flow Rules) ----------
+// กฎที่แอดมิน/HR ตั้งในหน้า "กำหนดสิทธิ์การยื่นเอกสาร" — ระบุว่าแผนก/บทบาทไหนยื่นแล้วส่งไปให้ใครอนุมัติ
+// เอกสารจะเก็บ snapshot ของ flow ที่ใช้ (flow JSON) ไว้ที่ตัวเอกสาร เพื่อให้ขั้นถัดไปตามกฎเดิมแม้กฎถูกแก้ภายหลัง
+const FLOW_KINDS = [...KINDS, 'all']
+type FlowRuleRow = {
+  scope: 'department' | 'role'; departmentId: number | null; roleId: number | null; kind: string;
+  firstStage: 'default' | 'pending_mgr' | 'pending_exec' | 'pending_hr';
+  managerUserId: number | null; executiveUserId: number | null;
+  requireManagerStage: boolean; requireExecutiveStage: boolean; requireHrStage: boolean;
+  recordAfterStage: 'manager' | 'executive' | 'hr' | null; visibleInRecords: boolean;
+}
+const FLOW_DEFAULT = {
+  managerUserId: null as number | null, executiveUserId: null as number | null,
+  requireManagerStage: true, requireExecutiveStage: false, requireHrStage: true,
+  recordAfterStage: null as 'manager' | 'executive' | 'hr' | null, visibleInRecords: true,
+}
+const flowRuleRow = (r: any): FlowRuleRow => ({
+  scope: String(r.scope) as FlowRuleRow['scope'], departmentId: r.department_id === null ? null : Number(r.department_id),
+  roleId: r.role_id === null ? null : Number(r.role_id), kind: String(r.kind),
+  firstStage: String(r.first_stage) as FlowRuleRow['firstStage'],
+  managerUserId: r.manager_user_id === null ? null : Number(r.manager_user_id),
+  executiveUserId: r.executive_user_id === null ? null : Number(r.executive_user_id),
+  requireManagerStage: Boolean(Number(r.require_manager_stage)),
+  requireExecutiveStage: Boolean(Number(r.require_executive_stage)),
+  requireHrStage: Boolean(Number(r.require_hr_stage)),
+  recordAfterStage: (r.record_after_stage === null || r.record_after_stage === undefined) ? null : String(r.record_after_stage) as FlowRuleRow['recordAfterStage'],
+  visibleInRecords: r.visible_in_records === undefined ? true : Boolean(Number(r.visible_in_records)),
+})
+// เลือกกฎที่ match ผู้ยื่น + ประเภทเอกสาร (department เจาะจงกว่า role, kind เจาะจงกว่า all)
+const matchFlowRule = (rules: FlowRuleRow[], user: any, kind: Kind): FlowRuleRow | null => {
+  const matches = rules.filter((rule) =>
+    (rule.kind === 'all' || rule.kind === kind) && (
+      rule.scope === 'department'
+        ? rule.departmentId !== null && Number(user.department_id) === rule.departmentId
+        : rule.roleId !== null && Number(user.role_id) === rule.roleId
+    ),
+  )
+  const rank = (rule: FlowRuleRow) => (rule.scope === 'department' ? 2 : 1) * 2 + (rule.kind === kind ? 1 : 0)
+  return matches.sort((left, right) => rank(right) - rank(left))[0] ?? null
+}
+// คำนวณ flow ทั้งหมดของเอกสาร: ขั้นแรก + ลำดับขั้นที่เหลือ + ผู้อนุมัติที่กำหนดเอง
+const computeFlow = (rule: FlowRuleRow | null, user: any, deptManagerId: number | null) => {
+  const managerUserId = rule?.managerUserId ?? deptManagerId
+  const executiveUserId = rule?.executiveUserId ?? null
+  const mgr = Boolean(rule ? rule.requireManagerStage : FLOW_DEFAULT.requireManagerStage)
+  const exec = Boolean(rule ? rule.requireExecutiveStage : FLOW_DEFAULT.requireExecutiveStage)
+  const hr = Boolean(rule ? rule.requireHrStage : FLOW_DEFAULT.requireHrStage)
+  let first: 'pending_mgr' | 'pending_exec' | 'pending_hr'
+  if (!rule || rule.firstStage === 'default') first = firstStage({ ...user, manager_user_id: managerUserId })
+  else first = rule.firstStage
+  const stages: Array<'pending_mgr' | 'pending_exec' | 'pending_hr'> = []
+  if (mgr) stages.push('pending_mgr')
+  if (exec) stages.push('pending_exec')
+  if (hr) stages.push('pending_hr')
+  if (stages.length === 0) stages.push('pending_hr')
+  if (!stages.includes(first)) first = stages[0]!
+  const nextStages = stages.slice(stages.indexOf(first) + 1)
+  // ขั้นสุดท้ายของ flow = ขั้นที่อนุมัติแล้วเอกสารถือว่าจบ (บันทึกลงสมุด/รายงาน) — ถ้ากฎกำหนด recordAfterStage ให้ใช้ตามนั้น
+  const lastStage = stages[stages.length - 1]!
+  const stageToStatus = { manager: 'pending_mgr', executive: 'pending_exec', hr: 'pending_hr' } as const
+  const recordAfterStage = rule?.recordAfterStage && stages.includes(stageToStatus[rule.recordAfterStage])
+    ? rule.recordAfterStage
+    : ({ manager: 'manager', executive: 'executive', hr: 'hr' } as const)[lastStage === 'pending_mgr' ? 'manager' : lastStage === 'pending_exec' ? 'executive' : 'hr']
+  return {
+    firstStage: first,
+    nextStages,
+    recordAfterStage,
+    managerUserId: stages.includes('pending_mgr') ? managerUserId : null,
+    executiveUserId: stages.includes('pending_exec') ? executiveUserId : null,
+    visibleInRecords: rule?.visibleInRecords ?? true,
+  }
+}
+
+// ลำดับขั้นที่แสดงใน UI (ขั้นแรก → ขั้นสุดท้าย) ตามกฎหรือ flow เริ่มต้น
+const stepsOf = (rule: Pick<FlowRuleRow, 'firstStage' | 'requireManagerStage' | 'requireExecutiveStage' | 'requireHrStage' | 'recordAfterStage'>) => {
+  const stages: Array<'pending_mgr' | 'pending_exec' | 'pending_hr'> = []
+  if (rule.requireManagerStage) stages.push('pending_mgr')
+  if (rule.requireExecutiveStage) stages.push('pending_exec')
+  if (rule.requireHrStage) stages.push('pending_hr')
+  if (stages.length === 0) stages.push('pending_hr')
+  let first: 'pending_mgr' | 'pending_exec' | 'pending_hr'
+  if (rule.firstStage === 'default') first = stages[0]!
+  else first = rule.firstStage
+  if (!stages.includes(first)) first = stages[0]!
+  return {
+    stages: stages.slice(stages.indexOf(first)),
+    recordAfterStage: rule.recordAfterStage ?? (stages[stages.length - 1] === 'pending_mgr' ? 'manager' : stages[stages.length - 1] === 'pending_exec' ? 'executive' : 'hr'),
+  }
+}
+
+async function loadFlowRule(conn: any, companyId: number, user: any, kind: Kind): Promise<FlowRuleRow | null> {
+  const [rows] = await conn.query(
+    `SELECT scope, department_id, role_id, kind, first_stage, manager_user_id, executive_user_id,
+            require_manager_stage, require_executive_stage, require_hr_stage
+       FROM document_flow_rules
+      WHERE company_id = ? AND is_active = 1
+        AND kind IN (?, 'all')
+        AND ((scope = 'department' AND department_id = ?) OR (scope = 'role' AND role_id = ?))`,
+    [companyId, kind, user.department_id ?? -1, user.role_id ?? -1],
+  )
+  return matchFlowRule(rows.map(flowRuleRow), user, kind)
+}
+
+export async function flowRules(req: Request, res: Response) {
+  needDocumentModule(req)
+  const companyId = companyIdOf(req)
+  const [rules] = await db.query<any[]>(
+    `SELECT rule.id, rule.scope, rule.department_id, rule.role_id, rule.kind, rule.first_stage, rule.manager_user_id, rule.executive_user_id,
+            rule.require_manager_stage, rule.require_executive_stage, rule.require_hr_stage, rule.record_after_stage, rule.visible_in_records, rule.is_active,
+            manager.name AS manager_name, executive.name AS executive_name, role.name AS role_name, dep.name AS department_name
+       FROM document_flow_rules rule
+       LEFT JOIN users manager ON manager.id = rule.manager_user_id
+       LEFT JOIN users executive ON executive.id = rule.executive_user_id
+       LEFT JOIN roles role ON role.id = rule.role_id
+       LEFT JOIN departments dep ON dep.id = rule.department_id
+      WHERE rule.company_id = ? ORDER BY rule.scope, rule.kind, rule.id`, [companyId],
+  )
+  const [departments] = await db.query<any[]>(
+    `SELECT id, name FROM departments WHERE company_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY name`, [companyId],
+  )
+  const [roles] = await db.query<any[]>(
+    `SELECT id, name FROM roles WHERE is_active = 1 AND deleted_at IS NULL ORDER BY name`,
+  )
+  const [approvers] = await db.query<any[]>(
+    `SELECT u.id, u.name, r.name AS role_name, dep.name AS department_name
+       FROM users u JOIN roles r ON r.id = u.role_id
+       LEFT JOIN departments dep ON dep.id = u.department_id
+      WHERE u.company_id = ? AND u.is_active = 1 AND u.deleted_at IS NULL
+        AND r.name IN ('manager', 'executive', 'hr', 'admin') ORDER BY u.name`, [companyId],
+  )
+  res.json({
+    rules: rules.map(flowRuleRow).map((rule, index) => ({
+      id: Number(rules[index].id), isActive: Boolean(Number(rules[index].is_active)), ...rule,
+      managerName: rules[index].manager_name ?? '', executiveName: rules[index].executive_name ?? '',
+      roleName: rules[index].role_name ?? '', departmentName: rules[index].department_name ?? '',
+      steps: stepsOf(rule),
+    })),
+    departments: departments.map((row) => ({ id: Number(row.id), name: String(row.name) })),
+    roles: roles.map((row) => ({ id: Number(row.id), name: String(row.name) })),
+    approvers: approvers.map((row) => ({ id: Number(row.id), name: String(row.name), roleName: String(row.role_name), departmentName: String(row.department_name ?? '') })),
+    defaultFlow: { ...FLOW_DEFAULT, steps: stepsOf({ firstStage: 'default', requireManagerStage: FLOW_DEFAULT.requireManagerStage, requireExecutiveStage: FLOW_DEFAULT.requireExecutiveStage, requireHrStage: FLOW_DEFAULT.requireHrStage, recordAfterStage: FLOW_DEFAULT.recordAfterStage }) },
+  })
+}
+
+export async function updateFlowRules(req: Request, res: Response) {
+  needDocumentModule(req)
+  const roleName = String(req.user!.role?.name ?? '').trim().toLocaleLowerCase()
+  if (roleName !== 'admin') throw httpError(403, 'ไม่มีสิทธิ์กำหนดสิทธิ์การยื่นเอกสาร')
+  const companyId = companyIdOf(req)
+  const incoming = req.body?.rules
+  if (!Array.isArray(incoming)) throw httpError(400, 'ข้อมูลกฎ flow ไม่ถูกต้อง')
+  for (const item of incoming) {
+    if (!['department', 'role'].includes(String(item.scope))) throw httpError(400, 'scope ไม่ถูกต้อง')
+    if (String(item.scope) === 'department' && !Number.isSafeInteger(Number(item.departmentId))) throw httpError(400, 'ต้องเลือกแผนก')
+    if (String(item.scope) === 'role' && !Number.isSafeInteger(Number(item.roleId))) throw httpError(400, 'ต้องเลือกบทบาท')
+    if (!FLOW_KINDS.includes(String(item.kind))) throw httpError(400, 'ประเภทเอกสารไม่ถูกต้อง')
+    if (!['default', 'pending_mgr', 'pending_exec', 'pending_hr'].includes(String(item.firstStage))) throw httpError(400, 'ขั้นแรกไม่ถูกต้อง')
+  }
+  const conn = await db.getConnection()
+  try {
+    await conn.beginTransaction()
+    // ลบทั้งหมดแล้วเขียนใหม่ (กฎต่อบริษัทไม่เยอะ — ง่ายและตรงกับ UI)
+    await conn.execute(`DELETE FROM document_flow_rules WHERE company_id = ?`, [companyId])
+    for (const item of incoming) {
+      const managerId = item.managerUserId === null || item.managerUserId === '' ? null : Number(item.managerUserId)
+      const executiveId = item.executiveUserId === null || item.executiveUserId === '' ? null : Number(item.executiveUserId)
+      await conn.execute(
+        `INSERT INTO document_flow_rules
+          (company_id, scope, department_id, role_id, kind, first_stage, manager_user_id, executive_user_id,
+           require_manager_stage, require_executive_stage, require_hr_stage, record_after_stage, visible_in_records, is_active, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [companyId, String(item.scope), String(item.scope) === 'department' ? Number(item.departmentId) : null,
+          String(item.scope) === 'role' ? Number(item.roleId) : null, String(item.kind), String(item.firstStage),
+          managerId, executiveId,
+          item.requireManagerStage === false ? 0 : 1, item.requireExecutiveStage === true ? 1 : 0, item.requireHrStage === false ? 0 : 1,
+          ['manager', 'executive', 'hr'].includes(String(item.recordAfterStage)) ? String(item.recordAfterStage) : null,
+          item.visibleInRecords === false ? 0 : 1,
+          item.isActive === false ? 0 : 1, req.user!.id],
+      )
+    }
+    await conn.commit()
+    await logActivity({
+      userId: req.user!.id, module: 'documents', action: 'flow_rules_updated',
+      entityType: 'document_flow_rules', entityId: null, details: { count: incoming.length }, ipAddress: req.ip,
+    })
+  } catch (error) {
+    await conn.rollback()
+    throw error
+  } finally {
+    conn.release()
+  }
+  res.status(204).end()
 }
 
 function headerFields(kind: Kind, v: Values) {
@@ -539,9 +733,12 @@ export async function store(req: Request, res: Response) {
   if (kind === 'timefix') oneOf(v.cause, ['forgot', 'device', 'offsite', 'other'], 'สาเหตุไม่ถูกต้อง')
 
   const head = headerFields(kind, v)
-  // หา manager ของผู้ยื่น: ใช้ employees.manager_user_id เป็นหลัก (fallback = manager คนแรกในแผนก) แล้วคำนวณขั้นแรกตาม role + แผนก
+  // หา manager ของผู้ยื่น: ใช้ employees.manager_user_id เป็นหลัก (fallback = manager คนแรกในแผนก)
   const deptManagerId = await findDeptManagerId(db as any, user.department_id, me, user.manager_user_id)
-  const status = firstStage({ ...user, manager_user_id: deptManagerId, isHrDept: Boolean(Number(user.isHrDept)) })
+  // กำหนดสิทธิ์ในการยื่น: หากฎ flow ของแผนก/บทบาทผู้ยื่นก่อน (ถ้าไม่มีใช้ flow เริ่มต้นในโค้ด)
+  const flowRule = await loadFlowRule(db as any, companyId, user, kind)
+  const flow = computeFlow(flowRule, user, deptManagerId)
+  const status = flow.firstStage
   const conn = await db.getConnection()
   try {
     await conn.beginTransaction()
@@ -552,9 +749,11 @@ export async function store(req: Request, res: Response) {
     const [seq] = await conn.query<any[]>('SELECT LAST_INSERT_ID() AS n')
     const requestNo = `${PREFIX[kind]}-${policy.year}-${String(seq[0].n).padStart(4, '0')}`
     const [result] = await conn.execute<any>(
-      `INSERT INTO employee_requests (company_id, request_no, kind, employee_user_id, department_id, manager_user_id, policy_id, status, start_date, end_date, days, reason)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [companyId, requestNo, kind, me, user.department_id, deptManagerId, policy.id, status, head.start, head.end, head.days, head.reason],
+      `INSERT INTO employee_requests (company_id, request_no, kind, employee_user_id, department_id, manager_user_id, executive_user_id, policy_id, status, flow_json, start_date, end_date, days, reason)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [companyId, requestNo, kind, me, user.department_id, flow.managerUserId, flow.executiveUserId, policy.id, status,
+        JSON.stringify({ manager: flow.nextStages.includes('pending_mgr'), executive: flow.nextStages.includes('pending_exec'), hr: flow.nextStages.includes('pending_hr'), recordAfterStage: flow.recordAfterStage, visibleInRecords: flow.visibleInRecords !== false }),
+        head.start, head.end, head.days, head.reason],
     )
     const id = result.insertId as number
     const s = (key: string) => nz(v[key])
@@ -607,14 +806,14 @@ export async function store(req: Request, res: Response) {
          ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`, [me, signatureFileId],
       )
     }
-    // pending_mgr: แจ้ง manager ทุกคนในแผนก + manager ที่ผูกไว้ (notify กรองซ้ำให้)
+    // แจ้งเตือนตามขั้นแรกของ flow: pending_mgr → manager ทุกคนในแผนก + manager ที่ผูกไว้
     const recipients = status === 'pending_mgr'
       ? [
           ...(await findDeptManagerIds(conn, companyId, user.department_id, me)),
-          ...[deptManagerId].filter((userId): userId is number => Number.isSafeInteger(userId)),
+          ...[flow.managerUserId].filter((userId): userId is number => Number.isSafeInteger(userId)),
         ]
       : status === 'pending_exec'
-        ? await findExecUserIds(conn, companyId)
+        ? (flow.executiveUserId ? [flow.executiveUserId] : await findExecUserIds(conn, companyId))
         : await findHrUserIds(conn, companyId, me)
     await notify(conn, recipients, id, 'submitted')
     await conn.commit()
@@ -679,7 +878,7 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
   const conn = await db.getConnection()
   try {
     await conn.beginTransaction()
-    const [rows] = await conn.query<any[]>(`SELECT id, request_no, kind, employee_user_id, manager_user_id, department_id, status FROM employee_requests WHERE id = ? AND company_id = ? FOR UPDATE`, [id, companyId])
+    const [rows] = await conn.query<any[]>(`SELECT id, request_no, kind, employee_user_id, manager_user_id, department_id, status, flow_json FROM employee_requests WHERE id = ? AND company_id = ? FOR UPDATE`, [id, companyId])
     const row = rows[0]
     if (!row) throw httpError(404, 'Request not found')
     if (row.employee_user_id === me) throw httpError(403, 'ไม่สามารถพิจารณาเอกสารของตนเองได้')
@@ -706,7 +905,15 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
       if (!meIsHrMember) throw httpError(403, 'ไม่มีสิทธิ์พิจารณาเอกสารนี้')
     }
 
-    const next = action === 'reject' ? 'rejected' : stage === 'manager' || stage === 'executive' ? 'pending_hr' : 'approved'
+    // อนุมัติขั้นนี้แล้วจบไหม: ดูจาก flow_json (snapshot ของ flow ที่ใช้ตอนยื่น) — ถ้าขั้นนี้เป็นขั้นบันทึก = approved เลย
+    let flowSnapshot: { manager: boolean; executive: boolean; hr: boolean; recordAfterStage?: string } | null = null
+    try { flowSnapshot = row.flow_json ? JSON.parse(row.flow_json) : null } catch { flowSnapshot = null }
+    const isRecordStage = flowSnapshot?.recordAfterStage === stage
+    const next = action === 'reject' ? 'rejected'
+      : isRecordStage ? 'approved'
+        : row.status === 'pending_mgr' && flowSnapshot?.executive === true ? 'pending_exec'
+          : row.status !== 'pending_hr' && flowSnapshot?.hr === true ? 'pending_hr'
+            : 'approved'
     const [update] = await conn.execute<any>(
       `UPDATE employee_requests SET status = ?, rejected_stage = ?, rejection_note = ?, decided_at = IF(? IN ('approved','rejected'), CURRENT_TIMESTAMP, NULL)
         WHERE id = ? AND status = ?`,
@@ -726,7 +933,12 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
          ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`, [me, signatureFileId],
       )
     }
-    await notify(conn, [row.employee_user_id], id, next === 'pending_hr' ? 'forwarded_to_hr' : next)
+    await notify(conn, [row.employee_user_id], id, next === 'approved' ? 'approved' : next === 'pending_hr' ? 'forwarded_to_hr' : 'forwarded_to_exec')
+    if (next === 'pending_exec') {
+      // ขั้น executive: แจ้งผู้ประกอบการที่กำหนดเอง (ถ้ามี) หรือทุกคนผู้ประกอบการ
+      const execId = Number(row.executive_user_id ?? 0)
+      await notify(conn, execId ? [execId] : await findExecUserIds(conn, companyId), id, 'submitted')
+    }
     if (next === 'pending_hr') {
       // ขั้น HR: แจ้งทุกคนใน HR Div. (ยกเว้นผู้ยื่น) — ใครอนุมัติก็ได้; ถ้าไม่มี HR คนอื่น fallback executive/admin
       const hrRecipients = await findHrUserIds(conn, companyId, row.employee_user_id)

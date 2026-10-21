@@ -44,6 +44,7 @@ type SidebarItem =
   | "documents-ledger"
   | "documents-employees"
   | "documents-policy"
+  | "documents-flow-rules"
   | "documents-notifications"
   | "report"
   | "settings-user"
@@ -296,11 +297,12 @@ if (item.key === "documents") {
     { key: "report", label: documentNavTranslations.report },
     { key: "documents-employees", label: documentNavTranslations.employees },
     { key: "documents-policy", label: documentNavTranslations.policy },
+    { key: "documents-flow-rules", label: documentNavTranslations.flowRules },
     { key: "documents-notifications", label: documentNavTranslations.notifications },
   ];
   const documentModuleByPage: Partial<Record<PageKey, string>> = {
     "documents-all": "documents", "documents-pending": "documents_pending", "documents-ledger": "documents_ledger",
-    report: "report", "documents-employees": "documents_employees", "documents-policy": "documents_policy",
+    report: "report", "documents-employees": "documents_employees", "documents-policy": "documents_policy", "documents-flow-rules": "documents_flow_rules",
     "documents-notifications": "documents_notifications",
   };
   const visibleDocumentItems = documentItems.filter((documentItem) => user && (

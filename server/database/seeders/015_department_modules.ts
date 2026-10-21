@@ -27,7 +27,7 @@ export async function up(connection: Connection) {
   )
   await connection.execute(
     `INSERT IGNORE INTO department_modules SELECT d.id, m.id FROM departments d CROSS JOIN permission_modules m
-     WHERE d.name = 'HR Div.' AND m.name IN ('documents','documents_pending','documents_ledger','documents_employees','documents_policy','documents_notifications')
+     WHERE d.name = 'HR Div.' AND m.name IN ('documents','documents_pending','documents_ledger','documents_employees','documents_policy','documents_flow_rules','documents_notifications')
        AND d.deleted_at IS NULL AND m.deleted_at IS NULL`,
   )
 }

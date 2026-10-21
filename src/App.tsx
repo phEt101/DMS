@@ -29,6 +29,7 @@ const pathByPage: Record<PageKey, string> = {
   'documents-ledger': '/documents/ledger',
   'documents-employees': '/documents/employees',
   'documents-policy': '/documents/policy',
+  'documents-flow-rules': '/documents/flow-rules',
   'documents-notifications': '/documents/notifications'
 }
 
@@ -52,6 +53,7 @@ const moduleByPage: Record<PageKey, string> = {
   'documents-ledger': 'documents_ledger',
   'documents-employees': 'documents_employees',
   'documents-policy': 'documents_policy',
+  'documents-flow-rules': 'documents_flow_rules',
   'documents-notifications': 'documents_notifications'
 }
 

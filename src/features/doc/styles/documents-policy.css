@@ -95,3 +95,122 @@
   gap: 10px;
   margin-top: 20px;
 }
+
+/* กำหนดสิทธิ์ในการยื่นเอกสาร (Flow Rules) */
+/* ===== Flow Rules: การ์ดกฎ + pipeline ===== */
+.documents-flow-panel { margin-top: 18px; }
+.documents-flow-rules { display: flex; flex-direction: column; gap: 16px; }
+
+.flow-card {
+  --ink: #1c2540; --mute: #6a7592; --line: #d6ddec;
+  --brand: #3a5bd9; --brand-soft: #eef3ff;
+  --ok: #1f9d6b; --ok-soft: #e6f6ef; --warn: #c2410c;
+  padding: 16px;
+  border: 1px solid #e3e8f2;
+  border-radius: 14px;
+  background: #fff;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* ---- หัวการ์ด ---- */
+.flow-card-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-end; }
+.flow-card-target { display: flex; flex-wrap: wrap; gap: 10px; flex: 1; }
+.flow-card-target label { display: flex; flex-direction: column; gap: 4px; min-width: 150px; flex: 1; max-width: 240px; }
+.flow-card-target label span { font-size: 12px; font-weight: 600; color: var(--mute); }
+.flow-card select {
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
+  background: #fff; font: inherit; font-size: 13px; color: var(--ink); max-width: 100%;
+}
+.flow-card select:focus-visible, .flow-record:focus-visible, .flow-switch input:focus-visible + i {
+  outline: 2px solid var(--brand); outline-offset: 2px;
+}
+.flow-card-tools { display: flex; gap: 12px; align-items: center; }
+.flow-remove { border: 0; background: none; color: var(--warn); font: inherit; font-size: 13px; cursor: pointer; padding: 6px 8px; border-radius: 8px; }
+.flow-remove:hover { background: #fff1ea; }
+
+/* ---- สวิตช์ ---- */
+.flow-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); cursor: pointer; }
+.flow-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.flow-switch i { width: 34px; height: 20px; border-radius: 20px; background: #c9d1e4; position: relative; transition: background .15s; flex: none; }
+.flow-switch i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.flow-switch input:checked + i { background: var(--brand); }
+.flow-switch input:checked + i::after { transform: translateX(14px); }
+.flow-switch--sm { font-size: 12px; color: var(--mute); }
+.flow-switch--sm i { width: 28px; height: 16px; }
+.flow-switch--sm i::after { width: 12px; height: 12px; }
+.flow-switch--sm input:checked + i::after { transform: translateX(12px); }
+
+/* ---- pipeline ---- */
+.flow-track {
+  list-style: none; margin: 0; padding: 14px;
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--brand-soft); border-radius: 12px;
+  overflow-x: auto;
+}
+.flow-track.is-off { opacity: .5; filter: grayscale(.6); }
+
+.flow-node { position: relative; display: flex; flex-direction: column; align-items: center; flex: 1 1 0; min-width: 150px; padding: 0 8px; }
+/* เส้นเชื่อมระหว่างโหนด */
+.flow-node + .flow-node::before {
+  content: ''; position: absolute; top: 17px; right: 50%; width: 100%; height: 3px;
+  background: var(--brand); z-index: 0;
+}
+.flow-node.is-skipped + .flow-node::before,
+.flow-node + .flow-node.is-skipped::before {
+  background: repeating-linear-gradient(90deg, #aab6d3 0 6px, transparent 6px 11px);
+}
+.flow-node.is-after::before { background: repeating-linear-gradient(90deg, var(--ok) 0 6px, transparent 6px 11px); }
+
+.flow-dot {
+  position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 13px; font-weight: 800;
+  background: var(--brand); color: #fff; border: 3px solid var(--brand-soft);
+}
+.flow-node--start .flow-dot { background: var(--ink); }
+.flow-node--end .flow-dot { background: var(--ok); font-size: 15px; }
+.flow-node.is-skipped .flow-dot { background: #fff; color: #9aa6c4; border: 2px dashed #aab6d3; }
+.flow-node.is-after .flow-dot { background: #fff; color: var(--ok); border: 2px solid var(--ok); }
+
+.flow-node-body {
+  margin-top: 8px; width: 100%; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.flow-node-body b { font-size: 14px; color: var(--ink); }
+.flow-node-body small { font-size: 12px; color: var(--mute); line-height: 1.4; }
+.flow-node.is-skipped .flow-node-body b { color: #9aa6c4; text-decoration: line-through; }
+.flow-node-body select { width: 100%; font-size: 12px; }
+
+.flow-record {
+  border: 1px solid var(--line); background: #fff; color: var(--mute);
+  font: inherit; font-size: 11.5px; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+}
+.flow-record:hover { border-color: var(--ok); color: var(--ok); }
+.flow-record.is-on { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); font-weight: 700; }
+.flow-after-note { color: var(--ok) !important; }
+
+/* ---- สรุป ---- */
+.flow-summary { margin: 0; font-size: 13px; color: var(--mute); line-height: 1.6; }
+.flow-summary b { color: var(--ink); }
+.flow-warn { color: var(--warn); font-weight: 600; }
+
+/* ---- กล่อง "flow ปัจจุบัน" (ใช้ FlowRuleCard แบบอ่านอย่างเดียวได้) ---- */
+.documents-flow-current { padding: 14px; border: 1px dashed #b9c6e3; border-radius: 14px; background: #eef3ff; margin-bottom: 16px; }
+.documents-flow-current h3 { margin: 0 0 6px; font-size: 15px; font-weight: 800; color: #1c2540; }
+.documents-flow-current-default, .documents-flow-current-rules { margin: 0; font-size: 13px; color: #42506e; line-height: 1.7; }
+
+/* ---- มือถือ: เรียงแนวตั้ง ---- */
+@media (max-width: 720px) {
+  .flow-track { flex-direction: column; overflow: visible; padding: 14px 10px; }
+  .flow-node { flex-direction: row; align-items: flex-start; gap: 12px; min-width: 0; padding: 0 0 18px; }
+  .flow-node:last-child { padding-bottom: 0; }
+  .flow-node + .flow-node::before { top: -18px; right: auto; left: 17px; width: 3px; height: 18px; }
+  .flow-node.is-skipped + .flow-node::before,
+  .flow-node + .flow-node.is-skipped::before { background: repeating-linear-gradient(180deg, #aab6d3 0 5px, transparent 5px 9px); }
+  .flow-node.is-after::before { background: repeating-linear-gradient(180deg, var(--ok) 0 5px, transparent 5px 9px); }
+  .flow-node-body { margin-top: 0; align-items: flex-start; text-align: left; }
+  .flow-card-target label { max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-switch i, .flow-switch i::after { transition: none; }
+}

@@ -7,6 +7,7 @@ import DocAllDocumentsDetail from './all-documents/components/doc-alldoc-detail'
 import DocAllDocumentsList from './all-documents/components/doc-alldoc-list'
 import DocAllDocumentsFilters from './all-documents/components/doc-alldoc-filters'
 import DocLeavePolicySettings from './leave-policy/components/doc-leave-policy-settings'
+import DocFlowRulesSettings from './flow-rules/components/doc-flow-rules-settings'
 import DocDatabaseEmployeesPanel from './employees/components/doc-database-employees-panel'
 import DocNotificationsPanel from './notifications/components/doc-notifications-panel'
 import DocLeaveLedgerSummary from './leave-ledger/components/doc-leave-ledger-summary'
@@ -28,7 +29,7 @@ import DocRejectModal from './all-documents/components/doc-reject-modal'
 // false = กลับไปใช้ mock + localStorage เหมือนเดิม
 const USE_DB = true
 
-type View = 'all' | 'pending' | 'ledger' | 'employees' | 'policy' | 'notifications'
+type View = 'all' | 'pending' | 'ledger' | 'employees' | 'policy' | 'flowRules' | 'notifications'
 type FormCheck = { ok: boolean; message: string; key?: string }
 const INITIAL_POLICY: MockPolicy = { year:2569, expiry:'25 พฤศจิกายน 2569', yearStart:'2025-11-26', yearEnd:'2026-11-25', leadPersonal:1, leadVacation:15, hoursPerDay:8, hourStep:1, certDays:3, otMax:4, fixDays:7 }
 
@@ -374,7 +375,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
     }
   }, [signingDocumentId, pendingSubmission, savedSignature])
 
-  const pageTitle = view === 'pending' ? copy.pendingTitle : view === 'ledger' ? copy.ledgerTitle : view === 'employees' ? copy.employeesTitle : view === 'policy' ? copy.policyTitle : view === 'notifications' ? copy.notificationsTitle : copy.allTitle
+  const pageTitle = view === 'pending' ? copy.pendingTitle : view === 'ledger' ? copy.ledgerTitle : view === 'employees' ? copy.employeesTitle : view === 'policy' ? copy.policyTitle : view === 'flowRules' ? copy.flowRulesTitle : view === 'notifications' ? copy.notificationsTitle : copy.allTitle
   const visibleDocs = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('th')
     return documents.filter((doc) => {
@@ -670,12 +671,17 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
 
   return <section className="feature-page feature-page--wide documents-page">
     <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
-    {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
+    {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'flowRules' ? copy.flowRulesSubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
     {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} copy={copy} />}
 
     {view === 'ledger' && <DocLeaveLedgerSummary employees={employees} employee={ledgerEmployee} employeeId={ledgerEmployeeId} onEmployee={setLedgerEmployeeId} rows={ledgerRows} statusInfo={STATUS_INFO} onExport={exportLedgerCsv} copy={copy} />}
 
     {view === 'employees' && <DocDatabaseEmployeesPanel users={dbEmployees} title={pageTitle} subtitle={copy.employeesSubtitle} companyId={user?.company?.id ?? 0} companyName={user?.company?.name ?? ''} loading={dbEmployeesLoading} error={dbEmployeesError} query={employeeQuery} onQuery={setEmployeeQuery} onUpdated={(updated) => setDbEmployees((current) => current.map((employee) => employee.id === updated.id ? updated : employee))} onCreated={(created) => setDbEmployees((current) => [created, ...current])} copy={copy} />}
+
+    {view === 'flowRules' && <DocFlowRulesSettings
+      copy={copy}
+      showToast={showToast}
+    />}
 
     {view === 'policy' && <DocLeavePolicySettings
       policyDraft={policyDraft}

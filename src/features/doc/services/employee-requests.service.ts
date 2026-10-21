@@ -71,6 +71,26 @@ export const listPeople = () => call<ApiPerson[]>('/people')
 export type ApiBadges = { pendingApproval: number; unreadNotifications: number }
 export const getBadges = () => call<ApiBadges>('/badges')
 
+// ---------- กำหนดสิทธิ์ในการยื่นเอกสาร (Flow Rules) ----------
+export type ApiFlowRule = {
+  id: number; scope: 'department' | 'role'; departmentId: number | null; roleId: number | null; kind: string;
+  firstStage: 'default' | 'pending_mgr' | 'pending_exec' | 'pending_hr';
+  managerUserId: number | null; executiveUserId: number | null;
+  requireManagerStage: boolean; requireExecutiveStage: boolean; requireHrStage: boolean;
+  recordAfterStage: 'manager' | 'executive' | 'hr' | null; visibleInRecords: boolean; isActive: boolean;
+  steps?: { stages: string[]; recordAfterStage: string };
+  managerName?: string; executiveName?: string; roleName?: string; departmentName?: string;
+}
+export type ApiFlowOptions = {
+  departments: Array<{ id: number; name: string }>;
+  roles: Array<{ id: number; name: string }>;
+  approvers: Array<{ id: number; name: string; roleName: string; departmentName: string }>;
+}
+export const getFlowRules = () => call<ApiFlowRulesResponse>('/flow-rules')
+export type ApiFlowRulesResponse = ApiFlowOptions & { rules: ApiFlowRule[]; defaultFlow: { managerUserId: number | null; executiveUserId: number | null; requireManagerStage: boolean; requireExecutiveStage: boolean; requireHrStage: boolean; recordAfterStage: 'manager' | 'executive' | 'hr' | null; visibleInRecords: boolean; steps: { stages: string[]; recordAfterStage: string } } }
+export const saveFlowRules = (rules: Array<Partial<ApiFlowRule>>) =>
+  call<void>('/flow-rules', { method: 'PUT', body: JSON.stringify({ rules }) })
+
 // ---------- mappers ----------
 const bangkokDate = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
 const STAGE: Record<ApiSignature['stage'], SignatureStage> = { submitter: 'ผู้ยื่น', manager: 'ผู้จัดการแผนก', executive: 'ผู้ประกอบการ', hr: 'HR' }

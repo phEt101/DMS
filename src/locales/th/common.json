@@ -412,6 +412,7 @@
         "report": "รายงานออกนอกสถานที่",
         "documents_employees": "พนักงาน",
         "documents_policy": "นโยบายการลา",
+        "documents_flow_rules": "กำหนดสิทธิ์ในการยื่นเอกสาร",
         "documents_notifications": "แจ้งเตือน",
         "users": "ผู้ใช้",
         "roles": "บทบาทและสิทธิ์",

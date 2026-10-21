@@ -412,6 +412,7 @@
         "report": "Out-of-office report",
         "documents_employees": "Employees",
         "documents_policy": "Leave policy",
+        "documents_flow_rules": "Document submission routing",
         "documents_notifications": "Notifications",
         "users": "Users",
         "roles": "Roles and permissions",
