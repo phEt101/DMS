@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { request } from '../../../services/api'
 import EmployeeSearchSelect from '../../../components/employee-search-select'
+import ConfirmDialog from '../../../components/confirm-dialog'
+import { useToast } from '../../../components/toast-provider'
 import type { Language, Translations } from '../../../locales'
 import { useAuth } from '../../auth/hooks/use-auth'
 import './outing-report.css'
@@ -72,6 +74,8 @@ export default function ReportPage({ translations, language }: { translations: T
   const [submitterSignature, setSubmitterSignature] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [confirmExport, setConfirmExport] = useState<'excel' | 'word' | 'pdf' | null>(null)
+  const { showToast } = useToast()
   const isPrivileged = user?.role.name.trim().toLowerCase() === 'admin'
     || (user?.department ?? '').trim().toLowerCase() === 'hr div.'
 
@@ -207,6 +211,14 @@ export default function ReportPage({ translations, language }: { translations: T
     window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
+  const runExport = () => {
+    if (confirmExport === 'excel') downloadReport('xls')
+    else if (confirmExport === 'word') downloadReport('doc')
+    else if (confirmExport === 'pdf') window.print()
+    if (confirmExport) showToast(copy.exportReady, 'success')
+    setConfirmExport(null)
+  }
+
   const filterUserId = employeeId || String(user?.id ?? '')
 
   return <section className="feature-page feature-page--wide outing-report-page">
@@ -249,9 +261,9 @@ export default function ReportPage({ translations, language }: { translations: T
         }} required />
       </label>
       <div className="outing-report-actions">
-        <button type="button" className="is-excel" onClick={() => downloadReport('xls')}>{copy.exportExcel}</button>
-        <button type="button" className="is-word" onClick={() => downloadReport('doc')}>{copy.exportWord}</button>
-        <button type="button" className="is-pdf" onClick={() => window.print()}>{copy.exportPdf}</button>
+        <button type="button" className="is-excel" onClick={() => setConfirmExport('excel')}>{copy.exportExcel}</button>
+        <button type="button" className="is-word" onClick={() => setConfirmExport('word')}>{copy.exportWord}</button>
+        <button type="button" className="is-pdf" onClick={() => setConfirmExport('pdf')}>{copy.exportPdf}</button>
         <button type="button" className="is-print" onClick={() => window.print()}>{copy.print}</button>
       </div>
     </form>
@@ -260,6 +272,15 @@ export default function ReportPage({ translations, language }: { translations: T
     {error && <p className="outing-report-error" role="alert">{error}</p>}
     {!loading && rows.length === 0 && <p className="outing-report-status">{copy.empty}</p>}
     <div className="outing-report-sheets">{pages.map((page, index) => <div className="outing-report-sheet-wrap" key={index} dangerouslySetInnerHTML={{ __html: makeSheetHtml(page, index) }} />)}</div>
+    <ConfirmDialog
+      open={confirmExport !== null}
+      title={copy.exportConfirmTitle}
+      description={confirmExport === 'pdf' ? copy.exportConfirmPdf : confirmExport === 'word' ? copy.exportConfirmWord : copy.exportConfirmExcel}
+      confirmLabel={copy.confirm}
+      cancelLabel={copy.cancel}
+      onOpenChange={(open) => { if (!open) setConfirmExport(null) }}
+      onConfirm={runExport}
+    />
   </section>
 }
 

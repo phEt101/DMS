@@ -22,7 +22,7 @@ type Props = {
 }
 
 type Draft = Pick<User, 'firstName' | 'lastName' | 'email' | 'role'> & {
-  phone: string; department: string; isActive: boolean; employeeCode: string; position: string; managerUserId: number | null;
+  phone: string; department: string; isActive: boolean; employeeCode: string; managerUserId: number | null;
   employmentStartDate: string; appointedDate: string; sickLeaveDays: number | null; personalLeaveDays: number | null;
   vacationLeaveDays: number | null; otherLeaveDays: number | null; emailNotificationsEnabled: boolean
 }
@@ -76,7 +76,7 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
     setSelected(null)
     setEditing(false)
     setSaveError('')
-    setNewDraft({ firstName: '', lastName: '', email: '', phone: '', role: 'user', department: '', isActive: true, employeeCode: '', position: '', managerUserId: null, employmentStartDate: '', appointedDate: '', sickLeaveDays: null, personalLeaveDays: null, vacationLeaveDays: null, otherLeaveDays: null, emailNotificationsEnabled: true, password: '' })
+    setNewDraft({ firstName: '', lastName: '', email: '', phone: '', role: 'user', department: '', isActive: true, employeeCode: '', managerUserId: null, employmentStartDate: '', appointedDate: '', sickLeaveDays: 30, personalLeaveDays: 3, vacationLeaveDays: 3, otherLeaveDays: 1, emailNotificationsEnabled: true, password: '' })
     setCreateOpen(true)
     try {
       const [roleResponse, departmentResponse] = await Promise.all([listRoles(), listDepartments()])
@@ -90,7 +90,7 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
   }
   const beginEdit = async () => {
     if (!selected) return
-    setDraft({ firstName: selected.firstName, lastName: selected.lastName, email: selected.email, phone: selected.phone ?? '', role: selected.role, department: selected.department ?? '', isActive: Boolean(selected.isActive), employeeCode: selected.employeeCode ?? '', position: selected.position ?? '', managerUserId: selected.managerUserId, employmentStartDate: selected.employmentStartDate?.slice(0, 10) ?? '', appointedDate: selected.appointedDate?.slice(0, 10) ?? '', sickLeaveDays: selected.sickLeaveDays, personalLeaveDays: selected.personalLeaveDays, vacationLeaveDays: selected.vacationLeaveDays, otherLeaveDays: selected.otherLeaveDays, emailNotificationsEnabled: selected.emailNotificationsEnabled ?? true })
+    setDraft({ firstName: selected.firstName, lastName: selected.lastName, email: selected.email, phone: selected.phone ?? '', role: selected.role, department: selected.department ?? '', isActive: Boolean(selected.isActive), employeeCode: selected.employeeCode ?? '', managerUserId: selected.managerUserId, employmentStartDate: selected.employmentStartDate?.slice(0, 10) ?? '', appointedDate: selected.appointedDate?.slice(0, 10) ?? '', sickLeaveDays: selected.sickLeaveDays, personalLeaveDays: selected.personalLeaveDays, vacationLeaveDays: selected.vacationLeaveDays, otherLeaveDays: selected.otherLeaveDays, emailNotificationsEnabled: selected.emailNotificationsEnabled ?? true })
     setEditing(true)
     setSaveError('')
     try {
@@ -211,7 +211,7 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.password}</span><input className="dms-form-input" type="password" minLength={8} required value={newDraft.password} onChange={(event) => setNewDraft({ ...newDraft, password: event.target.value })}/></label>
         </div>
         <div className="documents-employee-form-grid"><Detail label={c.employees.company} value={companyName}/></div>
-        <EmployeeProfileFields draft={newDraft} managers={users} copy={c} onChange={(change) => setNewDraft((current) => current ? { ...current, ...change } : current)}/>
+        <EmployeeProfileFields draft={newDraft} copy={c} onChange={(change) => setNewDraft((current) => current ? { ...current, ...change } : current)}/>
         <label className="documents-employee-email-toggle"><input type="checkbox" checked={newDraft.isActive} onChange={(event) => setNewDraft({ ...newDraft, isActive: event.target.checked })}/>{c.employees.active}</label>
         {saveError && <p className="documents-employee-error" role="alert">{saveError}</p>}
         <div className="documents-employee-form-actions"><button className="dms-create-btn" type="submit" disabled={saving}>{saving ? c.employees.saving : c.employees.save}</button><button className="documents-employee-toggle" type="button" onClick={() => { setCreateOpen(false); setSaveError('') }}>{c.employees.cancel}</button></div>
@@ -229,10 +229,9 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.email}</span><input className="dms-form-input" type="email" required value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })}/></label>
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.phone}</span><input className="dms-form-input" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })}/></label>
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.role}</span><select className="dms-form-input" value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value })}><option value={selected.role}>{selected.role}</option>{roles.filter((role) => role.name !== selected.role).map((role) => <option key={role.id} value={role.name}>{role.name}</option>)}</select></label>
-          <label className="dms-form-field"><span className="dms-form-label">{c.employees.departmentLabel}</span><div className="documents-readonly-value">{selected.department || ''}</div></label>
         </div>
         <div className="documents-employee-form-grid"><Detail label={c.employees.company} value={companyName}/></div>
-        <EmployeeProfileFields draft={draft} managers={users} excludeUserId={selected.id} copy={c} onChange={(change) => setDraft((current) => current ? { ...current, ...change } : current)}/>
+        <EmployeeProfileFields draft={draft} departments={departments} copy={c} onChange={(change) => setDraft((current) => current ? { ...current, ...change } : current)}/>
         <label className="documents-employee-email-toggle"><input type="checkbox" checked={draft.isActive} onChange={(event) => setDraft({ ...draft, isActive: event.target.checked })}/>{c.employees.active}</label>
         {saveError && <p className="documents-employee-error" role="alert">{saveError}</p>}
         <div className="documents-employee-form-actions"><button className="dms-create-btn" type="submit" disabled={saving}>{saving ? c.employees.saving : c.employees.save}</button><button className="documents-employee-toggle" type="button" onClick={() => setEditing(false)}>{c.employees.cancel}</button></div>
@@ -241,7 +240,7 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
           <Detail label={c.employees.name} value={selected.name}/><Detail label={c.employees.email} value={selected.email}/>
           <Detail label={c.employees.departmentLabel} value={selected.department ?? ''}/><Detail label={c.employees.role} value={selected.role}/>
           <Detail label={c.employees.phone} value={selected.phone ?? ''}/><Detail label={c.employees.company} value={selected.company}/>
-          <Detail label={c.employees.code} value={selected.employeeCode ?? ''}/><Detail label={c.employees.position} value={selected.position ?? ''}/>
+          <Detail label={c.employees.code} value={selected.employeeCode ?? ''}/>
           <Detail label={c.employees.manager} value={selected.managerName ?? ''}/><Detail label={c.employees.startDate} value={selected.employmentStartDate?.slice(0, 10) ?? ''}/>
           <Detail label={c.employees.appointedDate} value={selected.appointedDate?.slice(0, 10) ?? ''}/>
           <Detail label={c.employees.active} value={selected.isActive ? c.employees.active : c.employees.inactive}/>
@@ -263,18 +262,16 @@ function Detail({ label, value }: { label: string; value?: string | number }) {
   return <div className="dms-form-field"><span className="dms-form-label">{label}</span><div className="documents-readonly-value">{value === undefined || value === null || value === '' ? '' : String(value)}</div></div>
 }
 
-function EmployeeProfileFields({ draft, managers, excludeUserId, copy: c, onChange }: {
+function EmployeeProfileFields({ draft, copy: c, onChange, departments }: {
   draft: Draft
-  managers: User[]
-  excludeUserId?: number
   copy: Translations['features']['documentManagement']
   onChange: (change: Partial<Draft>) => void
+  departments?: Department[]
 }) {
   return <>
     <div className="documents-employee-form-grid">
       <label className="dms-form-field"><span className="dms-form-label">{c.employees.code}</span><input className="dms-form-input" value={draft.employeeCode} onChange={(event) => onChange({ employeeCode: event.target.value })}/></label>
-      <label className="dms-form-field"><span className="dms-form-label">{c.employees.position}</span><input className="dms-form-input" value={draft.position} onChange={(event) => onChange({ position: event.target.value })}/></label>
-      <label className="dms-form-field"><span className="dms-form-label">{c.employees.manager}</span><select className="dms-form-input" value={draft.managerUserId ?? ''} onChange={(event) => onChange({ managerUserId: event.target.value ? Number(event.target.value) : null })}><option value="">{c.employees.noManager}</option>{managers.filter((manager) => manager.id !== excludeUserId).map((manager) => <option value={manager.id} key={manager.id}>{manager.name}</option>)}</select></label>
+      {departments && <label className="dms-form-field"><span className="dms-form-label">{c.employees.departmentLabel}</span><select className="dms-form-input" value={draft.department} onChange={(event) => onChange({ department: event.target.value })}><option value="">{c.employees.noDepartment}</option>{departments.map((department) => <option key={department.id} value={department.name}>{department.name}</option>)}</select></label>}
       <label className="dms-form-field"><span className="dms-form-label">{c.employees.startDate}</span><input className="dms-form-input" type="date" value={draft.employmentStartDate} onChange={(event) => onChange({ employmentStartDate: event.target.value })}/></label>
       <label className="dms-form-field"><span className="dms-form-label">{c.employees.appointedDate}</span><input className="dms-form-input" type="date" value={draft.appointedDate} onChange={(event) => onChange({ appointedDate: event.target.value })}/></label>
     </div>

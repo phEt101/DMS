@@ -376,7 +376,7 @@
       "summaryPrefix": "",
       "summaryArrow": "routed to",
       "currentTitle": "Current flow in use",
-      "currentDefault": "Default flow (hardcoded):",
+      "currentDefault": "Default flow :",
       "currentRulesPrefix": "You have",
       "currentRulesUnit": "custom rule(s)",
       "recordAfter": "Stage after which the document is recorded",

@@ -414,7 +414,8 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
       }))
     : mockRole === 'HR' ? employees : mockRole === 'ผู้จัดการแผนก' ? employees.filter((employee) => employee.id === 'e2' || employee.manager === 'นภา วงศ์สุข') : employees.filter((employee) => employee.id === 'e1')
   const ledgerEmployee = availableLedgerEmployees.find((employee) => employee.id === ledgerEmployeeId) ?? availableLedgerEmployees[0] ?? employees[0]
-  const ledgerRows = documents.filter((doc) => doc.kind === 'leave' && (!USE_DB || doc.employee === ledgerEmployee.name)).sort((left, right) => (left.from ?? '').localeCompare(right.from ?? ''))
+  // สมุดบันทึกการลา: แสดงเฉพาะรายการที่ยังไม่ถูกปฏิเสธ (ปฏิเสธแล้วต้องไม่ค้างในสมุด)
+  const ledgerRows = documents.filter((doc) => doc.kind === 'leave' && doc.status !== 'rejected' && (!USE_DB || doc.employee === ledgerEmployee.name)).sort((left, right) => (left.from ?? '').localeCompare(right.from ?? ''))
   const ledgerDisplayRows = Array.from({ length:15 }, (_, index) => ledgerRows[index] ?? null)
 
   useEffect(() => {
