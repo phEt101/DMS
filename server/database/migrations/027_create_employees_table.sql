@@ -13,9 +13,7 @@ CREATE TABLE IF NOT EXISTS employees (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY employees_user_id_unique (user_id),
-  KEY employees_manager_user_id_index (manager_user_id),
   KEY employees_employee_code_index (employee_code),
-  CONSTRAINT employees_user_fk FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-  CONSTRAINT employees_manager_user_fk FOREIGN KEY (manager_user_id) REFERENCES users (id) ON DELETE SET NULL
+  CONSTRAINT employees_user_fk FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='Employee details linked one-to-one with user accounts';

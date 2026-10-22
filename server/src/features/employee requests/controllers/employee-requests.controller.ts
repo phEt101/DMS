@@ -451,19 +451,8 @@ const findExecUserIds = async (conn: any, companyId: number): Promise<number[]> 
   )
   return (fallback as any[]).map((row: any) => Number(row.id))
 }
-// ผู้จัดการแผนกของผู้ยื่น:
-//   1) manager ที่ระบุไว้ใน employees.manager_user_id (ถ้ามีและยัง active + เป็น manager ของบริษัทเดียวกัน)
-//   2) fallback: user คนอื่นในแผนกเดียวกันที่ role = manager (ตัวอย่างเช่น HR ไม่ได้ผูก manager ไว้)
-const findDeptManagerId = async (conn: any, departmentId: number, submitterId: number, defaultManagerId: number | null): Promise<number | null> => {
-  if (defaultManagerId && Number.isSafeInteger(Number(defaultManagerId)) && Number(defaultManagerId) !== submitterId) {
-    const [assigned] = await conn.query(
-      `SELECT u.id FROM users u
-         JOIN roles r ON r.id = u.role_id AND r.name = 'manager' AND r.deleted_at IS NULL
-        WHERE u.id = ? AND u.company_id = (SELECT company_id FROM users WHERE id = ?) AND u.is_active = 1 AND u.deleted_at IS NULL
-        LIMIT 1`, [Number(defaultManagerId), submitterId],
-    )
-    if (assigned[0]) return Number(assigned[0].id)
-  }
+// ผู้จัดการอัตโนมัติของแผนก ใช้เมื่อ Flow Rule เปิดขั้น manager แต่ไม่ได้ระบุผู้อนุมัติเอง
+const findDepartmentManagerId = async (conn: any, departmentId: number, submitterId: number): Promise<number | null> => {
   if (!departmentId) return null
   const [rows] = await conn.query(
     `SELECT u.id FROM users u
@@ -485,11 +474,11 @@ const findDeptManagerIds = async (conn: any, companyId: number, departmentId: nu
   return (rows as any[]).map((row: any) => Number(row.id))
 }
 // ขั้นแรกตาม role + แผนกของผู้ยื่นสำหรับ flow เริ่มต้น
-const firstStage = (user: any): 'pending_mgr' | 'pending_exec' | 'pending_hr' => {
+const firstStage = (user: any, managerUserId: number | null): 'pending_mgr' | 'pending_exec' | 'pending_hr' => {
   const role = String(user.role_name ?? '').trim().toLowerCase()
   if (role === 'executive') return 'pending_hr'
   if (user.isHrDept) return 'pending_exec'
-  if (role === 'user' || role === 'admin') return user.manager_user_id ? 'pending_mgr' : 'pending_hr'
+  if (role === 'user' || role === 'admin') return managerUserId ? 'pending_mgr' : 'pending_hr'
   return 'pending_exec'
 }
 
@@ -570,7 +559,7 @@ const computeFlow = (rule: FlowRuleRow | null, user: any, deptManagerId: number 
   const exec = Boolean(rule ? rule.requireExecutiveStage : defaults.requireExecutiveStage)
   const hr = Boolean(rule ? rule.requireHrStage : defaults.requireHrStage)
   let first: 'pending_mgr' | 'pending_exec' | 'pending_hr'
-  if (!rule || rule.firstStage === 'default') first = firstStage({ ...user, manager_user_id: managerUserId })
+  if (!rule || rule.firstStage === 'default') first = firstStage(user, managerUserId)
   else first = rule.firstStage
   const stages: Array<'pending_mgr' | 'pending_exec' | 'pending_hr'> = []
   if (mgr) stages.push('pending_mgr')
@@ -870,7 +859,7 @@ export async function store(req: Request, res: Response) {
   const signature = checkSignature(req.body?.signature, false)
 
   const [userRows] = await db.query<any[]>(
-    `SELECT u.id, u.name, u.department_id, u.role_id, r.name AS role_name, dep.name AS department_name, dep.name = 'HR Div.' AS isHrDept, e.manager_user_id,
+    `SELECT u.id, u.name, u.department_id, u.role_id, r.name AS role_name, dep.name AS department_name, dep.name = 'HR Div.' AS isHrDept,
             COALESCE(e.sick_leave_days, 0) AS sick, COALESCE(e.personal_leave_days, 0) AS personal, COALESCE(e.vacation_leave_days, 0) AS vacation
        FROM users u LEFT JOIN employees e ON e.user_id = u.id
        JOIN roles r ON r.id = u.role_id
@@ -894,8 +883,8 @@ export async function store(req: Request, res: Response) {
   if (kind === 'timefix') oneOf(v.cause, ['forgot', 'device', 'offsite', 'other'], 'สาเหตุไม่ถูกต้อง')
 
   const head = headerFields(kind, v)
-  // หา manager ของผู้ยื่น: ใช้ employees.manager_user_id เป็นหลัก (fallback = manager คนแรกในแผนก)
-  const deptManagerId = await findDeptManagerId(db as any, user.department_id, me, user.manager_user_id)
+  // Flow Rule ระบุ manager ได้โดยตรง; ถ้าไม่ระบุจึงใช้ manager ของแผนกผู้ยื่น
+  const deptManagerId = await findDepartmentManagerId(db as any, user.department_id, me)
   // กำหนดสิทธิ์ในการยื่น: หากฎ flow ของแผนก/บทบาทผู้ยื่นก่อน (ถ้าไม่มีใช้ flow เริ่มต้นในโค้ด)
   const flowRule = await loadFlowRule(db as any, companyId, user, kind)
   const flow = computeFlow(flowRule, user, deptManagerId)
@@ -1304,22 +1293,21 @@ export async function people(req: Request, res: Response) {
   const seeAll = isHr || myRole === 'admin'
   const isManager = myRole === 'manager'
   const [rows] = await db.query<any[]>(
-    `SELECT u.id, u.name, u.email, u.is_active, dep.name AS department_name, e.employee_code, e.position,
-            e.email_notifications_enabled, mgr.name AS manager_name,
+    `SELECT u.id, u.name, u.email, u.is_active, dep.name AS department_name, e.employee_code,
+            e.email_notifications_enabled,
             COALESCE(e.sick_leave_days, 0) AS sick, COALESCE(e.personal_leave_days, 0) AS personal,
             COALESCE(e.vacation_leave_days, 0) AS vacation, COALESCE(e.other_leave_days, 0) AS other,
             DATE_FORMAT(e.employment_start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(e.appointed_date,'%Y-%m-%d') AS appointed_date
        FROM users u
        LEFT JOIN employees e ON e.user_id = u.id
-       LEFT JOIN users mgr ON mgr.id = e.manager_user_id
        LEFT JOIN departments dep ON dep.id = u.department_id
       WHERE u.deleted_at IS NULL AND u.company_id = ?
         AND ${seeAll
           ? '1 = 1'
           : isManager
-            ? '(u.id = ? OR e.manager_user_id = ? OR u.department_id = (SELECT department_id FROM users me WHERE me.id = ?))'
+            ? '(u.id = ? OR u.department_id = (SELECT department_id FROM users me WHERE me.id = ?))'
             : 'u.id = ?'}
-      ORDER BY u.name`, seeAll || !isManager ? [companyIdOf(req), me] : [companyIdOf(req), me, me, me],
+      ORDER BY u.name`, seeAll || !isManager ? [companyIdOf(req), me] : [companyIdOf(req), me, me],
   )
   res.json(rows.map((row) => ({
     ...camelize(row), isActive: Boolean(row.is_active),

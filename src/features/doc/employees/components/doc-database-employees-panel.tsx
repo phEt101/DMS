@@ -22,7 +22,7 @@ type Props = {
 }
 
 type Draft = Pick<User, 'firstName' | 'lastName' | 'email' | 'role'> & {
-  phone: string; department: string; isActive: boolean; employeeCode: string; managerUserId: number | null;
+  phone: string; department: string; isActive: boolean; employeeCode: string;
   employmentStartDate: string; appointedDate: string; sickLeaveDays: number | null; personalLeaveDays: number | null;
   vacationLeaveDays: number | null; otherLeaveDays: number | null; emailNotificationsEnabled: boolean
 }
@@ -76,7 +76,7 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
     setSelected(null)
     setEditing(false)
     setSaveError('')
-    setNewDraft({ firstName: '', lastName: '', email: '', phone: '', role: 'user', department: '', isActive: true, employeeCode: '', managerUserId: null, employmentStartDate: '', appointedDate: '', sickLeaveDays: 30, personalLeaveDays: 3, vacationLeaveDays: 3, otherLeaveDays: 1, emailNotificationsEnabled: true, password: '' })
+    setNewDraft({ firstName: '', lastName: '', email: '', phone: '', role: 'user', department: '', isActive: true, employeeCode: '', employmentStartDate: '', appointedDate: '', sickLeaveDays: 30, personalLeaveDays: 3, vacationLeaveDays: 3, otherLeaveDays: 1, emailNotificationsEnabled: true, password: '' })
     setCreateOpen(true)
     try {
       const [roleResponse, departmentResponse] = await Promise.all([listRoles(), listDepartments()])
@@ -90,7 +90,7 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
   }
   const beginEdit = async () => {
     if (!selected) return
-    setDraft({ firstName: selected.firstName, lastName: selected.lastName, email: selected.email, phone: selected.phone ?? '', role: selected.role, department: selected.department ?? '', isActive: Boolean(selected.isActive), employeeCode: selected.employeeCode ?? '', managerUserId: selected.managerUserId, employmentStartDate: selected.employmentStartDate?.slice(0, 10) ?? '', appointedDate: selected.appointedDate?.slice(0, 10) ?? '', sickLeaveDays: selected.sickLeaveDays, personalLeaveDays: selected.personalLeaveDays, vacationLeaveDays: selected.vacationLeaveDays, otherLeaveDays: selected.otherLeaveDays, emailNotificationsEnabled: selected.emailNotificationsEnabled ?? true })
+    setDraft({ firstName: selected.firstName, lastName: selected.lastName, email: selected.email, phone: selected.phone ?? '', role: selected.role, department: selected.department ?? '', isActive: Boolean(selected.isActive), employeeCode: selected.employeeCode ?? '', employmentStartDate: selected.employmentStartDate?.slice(0, 10) ?? '', appointedDate: selected.appointedDate?.slice(0, 10) ?? '', sickLeaveDays: selected.sickLeaveDays, personalLeaveDays: selected.personalLeaveDays, vacationLeaveDays: selected.vacationLeaveDays, otherLeaveDays: selected.otherLeaveDays, emailNotificationsEnabled: selected.emailNotificationsEnabled ?? true })
     setEditing(true)
     setSaveError('')
     try {
@@ -241,7 +241,7 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
           <Detail label={c.employees.departmentLabel} value={selected.department ?? ''}/><Detail label={c.employees.role} value={selected.role}/>
           <Detail label={c.employees.phone} value={selected.phone ?? ''}/><Detail label={c.employees.company} value={selected.company}/>
           <Detail label={c.employees.code} value={selected.employeeCode ?? ''}/>
-          <Detail label={c.employees.manager} value={selected.managerName ?? ''}/><Detail label={c.employees.startDate} value={selected.employmentStartDate?.slice(0, 10) ?? ''}/>
+          <Detail label={c.employees.startDate} value={selected.employmentStartDate?.slice(0, 10) ?? ''}/>
           <Detail label={c.employees.appointedDate} value={selected.appointedDate?.slice(0, 10) ?? ''}/>
           <Detail label={c.employees.active} value={selected.isActive ? c.employees.active : c.employees.inactive}/>
         </div>

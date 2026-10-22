@@ -22,7 +22,7 @@ type Props = {
 
 type Draft = Omit<MockEmployee, 'id'>
 const today = () => new Date().toISOString().slice(0, 10)
-const blankEmployee = (): Draft => ({ name: '', code: '', department: '', position: '', email: '', emailNotify: true, role: 'พนักงาน', manager: '', sick: 30, personal: 3, vacation: 6, other: 0, active: true, startDate: today(), appointedDate: today() })
+const blankEmployee = (): Draft => ({ name: '', code: '', department: '', email: '', emailNotify: true, role: 'พนักงาน', sick: 30, personal: 3, vacation: 6, other: 0, active: true, startDate: today(), appointedDate: today() })
 const roleLabels: MockEmployee['role'][] = ['พนักงาน', 'ผู้จัดการแผนก', 'HR']
 
 export default function DocEmployeesPanel({ employees, documents, policyStart, policyEnd, matches, mockRole, query, onQuery, onSave, onToggleActive, loading = false, error = '', readOnly = false, copy: c }: Props) {
@@ -34,8 +34,6 @@ export default function DocEmployeesPanel({ employees, documents, policyStart, p
   const [empLayout, setEmpLayout] = useState<'grid' | 'list'>('grid')
   const [empPage, setEmpPage] = useState(1)
   const [empPageSize, setEmpPageSize] = useState(10)
-  const managers = useMemo(() => employees.filter((employee) => employee.role === 'ผู้จัดการแผนก' && employee.id !== editing?.id), [employees, editing?.id])
-
   const openForm = (employee?: MockEmployee) => {
     setFormOpen(true)
     setEditing(employee ?? null)
@@ -54,7 +52,7 @@ export default function DocEmployeesPanel({ employees, documents, policyStart, p
     if (!name || !code) { setFormError(c.employees.required); return }
     if (!/^\S+@\S+\.\S+$/.test(email)) { setFormError(c.employees.invalidEmail); return }
     if (employees.some((person) => person.code.trim().toLocaleLowerCase() === code.toLocaleLowerCase() && person.id !== editing?.id)) { setFormError(c.employees.duplicateCode); return }
-    onSave({ ...draft, id: editing?.id ?? `mock-${Date.now()}`, name, code, email, manager: draft.manager || '—' })
+    onSave({ ...draft, id: editing?.id ?? `mock-${Date.now()}`, name, code, email })
     closeForm()
   }
   const activateCard = (event: KeyboardEvent<HTMLElement>, employee: MockEmployee) => {
@@ -82,9 +80,9 @@ export default function DocEmployeesPanel({ employees, documents, policyStart, p
     {loading ? <div className="documents-employee-empty">{c.employees.loading}</div> : empPaged.length === 0 ? <div className="documents-employee-empty">{c.employees.noMatches}</div> : empLayout === 'grid' ? <div className="dms-card-grid dms-survey-grid documents-employee-grid">{empPaged.map((employee) => <article key={employee.id} className="dms-project-card documents-employee-card" role={readOnly ? undefined : 'button'} tabIndex={readOnly ? undefined : 0} aria-label={readOnly ? undefined : `แก้ไขข้อมูล ${employee.name}`} onClick={readOnly ? undefined : () => openForm(employee)} onKeyDown={readOnly ? undefined : (event) => activateCard(event, employee)}>
       <div className="documents-employee-card-top"><span className="documents-employee-avatar"><FaUser/></span><span className={`dms-card-status ${employee.active ? 'is-active' : 'is-cancelled'}`}>{employee.active ? c.roles[employee.role === 'พนักงาน' ? 'employee' : employee.role === 'HR' ? 'hr' : 'manager'] : c.employees.inactive}</span></div>
       <h2 className="documents-employee-name">{employee.name}</h2>
-      <div className="documents-employee-meta">{readOnly ? (employee.position || '') : employee.role === 'HR' ? c.roles.hr : employee.role === 'ผู้จัดการแผนก' ? c.roles.manager : c.roles.employee}{employee.department && <> · {employee.department}</>}{employee.email && <><br/>{employee.email}</>}{employee.position && <><br/>{employee.position}</>}{employee.code && <><br/>{employee.code}</>}</div>
-      {!readOnly && <><div className="documents-employee-balances"><span>{c.employees.leaveSick} <b>{remaining(employee, 'sick')}/{employee.sick}</b></span><span>{c.employees.leavePersonal} <b>{remaining(employee, 'personal')}/{employee.personal}</b></span><span>{c.employees.leaveVacation} <b>{remaining(employee, 'vacation')}/{employee.vacation}</b></span></div><div className="documents-employee-manager">{c.employees.manager}: {employee.manager || '—'}</div></>}
-    </article>)}</div> : <div className="dms-project-table-wrap"><table className="dms-project-table"><thead><tr><th>{c.employees.name}</th><th>{c.employees.code}</th><th>{c.employees.departmentLabel}</th><th>{c.employees.position}</th><th>{c.employees.email}</th></tr></thead><tbody>{empPaged.map((employee) => <tr key={employee.id} role={readOnly ? undefined : 'button'} tabIndex={readOnly ? undefined : 0} onClick={readOnly ? undefined : () => openForm(employee)} onKeyDown={readOnly ? undefined : (event) => activateCard(event, employee)}><td>{employee.name}</td><td>{employee.code}</td><td>{employee.department || c.employees.noDepartment}</td><td>{employee.position || c.employees.noPosition}</td><td>{employee.email}</td></tr>)}</tbody></table></div>}
+      <div className="documents-employee-meta">{readOnly ? employee.role : employee.role === 'HR' ? c.roles.hr : employee.role === 'ผู้จัดการแผนก' ? c.roles.manager : c.roles.employee}{employee.department && <> · {employee.department}</>}{employee.email && <><br/>{employee.email}</>}{employee.code && <><br/>{employee.code}</>}</div>
+      {!readOnly && <div className="documents-employee-balances"><span>{c.employees.leaveSick} <b>{remaining(employee, 'sick')}/{employee.sick}</b></span><span>{c.employees.leavePersonal} <b>{remaining(employee, 'personal')}/{employee.personal}</b></span><span>{c.employees.leaveVacation} <b>{remaining(employee, 'vacation')}/{employee.vacation}</b></span></div>}
+    </article>)}</div> : <div className="dms-project-table-wrap"><table className="dms-project-table"><thead><tr><th>{c.employees.name}</th><th>{c.employees.code}</th><th>{c.employees.departmentLabel}</th><th>{c.employees.email}</th></tr></thead><tbody>{empPaged.map((employee) => <tr key={employee.id} role={readOnly ? undefined : 'button'} tabIndex={readOnly ? undefined : 0} onClick={readOnly ? undefined : () => openForm(employee)} onKeyDown={readOnly ? undefined : (event) => activateCard(event, employee)}><td>{employee.name}</td><td>{employee.code}</td><td>{employee.department || c.employees.noDepartment}</td><td>{employee.email}</td></tr>)}</tbody></table></div>}
     {empTotal > 0 && <PaginationFooter page={empPageSafe} pageSize={empPageSize} total={empTotal} labels={{ previous: c.filters.previous, next: c.filters.next, page: c.filters.page, perPage: c.filters.perPage }} onPageChange={(p: number) => setEmpPage(Math.max(1, Math.min(p, empTotalPages)))} onPageSizeChange={(s: number) => { setEmpPageSize(s); setEmpPage(1) }} />}
 
     {!readOnly && formOpen && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm() }}><form className="dms-modal dms-create-doc-modal documents-employee-modal" onSubmit={save}>
@@ -94,10 +92,8 @@ export default function DocEmployeesPanel({ employees, documents, policyStart, p
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.name}</span><input className="dms-form-input" required value={draft.name} onChange={(event) => change('name', event.target.value)} autoFocus/></label>
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.code}</span><input className="dms-form-input" required value={draft.code} onChange={(event) => change('code', event.target.value)}/></label>
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.departmentLabel}</span><input className="dms-form-input" value={draft.department} onChange={(event) => change('department', event.target.value)}/></label>
-        <label className="dms-form-field"><span className="dms-form-label">{c.employees.position}</span><input className="dms-form-input" value={draft.position} onChange={(event) => change('position', event.target.value)}/></label>
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.email}</span><input className="dms-form-input" type="email" required value={draft.email ?? ''} onChange={(event) => change('email', event.target.value)}/></label>
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.role}</span><select className="dms-form-input" value={draft.role} onChange={(event) => change('role', event.target.value as MockEmployee['role'])}>{roleLabels.map((role) => <option key={role} value={role}>{c.roles[role === 'พนักงาน' ? 'employee' : role === 'HR' ? 'hr' : 'manager']}</option>)}</select></label>
-        <label className="dms-form-field"><span className="dms-form-label">{c.employees.manager}</span><select className="dms-form-input" value={draft.manager === '—' ? '' : draft.manager} onChange={(event) => change('manager', event.target.value)}><option value="">{c.employees.noManager}</option>{managers.map((manager) => <option key={manager.id} value={manager.name}>{manager.name}</option>)}</select></label>
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.startDate}</span><input className="dms-form-input" type="date" value={draft.startDate} onChange={(event) => change('startDate', event.target.value)}/></label>
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.appointedDate}</span><input className="dms-form-input" type="date" value={draft.appointedDate} onChange={(event) => change('appointedDate', event.target.value)}/></label>
       </div>

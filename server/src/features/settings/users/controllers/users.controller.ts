@@ -23,7 +23,7 @@ function collectChanges(
   if (!current) return [];
 
   const changes: UserChange[] = [];
-  const fields = ["firstName", "lastName", "email", "role", "department", "companyId", "phone", "isActive", "employeeCode", "position", "managerUserId", "employmentStartDate", "appointedDate", "sickLeaveDays", "personalLeaveDays", "vacationLeaveDays", "otherLeaveDays", "emailNotificationsEnabled"] as const;
+  const fields = ["firstName", "lastName", "email", "role", "department", "companyId", "phone", "isActive", "employeeCode", "employmentStartDate", "appointedDate", "sickLeaveDays", "personalLeaveDays", "vacationLeaveDays", "otherLeaveDays", "emailNotificationsEnabled"] as const;
   for (const field of fields) {
     if (!Object.hasOwn(input, field)) continue;
     const from = field === "isActive" ? Boolean(current[field]) : current[field];
@@ -114,11 +114,9 @@ function validate(input: unknown, { partial = false }: { partial?: boolean } = {
   const department = optionalText(body, "department", 100);
   const phone = optionalText(body, "phone", 30);
   const employeeCode = optionalText(body, "employeeCode", 50);
-  const position = optionalText(body, "position", 150);
   if (department !== undefined) output.department = department;
   if (phone !== undefined) output.phone = phone;
   if (employeeCode !== undefined) output.employeeCode = employeeCode;
-  if (position !== undefined) output.position = position;
   for (const field of ["employmentStartDate", "appointedDate"] as const) {
     const value = optionalDate(body, field);
     if (value !== undefined) output[field] = value;
@@ -126,14 +124,6 @@ function validate(input: unknown, { partial = false }: { partial?: boolean } = {
   for (const field of ["sickLeaveDays", "personalLeaveDays", "vacationLeaveDays", "otherLeaveDays"] as const) {
     const value = optionalNonNegativeNumber(body, field);
     if (value !== undefined) output[field] = value;
-  }
-  if (Object.hasOwn(body, "managerUserId")) {
-    if (body.managerUserId === null || body.managerUserId === "") output.managerUserId = null;
-    else {
-      const managerUserId = Number(body.managerUserId);
-      if (!Number.isSafeInteger(managerUserId) || managerUserId < 1) throw httpError(400, "managerUserId must be a positive integer");
-      output.managerUserId = managerUserId;
-    }
   }
   if (Object.hasOwn(body, "emailNotificationsEnabled")) {
     if (typeof body.emailNotificationsEnabled !== "boolean" && body.emailNotificationsEnabled !== null) throw httpError(400, "emailNotificationsEnabled must be a boolean or null");

@@ -15,9 +15,6 @@ export interface UserRow extends RowDataPacket {
   department: string | null;
   phone: string | null;
   employeeCode: string | null;
-  position: string | null;
-  managerUserId: number | null;
-  managerName: string | null;
   employmentStartDate: string | null;
   appointedDate: string | null;
   sickLeaveDays: number | null;
@@ -42,8 +39,6 @@ export interface UserWriteInput {
   phone?: string | null;
   isActive?: boolean;
   employeeCode?: string | null;
-  position?: string | null;
-  managerUserId?: number | null;
   employmentStartDate?: string | null;
   appointedDate?: string | null;
   sickLeaveDays?: number | null;
@@ -53,13 +48,11 @@ export interface UserWriteInput {
   emailNotificationsEnabled?: boolean | null;
 }
 
-interface CreateUserInput extends Required<Omit<UserWriteInput, "department" | "phone" | "passwordHash" | "employeeCode" | "position" | "managerUserId" | "employmentStartDate" | "appointedDate" | "sickLeaveDays" | "personalLeaveDays" | "vacationLeaveDays" | "otherLeaveDays" | "emailNotificationsEnabled">> {
+interface CreateUserInput extends Required<Omit<UserWriteInput, "department" | "phone" | "passwordHash" | "employeeCode" | "employmentStartDate" | "appointedDate" | "sickLeaveDays" | "personalLeaveDays" | "vacationLeaveDays" | "otherLeaveDays" | "emailNotificationsEnabled">> {
   department: string | null;
   phone: string | null;
   passwordHash: string;
   employeeCode?: string | null;
-  position?: string | null;
-  managerUserId?: number | null;
   employmentStartDate?: string | null;
   appointedDate?: string | null;
   sickLeaveDays?: number | null;
@@ -83,8 +76,7 @@ const selectFields = `
   users.id, users.email, users.name, users.first_name AS firstName, users.last_name AS lastName,
   users.company_id AS companyId, companies.name AS company, companies.logo_url AS companyLogoUrl,
   roles.name AS role, departments.name AS department, users.phone,
-  employees.employee_code AS employeeCode, employees.position,
-  employees.manager_user_id AS managerUserId, manager.name AS managerName,
+  employees.employee_code AS employeeCode,
   employees.employment_start_date AS employmentStartDate, employees.appointed_date AS appointedDate,
   employees.sick_leave_days AS sickLeaveDays, employees.personal_leave_days AS personalLeaveDays,
   employees.vacation_leave_days AS vacationLeaveDays, employees.other_leave_days AS otherLeaveDays,
@@ -99,7 +91,6 @@ const joins = `
   LEFT JOIN departments ON departments.id = users.department_id
   INNER JOIN companies ON companies.id = users.company_id
   LEFT JOIN employees ON employees.user_id = users.id
-  LEFT JOIN users AS manager ON manager.id = employees.manager_user_id
 `;
 
 async function resolveRoleId(name: string) {
@@ -142,8 +133,8 @@ export async function findAll({
   const conditions = ["users.deleted_at IS NULL"];
   const values: Array<string | number> = [];
   if (search) {
-    conditions.push("(users.email LIKE ? OR users.name LIKE ? OR departments.name LIKE ? OR companies.name LIKE ? OR employees.employee_code LIKE ? OR employees.position LIKE ?)");
-    values.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    conditions.push("(users.email LIKE ? OR users.name LIKE ? OR departments.name LIKE ? OR companies.name LIKE ? OR employees.employee_code LIKE ?)");
+    values.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
   if (status === "active") conditions.push("users.is_active = 1");
   if (status === "inactive") conditions.push("users.is_active = 0");
@@ -203,8 +194,6 @@ export async function create({
   phone,
   isActive,
   employeeCode,
-  position,
-  managerUserId,
   employmentStartDate,
   appointedDate,
   sickLeaveDays,
@@ -227,10 +216,10 @@ export async function create({
     userId = result.insertId;
     await connection.execute(
       `INSERT INTO employees (
-        user_id, employee_code, position, manager_user_id, employment_start_date, appointed_date,
+        user_id, employee_code, employment_start_date, appointed_date,
         sick_leave_days, personal_leave_days, vacation_leave_days, other_leave_days, email_notifications_enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, employeeCode ?? null, position ?? null, managerUserId ?? null, employmentStartDate ?? null, appointedDate ?? null,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, employeeCode ?? null, employmentStartDate ?? null, appointedDate ?? null,
         sickLeaveDays ?? null, personalLeaveDays ?? null, vacationLeaveDays ?? null, otherLeaveDays ?? null, emailNotificationsEnabled ?? true],
     );
     await connection.commit();
@@ -286,8 +275,6 @@ export async function update(id: number | string, input: UserWriteInput) {
   }
   const employeeColumns = {
     employeeCode: "employee_code",
-    position: "position",
-    managerUserId: "manager_user_id",
     employmentStartDate: "employment_start_date",
     appointedDate: "appointed_date",
     sickLeaveDays: "sick_leave_days",

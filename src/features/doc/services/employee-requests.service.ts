@@ -38,7 +38,7 @@ export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; s
 export type ApiCheck = { ok: boolean; key: string; params?: Record<string, string | number> }
 export type ApiNotification = ApiListRow & { notificationId: number; event: string; isRead: boolean; createdAt: string }
 export type ApiPolicy = { id: number; year: number; yearStart: string; yearEnd: string; expiryDate: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number; certDays: number; otMax: number; fixDays: number }
-export type ApiPerson = { id: number; name: string; email: string; isActive: boolean; departmentName: string | null; employeeCode: string | null; position: string | null; managerName: string | null; sick: number; personal: number; vacation: number; other: number; startDate: string | null; appointedDate: string | null; emailNotificationsEnabled: boolean | null }
+export type ApiPerson = { id: number; name: string; email: string; isActive: boolean; departmentName: string | null; employeeCode: string | null; sick: number; personal: number; vacation: number; other: number; startDate: string | null; appointedDate: string | null; emailNotificationsEnabled: boolean | null }
 
 // ---------- calls ----------
 export const listRequests = (params: { status?: string; kind?: string; awaiting?: 'me'; mine?: 'me'; employeeId?: number } = {}) => {

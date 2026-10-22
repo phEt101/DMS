@@ -144,12 +144,12 @@ const INITIAL_DOCS: MockDocument[] = [
   { id: 8, no: 'TF-2569-0002', kind: 'timefix', title: 'ขอแก้เวลาเข้างาน', summary: '9 ต.ค. 2569 · ลืมสแกนเข้างานตอนเช้า', employee: 'ธนากร ปัญญา', department: 'ฝ่ายขาย', date: '2026-10-12', status: 'pending_mgr' },
 ]
 const INITIAL_EMPLOYEES: MockEmployee[] = [
-  { id:'e1', name:'สมชาย ใจดี', code:'BCG-0142', department:'การตลาด', position:'นักการตลาด', email:'somchai@example.com', emailNotify:true, role:'พนักงาน', manager:'นภา วงศ์สุข', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2023-03-01', appointedDate:'2023-06-01' },
-  { id:'e2', name:'นภา วงศ์สุข', code:'BCG-0107', department:'การตลาด', position:'ผู้จัดการแผนกการตลาด', email:'napa@example.com', emailNotify:true, role:'ผู้จัดการแผนก', manager:'—', sick:30, personal:3, vacation:10, other:0, active:true, startDate:'2019-08-15', appointedDate:'2019-11-15' },
-  { id:'e3', name:'วีระ ศรีสุข', code:'BCG-0155', department:'การตลาด', position:'กราฟิกดีไซเนอร์', email:'weera@example.com', emailNotify:true, role:'พนักงาน', manager:'นภา วงศ์สุข', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2024-01-08', appointedDate:'2024-04-08' },
-  { id:'e4', name:'ศิริพร แก้วมณี', code:'BCG-0021', department:'บุคคล', position:'HR Manager', email:'siriporn@example.com', emailNotify:true, role:'HR', manager:'—', sick:30, personal:3, vacation:10, other:0, active:true, startDate:'2018-02-01', appointedDate:'2018-05-01' },
-  { id:'e5', name:'ประเสริฐ ลิ้มสกุล', code:'BCG-0098', department:'ฝ่ายขาย', position:'ผู้จัดการฝ่ายขาย', email:'prasert@example.com', emailNotify:true, role:'ผู้จัดการแผนก', manager:'—', sick:30, personal:3, vacation:10, other:0, active:true, startDate:'2020-06-01', appointedDate:'2020-09-01' },
-  { id:'e6', name:'ธนากร ปัญญา', code:'BCG-0188', department:'ฝ่ายขาย', position:'เจ้าหน้าที่ขาย', email:'thanakorn@example.com', emailNotify:false, role:'พนักงาน', manager:'ประเสริฐ ลิ้มสกุล', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2025-02-03', appointedDate:'2025-05-03' },
+  { id:'e1', name:'สมชาย ใจดี', code:'BCG-0142', department:'การตลาด', email:'somchai@example.com', emailNotify:true, role:'พนักงาน', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2023-03-01', appointedDate:'2023-06-01' },
+  { id:'e2', name:'นภา วงศ์สุข', code:'BCG-0107', department:'การตลาด', email:'napa@example.com', emailNotify:true, role:'ผู้จัดการแผนก', sick:30, personal:3, vacation:10, other:0, active:true, startDate:'2019-08-15', appointedDate:'2019-11-15' },
+  { id:'e3', name:'วีระ ศรีสุข', code:'BCG-0155', department:'การตลาด', email:'weera@example.com', emailNotify:true, role:'พนักงาน', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2024-01-08', appointedDate:'2024-04-08' },
+  { id:'e4', name:'ศิริพร แก้วมณี', code:'BCG-0021', department:'บุคคล', email:'siriporn@example.com', emailNotify:true, role:'HR', sick:30, personal:3, vacation:10, other:0, active:true, startDate:'2018-02-01', appointedDate:'2018-05-01' },
+  { id:'e5', name:'ประเสริฐ ลิ้มสกุล', code:'BCG-0098', department:'ฝ่ายขาย', email:'prasert@example.com', emailNotify:true, role:'ผู้จัดการแผนก', sick:30, personal:3, vacation:10, other:0, active:true, startDate:'2020-06-01', appointedDate:'2020-09-01' },
+  { id:'e6', name:'ธนากร ปัญญา', code:'BCG-0188', department:'ฝ่ายขาย', email:'thanakorn@example.com', emailNotify:false, role:'พนักงาน', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2025-02-03', appointedDate:'2025-05-03' },
 ]
 const INITIAL_NOTIFICATIONS: MockNotification[] = [
   { id:1, title:'ใบ OT ของวีระ ศรีสุข รอพิจารณา', body:'14 ต.ค. 2569 · 18:00–20:30 · 2.5 ชั่วโมง', date:'2026-10-12T09:00:00+07:00', read:false, documentId:3 },
@@ -414,7 +414,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     ? dbPeople.map((person) => ({
         id: String(person.id), name: person.name, code: person.employeeCode ?? '', department: person.departmentName ?? '',
         sick: person.sick, personal: person.personal, vacation: person.vacation, other: person.other, active: person.isActive,
-        role: 'พนักงาน' as const, manager: person.managerName ?? '', position: person.position ?? '', email: person.email, emailNotify: Boolean(person.emailNotificationsEnabled),
+        role: 'พนักงาน' as const, email: person.email, emailNotify: Boolean(person.emailNotificationsEnabled),
         startDate: person.startDate ?? '', appointedDate: person.appointedDate ?? '',
       }))
     : mockRole === 'HR' ? employees : mockRole === 'ผู้จัดการแผนก' ? employees.filter((employee) => employee.id === 'e2' || employee.manager === 'นภา วงศ์สุข') : employees.filter((employee) => employee.id === 'e1')

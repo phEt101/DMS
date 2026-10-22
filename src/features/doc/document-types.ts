@@ -11,7 +11,7 @@ export type MockDocument = {
      medicalCertificateAvailable?: boolean
      flow?: { stages: Array<'manager' | 'executive' | 'hr'>; recordAfterStage: string | null } | null
   }
-export type MockEmployee = { id: string; name: string; code: string; department: string; position: string; email?: string; emailNotify?: boolean; role: 'พนักงาน' | 'ผู้จัดการแผนก' | 'HR'; manager: string; sick: number; personal: number; vacation: number; other?: number; active: boolean; startDate: string; appointedDate: string }
+export type MockEmployee = { id: string; name: string; code: string; department: string; email?: string; emailNotify?: boolean; role: 'พนักงาน' | 'ผู้จัดการแผนก' | 'HR'; sick: number; personal: number; vacation: number; other?: number; active: boolean; startDate: string; appointedDate: string }
 export type MockNotification = { id: number; title: string; body: string; date: string; read: boolean; documentId: number }
 
 export type MockPolicy = { year: number; expiry: string; yearStart: string; yearEnd: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number; certDays: number; otMax: number; fixDays: number }
