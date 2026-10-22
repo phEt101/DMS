@@ -165,7 +165,7 @@ function readMockSnapshot(): Partial<MockSnapshot> {
   try { return JSON.parse(localStorage.getItem(MOCK_STORAGE_KEY) ?? '{}') as Partial<MockSnapshot> } catch { return {} }
 }
 
-export default function DocumentPage({ translations, view = 'all' }: { translations: Translations; view?: View }) {
+export default function DocumentPage({ translations, view = 'all', language = 'th' }: { translations: Translations; view?: View; language?: 'th' | 'en' }) {
   const rawCopy: any = translations.features.documentManagement
   // โหมด DB: ตัดข้อความตัวอย่างของ mock ออก เพราะ id จริงจะชนกับ id ของตัวอย่าง
   const copy: any = useMemo(() => USE_DB ? { ...rawCopy, sampleDocuments: {}, sampleNotifications: {} } : rawCopy, [rawCopy])
@@ -416,6 +416,14 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   const ledgerEmployee = availableLedgerEmployees.find((employee) => employee.id === ledgerEmployeeId) ?? availableLedgerEmployees[0] ?? employees[0]
   // สมุดบันทึกการลา: แสดงเฉพาะรายการที่ยังไม่ถูกปฏิเสธ (ปฏิเสธแล้วต้องไม่ค้างในสมุด)
   const ledgerRows = documents.filter((doc) => doc.kind === 'leave' && doc.status !== 'rejected' && (!USE_DB || doc.employee === ledgerEmployee.name)).sort((left, right) => (left.from ?? '').localeCompare(right.from ?? ''))
+  // ชื่อบริษัทเต็มบนหัวกระดาษสมุดบันทึกการลา — อิงบริษัทของผู้ใช้ + ภาษาที่เลือก
+  const COMPANY_FULL_NAMES: Record<string, Record<'th' | 'en', string>> = {
+    boswell: { th: 'บริษัท บอสเวลล์ คอนเนคชั่น กรุ๊ป จำกัด', en: 'Boswell Connection Group Co., Ltd.' },
+    'big money': { th: 'บริษัท บิ๊ก มันนี่ พลัส จำกัด', en: 'Big Money Plus Co., Ltd' },
+    'boswell digital': { th: 'บริษัท บอสเวลล์ ดิจิทัล โฮลดิ้ง จำกัด', en: 'Boswell Digital Holding Co., Ltd' },
+  }
+  const companyKey = Object.keys(COMPANY_FULL_NAMES).find((key) => (user?.company?.name ?? '').trim().toLowerCase().includes(key))
+  const ledgerCompanyName = companyKey ? COMPANY_FULL_NAMES[companyKey][language] : user?.company?.name
   const ledgerDisplayRows = Array.from({ length:15 }, (_, index) => ledgerRows[index] ?? null)
 
   useEffect(() => {
@@ -670,7 +678,7 @@ export default function DocumentPage({ translations, view = 'all' }: { translati
   return <section className="feature-page feature-page--wide documents-page">
     <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
     {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'flowRules' ? copy.flowRulesSubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
-    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} copy={copy} />}
+    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} companyName={ledgerCompanyName} copy={copy} />}
 
     {view === 'ledger' && <DocLeaveLedgerSummary employees={employees} employee={ledgerEmployee} employeeId={ledgerEmployeeId} onEmployee={setLedgerEmployeeId} rows={ledgerRows} statusInfo={STATUS_INFO} onExport={exportLedgerCsv} copy={copy} />}
 

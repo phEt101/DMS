@@ -6,6 +6,11 @@ import type { Connection } from 'mysql2/promise'
 const DEPARTMENT = 'Managing Director'
 const MODULES = ['documents_pending']
 
+const LOGOS: Array<[string, string]> = [
+  ['Big money', '/boswell-api/v1/branding/logo-big-money.svg'],
+  ['Boswell Digital', '/boswell-api/v1/branding/logo-boswell-digital.png'],
+]
+
 export async function up(connection: Connection) {
   for (const moduleName of MODULES) {
     await connection.execute(
@@ -20,6 +25,12 @@ export async function up(connection: Connection) {
              WHERE dm.department_id = d.id AND dm.module_id = m.id
           )`,
       [moduleName, DEPARTMENT],
+    )
+  }
+  for (const [company, logoUrl] of LOGOS) {
+    await connection.execute(
+      `UPDATE companies SET logo_url = ? WHERE name = ? AND deleted_at IS NULL`,
+      [logoUrl, company],
     )
   }
 }

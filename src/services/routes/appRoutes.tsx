@@ -26,13 +26,13 @@ export function buildPages(translations: Translations, language: Language, onNav
     'settings-modules': <SettingsAccessPage translations={translations} section="modules" />,
     'settings-companies': <SettingsAccessPage translations={translations} section="companies" />,
     'settings-activity': <SettingsActivityPage translations={translations} language={language} />,
-    documents: <DocumentPage translations={translations} view="all" />,
-    'documents-all': <DocumentPage translations={translations} view="all" />,
-    'documents-pending': <DocumentPage translations={translations} view="pending" />,
-    'documents-ledger': <DocumentPage translations={translations} view="ledger" />,
-    'documents-employees': <DocumentPage translations={translations} view="employees" />,
-    'documents-policy': <DocumentPage translations={translations} view="policy" />,
-    'documents-flow-rules': <DocumentPage translations={translations} view="flowRules" />,
-    'documents-notifications': <DocumentPage translations={translations} view="notifications" />
+    documents: <DocumentPage translations={translations} language={language} view="all" />,
+    'documents-all': <DocumentPage translations={translations} language={language} view="all" />,
+    'documents-pending': <DocumentPage translations={translations} language={language} view="pending" />,
+    'documents-ledger': <DocumentPage translations={translations} language={language} view="ledger" />,
+    'documents-employees': <DocumentPage translations={translations} language={language} view="employees" />,
+    'documents-policy': <DocumentPage translations={translations} language={language} view="policy" />,
+    'documents-flow-rules': <DocumentPage translations={translations} language={language} view="flowRules" />,
+    'documents-notifications': <DocumentPage translations={translations} language={language} view="notifications" />
   }
 }

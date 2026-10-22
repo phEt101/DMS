@@ -5,7 +5,7 @@ import type { Connection, RowDataPacket } from 'mysql2/promise'
 const admins = [
   { name: 'System Administrator', firstName: 'System', lastName: 'Administrator', email: 'admin@boswell.co.th', company: 'Boswell' },
   { name: 'Boswell Digital Administrator', firstName: 'Boswell Digital', lastName: 'Administrator', email: 'admin@boswelldigital.co.th', company: 'Boswell Digital' },
-  { name: 'Big money Administrator', firstName: 'Bigmoney', lastName: 'Administrator', email: 'admin@bigmoney.co.th', company: 'Bigmoney' },
+  { name: 'Big money Administrator', firstName: 'Bigmoney', lastName: 'Administrator', email: 'admin@bigmoney.co.th', company: 'Big money' },
 ] as const
 
 export async function up(connection: Connection) {

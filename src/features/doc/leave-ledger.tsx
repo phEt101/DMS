@@ -35,7 +35,7 @@ const categories = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
 const formatDate = (value?: string, locale = 'th-TH') => value ? new Intl.DateTimeFormat(locale, { day:'numeric', month:'short', year:'2-digit' }).format(new Date(`${value}T00:00:00`)) : ''
 const esc = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]!)
 
-export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; copy: any }) {
+export function LeaveLedger({ person, people, entries, onPersonChange, companyName, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; companyName?: string; copy: any }) {
   const labels: Record<(typeof categories)[number], string> = { personal:c.ledger.personal, sick:c.ledger.sick, vacation:c.ledger.vacation, unpaid:c.leaveTypes.unpaid, other:c.leaveTypes.other }
   const locale = c.dateLocale
   const notes: string[] = c.ledger.noteItems
@@ -108,7 +108,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, copy: c }
       </div>
     </div>
     <div className="leave-sheet-scroll"><article className="leave-sheet">
-      <h2>{c.ledger.companyName}</h2>
+      <h2>{companyName || c.ledger.companyName}</h2>
       <div className="leave-sheet-info">
         <span>{c.ledger.fullName}&nbsp; {person.name}</span><span>{c.ledger.startDate}&nbsp; {formatDate(person.startDate, locale)}</span><span>{c.ledger.sick} {person.sick} {c.ledger.day}&nbsp; {c.ledger.personal} {person.personal} {c.ledger.day}</span>
         <span>{c.ledger.employeeCode}&nbsp; {person.code}&nbsp;&nbsp; {c.ledger.department} {person.department}</span><span>{c.ledger.appointedDate}&nbsp; {formatDate(person.appointedDate, locale)}</span><span>{c.ledger.annualVacation} 2569 = {person.vacation} {c.ledger.day}</span>

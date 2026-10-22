@@ -1,6 +1,6 @@
 import type { Connection } from 'mysql2/promise'
 
-const companies = ['Boswell', 'Bigmoney', 'Boswell Digital'] as const
+const companies = ['Boswell', 'Big money', 'Boswell Digital'] as const
 
 export async function up(connection: Connection) {
   await connection.query(
