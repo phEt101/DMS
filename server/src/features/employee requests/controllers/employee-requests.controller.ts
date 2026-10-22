@@ -10,8 +10,8 @@ import { medicalCertificateDirectory } from '../middleware/medical-certificate-u
 
 // ใช้สิทธิ์เดิมของโมดูลเอกสาร + เพิ่ม 'จัดการนโยบายการลา' 1 รายการ (ต้อง seed ในตาราง permissions)
 const PERM = { submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
-const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'wfh', 'outing']
-const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', wfh: 'WFH', outing: 'OUT' }
+const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'outing']
+const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', outing: 'OUT' }
 const STATUSES = ['pending_mgr', 'pending_exec', 'pending_hr', 'approved', 'rejected', 'cancelled']
 const MAX_SIGNATURE_LENGTH = 200_000
 
@@ -259,7 +259,7 @@ export async function index(req: Request, res: Response) {
     if (!Number.isSafeInteger(employeeId) || employeeId < 1) throw httpError(400, 'Invalid employee id')
     where.push('r.employee_user_id = ?'); params.push(employeeId)
   }
-  if (kind === 'other') where.push(`r.kind IN ('timefix','wfh','outing')`)
+  if (kind === 'other') where.push(`r.kind IN ('timefix','outing')`)
   else if (kind !== 'all') { where.push('r.kind = ?'); params.push(kind) }
   if (awaitingMe) {
     // status คือขั้นปัจจุบันที่ compute จาก flow snapshot แล้ว จึงไม่ต้องอ่าน JSON ใน SQL
@@ -274,7 +274,7 @@ export async function index(req: Request, res: Response) {
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
             r.employee_user_id, eu.name AS employee_name, dep.name AS department_name,
             lt.code AS leave_type, ot.hours AS ot_hours, ot.task AS ot_task,
-            COALESCE(wfh.place, outing.place) AS place,
+            outing.place AS place,
             (medical_certificate.request_id IS NOT NULL) AS medical_certificate_available,
             sm.signer_name AS mgr_signer_name, DATE_FORMAT(sm.signed_at,'%Y-%m-%d') AS mgr_signed_at,
             se.signer_name AS exec_signer_name, DATE_FORMAT(se.signed_at,'%Y-%m-%d') AS exec_signed_at,
@@ -287,7 +287,6 @@ export async function index(req: Request, res: Response) {
        LEFT JOIN employee_request_leave_details dl ON dl.request_id = r.id
        LEFT JOIN leave_types lt ON lt.id = dl.leave_type_id
        LEFT JOIN employee_request_ot_details ot ON ot.request_id = r.id
-       LEFT JOIN employee_request_wfh_details wfh ON wfh.request_id = r.id
        LEFT JOIN employee_request_outing_details outing ON outing.request_id = r.id
        LEFT JOIN employee_request_medical_certificates medical_certificate ON medical_certificate.request_id = r.id
         LEFT JOIN employee_request_signatures sm ON sm.request_id = r.id AND sm.stage = 'manager' AND sm.action = 'approved'
@@ -318,7 +317,6 @@ const DETAIL_SQL: Record<Kind, string> = {
               TIME_FORMAT(end_time,'%H:%i') AS end_time, hours, task FROM employee_request_ot_details WHERE request_id = ?`,
   timefix: `SELECT DATE_FORMAT(fix_date,'%Y-%m-%d') AS date, cause, TIME_FORMAT(in_time,'%H:%i') AS in_time,
                    TIME_FORMAT(out_time,'%H:%i') AS out_time FROM employee_request_timefix_details WHERE request_id = ?`,
-  wfh: `SELECT place, plan FROM employee_request_wfh_details WHERE request_id = ?`,
   outing: `SELECT DATE_FORMAT(outing_date,'%Y-%m-%d') AS date, TIME_FORMAT(out_time,'%H:%i') AS out_time,
                   TIME_FORMAT(back_time,'%H:%i') AS back_time, place, company_name, address, province, district,
                   subdistrict, postal_code, country, latitude, longitude, project_name, customer_name,
@@ -792,7 +790,7 @@ export async function updateFlowRules(req: Request, res: Response) {
 
 function headerFields(kind: Kind, v: Values) {
   const s = (key: string) => nz(v[key])
-  if (kind === 'leave' || kind === 'wfh') return { start: s('from'), end: s('to'), days: num(v.days), reason: s('reason') }
+  if (kind === 'leave') return { start: s('from'), end: s('to'), days: num(v.days), reason: s('reason') }
   if (kind === 'outing') return { start: s('from'), end: s('to'), days: null, reason: s('workDetails') }
   return { start: s('date'), end: s('date'), days: null, reason: s('reason') }
 }
@@ -928,8 +926,6 @@ export async function store(req: Request, res: Response) {
     } else if (kind === 'timefix') {
       await conn.execute(`INSERT INTO employee_request_timefix_details (request_id, fix_date, cause, in_time, out_time) VALUES (?, ?, ?, ?, ?)`,
         [id, s('date'), String(v.cause), s('inTime'), s('outTime')])
-    } else if (kind === 'wfh') {
-      await conn.execute(`INSERT INTO employee_request_wfh_details (request_id, place, plan) VALUES (?, ?, ?)`, [id, s('place'), s('plan')])
     } else if (kind === 'outing') {
       await conn.execute(
         `INSERT INTO employee_request_outing_details
@@ -1169,13 +1165,12 @@ export async function validate(req: Request, res: Response) {
 const LIST_COLUMNS = `r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at,
   DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
   r.employee_user_id, eu.name AS employee_name, dep.name AS department_name,
-  lt.code AS leave_type, ot.hours AS ot_hours, ot.task AS ot_task, COALESCE(wfh.place, outing.place) AS place`
+  lt.code AS leave_type, ot.hours AS ot_hours, ot.task AS ot_task, outing.place AS place`
 const LIST_JOINS = `JOIN users eu ON eu.id = r.employee_user_id
   LEFT JOIN departments dep ON dep.id = r.department_id
   LEFT JOIN employee_request_leave_details dl ON dl.request_id = r.id
   LEFT JOIN leave_types lt ON lt.id = dl.leave_type_id
   LEFT JOIN employee_request_ot_details ot ON ot.request_id = r.id
-  LEFT JOIN employee_request_wfh_details wfh ON wfh.request_id = r.id
   LEFT JOIN employee_request_outing_details outing ON outing.request_id = r.id`
 const listRow = (row: any) => ({ ...camelize(row), days: row.days === null ? null : Number(row.days), otHours: row.ot_hours === null ? null : Number(row.ot_hours) })
 
@@ -1340,7 +1335,7 @@ export async function outingReport(req: Request, res: Response) {
          JOIN employee_request_signatures signature
            ON signature.request_id = related.id AND signature.signer_user_id = ? AND signature.action = 'approved'
         WHERE related.company_id = ? AND related.employee_user_id = ?
-          AND related.kind IN ('outing', 'wfh') AND related.status = 'approved'
+          AND related.kind = 'outing' AND related.status = 'approved'
         LIMIT 1`,
       [me, companyId, requestedEmployeeId],
     )
@@ -1383,50 +1378,7 @@ export async function outingReport(req: Request, res: Response) {
       ORDER BY COALESCE(r.start_date, o.outing_date), o.out_time, r.id`,
     [companyId, requestedEmployeeId, ...relatedRequestParams, to, from],
   )
-  const [wfhRows] = await db.query<any[]>(
-    `SELECT 'wfh' AS report_kind, r.id, r.request_no,
-            DATE_FORMAT(r.start_date, '%Y-%m-%d') AS from_date,
-            DATE_FORMAT(r.end_date, '%Y-%m-%d') AS to_date, r.reason,
-            u.name AS employee_name, wfh.place, wfh.plan,
-            submitter_image.signature_image AS submitter_signature_image,
-            approved.signer_name AS approved_by, approved_image.signature_image AS approved_signature_image
-       FROM employee_requests r
-       JOIN employee_request_wfh_details wfh ON wfh.request_id = r.id
-       JOIN users u ON u.id = r.employee_user_id
-       LEFT JOIN employee_request_signatures submitter
-         ON submitter.request_id = r.id AND submitter.stage = 'submitter' AND submitter.action = 'submitted'
-       LEFT JOIN employee_request_signatures approved
-         ON approved.id = (
-           SELECT latest.id FROM employee_request_signatures latest
-            WHERE latest.request_id = r.id AND latest.action = 'approved'
-            ORDER BY latest.signed_at DESC, latest.id DESC LIMIT 1
-         )
-       LEFT JOIN signature_images submitter_image ON submitter_image.id = submitter.signature_file_id
-       LEFT JOIN signature_images approved_image ON approved_image.id = approved.signature_file_id
-      WHERE r.company_id = ? AND r.kind = 'wfh' AND r.status = 'approved'
-         AND r.employee_user_id = ? ${relatedRequestsOnly} AND r.start_date <= ? AND r.end_date >= ?
-      ORDER BY r.start_date, r.id`,
-    [companyId, requestedEmployeeId, ...relatedRequestParams, to, from],
-  )
-  const wfhReportRows = wfhRows.map((row) => ({
-    ...row,
-    address: row.place,
-    company_name: null,
-    province: null,
-    district: null,
-    subdistrict: null,
-    postal_code: null,
-    country: null,
-    project_name: null,
-    customer_name: null,
-    customer_position: null,
-    phone: null,
-    out_time: null,
-    back_time: null,
-    work_details: row.plan,
-    remark: row.reason,
-  }))
-  const rows = [...outingRows, ...wfhReportRows].sort((a, b) =>
+  const rows = outingRows.sort((a, b) =>
     String(a.from_date).localeCompare(String(b.from_date))
     || String(a.out_time ?? '').localeCompare(String(b.out_time ?? ''))
     || Number(a.id) - Number(b.id),
@@ -1440,12 +1392,11 @@ export async function outingReport(req: Request, res: Response) {
   const [pendingRows] = await db.query<any[]>(
     `SELECT COUNT(*) AS total FROM employee_requests r
        LEFT JOIN employee_request_outing_details o ON o.request_id = r.id
-      WHERE r.company_id = ? AND r.kind IN ('outing', 'wfh')
+      WHERE r.company_id = ? AND r.kind = 'outing'
         AND r.status IN ('pending_mgr','pending_exec','pending_hr')
         AND r.employee_user_id = ? ${relatedRequestsOnly}
-        AND ((r.kind = 'outing' AND COALESCE(r.start_date, o.outing_date) <= ? AND COALESCE(r.end_date, o.outing_date) >= ?)
-          OR (r.kind = 'wfh' AND r.start_date <= ? AND r.end_date >= ?))`,
-    [companyId, requestedEmployeeId, ...relatedRequestParams, to, from, to, from],
+        AND COALESCE(r.start_date, o.outing_date) <= ? AND COALESCE(r.end_date, o.outing_date) >= ?`,
+    [companyId, requestedEmployeeId, ...relatedRequestParams, to, from],
   )
   let employees: Array<{ id: number; name: string; department: string | null }> = []
   if (canSelectEmployee) {
@@ -1470,7 +1421,7 @@ export async function outingReport(req: Request, res: Response) {
               JOIN employee_request_signatures signature
                 ON signature.request_id = related.id AND signature.signer_user_id = ? AND signature.action = 'approved'
              WHERE related.company_id = u.company_id AND related.employee_user_id = u.id
-               AND related.kind IN ('outing', 'wfh') AND related.status = 'approved'
+               AND related.kind = 'outing' AND related.status = 'approved'
           ))
         ORDER BY u.name`,
       [companyId, me, me],

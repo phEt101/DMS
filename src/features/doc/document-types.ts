@@ -1,4 +1,4 @@
-export type DocKind = 'leave' | 'ot' | 'timefix' | 'wfh' | 'outing'
+export type DocKind = 'leave' | 'ot' | 'timefix' | 'outing'
 export type Status = 'pending_mgr' | 'pending_exec' | 'pending_hr' | 'approved' | 'rejected'
 export type MockSignature = { image: string; name: string; date: string }
 export type SignatureStage = 'ผู้ยื่น' | 'ผู้จัดการแผนก' | 'ผู้ประกอบการ' | 'HR'

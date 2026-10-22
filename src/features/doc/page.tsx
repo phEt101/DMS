@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as PointerEventType } from 'react'
-import { FaCalendarDays, FaClock, FaFileLines, FaHouse, FaLocationDot, FaRotate, FaPlus, FaUser, FaUsers, FaXmark } from 'react-icons/fa6'
+import { FaCalendarDays, FaClock, FaFileLines, FaLocationDot, FaRotate, FaPlus, FaUser, FaUsers, FaXmark } from 'react-icons/fa6'
 import type { Translations } from '../../locales'
 import { LeaveLedger, type LedgerEntry } from './leave-ledger'
 import './documents.css'
@@ -37,8 +37,6 @@ const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; i
   leave: { title: 'ใบลา', description: 'ลาป่วย ลากิจ พักร้อน ลาคลอด และอื่น ๆ', icon: FaCalendarDays, group: 'leave' },
   ot: { title: 'ขอทำงานล่วงเวลา (OT)', description: 'ขออนุมัติวันและเวลาทำงานล่วงเวลา', icon: FaClock, group: 'ot' },
   timefix: { title: 'ขอแก้ไขเวลาเข้า–ออกงาน', description: 'แจ้งลืมสแกนหรือแก้ไขเวลาเข้างาน', icon: FaFileLines, group: 'other' },
-  wfh: { title: 'ขอทำงานนอกสถานที่ / WFH', description: 'แจ้งสถานที่และแผนงานในวันที่ทำงาน', icon: FaHouse, group: 'other' },
-  // outing รวมกับ wfh แล้ว (เลือกย่อยในฟอร์ม) — ซ่อนจากหน้าเลือกประเภท แต่คงไว้เพื่อเอกสารเก่า
   outing: { title: 'ขอออกนอกสถานที่', description: 'ขออนุญาตออกไปปฏิบัติงานระหว่างวัน', icon: FaLocationDot, group: 'other' },
 }
 const LEAVE_TYPES_DEFAULT: Record<string, string> = { personal:'ลากิจ', sick:'ลาป่วย', vacation:'ลาพักร้อน', emergency:'ลาพักร้อนฉุกเฉิน', unpaid:'ลากิจไม่รับค่าจ้าง', maternity:'ลาคลอด', ordain:'ลาบวช', marriage:'ลาสมรส', other:'ลาอื่น ๆ' }
@@ -46,7 +44,6 @@ const FORM_FIELDS_DEFAULT: Record<DocKind, Array<{ key: string; label: string; t
   leave:[{key:'leaveType',label:'ประเภทการลา',type:'select',options:LEAVE_TYPES_DEFAULT,wide:true},{key:'byHour',label:'ลาเป็นชั่วโมง (ลาพักร้อนฉุกเฉินเท่านั้น · 1 วัน = 8 ชม.)',type:'checkbox',wide:true},{key:'from',label:'วันที่ลา',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'start',label:'เวลาเริ่มลา',type:'time'},{key:'end',label:'เวลาสิ้นสุดลา',type:'time'},{key:'days',label:'จำนวนวันทำงาน (แก้ไขได้ เช่น 0.5)',type:'number',step:.5,wide:true},{key:'hours',label:'รวมชั่วโมง (คำนวณอัตโนมัติ)',type:'number',step:.5,wide:true},{key:'reason',label:'เหตุผลการลา',type:'textarea',wide:true}],
   ot:[{key:'dayType',label:'ประเภทวัน',type:'select',options:{weekday:'วันทำงานปกติ',weekend:'วันหยุดประจำสัปดาห์',holiday:'วันหยุดนักขัตฤกษ์'},wide:true},{key:'date',label:'วันที่ทำ OT',type:'date',wide:true},{key:'start',label:'เวลาเริ่ม',type:'time'},{key:'end',label:'เวลาสิ้นสุด',type:'time'},{key:'hours',label:'รวม (ชั่วโมง)',type:'number',step:.5,wide:true},{key:'task',label:'งาน / โครงการที่ทำ',type:'text',wide:true},{key:'reason',label:'เหตุผลที่ต้องทำ OT',type:'textarea',wide:true}],
   timefix:[{key:'date',label:'วันที่ต้องการแก้ไข',type:'date'},{key:'cause',label:'สาเหตุ',type:'select',options:{forgot:'ลืมสแกนนิ้ว',device:'เครื่องสแกนขัดข้อง',offsite:'ปฏิบัติงานนอกสถานที่',other:'อื่น ๆ'}},{key:'inTime',label:'เวลาเข้างานที่ถูกต้อง',type:'time'},{key:'outTime',label:'เวลาออกงานที่ถูกต้อง',type:'time'},{key:'reason',label:'รายละเอียด',type:'textarea',wide:true}],
-  wfh:[{key:'from',label:'ตั้งแต่วันที่',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'days',label:'จำนวนวันทำงาน',type:'number',step:.5,wide:true},{key:'place',label:'สถานที่ทำงาน',type:'text',wide:true},{key:'plan',label:'แผนงานที่จะทำ',type:'textarea',wide:true}],
   outing:[{key:'from',label:'ตั้งแต่วันที่',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'outTime',label:'เวลาออก',type:'time'},{key:'backTime',label:'เวลากลับโดยประมาณ',type:'time'},{key:'company',label:'บริษัท',type:'text',wide:true},{key:'project',label:'โครงการ',type:'text',wide:true},{key:'customerName',label:'ชื่อลูกค้า',type:'text'},{key:'customerPosition',label:'ตำแหน่ง',type:'text'},{key:'phone',label:'เบอร์โทร',type:'text',wide:true},{key:'workDetails',label:'รายละเอียดงาน',type:'textarea',wide:true},{key:'remark',label:'หมายเหตุ',type:'textarea',   wide:true}],
   }
 
@@ -128,7 +125,6 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     values.hours = hours > 0 ? String(Math.round(hours*2)/2) : ''
   }
   if (kind === 'timefix') { add(Boolean(v('date') && v('date') < todayIso), msg('pastDate')); const ago = v('date') ? (today.getTime()-new Date(`${v('date')}T00:00:00`).getTime())/86400000 : Infinity; add(ago <= policy.fixDays, msg('fixLimit', { days: policy.fixDays })); add(Boolean(v('inTime') || v('outTime')), msg('timeRequired')); add(Boolean(v('reason')), msg('detailsRequired')) }
-  if (kind === 'wfh') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), msg('validRange')); add(Number(v('days')) > 0, msg('daysPositive')); add(Boolean(v('place')), msg('placeRequired')); add(Boolean(v('plan')), msg('planRequired')) }
   if (kind === 'outing') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), msg('dateRange')); add(Boolean(v('from') && v('from') >= todayIso), msg('todayOrFuture')); add(timeMinutes(v('outTime')) >= 0, msg('outTimeRequired')); add(!v('backTime') || timeMinutes(v('backTime')) > timeMinutes(v('outTime')), msg('backAfterOut')); add(Boolean(v('company')), msg('companyRequired')); add(Boolean(v('address')), msg('addressRequired')); add(Boolean(v('workDetails')), msg('workDetailsRequired')); add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8),  msg('phoneInvalid')) }
   return checks
 }
@@ -138,7 +134,6 @@ const INITIAL_DOCS: MockDocument[] = [
   { id: 2, no: 'LV-2569-0011', kind: 'leave', title: 'ลาพักร้อน · 3 วัน', summary: '18–20 พ.ย. 2569 · พักผ่อนปลายปี', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr', leaveType:'vacation', from:'2026-11-18', to:'2026-11-20', days:3, reason:'พักผ่อนปลายปี' },
   { id: 3, no: 'OT-2569-0008', kind: 'ot', title: 'ทำ OT · 2.5 ชั่วโมง', summary: '14 ต.ค. 2569 · ออกแบบแบนเนอร์งานอีเวนต์', employee: 'วีระ ศรีสุข', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr' },
   { id: 4, no: 'LV-2569-0010', kind: 'leave', title: 'ลาป่วย · 1 วัน', summary: '9 ต.ค. 2569 · แนบใบรับรองแพทย์', employee: 'วีระ ศรีสุข', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr', leaveType:'sick', from:'2026-10-09', to:'2026-10-09', days:1, reason:'ป่วย มีใบรับรองแพทย์' },
-  { id: 5, no: 'WFH-2569-0003', kind: 'wfh', title: 'ทำงานนอกสถานที่ · 1 วัน', summary: '16 ต.ค. 2569 · ทำงานจากบ้าน', employee: 'วีระ ศรีสุข', department: 'การตลาด', date: '2026-10-11', status: 'pending_hr' },
   { id: 6, no: 'LV-2569-0009', kind: 'leave', title: 'ลาพักร้อน · 3 วัน', summary: '15–17 มิ.ย. 2569 · เดินทางกับครอบครัว', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-05-19', status: 'approved', leaveType:'vacation', from:'2026-06-15', to:'2026-06-17', days:3, reason:'เดินทางกับครอบครัว' },
   { id: 7, no: 'LV-2569-0008', kind: 'leave', title: 'ลากิจ · 1 วัน', summary: '14 ก.ย. 2569 · ธุระที่ธนาคาร', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-09-09', status: 'rejected', note: 'ตรงกับช่วงปิดงบ ขอเลื่อนเป็นสัปดาห์ถัดไป', leaveType:'personal', from:'2026-09-14', to:'2026-09-14', days:1, reason:'ธุระที่ธนาคาร', rejectedBy:'manager' },
   { id: 8, no: 'TF-2569-0002', kind: 'timefix', title: 'ขอแก้เวลาเข้างาน', summary: '9 ต.ค. 2569 · ลืมสแกนเข้างานตอนเช้า', employee: 'ธนากร ปัญญา', department: 'ฝ่ายขาย', date: '2026-10-12', status: 'pending_mgr' },
@@ -477,8 +472,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     }
     setFormValues((current) => {
       const next = { ...current, [key]:value }
-      const dateRange = (next.from && next.to) ? daysBetween(String(next.from), String(next.to)) : 0
-      if ((selectedKind === 'leave' || selectedKind === 'wfh' || selectedKind === 'outing') && (key === 'from' || key === 'to')) {
+      if ((selectedKind === 'leave' || selectedKind === 'outing') && (key === 'from' || key === 'to')) {
         if (next.from && !next.to) next.to = next.from
         if (next.to && !next.from) next.from = next.to
         next.days = String(daysBetween(String(next.from ?? ''), String(next.to ?? '')) || '')
@@ -493,7 +487,6 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         const hours = (timeMinutes(String(next.end ?? '')) - timeMinutes(String(next.start ?? ''))) / 60
         next.hours = hours > 0 ? String(Math.round(hours * 2) / 2) : ''
       }
-      if (selectedKind === 'wfh' && dateRange === 0 && next.from && next.to) next.days = '0'
       return next
     })
   }
@@ -619,8 +612,8 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       const date = new Date().toISOString().slice(0,10)
       const leaveLabel = LEAVE_TYPES[value('leaveType')] ?? KIND_INFO[kind].title
       const title = kind === 'leave' ? `${leaveLabel} · ${value('days')} วัน` : kind === 'ot' ? `ทำ OT · ${value('hours')} ชั่วโมง` : KIND_INFO[kind].title
-      const summary = kind === 'leave' ? `${dateText(value('from'))}${value('to') && value('to') !== value('from') ? ` – ${dateText(value('to'))}` : ''} · ${value('reason')}` : kind === 'ot' ? `${dateText(value('date'))} · ${value('start')}–${value('end')} · ${value('task')}` : kind === 'wfh' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('place')}` : kind === 'timefix' ? `${dateText(value('date'))} · ${value('reason')}` : kind === 'outing' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('company')} · ${value('address')}` : `${dateText(value('date'))} · ${value('reason')}`
-      const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'wfh' || kind === 'outing' ? 'from' : 'date'), to:value(kind === 'leave' || kind === 'wfh' || kind === 'outing' ? 'to' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, medicalCertificateAvailable:Boolean(medicalCertificateFile), formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
+      const summary = kind === 'leave' ? `${dateText(value('from'))}${value('to') && value('to') !== value('from') ? ` – ${dateText(value('to'))}` : ''} · ${value('reason')}` : kind === 'ot' ? `${dateText(value('date'))} · ${value('start')}–${value('end')} · ${value('task')}` : kind === 'timefix' ? `${dateText(value('date'))} · ${value('reason')}` : kind === 'outing' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('company')} · ${value('address')}` : `${dateText(value('date'))} · ${value('reason')}`
+      const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'outing' ? 'from' : 'date'), to:value(kind === 'leave' || kind === 'outing' ? 'to' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, medicalCertificateAvailable:Boolean(medicalCertificateFile), formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
       setDocuments((current) => [doc, ...current])
       if (rememberSignature && image) setSavedSignature(image)
       setPendingSubmission(null); setSelectedKind(''); setFormValues({})
@@ -800,7 +793,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       onPickKind={(kind) => {
         setSelectedKind(kind)
         setMedicalCertificateFile(null)
-        setFormValues((current) => (kind === 'wfh' || kind === 'outing') && (selectedKind === 'wfh' || selectedKind === 'outing')
+        setFormValues((current) => kind === 'outing' && selectedKind === 'outing'
           ? current
           : Object.fromEntries(FORM_FIELDS[kind].map((field) => [field.key, field.type === 'select' ? Object.keys(field.options ?? {})[0] : field.type === 'checkbox' ? false : ''])))
       }}

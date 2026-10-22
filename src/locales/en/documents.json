@@ -48,14 +48,12 @@
       "leave": "Leave request",
       "ot": "Overtime request (OT)",
       "timefix": "Time correction request",
-      "wfh": "Off-site work / WFH request",
       "outing": "Off-site outing request"
     },
     "kindDescriptions": {
       "leave": "Sick, personal, vacation, maternity, and other leave",
       "ot": "Request approval for overtime dates and hours",
       "timefix": "Report a missed scan or request a time correction",
-      "wfh": "Work off-site or from home, with a date range and work plan",
       "outing": "Work outside the office, with a date range, time, and location"
     },
     "sampleDocuments": {
@@ -246,8 +244,7 @@
       "instructions": "Complete the details, review the requirements, then sign to submit",
       "changeKind": "‹ Change document type",
       "backToKinds": "Back to document types",
-      "offsiteType": "Off-site work type",
-      "offsiteDescription": "Work from home (WFH) or off-site during the day — choose in the form",
+      "offsiteDescription": "Request permission to work off-site during the day",
       "validationChecking": "Validating form...",
       "signAndSend": "Sign and submit",
       "afterSign": "After signing, the document will be sent to",
@@ -382,7 +379,7 @@
       "recordAfter": "Stage after which the document is recorded",
       "recordAfterAuto": "— Last stage of the flow —",
       "recordAfterHrOnly": "Wait for HR approval before recording",
-      "visibleInRecords": "Show in leave ledger / WFH report",
+      "visibleInRecords": "Show in leave ledger / off-site work report",
       "hiddenFromRecords": "Hidden from ledger / report",
       "overviewButton": "View flow overview",
       "overviewTitle": "Document flow overview",

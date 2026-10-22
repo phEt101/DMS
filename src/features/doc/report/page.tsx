@@ -9,7 +9,7 @@ import './outing-report.css'
 
 type OutingReportRow = {
   id: number
-  reportKind: 'wfh' | 'outing'
+  reportKind: 'outing'
   requestNo: string
   employeeName: string
   fromDate: string
@@ -142,7 +142,7 @@ export default function ReportPage({ translations, language }: { translations: T
     copy.columns.workDetails, copy.columns.remark,
   ]
   const rowCells = (row: OutingReportRow) => [
-    row.reportKind === 'wfh' ? copy.workFromHome : copy.offsiteWork,
+    copy.offsiteWork,
     row.fromDate === row.toDate ? dateText(row.fromDate) : `${dateText(row.fromDate)} – ${dateText(row.toDate)}`,
     [row.outTime, row.backTime].filter(Boolean).join('–'),
     row.companyName,

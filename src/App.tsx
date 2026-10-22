@@ -15,7 +15,7 @@ const pathByPage: Record<PageKey, string> = {
   'projects-cm': '/projects/cm',
   'projects-cm-create': '/projects/cm/create',
   survey: '/survey',
-  report: '/reports',
+  report: '/documents/report',
   'settings-user': '/settings/users',
   'settings-roles': '/settings/access/roles',
   'settings-departments': '/settings/access/departments',

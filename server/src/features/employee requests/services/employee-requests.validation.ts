@@ -1,4 +1,4 @@
-export type Kind = 'leave' | 'ot' | 'timefix' | 'wfh' | 'outing'
+export type Kind = 'leave' | 'ot' | 'timefix' | 'outing'
 export type Values = Record<string, string | boolean>
 
 export type Policy = {
@@ -113,13 +113,6 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
     add((date ? diffDays(date, today) : Infinity) <= p.fixDays, 'fixLimit', { days: p.fixDays })
     add(Boolean(v('inTime') || v('outTime')), 'timeRequired')
     add(Boolean(v('reason')), 'detailsRequired')
-  }
-
-  if (kind === 'wfh') {
-    add(Boolean(v('from') && v('to') && v('to') >= v('from')), 'validRange')
-    add(Number(v('days')) > 0, 'daysPositive')
-    add(Boolean(v('place')), 'placeRequired')
-    add(Boolean(v('plan')), 'planRequired')
   }
 
   if (kind === 'outing') {

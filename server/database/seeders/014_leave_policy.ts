@@ -3,7 +3,7 @@ import type { Connection } from 'mysql2/promise'
 // สิทธิ์เอกสาร + นโยบายการลาเริ่มต้น (ตัดส่วนบัญชี test accounts ออกจาก 014 เดิมแล้ว)
 // - สร้าง permission เอกสารถ้ายังไม่มี แล้ว grant ตาม role
 // - ผู้ใช้แผนก HR Div. ทุกคนได้สิทธิ์พิจารณาเอกสารและจัดการนโยบายการลา
-// - นโยบายการลาเริ่มต้น (ปี 2569) — HR/admin แก้ไขเพิ่มเติมได้จากหน้านโยบาย
+// - นโยบายการลาเริ่มต้น (ปี 2026) — HR/admin แก้ไขเพิ่มเติมได้จากหน้านโยบาย
 
 export async function up(connection: Connection) {
   // สิทธิ์เอกสาร (กันลืม seed หลัก): สร้าง permission ถ้ายังไม่มี แล้ว grant ตาม flow
@@ -40,11 +40,11 @@ export async function up(connection: Connection) {
      WHERE u.deleted_at IS NULL`,
   )
 
-  // นโยบายการลาเริ่มต้น (ปี 2569) — HR/admin แก้ไขเพิ่มเติมได้จากหน้านโยบาย
+  // นโยบายการลาเริ่มต้น (ปี 2026) — HR/admin แก้ไขเพิ่มเติมได้จากหน้านโยบาย
   await connection.execute(
     `INSERT INTO leave_policies (company_id, policy_year, year_start, year_end, is_active)
-     SELECT 1, 2569, '2025-11-26', '2026-11-25', 1
+     SELECT 1, 2026, '2025-11-26', '2026-11-25', 1
      FROM DUAL
-     WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE company_id = 1 AND policy_year = 2569)`,
+     WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE company_id = 1 AND policy_year = 2026)`,
   )
 }

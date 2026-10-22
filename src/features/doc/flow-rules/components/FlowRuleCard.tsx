@@ -34,7 +34,7 @@ const DEFAULT_TEXT: Record<string, string> = {
   afterRecordNote: 'ไม่ถูกใช้ — เอกสารจบที่ขั้นก่อนหน้า', ledger: 'สมุดบันทึก / รายงาน', route: 'เส้นทาง',
   noStageWarn: '⚠ ไม่ได้เปิดขั้นอนุมัติใดเลย ระบบจะส่งให้ HR อัตโนมัติ',
   roleFilter: 'จำกัดบทบาท (ไม่บังคับ)',
-  kindAll: 'ทุกประเภท', kindLeave: 'ลา', kindOt: 'OT', kindTimefix: 'แก้เวลา', kindWfh: 'WFH', kindOuting: 'ออกนอกสถานที่',
+  kindAll: 'ทุกประเภท', kindLeave: 'ลา', kindOt: 'OT', kindTimefix: 'แก้เวลา', kindOuting: 'ออกนอกสถานที่',
   pickDepartments: 'เลือกแผนก', pickRoles: 'เลือกบทบาท', search: 'ค้นหา...', selectAll: 'เลือกทั้งหมด',
   clear: 'ล้าง', done: 'เสร็จสิ้น', noResult: 'ไม่พบรายการ',
   roleAll: 'ทุกบทบาท', roleSome: 'เฉพาะบางบทบาท', appliesTo: 'ใช้กับ',
@@ -45,7 +45,7 @@ const DEFAULT_TEXT: Record<string, string> = {
 }
 const DEFAULT_KINDS = [
   { value: 'all', k: 'kindAll' }, { value: 'leave', k: 'kindLeave' }, { value: 'ot', k: 'kindOt' },
-  { value: 'timefix', k: 'kindTimefix' }, { value: 'wfh', k: 'kindWfh' }, { value: 'outing', k: 'kindOuting' },
+  { value: 'timefix', k: 'kindTimefix' }, { value: 'outing', k: 'kindOuting' },
 ]
 
 const STAGES: Array<{ key: Stage; status: Exclude<FirstStage, 'default'>; label: string; field: 'requireManagerStage' | 'requireExecutiveStage' | 'requireHrStage' }> = [
