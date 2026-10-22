@@ -262,9 +262,10 @@ export async function index(req: Request, res: Response) {
   if (kind === 'other') where.push(`r.kind IN ('timefix','wfh','outing')`)
   else if (kind !== 'all') { where.push('r.kind = ?'); params.push(kind) }
   if (awaitingMe) {
-    // ขั้น exec/hr: นับเฉพาะเอกสารที่ flow จริงมีขั้นนั้น (ตาม flow_json) — กันเอกสารที่ flow ไม่มีขั้นนี้มาโผล่ในรายการรอตนอนุมัติ
-    const execFilter = listIsExec ? `OR (r.status = 'pending_exec' AND (r.flow_json IS NULL OR JSON_EXTRACT(r.flow_json, '$.executive') IN (1, true)))` : ''
-    const hrFilter = isHr ? `OR (r.status = 'pending_hr' AND (r.flow_json IS NULL OR JSON_EXTRACT(r.flow_json, '$.hr') IN (1, true)))` : ''
+    // status คือขั้นปัจจุบันที่ compute จาก flow snapshot แล้ว จึงไม่ต้องอ่าน JSON ใน SQL
+    // (ฐาน production ใช้ MySQL 5.6 ซึ่งไม่มี JSON_EXTRACT)
+    const execFilter = listIsExec ? `OR r.status = 'pending_exec'` : ''
+    const hrFilter = isHr ? `OR r.status = 'pending_hr'` : ''
     where.push(`r.employee_user_id <> ? AND ((r.status = 'pending_mgr' AND (r.manager_user_id = ? OR r.department_id = ?)) ${execFilter} ${hrFilter})`)
     params.push(me, me, myDept ?? -1)
   }
@@ -1222,13 +1223,14 @@ export async function badges(req: Request, res: Response) {
   const isHrBadge = has(req, PERM.review) && (await findHrUserIds(db as any, companyId)).includes(me)
   const myDept = await myManagedDeptId(db as any, req)
   // รอนุมัติ: ตามขั้นตอนของแต่ละ role — manager ตาม snapshot หรือแผนกที่ดูแล, executive/admin ขั้น exec, HR Div. ขั้น HR (ไม่รวมเอกสารของตนเอง)
-  // ขั้น exec: นับเฉพาะเอกสารที่ flow จริงมีขั้น exec (flow_json.executive) — เอกสารที่ flow ไม่มีขั้นนี้ (ข้อมูลเก่า/null) ไม่นับเพื่อไม่ให้ badge โป่ง
+  // status คือขั้นปัจจุบันที่ compute จาก flow snapshot แล้ว จึงไม่ต้องอ่าน JSON ใน SQL
+  // (ฐาน production ใช้ MySQL 5.6 ซึ่งไม่มี JSON_EXTRACT)
   const [pendingRows] = await db.query<any[]>(
     `SELECT COUNT(*) AS n FROM employee_requests r
       WHERE r.company_id = ? AND r.employee_user_id <> ?
         AND ((r.status = 'pending_mgr' AND (r.manager_user_id = ? OR r.department_id = ?))
-          ${isExec || isAdmin ? `OR (r.status = 'pending_exec' AND (r.flow_json IS NULL OR JSON_EXTRACT(r.flow_json, '$.executive') IN (1, true)))` : ''}
-          ${isHrBadge ? `OR (r.status = 'pending_hr' AND (r.flow_json IS NULL OR JSON_EXTRACT(r.flow_json, '$.hr') IN (1, true)))` : ''})`,
+          ${isExec || isAdmin ? `OR r.status = 'pending_exec'` : ''}
+          ${isHrBadge ? `OR r.status = 'pending_hr'` : ''})`,
     [companyId, me, me, myDept ?? -1],
   )
   const [unreadRows] = await db.query<any[]>(

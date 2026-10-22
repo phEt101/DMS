@@ -38,7 +38,7 @@ COMMENT='กำหนดสิทธิ์ในการยื่นเอก�
 SET @has_flow_json := (SELECT COUNT(*) FROM information_schema.columns
   WHERE table_schema = DATABASE() AND table_name = 'employee_requests' AND column_name = 'flow_json');
 SET @ddl_flow_json := IF(@has_flow_json = 0,
-  'ALTER TABLE employee_requests ADD COLUMN flow_json JSON NULL COMMENT ''flow ที่ใช้ ณ ตอนยื่น: {manager,executive,hr} ขั้นที่ต้องผ่านหลังขั้นแรก'' AFTER route_to',
+  'ALTER TABLE employee_requests ADD COLUMN flow_json LONGTEXT NULL COMMENT ''flow ที่ใช้ ณ ตอนยื่น: {manager,executive,hr} ขั้นที่ต้องผ่านหลังขั้นแรก'' AFTER route_to',
   'SELECT 1');
 PREPARE stmt_flow_json FROM @ddl_flow_json; EXECUTE stmt_flow_json; DEALLOCATE PREPARE stmt_flow_json;
 

@@ -1,5 +1,5 @@
-import React from 'react'
-import * as RadixDialog from '@radix-ui/react-dialog'
+import React, { useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 type Variant = 'default' | 'danger'
 
@@ -26,47 +26,63 @@ export default function ConfirmDialog({
   onOpenChange,
   onConfirm,
 }: ConfirmDialogProps) {
-  // ไม่ให้ปิดระหว่างกำลังโหลด
-  const handleOpenChange = (val: boolean) => {
-    if (loading) return
-    onOpenChange(val)
-  }
+  const titleId = useId()
+  const descriptionId = useId()
+  const cancelRef = useRef<HTMLButtonElement>(null)
 
-  return (
-    <RadixDialog.Root open={open} onOpenChange={handleOpenChange}>
-      <RadixDialog.Portal>
+  useEffect(() => {
+    if (!open) return
+    cancelRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !loading) onOpenChange(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open, loading, onOpenChange])
+
+  if (!open) return null
+
+  return createPortal(
+    <div
+      className="cd-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !loading) onOpenChange(false)
+      }}
+    >
         <style>{styles}</style>
-        <RadixDialog.Overlay className="cd-overlay" />
-        <RadixDialog.Content
+        <section
           className="cd-content"
           data-variant={variant}
-          onEscapeKeyDown={(e) => loading && e.preventDefault()}
-          onPointerDownOutside={(e) => loading && e.preventDefault()}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={description ? descriptionId : undefined}
         >
           <div className="cd-header">
             <div className="cd-icon" aria-hidden="true">
               {variant === 'danger' ? <WarningIcon /> : <InfoIcon />}
             </div>
             <div className="cd-text">
-              <RadixDialog.Title className="cd-title">{title}</RadixDialog.Title>
+              <h2 className="cd-title" id={titleId}>{title}</h2>
               {description ? (
-                <RadixDialog.Description className="cd-description">
+                <p className="cd-description" id={descriptionId}>
                   {description}
-                </RadixDialog.Description>
+                </p>
               ) : null}
             </div>
           </div>
 
           <div className="cd-footer">
-            <RadixDialog.Close asChild>
-              <button
-                type="button"
-                className="cd-btn cd-btn-secondary"
-                disabled={loading}
-              >
-                {cancelLabel}
-              </button>
-            </RadixDialog.Close>
+            <button
+              ref={cancelRef}
+              type="button"
+              className="cd-btn cd-btn-secondary"
+              disabled={loading}
+              onClick={() => onOpenChange(false)}
+            >
+              {cancelLabel}
+            </button>
             <button
               type="button"
               className="cd-btn cd-btn-primary"
@@ -79,14 +95,12 @@ export default function ConfirmDialog({
             </button>
           </div>
 
-          <RadixDialog.Close asChild>
-            <button className="cd-close" aria-label="Close" disabled={loading}>
-              <CloseIcon />
-            </button>
-          </RadixDialog.Close>
-        </RadixDialog.Content>
-      </RadixDialog.Portal>
-    </RadixDialog.Root>
+          <button type="button" className="cd-close" aria-label="Close" disabled={loading} onClick={() => onOpenChange(false)}>
+            <CloseIcon />
+          </button>
+        </section>
+    </div>,
+    document.body,
   )
 }
 
