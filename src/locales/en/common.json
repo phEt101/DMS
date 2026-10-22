@@ -632,7 +632,15 @@
       "unknownUser": "Unknown user",
       "loading": "Loading...",
       "empty": "No system activity yet",
-      "loadError": "Unable to load activity logs"
+      "loadError": "Unable to load activity logs",
+      "search": "Search by user name or email",
+      "allModules": "All modules",
+      "allActions": "All activities",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "apply": "Apply",
+      "clearFilters": "Clear filters",
+      "records": "{count} records"
     }
   },
   "sidebar": {

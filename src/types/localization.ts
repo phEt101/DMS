@@ -64,6 +64,14 @@ export type ActivityFeatureCopy = FeatureCopy & {
   loading: string
   empty: string
   loadError: string
+  search: string
+  allModules: string
+  allActions: string
+  fromDate: string
+  toDate: string
+  apply: string
+  clearFilters: string
+  records: string
 }
 
 export type UserFeatureCopy = FeatureCopy & {

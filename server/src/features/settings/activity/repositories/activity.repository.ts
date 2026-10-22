@@ -112,8 +112,29 @@ export async function logSurveyActivity(i: SurveyLogInput) {
     ],
   )
 }
-export async function findActivityLogs(page: number, limit: number) {
+export type ActivityLogFilters = {
+  search?: string
+  module?: string
+  action?: string
+  from?: string
+  to?: string
+}
+
+export async function findActivityLogs(page: number, limit: number, filters: ActivityLogFilters = {}) {
   const offset = (page - 1) * limit
+  const where: string[] = []
+  const params: unknown[] = []
+  if (filters.search) {
+    where.push('(u.name LIKE ? OR u.email LIKE ?)')
+    const like = `%${filters.search}%`
+    params.push(like, like)
+  }
+  if (filters.module) { where.push('x.module = ?'); params.push(filters.module) }
+  if (filters.action) { where.push('x.action = ?'); params.push(filters.action) }
+  if (filters.from) { where.push('x.createdAt >= ?'); params.push(`${filters.from} 00:00:00`) }
+  if (filters.to) { where.push('x.createdAt <= ?'); params.push(`${filters.to} 23:59:59`) }
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+
   const [rows] = await db.query<ActivityLogRow[]>(
     `SELECT x.id, x.module, x.action, x.entityType, x.entityId, x.details,
             x.ipAddress, x.createdAt, x.surveyNo, x.projectName,
@@ -130,12 +151,20 @@ export async function findActivityLogs(page: number, limit: number) {
        FROM survey_logs l
      ) x
      LEFT JOIN users u ON u.id = x.user_id
+     ${whereSql}
      ORDER BY x.createdAt DESC, x.id DESC
      LIMIT ? OFFSET ?`,
-    [limit, offset],
+    [...params, limit, offset],
   )
   const [countRows] = await db.query<ActivityCountRow[]>(
-    `SELECT (SELECT COUNT(*) FROM activity_logs) + (SELECT COUNT(*) FROM survey_logs) AS total`,
+    `SELECT COUNT(*) AS total FROM (
+       SELECT a.id, a.user_id, a.module, a.action, a.created_at FROM activity_logs a
+       UNION ALL
+       SELECT l.id, l.user_id, 'surveys', l.action, l.created_at FROM survey_logs l
+     ) x
+     LEFT JOIN users u ON u.id = x.user_id
+     ${whereSql}`,
+    params,
   )
 
   return {

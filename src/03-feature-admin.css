@@ -293,6 +293,194 @@
   color: #9a4d30;
   background: #fff0e9;
 }
+
+/* ---- Activity log: filter panel ------------------------------------------ */
+.activity-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border: 1px solid #e4e8f1;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(93, 83, 205, 0.045), rgba(93, 83, 205, 0) 70%),
+    #fff;
+  box-shadow: 0 1px 2px rgba(31, 41, 66, 0.04), 0 8px 24px -18px rgba(31, 41, 66, 0.25);
+}
+.activity-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.activity-filter-row--search {
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #e4e8f1;
+}
+.activity-search-field {
+  position: relative;
+  flex: 1 1 320px;
+  min-width: 220px;
+}
+.activity-search-field .users-filter-search {
+  width: 100%;
+  padding-left: 38px;
+  border-radius: 10px;
+}
+.activity-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  transform: translateY(-50%);
+  color: #93a0b8;
+  pointer-events: none;
+}
+.activity-search-field .users-filter-search:focus ~ .activity-search-icon,
+.activity-filter-panel .users-filter-search:focus,
+.activity-filter-panel select:focus,
+.activity-filter-panel input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(93, 83, 205, 0.12);
+  outline: none;
+}
+.activity-filter-count {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: #eef0fb;
+  color: #5d53cd;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.activity-filter-count strong {
+  font-weight: 800;
+}
+.activity-filter-panel .users-filter-status,
+.activity-filter-panel .users-filter-role {
+  flex: 0 1 170px;
+  width: 170px;
+  min-width: 0;
+  border-radius: 10px;
+}
+.activity-filter-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 13px;
+  border: 1px solid #dfe4ee;
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.activity-filter-date:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(93, 83, 205, 0.12);
+}
+.activity-filter-date span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7891;
+  white-space: nowrap;
+}
+.activity-filter-date input {
+  border: none;
+  padding: 0;
+  min-height: 28px;
+  font-size: 13.5px;
+  color: #252b3a;
+  background: transparent;
+  outline: none;
+}
+.activity-clear-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #e3c9d2;
+  border-radius: 10px;
+  background: #fdf3f6;
+  color: #b0446a;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.activity-clear-button:hover {
+  background: #fbe7ee;
+}
+.activity-clear-button:active {
+  transform: scale(0.97);
+}
+.activity-clear-button span {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* ---- Activity log: table polish ------------------------------------------ */
+.activity-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f4f6fb;
+}
+.activity-table tbody tr {
+  transition: background 0.12s ease;
+}
+.activity-table tbody tr:hover {
+  background: #f7f8fd;
+}
+.activity-table td {
+  vertical-align: middle;
+}
+.activity-table .activity-details {
+  font-size: 13px;
+  color: #55607a;
+  line-height: 1.55;
+}
+.activity-badge {
+  gap: 6px;
+  border: 1px solid transparent;
+}
+.activity-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.activity-badge.is-login {
+  color: #1f7a55;
+  background: #e5f6ee;
+  border-color: #bfe8d6;
+}
+.activity-badge.is-logout {
+  color: #a2532f;
+  background: #fff0e9;
+  border-color: #f5d4c4;
+}
+@media (max-width: 900px) {
+  .activity-filter-panel {
+    padding: 12px;
+  }
+  .activity-filter-panel .users-filter-status,
+  .activity-filter-panel .users-filter-role {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .activity-filter-date {
+    flex: 1 1 auto;
+  }
+}
 .row-actions {
   display: flex;
   gap: 6px;

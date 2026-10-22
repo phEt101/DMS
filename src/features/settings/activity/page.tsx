@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { Language, Translations } from '../../../locales'
 import type { ActivityFeatureCopy } from '../../../types/localization'
 import { PaginationFooter } from '../../../components/pagination-footer'
-import { listActivityLogs, type ActivityLog } from './services/activityService'
+import { listActivityLogs, type ActivityLog, type ActivityLogQuery } from './services/activityService'
 import { useErrorToast } from '../../../components/toast-provider'
 
 function describeClient(
@@ -294,13 +294,26 @@ export default function SettingsActivityPage({
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // ตัวกรอง: ค้นหาชื่อ/อีเมล, โมดูล, การกระทำ, ช่วงวันที่ — กรองทันทีเมื่อเลือก/พิมพ์ (debounce สำหรับช่องค้นหา)
+  const emptyQuery: ActivityLogQuery = { search: '', module: '', action: '', from: '', to: '' }
+  const [query, setQuery] = useState<ActivityLogQuery>(emptyQuery)
+  const [searchInput, setSearchInput] = useState('')
   useErrorToast(error)
+
+  // debounce ช่องค้นหา 400ms เพื่อไม่ให้ยิง request ทุกคีย์
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQuery((prev) => (prev.search === searchInput ? prev : { ...prev, search: searchInput }))
+      setPage(1)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [searchInput])
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const response = await listActivityLogs(page, pageSize)
+      const response = await listActivityLogs(page, pageSize, query)
       setLogs(response.data)
       setTotal(response.meta.total)
     } catch (caught) {
@@ -308,7 +321,7 @@ export default function SettingsActivityPage({
     } finally {
       setLoading(false)
     }
-  }, [page, pageSize, activityTranslations.loadError])
+  }, [page, pageSize, query, activityTranslations.loadError])
 
   useEffect(() => {
     void load()
@@ -333,6 +346,17 @@ export default function SettingsActivityPage({
     policy_updated: activityTranslations.policyUpdated,
   }
 
+  const resetFilters = () => { setSearchInput(''); setQuery(emptyQuery); setPage(1) }
+  const moduleOptions = useMemo(
+    () => Array.from(new Set(logs.map((log) => resolveActivityModule(log)).filter((module): module is string => Boolean(module)))).sort(),
+    [logs],
+  )
+  const actionOptions = useMemo(
+    () => Array.from(new Set(logs.map((log) => log.action))).sort(),
+    [logs],
+  )
+  const hasFilters = Object.values(query).some(Boolean)
+
   return (
     <section className="feature-page feature-page--wide activity-page">
       <header className="users-header">
@@ -342,6 +366,53 @@ export default function SettingsActivityPage({
           <p>{activityTranslations.subtitle}</p>
         </div>
       </header>
+
+      <div className="activity-filter-panel">
+        <div className="activity-filter-row activity-filter-row--search">
+          <div className="activity-search-field">
+            <svg className="activity-search-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M10 4a6 6 0 1 0 3.874 10.577l4.274 4.275a1 1 0 0 0 1.415-1.414l-4.275-4.275A6 6 0 0 0 10 4Zm-4 6a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z" fill="currentColor"/>
+            </svg>
+            <input
+              className="users-filter-search"
+              aria-label={activityTranslations.search}
+              placeholder={activityTranslations.search}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+            />
+          </div>
+          <span className="activity-filter-count">
+            <strong>{total.toLocaleString()}</strong>&nbsp;{activityTranslations.records.replace('{count}', '').trim()}
+          </span>
+        </div>
+        <div className="activity-filter-row">
+          <select className="users-filter-status" aria-label={activityTranslations.module} value={query.module ?? ''} onChange={(event) => { setQuery({ ...query, module: event.target.value }); setPage(1) }}>
+            <option value="">{activityTranslations.allModules}</option>
+            {moduleOptions.map((module) => (
+              <option key={module} value={module}>{activityTranslations.modules[module] ?? module}</option>
+            ))}
+          </select>
+          <select className="users-filter-role" aria-label={activityTranslations.activity} value={query.action ?? ''} onChange={(event) => { setQuery({ ...query, action: event.target.value }); setPage(1) }}>
+            <option value="">{activityTranslations.allActions}</option>
+            {actionOptions.map((action) => (
+              <option key={action} value={action}>{actionLabels[action] ?? action}</option>
+            ))}
+          </select>
+          <label className="activity-filter-date">
+            <span>{activityTranslations.fromDate}</span>
+            <input type="date" value={query.from ?? ''} onChange={(event) => { setQuery({ ...query, from: event.target.value }); setPage(1) }} />
+          </label>
+          <label className="activity-filter-date">
+            <span>{activityTranslations.toDate}</span>
+            <input type="date" value={query.to ?? ''} onChange={(event) => { setQuery({ ...query, to: event.target.value }); setPage(1) }} />
+          </label>
+          {hasFilters && (
+            <button type="button" className="activity-clear-button" onClick={resetFilters}>
+              <span aria-hidden="true">✕</span> {activityTranslations.clearFilters}
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="users-table-wrap">
         <table className="users-table activity-table">

@@ -7,6 +7,23 @@ import type { Connection, RowDataPacket } from "mysql2/promise";
 
 const testDepartments = ["HR Div.", "Sales Div."] as const;
 
+// โมดูลที่แต่ละแผนกจะเห็น (กำหนดแบบเดียวกับหน้า Settings → Department management)
+// - HR Div.: Dashboard + เอกสารครบทุกหน้า (รวม Leave policy / Flow) + ผู้ใช้งาน + Activity log
+// - Sales Div.: Dashboard + เอกสาร (ยื่น/รอนุมัติ/สมุดบันทึก/รายชื่อพนักงาน/แจ้งเตือน) + Activity log
+const departmentModuleNames: Record<string, string[]> = {
+  "HR Div.": [
+    "dashboard",
+    "documents", "documents_pending", "documents_ledger", "documents_employees", "documents_policy","report","documents_flow_rules", "documents_notifications",
+    "users",
+    "activity_logs",
+  ],
+  "Sales Div.": [
+    "dashboard",
+    "documents", "documents_ledger","report","documents_notifications",
+    "activity_logs",
+  ],
+};
+
 const testUsers = [
   // Big money — ครบทั้ง executive / manager / user
   {
@@ -82,6 +99,23 @@ export async function up(connection: Connection) {
      ON DUPLICATE KEY UPDATE is_active = 1, deleted_at = NULL`,
     [companies.flatMap((company) => testDepartments.map((name) => [company.id, name, 1]))],
   )
+
+  // 1.1) โมดูลรายแผนก — เหมือนการติ๊กเลือกในหน้า Settings → Department management
+  for (const company of companies) {
+    for (const departmentName of testDepartments) {
+      const moduleNames = departmentModuleNames[departmentName] ?? []
+      if (moduleNames.length === 0) continue
+      await connection.execute(
+        `INSERT IGNORE INTO department_modules (department_id, module_id)
+         SELECT d.id, m.id
+         FROM departments d
+         JOIN permission_modules m
+           ON m.name IN (${moduleNames.map(() => '?').join(',')}) AND m.deleted_at IS NULL
+         WHERE d.company_id = ? AND d.name = ? AND d.deleted_at IS NULL`,
+        [...moduleNames, company.id, departmentName],
+      )
+    }
+  }
 
   // 2) ผู้ใช้ทดสอบ — รหัสผ่านใช้ SEED_DEFAULT_PASSWORD เดียวกันกับผู้ใช้อื่น
   const initialCredential = process.env.SEED_DEFAULT_PASSWORD;

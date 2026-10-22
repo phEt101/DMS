@@ -1158,7 +1158,7 @@ export async function dashboardSummary(req: Request, res: Response) {
             SUM(status IN ('pending_mgr','pending_exec','pending_hr')) AS pending,
             SUM(status = 'approved') AS approved,
             SUM(status = 'rejected') AS rejected
-       FROM employee_requests WHERE company_id = ? AND employee_user_id = ?`, [companyId, me],
+       FROM employee_requests WHERE company_id = ? AND employee_user_id = ? AND status <> 'cancelled'`, [companyId, me],
   )
   const balances: Array<{ id: string; title: string; total: number; used: number; pending: number; remaining: number }> = []
   if (policy) {
@@ -1174,7 +1174,7 @@ export async function dashboardSummary(req: Request, res: Response) {
          FROM employee_requests r
          JOIN employee_request_leave_details dl ON dl.request_id = r.id
          JOIN leave_types lt ON lt.id = dl.leave_type_id
-        WHERE r.employee_user_id = ? AND r.kind = 'leave' AND r.start_date BETWEEN ? AND ?
+        WHERE r.employee_user_id = ? AND r.kind = 'leave' AND r.status <> 'cancelled' AND r.start_date BETWEEN ? AND ?
         GROUP BY lt.balance_bucket`, [me, policy.yearStart, policy.yearEnd],
     )
     const byBucket: Record<string, { used: number; pending: number }> = {}

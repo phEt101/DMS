@@ -18,6 +18,18 @@ export interface ActivityLogResponse {
   meta: { page: number; limit: number; total: number }
 }
 
-export function listActivityLogs(page: number, limit: number) {
-  return request(`/activity?page=${page}&limit=${limit}`) as Promise<ActivityLogResponse>
+export type ActivityLogQuery = {
+  search?: string
+  module?: string
+  action?: string
+  from?: string
+  to?: string
+}
+
+export function listActivityLogs(page: number, limit: number, query: ActivityLogQuery = {}) {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+  for (const [key, value] of Object.entries(query)) {
+    if (value) params.set(key, value)
+  }
+  return request(`/activity?${params.toString()}`) as Promise<ActivityLogResponse>
 }
