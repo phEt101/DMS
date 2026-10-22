@@ -13,7 +13,7 @@ import { companiesRouter } from "./settings/access/companies/routes/companies.ro
 import { permissionsRouter } from "./settings/access/permissions/routes/permissions.routes.js";
 import { modulesRouter } from "./settings/access/modules/routes/modules.routes.js";
 import { postalCodesRouter } from "./postal-codes/routes/postal-codes.routes.js";
-import { surveysRouter } from "./surveys/routes/surveys.routes.js";
+import { surveysRouter } from "./projects/survey/routes/surveys.routes.js";
 import { employeeRequestsRouter } from "./employee requests/routes/employee-requests.routes.js";
 import { asyncHandler } from "../middleware/errors.js";
 import { requireAuth } from "./auth/middleware/require-auth.middleware.js";

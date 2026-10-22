@@ -9,7 +9,7 @@ import {
   listSurveys as apiListSurveys,
   deleteSurveyApi,
   getSurvey,
-} from '../../../services/surveys.api'
+} from './services/surveys.service'
 import { PaginationFooter } from '../../../components/pagination-footer'
 import ConfirmDialog from '../../../components/confirm-dialog'
 import { useToast } from '../../../components/toast-provider'

@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import type { FormValues } from '../../document-types'
 import type { Survey } from '../../../projects/survey/types'
-import LocationSection from '../../../projects/survey/components/survey-form/survey-formLocationSection'
-import { useLocationPicker } from '../../../projects/survey/components/survey-form/useLocationPicker'
-import { usePostalCodes } from '../../../projects/survey/components/survey-form/usePostalCodes'
+import LocationSection from '../../../projects/survey/components/form/survey-formLocationSection'
+import { useLocationPicker } from '../../../projects/survey/components/form/useLocationPicker'
+import { usePostalCodes } from '../../../projects/survey/components/form/usePostalCodes'
 
 type Location = NonNullable<Survey['location']>
 type Props = {

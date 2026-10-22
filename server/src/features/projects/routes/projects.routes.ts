@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { asyncHandler } from '../../../middleware/errors.js'
-import * as controller from '../controllers/projects.controller.js'
-import { equipmentImagesUpload } from '../middleware/equipment-images.middleware.js'
+import * as controller from '../pm/controllers/projects.controller.js'
+import { equipmentImagesUpload } from '../pm/middleware/equipment-images.middleware.js'
 
 export const projectsRouter = Router()
 

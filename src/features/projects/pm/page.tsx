@@ -1,0 +1,407 @@
+import { useEffect, useState } from "react";
+import type { Language, Translations } from "../../../locales";
+import { request } from "../../../services/api";
+import { useToast } from "../../../components/toast-provider";
+import ConfirmDialog from "../../../components/confirm-dialog";
+import { moveProjectToTrash, updatePmProjectStatus } from "./services/projects.service";
+import type { ApiProjectItem, ApiProjectType, DocStatus, ProjectItem, ProjectTypeId } from './types'
+import { formatBytes, getInitials } from './utils'
+import {
+  ProjectDetailState,
+  ProjectDetailView,
+} from "./components/project-detail-view";
+import {
+  EMPTY_PROJECT_FILTERS,
+  type ProjectFilters,
+} from "./components/project-filter";
+import { ProjectMainList } from "./components/project-main-list";
+import { ProjectSidePanel } from "./components/project-side-panel";
+import { ProjectFormModal } from "./components/project-form-modal";
+
+function projectIdFromPath(path: string) {
+  const match = path.match(/^\/projects\/([A-Za-z0-9_-]{43})\/?$/);
+  return match?.[1] ?? null;
+}
+function formatDate(value: string | null | undefined, locale: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString(locale, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+}
+function mapProject(d: ApiProjectItem, statusLabels: Record<DocStatus, string>, locale: string): ProjectItem {
+  const owner =
+    d.projectManagerName?.trim() ||
+    d.uploadedBy?.trim() ||
+    d.customerName?.trim() ||
+    "Unknown";
+  const status: DocStatus = d.projectStatus === "completed" ? "done"
+    : d.projectStatus === "cancelled" ? "cancelled"
+    : d.projectStatus ?? (d.status === "approved"
+      ? "active"
+      : d.status === "archived"
+        ? "done"
+        : "planning");
+  return {
+    encryptedId: d.encryptedId,
+    projectTypeId: d.projectTypeId,
+    name:
+      d.projectName?.trim() ||
+      d.projectManagerName?.trim() ||
+      d.customerName?.trim() ||
+      "Project",
+    projectDescription: d.projectDescription ?? "",
+    projectStatus: d.projectStatus,
+    siteAddress: d.siteAddress ?? "",
+    latitude: d.siteLat == null ? "" : String(d.siteLat),
+    longitude: d.siteLon == null ? "" : String(d.siteLon),
+    plannedStartDate: d.plannedStartDate?.slice(0, 10) ?? "",
+    plannedEndDate: d.plannedEndDate?.slice(0, 10) ?? "",
+    status,
+    statusLabel: statusLabels[status],
+    size: formatBytes(d.sizeBytes),
+    sizeBytes: Number(d.sizeBytes ?? 0),
+    ownerName: owner,
+    ownerInitials: getInitials(owner),
+    projectManagerName: d.projectManagerName?.trim() || "—",
+    customerName: d.customerName?.trim() || "—",
+    operatorNames: Array.from(
+      new Set(
+        (d.operatorNames ?? "")
+          .split("•")
+          .map((x) => x.trim())
+          .filter(Boolean),
+      ),
+    ),
+    uploadedBy: d.uploadedBy?.trim() || "—",
+    createdAt: formatDate(d.createdAt, locale),
+    updatedAt: formatDate(d.updatedAt ?? d.createdAt, locale),
+    lastModifiedBy: d.lastModifiedBy ?? "—",
+  };
+}
+
+export default function ProjectsPage({
+  translations,
+  language,
+}: {
+  translations: Translations;
+  language: Language;
+}) {
+  const projectTranslations = translations.features.projects;
+  const locale = language === "th" ? "th-TH" : "en-US";
+  const statusLabels: Record<DocStatus, string> = {
+    planning: projectTranslations.status.planning,
+    active: projectTranslations.status.active,
+    on_hold: projectTranslations.status.onHold,
+    done: projectTranslations.status.completed,
+    cancelled: projectTranslations.status.cancelled,
+  };
+  const { showToast } = useToast();
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [filters, setFilters] = useState<ProjectFilters>(
+    EMPTY_PROJECT_FILTERS,
+  );
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [typeId, setTypeId] = useState<number | null>(null);
+  const [editing, setEditing] = useState<ProjectItem | null>(null);
+  const [fullId, setFullId] = useState<string | null>(() =>
+    projectIdFromPath(location.pathname),
+  );
+  const [fullProject, setFullProject] = useState<ProjectItem | null>(null);
+  const [fullLoading, setFullLoading] = useState(false);
+  const [fullError, setFullError] = useState<string | null>(null);
+  const [types, setTypes] = useState<ApiProjectType[]>([]);
+  const [typesError, setTypesError] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [refresh, setRefresh] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ProjectItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      try {
+        setTypesError(null);
+        const p = (await request("/project-types")) as {
+          data: ApiProjectType[];
+        };
+        if (!stop) setTypes(p.data ?? []);
+      } catch (e) {
+        if (!stop)
+          setTypesError(
+            e instanceof Error ? e.message : projectTranslations.loadTypesError,
+          );
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [language]);
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const q = new URLSearchParams({
+          page: String(page),
+          limit: String(pageSize),
+          sortOrder,
+        });
+        if (search.trim()) q.set("search", search.trim());
+        if (filters.status) q.set("status", filters.status);
+        if (filters.projectTypeId)
+          q.set("projectTypeId", filters.projectTypeId);
+        if (filters.dateFrom) q.set("dateFrom", filters.dateFrom);
+        if (filters.dateTo) q.set("dateTo", filters.dateTo);
+        const p = (await request(`/projects?${q}`)) as {
+          data?: ApiProjectItem[];
+          pagination?: { total?: number };
+        };
+        if (!stop) {
+          setProjects((p.data ?? []).map((project) => mapProject(project, statusLabels, locale)));
+          setTotal(Number(p.pagination?.total ?? 0));
+        }
+      } catch (e) {
+        if (!stop)
+          setError(e instanceof Error ? e.message : projectTranslations.loadProjectsError);
+      } finally {
+        if (!stop) setLoading(false);
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [page, pageSize, search, filters, sortOrder, refresh, language]);
+  useEffect(() => {
+    const sync = () => setFullId(projectIdFromPath(location.pathname));
+    addEventListener("popstate", sync);
+    return () => removeEventListener("popstate", sync);
+  }, []);
+  useEffect(() => {
+    if (fullId === null) {
+      setFullProject(null);
+      setFullError(null);
+      return;
+    }
+    let stop = false;
+    (async () => {
+      try {
+        setFullLoading(true);
+        setFullProject(null);
+        const p = (await request(`/projects/${fullId}`)) as {
+          data?: ApiProjectItem;
+        };
+        if (!stop)
+          p.data
+            ? setFullProject(mapProject(p.data, statusLabels, locale))
+            : setFullError(projectTranslations.projectNotFound);
+      } catch (e) {
+        if (!stop)
+          setFullError(e instanceof Error ? e.message : projectTranslations.loadProjectsError);
+      } finally {
+        if (!stop) setFullLoading(false);
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [fullId, refresh, language]);
+  const openFull = (id: string) => {
+    setSelectedId(null);
+    setFullId(id);
+    history.pushState({}, "", `/projects/${id}`);
+  };
+  const closeFull = () => {
+    setFullId(null);
+    history.pushState({}, "", "/projects");
+  };
+  const closeModal = () => {
+    setModalOpen(false);
+    setTypeId(null);
+    setEditing(null);
+  };
+  const requestDelete = (project: ProjectItem) => {
+    setDeleteTarget(project);
+    setDeleteOpen(true);
+  };
+  const performDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await moveProjectToTrash(deleteTarget.encryptedId);
+      setSelectedId(null);
+      setRefresh((v) => v + 1);
+      if (fullId === deleteTarget.encryptedId) closeFull();
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+      showToast(projectTranslations.trashedSuccess, "success");
+    } catch (e) {
+      showToast(
+        e instanceof Error ? e.message : projectTranslations.deleteError,
+        "error",
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+  const updateProjectStatus = async (project: ProjectItem, status: NonNullable<ApiProjectItem["projectStatus"]>) => {
+    try {
+      await updatePmProjectStatus(project.encryptedId, status);
+      setRefresh((value) => value + 1);
+      showToast(projectTranslations.statusChanged, "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : projectTranslations.statusChangeError, "error");
+    }
+  };
+  if (fullId !== null) {
+    if (fullLoading && !fullProject)
+      return <ProjectDetailState projectTranslations={projectTranslations} onBack={closeFull} />;
+    if (fullError || !fullProject)
+      return (
+        <ProjectDetailState
+          error={fullError ?? projectTranslations.projectNotFound}
+          projectTranslations={projectTranslations}
+          onBack={closeFull}
+        />
+      );
+    const selectedType = types.find((type) => type.id === fullProject.projectTypeId) ?? null;
+    return <>
+      <ProjectDetailView
+        projectTranslations={projectTranslations}
+        commonTranslations={translations.common}
+        project={fullProject}
+        projectTypeName={
+          types.find((t) => t.id === fullProject.projectTypeId)?.name ??
+          projectTranslations.typeFallback.replace("{id}", String(fullProject.projectTypeId))
+        }
+        onBack={closeFull}
+        onEdit={() => { setEditing(fullProject); setTypeId(fullProject.projectTypeId); setModalOpen(true); }}
+        onDelete={() => requestDelete(fullProject)}
+        onStatusChange={(status) => void updateProjectStatus(fullProject, status)}
+      />
+      <ProjectFormModal projectTranslations={projectTranslations} commonTranslations={translations.common} open={modalOpen} projectType={selectedType} selectedTypeId={fullProject.projectTypeId} editingProject={editing} onOpenChange={(open) => open ? setModalOpen(true) : closeModal()} onSaved={() => setRefresh((value) => value + 1)} />
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) setDeleteTarget(null);
+        }}
+        title={projectTranslations.deleteTitle}
+        description={projectTranslations.deleteDescription.replace("{name}", deleteTarget?.name ?? "")}
+        confirmLabel={translations.common.actions.delete}
+        cancelLabel={translations.common.actions.cancel}
+        loading={deleteLoading}
+        onConfirm={() => void performDelete()}
+      />
+    </>;
+  }
+  const selected = projects.find((project) => project.encryptedId === selectedId) ?? null;
+  const selectedType = types.find((t) => t.id === typeId) ?? null;
+  const pages = Math.max(Math.ceil(total / pageSize), 1);
+  return (
+    <div className="dms-page-root">
+      <ProjectMainList
+        translations={translations}
+        search={search}
+        onSearch={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        projects={projects}
+        total={total}
+        projectTypes={types}
+        onCreate={() => {
+          const pmType = types.find((type) => type.slug === "pm");
+          if (!pmType) {
+            showToast(typesError ?? projectTranslations.noActiveTypes, "error");
+            return;
+          }
+          setEditing(null);
+          setTypeId(pmType.id);
+          setModalOpen(true);
+        }}
+        sortOrder={sortOrder}
+        onToggleSort={() => {
+          setSortOrder((v) => (v === "desc" ? "asc" : "desc"));
+          setPage(1);
+        }}
+        filters={filters}
+        onFiltersChange={(v) => {
+          setFilters(v);
+          setPage(1);
+        }}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        selectedId={selectedId}
+        loading={loading}
+        error={error}
+        onSelect={setSelectedId}
+        onOpen={openFull}
+        onEdit={(d) => {
+          setEditing(d);
+          setTypeId(d.projectTypeId);
+          setModalOpen(true);
+        }}
+        onDelete={requestDelete}
+        page={Math.min(page, pages)}
+        pageSize={pageSize}
+        onPageChange={(v) => setPage(Math.max(1, Math.min(v, pages)))}
+        onPageSizeChange={(v) => {
+          setPageSize(v);
+          setPage(1);
+        }}
+      />
+      {selected && (
+        <ProjectSidePanel
+          projectTranslations={projectTranslations}
+          commonTranslations={translations.common}
+          project={selected}
+          onClose={() => setSelectedId(null)}
+          onOpen={openFull}
+        />
+      )}
+      <ProjectFormModal
+        projectTranslations={projectTranslations}
+        commonTranslations={translations.common}
+        open={modalOpen}
+        projectType={selectedType}
+        selectedTypeId={typeId}
+        editingProject={editing}
+        onOpenChange={(open) => (open ? setModalOpen(true) : closeModal())}
+        onSaved={() => {
+          setSearch("");
+          setPage(1);
+          setRefresh((v) => v + 1);
+        }}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) setDeleteTarget(null);
+        }}
+        title={projectTranslations.deleteTitle}
+        description={projectTranslations.deleteDescription.replace("{name}", deleteTarget?.name ?? "")}
+        confirmLabel={translations.common.actions.delete}
+        cancelLabel={translations.common.actions.cancel}
+        loading={deleteLoading}
+        onConfirm={() => void performDelete()}
+      />
+    </div>
+  );
+}

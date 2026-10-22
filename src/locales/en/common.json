@@ -72,6 +72,8 @@
       "emptyProjects": "No projects match the search or filters",
       "projectNotFound": "Project not found",
       "deleteConfirm": "Delete project “{name}”?",
+      "deleteTitle": "Confirm deletion",
+      "deleteDescription": "Delete project “{name}”? This action cannot be undone.",
       "trashedSuccess": "Project moved to trash",
       "deleteError": "Unable to delete project",
       "statusChanged": "Project status updated",

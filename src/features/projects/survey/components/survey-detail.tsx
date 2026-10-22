@@ -3,7 +3,7 @@ import * as RadixDialog from '@radix-ui/react-dialog'
 import type { Survey } from '../types'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import L from 'leaflet'
-import { formatCountry } from './survey-form/utils'
+import { formatCountry } from './form/utils'
 import 'leaflet/dist/leaflet.css'
 
 const DefaultIcon = L.icon({
