@@ -2,8 +2,6 @@ CREATE TABLE IF NOT EXISTS employees (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Employee profile identifier',
   user_id BIGINT UNSIGNED NOT NULL COMMENT 'Linked login account',
   employee_code VARCHAR(50) NULL COMMENT 'Company employee code',
-  position VARCHAR(150) NULL COMMENT 'Job title',
-  manager_user_id BIGINT UNSIGNED NULL COMMENT 'Approving manager account',
   employment_start_date DATE NULL COMMENT 'First day of employment',
   appointed_date DATE NULL COMMENT 'Appointment date',
   sick_leave_days DECIMAL(7,2) NULL COMMENT 'Annual sick leave entitlement in days',

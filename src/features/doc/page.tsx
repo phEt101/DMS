@@ -205,6 +205,9 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   // ขอบเขตการแสดงผล: 'mine' = เฉพาะเอกสารของตัวเอง · 'related' = ของตัวเอง + ที่เกี่ยวข้อง (ค่าเริ่มต้นของ server)
   const [scope, setScope] = useState<'mine' | 'related'>('related')
   const [kindFilter, setKindFilter] = useState('all')
+  // กรองตามแผนกของผู้ยื่น (ทางเลือก: 'all' = ทุกแผนก)
+  const [departmentFilter, setDepartmentFilter] = useState('all')
+  const [draftDepartment, setDraftDepartment] = useState('all')
   const [filterOpen, setFilterOpen] = useState(false)
   const [draftStatus, setDraftStatus] = useState('all')
   const [draftKind, setDraftKind] = useState('all')
@@ -386,10 +389,12 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       const group = KIND_INFO[doc.kind].group
       const kindMatches = kindFilter === 'all' || group === kindFilter || doc.kind === kindFilter
       const searchMatches = !query || [doc.no, doc.title, doc.summary, doc.employee, doc.department].some((field) => field.toLocaleLowerCase('th').includes(query))
-      return roleMatches && statusMatches && kindMatches && searchMatches
+      const departmentMatches = departmentFilter === 'all' || doc.department === departmentFilter
+      return roleMatches && statusMatches && kindMatches && searchMatches && departmentMatches
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documents, kindFilter, mockRole, search, statusFilter, view, copy])
+  }, [documents, kindFilter, mockRole, search, statusFilter, view, copy, departmentFilter])
+  const departmentOptions = useMemo(() => Array.from(new Set(documents.map((doc) => doc.department).filter(Boolean))).sort(), [documents])
 
   // แบ่งหน้า (เหมือนหน้าจอ survey): ทั้ง pending และ all ใช้ pagination
   const totalDocs = visibleDocs.length
@@ -716,12 +721,14 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     {USE_DB && docsError && ['all', 'pending'].includes(view) && <p className="documents-empty" role="alert">{docsError}</p>}
 
     {view === 'all' && <DocAllDocumentsFilters
-      search={search} onSearch={setSearch} layout={layout} onLayout={setLayout} status={statusFilter} kind={kindFilter}
-      draftStatus={draftStatus} draftKind={draftKind} onDraftStatus={setDraftStatus} onDraftKind={setDraftKind}
-      filterOpen={filterOpen} onToggle={() => { setDraftStatus(statusFilter); setDraftKind(kindFilter); setFilterOpen(open => !open) }} count={visibleDocs.length}
-      onApply={() => { setStatusFilter(draftStatus); setKindFilter(draftKind); setPage(1); setFilterOpen(false) }}
+      search={search} onSearch={setSearch} layout={layout} onLayout={setLayout} status={statusFilter} kind={kindFilter} department={departmentFilter}
+      draftStatus={draftStatus} draftKind={draftKind} draftDepartment={draftDepartment}
+      onDraftStatus={setDraftStatus} onDraftKind={setDraftKind} onDraftDepartment={setDraftDepartment}
+      departmentOptions={departmentOptions}
+      filterOpen={filterOpen} onToggle={() => { setDraftStatus(statusFilter); setDraftKind(kindFilter); setDraftDepartment(departmentFilter); setFilterOpen(open => !open) }} count={visibleDocs.length}
+      onApply={() => { setStatusFilter(draftStatus); setKindFilter(draftKind); setDepartmentFilter(draftDepartment); setPage(1); setFilterOpen(false) }}
       scope={scope} onScope={(next) => { if (next !== scope) { setScope(next); setPage(1) } }}
-      onReset={() => { setDraftStatus('all'); setDraftKind('all'); setStatusFilter('all'); setKindFilter('all'); setPage(1); setFilterOpen(false) }} copy={copy}
+      onReset={() => { setDraftStatus('all'); setDraftKind('all'); setDraftDepartment('all'); setStatusFilter('all'); setKindFilter('all'); setDepartmentFilter('all'); setPage(1); setFilterOpen(false) }} copy={copy}
     />}
 
     {view === 'all' && <DocAllDocumentsList
