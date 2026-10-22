@@ -392,6 +392,18 @@
 .flow-card select:focus-visible, .flow-record:focus-visible, .flow-switch input:focus-visible + i {
   outline: 2px solid var(--brand); outline-offset: 2px;
 }
+/* multi-select เลือกหลายแผนก/บทบาทในกฎเดียว */
+.flow-card-target select[multiple] {
+  min-height: 96px; max-height: 160px; padding: 6px; border-radius: 10px;
+}
+.flow-card-target select[multiple] option {
+  padding: 5px 8px; border-radius: 6px;
+}
+.flow-card-target select[multiple] option:checked {
+  background: linear-gradient(0deg, rgba(93, 83, 205, 0.18), rgba(93, 83, 205, 0.18));
+  font-weight: 700;
+}
+.flow-target-hint { font-size: 11px; color: var(--mute); }
 .flow-card-tools { display: flex; gap: 12px; align-items: center; }
 .flow-remove { border: 0; background: none; color: var(--warn); font: inherit; font-size: 13px; cursor: pointer; padding: 6px 8px; border-radius: 8px; }
 .flow-remove:hover { background: #fff1ea; }
@@ -487,4 +499,90 @@
 
 @media (prefers-reduced-motion: reduce) {
   .flow-switch i, .flow-switch i::after { transition: none; }
+}
+
+/* ---- ช่องเลือกเป้าหมายในหัวการ์ด ---- */
+.flow-card-target {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
+  flex: 1; min-width: 0;
+}
+.flow-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.flow-field > span { font-size: 12px; font-weight: 600; color: var(--mute); }
+.flow-field > select { min-height: 44px; }
+ 
+.flow-seg { display: flex; width: 100%; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+.flow-seg button {
+  flex: 1; min-height: 44px; padding: 0 10px; border: 0; background: #fff; color: var(--ink);
+  font: inherit; font-size: 13px; cursor: pointer;
+}
+.flow-seg button + button { border-left: 1px solid var(--line); }
+.flow-seg button.is-on { background: var(--brand); color: #fff; font-weight: 700; }
+.flow-seg button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+ 
+.flow-applies {
+  grid-column: 1 / -1; margin: 0; padding: 9px 12px; border-radius: 10px;
+  background: var(--brand-soft); color: #42506e; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere;
+}
+.flow-applies b { color: var(--ink); }
+.flow-target-hint { font-size: 11px; color: var(--mute); }
+ 
+/* ---- ตัวเลือก (trigger + chips) ---- */
+.tp-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px;
+  padding: 6px 12px; border: 1px solid #d6ddec; border-radius: 10px; background: #fff;
+  font: inherit; font-size: 13px; color: #1c2540; text-align: left; cursor: pointer;
+}
+.tp-trigger:focus-visible { outline: 2px solid #3a5bd9; outline-offset: 2px; }
+.tp-placeholder { color: #6a7592; }
+.tp-chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.tp-chip { padding: 2px 10px; border-radius: 999px; background: #e3eaff; color: #2a3f9e; font-size: 12.5px; font-weight: 600; }
+.tp-chip--more { background: #e8ebf3; color: #42506e; }
+.tp-caret { flex: none; color: #6a7592; }
+ 
+/* ---- bottom sheet (render ผ่าน portal จึงใช้สีตรง ไม่พึ่ง var) ---- */
+.tp-backdrop {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(20, 28, 52, .5);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.tp-sheet {
+  width: 100%; max-height: 85vh; max-height: 85dvh; display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); background: #fff; border-radius: 18px 18px 0 0;
+  color: #1c2540;
+}
+.tp-sheet-head { display: flex; align-items: center; justify-content: space-between; font-size: 16px; }
+.tp-close { width: 40px; height: 40px; border: 0; border-radius: 10px; background: transparent; font-size: 18px; color: #6a7592; cursor: pointer; }
+.tp-close:hover { background: #f1f3f9; }
+.tp-search {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: 0 12px;
+  border: 1px solid #d6ddec; border-radius: 10px; font: inherit; font-size: 16px; /* 16px กัน iOS zoom */
+}
+.tp-search:focus-visible { outline: 2px solid #3a5bd9; outline-offset: 1px; }
+.tp-bulk { display: flex; align-items: center; gap: 8px; }
+.tp-bulk button {
+  min-height: 38px; padding: 0 12px; border: 1px solid #d6ddec; border-radius: 9px; background: #fff;
+  font: inherit; font-size: 13px; color: #3a4eb5; cursor: pointer;
+}
+.tp-bulk button:disabled { opacity: .4; cursor: default; }
+.tp-count { margin-left: auto; font-size: 13px; color: #6a7592; }
+.tp-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+.tp-row {
+  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 10px;
+  border-radius: 10px; cursor: pointer; font-size: 15px;
+}
+.tp-row.is-on { background: #eef3ff; font-weight: 600; }
+.tp-row input { width: 22px; height: 22px; flex: none; accent-color: #3a5bd9; }
+.tp-empty { padding: 18px; text-align: center; color: #6a7592; }
+.tp-done {
+  width: 100%; min-height: 48px; border: 0; border-radius: 12px; background: #3a5bd9; color: #fff;
+  font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+ 
+@media (min-width: 640px) {
+  .tp-backdrop { align-items: center; }
+  .tp-sheet { max-width: 440px; border-radius: 18px; }
+}
+@media (max-width: 720px) {
+  .flow-card-head { flex-direction: column; align-items: stretch; }
+  .flow-card-target { grid-template-columns: 1fr; }
+  .flow-card-tools { justify-content: space-between; }
 }

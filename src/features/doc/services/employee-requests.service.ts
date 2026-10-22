@@ -73,6 +73,10 @@ export const getBadges = () => call<ApiBadges>('/badges')
 // ---------- กำหนดสิทธิ์ในการยื่นเอกสาร (Flow Rules) ----------
 export type ApiFlowRule = {
   id: number; scope: 'department' | 'role'; departmentId: number | null; roleId: number | null; kind: string;
+  /** แผนก/บทบาทที่กฎครอบคลุม (หลายตัวในกฎเดียวได้) — กฎเก่าจะมีค่าเดียวเท่ากับ departmentId/roleId */
+  targetIds: number[];
+  /** บทบาทที่กฎจำกัดเพิ่ม (เฉพาะ scope=department) — ว่าง = ทุกบทบาท */
+  roleIds?: number[];
   firstStage: 'default' | 'pending_mgr' | 'pending_exec' | 'pending_hr';
   managerUserId: number | null; executiveUserId: number | null;
   requireManagerStage: boolean; requireExecutiveStage: boolean; requireHrStage: boolean;

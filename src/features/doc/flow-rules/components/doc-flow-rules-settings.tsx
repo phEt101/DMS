@@ -13,6 +13,9 @@ const firstEnabled = (rule: Pick<FlowRuleLike, 'requireManagerStage' | 'requireE
 
 const toDraft = (rule: ApiFlowRule): DraftRule => ({
   key: `rule-${rule.id}`, id: rule.id, scope: rule.scope,
+  // targetIds มาจาก backend (หลายแผนก/บทบาทต่อกฎ) — กฎเก่าที่ยังไม่มี ใช้ departmentId/RoleId เดี่ยว
+  targetIds: rule.targetIds?.length ? rule.targetIds : [rule.departmentId ?? rule.roleId].filter((id): id is number => id !== null),
+  roleIds: rule.roleIds ?? [],
   departmentId: rule.departmentId, roleId: rule.roleId, kind: rule.kind,
   firstStage: firstEnabled(rule),
   managerUserId: rule.managerUserId, executiveUserId: rule.executiveUserId,
@@ -49,7 +52,7 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
   const update = (key: string, patch: Partial<DraftRule>) =>
     setRules((current) => current.map((rule) => rule.key === key ? { ...rule, ...patch } : rule))
   const addRule = () => setRules((current) => [...current, {
-    key: `new-${Date.now()}-${current.length}`, scope: 'department', departmentId: null, roleId: null, kind: 'all',
+    key: `new-${Date.now()}-${current.length}`, scope: 'department', departmentId: null, roleId: null, targetIds: [] as number[], roleIds: [] as number[], kind: 'all',
     firstStage: 'pending_mgr', managerUserId: null, executiveUserId: null,
     requireManagerStage: true, requireExecutiveStage: false, requireHrStage: true,
     recordAfterStage: null, visibleInRecords: true, isActive: true,
@@ -58,12 +61,11 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
 
   const save = async () => {
     if (saving) return
-    const invalid = rules.find((rule) => rule.scope === 'department' && rule.departmentId === null)
-      ?? rules.find((rule) => rule.scope === 'role' && rule.roleId === null)
+    const invalid = rules.find((rule) => rule.targetIds.length === 0)
     if (invalid) { showToast(c.flow.ruleIncomplete, 'error'); return }
     setSaving(true)
     try {
-      await saveFlowRules(rules.map(({ key: _key, id: _id, ...rest }) => ({ ...rest, visibleInRecords: true })))
+      await saveFlowRules(rules.map(({ key: _key, id: _id, ...rest }) => ({ ...rest, visibleInRecords: true, roleIds: rest.roleIds ?? [] })))
       showToast(c.flow.saved, 'success')
       const data = await getFlowRules()
       setOptions(data); setRules(data.rules.map(toDraft))
@@ -90,9 +92,11 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
     ]
     return [c.flow.submitter, ...(stages.length ? stages : [c.flow.stageHr])].join(' → ')
   }
-  const targetLabel = (rule: DraftRule) => rule.scope === 'department'
-    ? options?.departments.find((department) => department.id === rule.departmentId)?.name ?? c.flow.selectPrompt
-    : options?.roles.find((role) => role.id === rule.roleId)?.name ?? c.flow.selectPrompt
+  const targetLabel = (rule: DraftRule) => {
+    const source = rule.scope === 'department' ? options?.departments : options?.roles
+    const names = rule.targetIds.map((id) => source?.find((item) => item.id === id)?.name ?? `#${id}`)
+    return names.length ? names.join(', ') : c.flow.selectPrompt
+  }
   const kindLabel = (kind: string) => kind === 'all' ? c.flow.kindAll : c.kinds[kind] ?? kind
   const documentKinds = [...new Set([...Object.keys(c.kinds), ...rules.map((rule) => rule.kind).filter((kind) => kind !== 'all')])]
   const roleLabel = (name: string) => {
@@ -103,8 +107,9 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
     const matchingRules = rules.filter((rule) =>
       rule.isActive && (rule.kind === 'all' || rule.kind === kind) && (
         rule.scope === 'department'
-          ? rule.departmentId !== null && rule.departmentId === department.id
-          : rule.roleId !== null && rule.roleId === role.id
+          ? (rule.targetIds.length === 0 || rule.targetIds.includes(department.id ?? -1))
+            && (rule.roleIds?.length ? rule.roleIds.includes(role.id) : true)
+          : rule.targetIds.includes(role.id)
       ),
     )
     const priority = (rule: DraftRule) => (rule.scope === 'department' ? 2 : 1) * 2 + (rule.kind === kind ? 1 : 0)
@@ -135,7 +140,7 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
   const reviewItems = rules.flatMap((rule, index) => {
     const items: string[] = []
     if (!rule.isActive) items.push(c.flow.reviewInactive.replace('{number}', String(index + 1)))
-    if ((rule.scope === 'department' && rule.departmentId === null) || (rule.scope === 'role' && rule.roleId === null)) {
+    if (rule.targetIds.length === 0) {
       items.push(c.flow.reviewIncomplete.replace('{number}', String(index + 1)))
     }
     return items
@@ -143,11 +148,9 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
   const activeRuleKeys = new Set<string>()
   rules.forEach((rule) => {
     if (!rule.isActive) return
-    const targetId = rule.scope === 'department' ? rule.departmentId : rule.roleId
-    if (targetId === null) return
-    const key = `${rule.scope}:${targetId}:${rule.kind}`
+    const key = `${rule.scope}:${[...rule.targetIds].sort((a, b) => a - b).join(',')}:${rule.kind}`
     if (activeRuleKeys.has(key)) reviewItems.push(c.flow.reviewDuplicate.replace('{target}', targetLabel(rule)).replace('{kind}', kindLabel(rule.kind)))
-    activeRuleKeys.add(key)
+    for (const targetId of rule.targetIds) activeRuleKeys.add(`${rule.scope}:${targetId}:${rule.kind}`)
   })
 
   // ดึงข้อความจาก documents.json (flow.xxx) ถ้าไม่มีคีย์ → คืนค่าว่าง แล้วการ์ดจะใช้ข้อความไทยที่ฝังไว้
@@ -159,8 +162,8 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
   // ภาพรวม: ซ่อน admin และแผนกที่ไม่มีกฎเกี่ยวข้อง — เริ่มต้นแสดง กรรมการผู้จัดการ/ผู้จัดการ/พนักงาน
   // + แผนก/บทบาทที่มีกฎอ้างถึงเท่านั้น (เช่นเพิ่มกฎของ HR Div. → แสดงแผนก HR เพิ่ม)
   const activeRules = rules.filter((rule) => rule.isActive)
-  const ruleDepartments = [...new Set(activeRules.filter((rule) => rule.scope === 'department' && rule.departmentId !== null).map((rule) => rule.departmentId!))]
-  const ruleRoleIds = [...new Set(activeRules.filter((rule) => rule.scope === 'role' && rule.roleId !== null).map((rule) => rule.roleId!))]
+  const ruleDepartments = [...new Set(activeRules.filter((rule) => rule.scope === 'department').flatMap((rule) => rule.targetIds))]
+  const ruleRoleIds = [...new Set(activeRules.filter((rule) => rule.scope === 'role').flatMap((rule) => rule.targetIds))]
   const DEFAULT_OVERVIEW_ROLES = ['executive', 'manager', 'user']
   const overviewRoles = options
     ? options.roles.filter((role) => role.name !== 'admin'

@@ -1,11 +1,17 @@
-// ไฟล์นี้ไม่ import อะไรจากโปรเจกต์ → วางข้าง doc-flow-rules-settings.tsx ได้เลย
+// ไฟล์นี้ไม่ import อะไรจากโปรเจกต์ (ยกเว้น TargetPicker ที่อยู่โฟลเดอร์เดียวกัน)
 // type ด้านล่างมีรูปร่างเดียวกับ ApiFlowRule / ApiFlowOptions ใน employee-requests.service.ts
+import { useState } from 'react'
+import { TargetPicker } from './TargetPicker'
 
 type Stage = 'manager' | 'executive' | 'hr'
 type FirstStage = 'default' | 'pending_mgr' | 'pending_exec' | 'pending_hr'
 
 export type FlowRuleLike = {
   id?: number; scope: 'department' | 'role'; departmentId: number | null; roleId: number | null; kind: string
+  /** แผนก/บทบาทที่กฎครอบคลุม — เลือกได้หลายตัวในกฎเดียว */
+  targetIds: number[]
+  /** บทบาทที่กฎจำกัดเพิ่ม (เฉพาะ scope=department) — ว่าง = ทุกบทบาท */
+  roleIds?: number[]
   firstStage: FirstStage; managerUserId: number | null; executiveUserId: number | null
   requireManagerStage: boolean; requireExecutiveStage: boolean; requireHrStage: boolean
   recordAfterStage: Stage | null; visibleInRecords: boolean; isActive: boolean
@@ -27,7 +33,15 @@ const DEFAULT_TEXT: Record<string, string> = {
   stageOn: 'ต้องผ่านขั้นนี้', stageOff: 'ข้ามขั้นนี้', recordHere: 'ให้จบ/บันทึกที่ขั้นนี้', recordedHere: 'อนุมัติแล้วบันทึกลงสมุด',
   afterRecordNote: 'ไม่ถูกใช้ — เอกสารจบที่ขั้นก่อนหน้า', ledger: 'สมุดบันทึก / รายงาน', route: 'เส้นทาง',
   noStageWarn: '⚠ ไม่ได้เปิดขั้นอนุมัติใดเลย ระบบจะส่งให้ HR อัตโนมัติ',
+  roleFilter: 'จำกัดบทบาท (ไม่บังคับ)',
   kindAll: 'ทุกประเภท', kindLeave: 'ลา', kindOt: 'OT', kindTimefix: 'แก้เวลา', kindWfh: 'WFH', kindOuting: 'ออกนอกสถานที่',
+  pickDepartments: 'เลือกแผนก', pickRoles: 'เลือกบทบาท', search: 'ค้นหา...', selectAll: 'เลือกทั้งหมด',
+  clear: 'ล้าง', done: 'เสร็จสิ้น', noResult: 'ไม่พบรายการ',
+  roleAll: 'ทุกบทบาท', roleSome: 'เฉพาะบางบทบาท', appliesTo: 'ใช้กับ',
+  roleSomeEmptyHint: 'ยังไม่ได้เลือกบทบาท — ตอนนี้ระบบจะถือว่าใช้กับทุกบทบาท',
+  autoManagerPlaceholder: '— อัตโนมัติ (manager ประจำแผนกผู้ยื่น) —',
+  autoExecutivePlaceholder: '— อัตโนมัติ (กรรมการผู้จัดการทุกคน) —',
+  recordAfterHrOnly: 'ต้องผ่าน HR — บันทึกหลัง HR อนุมัติ',
 }
 const DEFAULT_KINDS = [
   { value: 'all', k: 'kindAll' }, { value: 'leave', k: 'kindLeave' }, { value: 'ot', k: 'kindOt' },
@@ -77,6 +91,17 @@ export function FlowRuleCard({ rule, options, onChange, onRemove, t, kindOptions
   const recordAt = effectiveRecordStage(rule)
   const recordIdx = STAGES.findIndex((s) => s.key === recordAt)
 
+  const [roleMode, setRoleMode] = useState<'all' | 'some'>((rule.roleIds?.length ?? 0) > 0 ? 'some' : 'all')
+  const targetSource = rule.scope === 'department' ? options.departments : options.roles
+  const namesOf = (list: Array<{ id: number; name: string }>, ids: number[]) =>
+    ids.map((id) => list.find((x) => x.id === id)?.name ?? `#${id}`).join(', ')
+  const kindLabel = kinds.find((k) => k.value === rule.kind)?.label ?? rule.kind
+  const appliesText = [
+    rule.targetIds.length ? namesOf(targetSource, rule.targetIds) : tr('selectPrompt'),
+    rule.scope === 'department' ? (rule.roleIds?.length ? namesOf(options.roles, rule.roleIds) : tr('roleAll')) : null,
+    kindLabel,
+  ].filter(Boolean).join(' · ')
+
   const toggle = (stage: (typeof STAGES)[number]) => {
     const next = { ...on, [stage.key]: !on[stage.key] }
     const firstOn = STAGES.find((s) => next[s.key]) ?? STAGES[2]
@@ -93,38 +118,79 @@ export function FlowRuleCard({ rule, options, onChange, onRemove, t, kindOptions
   const nameOf = (id: number | null) => options.approvers.find((a) => a.id === id)?.name
   const summary = [tr('submitter'), ...activeStages.map((s) => nameOf(approverOf(s.key)) ?? tr(s.label))].join(' → ')
 
+  const pickerLabels = {
+    searchText: tr('search'), selectAllText: tr('selectAll'), clearText: tr('clear'),
+    doneText: tr('done'), noResultText: tr('noResult'),
+  }
+
   return (
     <section className="flow-card">
       <header className="flow-card-head">
         <div className="flow-card-target">
-          <label>
+          <div className="flow-field">
             <span>{tr('scope')}</span>
-            <select value={rule.scope} onChange={(e) => onChange({ scope: e.target.value as 'department' | 'role', departmentId: null, roleId: null })}>
-              <option value="department">{tr('scopeDepartment')}</option>
-              <option value="role">{tr('scopeRole')}</option>
-            </select>
-          </label>
-          <label>
+            <div className="flow-seg" role="radiogroup" aria-label={tr('scope')}>
+              {(['department', 'role'] as const).map((s) => (
+                <button key={s} type="button" role="radio" aria-checked={rule.scope === s}
+                  className={rule.scope === s ? 'is-on' : ''}
+                  onClick={() => {
+                    if (rule.scope === s) return
+                    setRoleMode('all')
+                    onChange({ scope: s, targetIds: [], departmentId: null, roleId: null, roleIds: [] })
+                  }}>
+                  {tr(s === 'department' ? 'scopeDepartment' : 'scopeRole')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flow-field">
             <span>{rule.scope === 'department' ? tr('department') : tr('role')}</span>
-            {rule.scope === 'department' ? (
-              <select value={rule.departmentId ?? ''} onChange={(e) => onChange({ departmentId: e.target.value ? Number(e.target.value) : null })}>
-                <option value="">{tr('selectPrompt')}</option>
-                {options.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            ) : (
-              <select value={rule.roleId ?? ''} onChange={(e) => onChange({ roleId: e.target.value ? Number(e.target.value) : null })}>
-                <option value="">{tr('selectPrompt')}</option>
-                {options.roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            )}
-          </label>
-          <label>
+            <TargetPicker
+              options={targetSource}
+              value={rule.targetIds}
+              title={rule.scope === 'department' ? tr('pickDepartments') : tr('pickRoles')}
+              emptyText={tr('selectPrompt')}
+              {...pickerLabels}
+              onChange={(ids) => onChange(rule.scope === 'department'
+                ? { targetIds: ids, departmentId: ids[0] ?? null, roleId: null }
+                : { targetIds: ids, roleId: ids[0] ?? null, departmentId: null })}
+            />
+          </div>
+
+          {rule.scope === 'department' && (
+            <div className="flow-field">
+              <span>{tr('roleFilter')}</span>
+              <div className="flow-seg" role="radiogroup" aria-label={tr('roleFilter')}>
+                <button type="button" role="radio" aria-checked={roleMode === 'all'} className={roleMode === 'all' ? 'is-on' : ''}
+                  onClick={() => { setRoleMode('all'); onChange({ roleIds: [] }) }}>{tr('roleAll')}</button>
+                <button type="button" role="radio" aria-checked={roleMode === 'some'} className={roleMode === 'some' ? 'is-on' : ''}
+                  onClick={() => setRoleMode('some')}>{tr('roleSome')}</button>
+              </div>
+              {roleMode === 'some' && (
+                <>
+                  <TargetPicker
+                    options={options.roles} value={rule.roleIds ?? []}
+                    title={tr('pickRoles')} emptyText={tr('pickRoles')}
+                    {...pickerLabels}
+                    onChange={(ids) => onChange({ roleIds: ids })}
+                  />
+                  {(rule.roleIds?.length ?? 0) === 0 && <small className="flow-target-hint">{tr('roleSomeEmptyHint')}</small>}
+                </>
+              )}
+            </div>
+          )}
+
+          <label className="flow-field">
             <span>{tr('kind')}</span>
             <select value={rule.kind} onChange={(e) => onChange({ kind: e.target.value })}>
               {kinds.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
             </select>
           </label>
+
+          <p className="flow-applies"><b>{tr('appliesTo')}:</b> {appliesText}</p>
         </div>
+
         <div className="flow-card-tools">
           <label className="flow-switch">
             <input type="checkbox" checked={rule.isActive} onChange={(e) => onChange({ isActive: e.target.checked })} />

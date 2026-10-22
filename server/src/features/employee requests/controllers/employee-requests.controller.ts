@@ -498,6 +498,10 @@ const firstStage = (user: any): 'pending_mgr' | 'pending_exec' | 'pending_hr' =>
 const FLOW_KINDS = [...KINDS, 'all']
 type FlowRuleRow = {
   scope: 'department' | 'role'; departmentId: number | null; roleId: number | null; kind: string;
+  /** กลุ่มเป้าหมาย: แผนก/บทบาทหลายตัวในกฎเดียว (ว่าง = ทั้งหมดใน scope) */
+  targetIds: number[];
+  /** กลุ่มบทบาทเพิ่มเติม — กฎจับคู่เมื่อผู้ยื่นอยู่ใน targetIds (ถ้าระบุ) และ roleIds (ถ้าระบุ) */
+  roleIds: number[];
   firstStage: 'default' | 'pending_mgr' | 'pending_exec' | 'pending_hr';
   managerUserId: number | null; executiveUserId: number | null;
   requireManagerStage: boolean; requireExecutiveStage: boolean; requireHrStage: boolean;
@@ -522,6 +526,12 @@ const defaultFlowFor = (user: any) => {
 const flowRuleRow = (r: any): FlowRuleRow => ({
   scope: String(r.scope) as FlowRuleRow['scope'], departmentId: r.department_id === null ? null : Number(r.department_id),
   roleId: r.role_id === null ? null : Number(r.role_id), kind: String(r.kind),
+  targetIds: Array.isArray(r.targetIds)
+    ? r.targetIds.map((value: unknown) => Number(value)).filter((value: number) => Number.isSafeInteger(value))
+    : [],
+  roleIds: Array.isArray(r.roleIds)
+    ? r.roleIds.map((value: unknown) => Number(value)).filter((value: number) => Number.isSafeInteger(value))
+    : [],
   firstStage: String(r.first_stage) as FlowRuleRow['firstStage'],
   managerUserId: r.manager_user_id === null ? null : Number(r.manager_user_id),
   executiveUserId: r.executive_user_id === null ? null : Number(r.executive_user_id),
@@ -531,16 +541,23 @@ const flowRuleRow = (r: any): FlowRuleRow => ({
   recordAfterStage: (r.record_after_stage === null || r.record_after_stage === undefined) ? null : String(r.record_after_stage) as FlowRuleRow['recordAfterStage'],
   visibleInRecords: r.visible_in_records === undefined ? true : Boolean(Number(r.visible_in_records)),
 })
-// เลือกกฎที่ match ผู้ยื่น + ประเภทเอกสาร (department เจาะจงกว่า role, kind เจาะจงกว่า all)
+// เลือกกฎที่ match ผู้ยื่น + ประเภทเอกสาร (kind เจาะจงกว่า all; กฎที่ระบุทั้งแผนก+บทบาทเจาะจงที่สุด)
+// กฎหนึ่งระบุกลุ่มได้: targetIds (แผนก หรือ บทบาทหลัก ตาม scope), roleIds (กรองบทบาทเพิ่ม) — ว่าง = ไม่จำกัด
 const matchFlowRule = (rules: FlowRuleRow[], user: any, kind: Kind): FlowRuleRow | null => {
+  const deptId = Number(user.department_id ?? -1)
+  const userRoleId = Number(user.role_id ?? -1)
+  const inList = (list: number[], id: number) => list.length === 0 || list.includes(id)
   const matches = rules.filter((rule) =>
     (rule.kind === 'all' || rule.kind === kind) && (
       rule.scope === 'department'
-        ? rule.departmentId !== null && Number(user.department_id) === rule.departmentId
-        : rule.roleId !== null && Number(user.role_id) === rule.roleId
+        ? inList(rule.targetIds, deptId) && inList(rule.roleIds, userRoleId)
+        : rule.targetIds.includes(userRoleId) && inList(rule.roleIds, userRoleId)
     ),
   )
-  const rank = (rule: FlowRuleRow) => (rule.scope === 'department' ? 2 : 1) * 2 + (rule.kind === kind ? 1 : 0)
+  // เจาะจงมากขึ้นได้คะแนนมากกว่า: ระบุแผนก > ระบุบทบาท > kind เจาะจง
+  const rank = (rule: FlowRuleRow) =>
+    (rule.scope === 'department' ? 2 : 1) * 4 + (rule.kind === kind ? 2 : 0)
+      + (rule.scope === 'department' && rule.targetIds.length ? 1 : 0) + (rule.roleIds.length ? 1 : 0)
   return matches.sort((left, right) => rank(right) - rank(left))[0] ?? null
 }
 // คำนวณ flow ทั้งหมดของเอกสาร: ขั้นแรก + ลำดับขั้นที่เหลือ + ผู้อนุมัติที่กำหนดเอง
@@ -599,16 +616,34 @@ const stepsOf = (rule: Pick<FlowRuleRow, 'firstStage' | 'requireManagerStage' | 
 }
 
 async function loadFlowRule(conn: any, companyId: number, user: any, kind: Kind): Promise<FlowRuleRow | null> {
-  const [rows] = await conn.query(
-    `SELECT scope, department_id, role_id, kind, first_stage, manager_user_id, executive_user_id,
-            require_manager_stage, require_executive_stage, require_hr_stage
-       FROM document_flow_rules
-      WHERE company_id = ? AND is_active = 1
-        AND kind IN (?, 'all')
-        AND ((scope = 'department' AND department_id = ?) OR (scope = 'role' AND role_id = ?))`,
-    [companyId, kind, user.department_id ?? -1, user.role_id ?? -1],
-  )
-  return matchFlowRule(rows.map(flowRuleRow), user, kind)
+  const [rules] = await conn.query(
+    `SELECT rule.id, rule.scope, rule.department_id, rule.role_id, rule.kind, rule.first_stage,
+            rule.manager_user_id, rule.executive_user_id, rule.require_manager_stage, rule.require_executive_stage,
+            rule.require_hr_stage, rule.record_after_stage, rule.visible_in_records
+       FROM document_flow_rules rule
+      WHERE rule.company_id = ? AND rule.is_active = 1 AND rule.kind IN (?, 'all')`,
+    [companyId, kind],
+  ) as [any[], unknown]
+  if (!rules.length) return null
+
+  const [targets] = await conn.query(
+    `SELECT rule_id, scope, target_id FROM document_flow_rule_targets WHERE rule_id IN (?)`,
+    [rules.map((rule: any) => Number(rule.id))],
+  ) as [Array<{ rule_id: number; scope: 'department' | 'role'; target_id: number }>, unknown]
+
+  const rows: FlowRuleRow[] = rules.map((rule: any) => {
+    const own = targets.filter((t) => Number(t.rule_id) === Number(rule.id))
+    // กฎเก่าที่ยังไม่มีแถวใน targets → ใช้ department_id / role_id เดียว
+    const legacy = rule.scope === 'department' ? rule.department_id : rule.role_id
+    const targetIds = own.filter((t) => t.scope === rule.scope).map((t) => Number(t.target_id))
+    return flowRuleRow({
+      ...rule,
+      targetIds: targetIds.length ? targetIds : legacy !== null ? [Number(legacy)] : [],
+      // role-filter มีเฉพาะกฎ scope=department (scope=role ใช้ role เป็น target หลักอยู่แล้ว)
+      roleIds: rule.scope === 'department' ? own.filter((t) => t.scope === 'role').map((t) => Number(t.target_id)) : [],
+    })
+  })
+  return matchFlowRule(rows, user, kind)
 }
 
 export async function flowRules(req: Request, res: Response) {
@@ -617,14 +652,43 @@ export async function flowRules(req: Request, res: Response) {
   const [rules] = await db.query<any[]>(
     `SELECT rule.id, rule.scope, rule.department_id, rule.role_id, rule.kind, rule.first_stage, rule.manager_user_id, rule.executive_user_id,
             rule.require_manager_stage, rule.require_executive_stage, rule.require_hr_stage, rule.record_after_stage, rule.visible_in_records, rule.is_active,
-            manager.name AS manager_name, executive.name AS executive_name, role.name AS role_name, dep.name AS department_name
+            manager.name AS manager_name, executive.name AS executive_name, role.name AS role_name, dep.name AS department_name,
+            target.target_id AS target_id
        FROM document_flow_rules rule
        LEFT JOIN users manager ON manager.id = rule.manager_user_id
        LEFT JOIN users executive ON executive.id = rule.executive_user_id
        LEFT JOIN roles role ON role.id = rule.role_id
        LEFT JOIN departments dep ON dep.id = rule.department_id
-      WHERE rule.company_id = ? ORDER BY rule.scope, rule.kind, rule.id`, [companyId],
+       LEFT JOIN document_flow_rule_targets target
+         ON target.rule_id = rule.id AND target.scope = rule.scope
+      WHERE rule.company_id = ? ORDER BY rule.scope, rule.kind, rule.id, target.target_id`, [companyId],
   )
+  // role-filter: บทบาทที่กฎจำกัด (เก็บเป็น scope='role' เมื่อกฎเป็น scope='department')
+  const [roleFilterRows] = await db.query<any[]>(
+    `SELECT rule_id, target_id FROM document_flow_rule_targets
+      WHERE scope = 'role' AND rule_id IN (SELECT id FROM document_flow_rules WHERE company_id = ?)`,
+    [companyId],
+  )
+  const roleFilters = new Map<number, number[]>()
+  for (const row of roleFilterRows) {
+    const list = roleFilters.get(Number(row.rule_id)) ?? []
+    list.push(Number(row.target_id))
+    roleFilters.set(Number(row.rule_id), list)
+  }
+  // รวมแถวที่ join กับ targets หลายแถวให้เหลือกฎเดียว + targetIds เป็น array
+  const grouped: any[] = []
+  const byId = new Map<number, any>()
+  for (const row of rules) {
+    const existing = byId.get(Number(row.id))
+    if (existing) {
+      if (row.target_id !== null) existing.targetIds.push(Number(row.target_id))
+    } else {
+      const entry = { ...row, targetIds: row.target_id === null ? [] : [Number(row.target_id)], roleIds: row.scope === 'department' ? (roleFilters.get(Number(row.id)) ?? []) : [] }
+      delete entry.target_id
+      byId.set(Number(row.id), entry)
+      grouped.push(entry)
+    }
+  }
   const [departments] = await db.query<any[]>(
     `SELECT id, name, name = 'HR Div.' AS is_hr_department
        FROM departments WHERE company_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY name`, [companyId],
@@ -640,10 +704,10 @@ export async function flowRules(req: Request, res: Response) {
         AND r.name IN ('manager', 'executive', 'hr', 'admin') ORDER BY u.name`, [companyId],
   )
   res.json({
-    rules: rules.map(flowRuleRow).map((rule, index) => ({
-      id: Number(rules[index].id), isActive: Boolean(Number(rules[index].is_active)), ...rule,
-      managerName: rules[index].manager_name ?? '', executiveName: rules[index].executive_name ?? '',
-      roleName: rules[index].role_name ?? '', departmentName: rules[index].department_name ?? '',
+    rules: grouped.map(flowRuleRow).map((rule, index) => ({
+      id: Number(grouped[index].id), isActive: Boolean(Number(grouped[index].is_active)), ...rule,
+      managerName: grouped[index].manager_name ?? '', executiveName: grouped[index].executive_name ?? '',
+      roleName: grouped[index].role_name ?? '', departmentName: grouped[index].department_name ?? '',
       steps: stepsOf(rule),
     })),
     departments: departments.map((row) => ({ id: Number(row.id), name: String(row.name), isHrDepartment: Boolean(Number(row.is_hr_department)) })),
@@ -664,8 +728,16 @@ export async function updateFlowRules(req: Request, res: Response) {
   if (!Array.isArray(incoming)) throw httpError(400, 'ข้อมูลกฎ flow ไม่ถูกต้อง')
   for (const item of incoming) {
     if (!['department', 'role'].includes(String(item.scope))) throw httpError(400, 'scope ไม่ถูกต้อง')
-    if (String(item.scope) === 'department' && !Number.isSafeInteger(Number(item.departmentId))) throw httpError(400, 'ต้องเลือกแผนก')
-    if (String(item.scope) === 'role' && !Number.isSafeInteger(Number(item.roleId))) throw httpError(400, 'ต้องเลือกบทบาท')
+    // รองรับหลายแผนก/หลายบทบาทในกฎเดียว: targetIds = array ของ id (รองรับ departmentId/roleId เดี่ยวด้วยเพื่อ backward compatible)
+    const targetIds: number[] = Array.isArray(item.targetIds)
+      ? item.targetIds.map((value: unknown) => Number(value))
+      : [String(item.scope) === 'department' ? Number(item.departmentId) : Number(item.roleId)]
+    if (targetIds.length === 0 || targetIds.some((value) => !Number.isSafeInteger(value) || value <= 0)) {
+      throw httpError(400, String(item.scope) === 'department' ? 'ต้องเลือกแผนก' : 'ต้องเลือกบทบาท')
+    }
+    item._targetIds = [...new Set(targetIds)]
+    if (String(item.scope) === 'department') item.departmentId = item._targetIds[0]
+    else item.roleId = item._targetIds[0]
     if (!FLOW_KINDS.includes(String(item.kind))) throw httpError(400, 'ประเภทเอกสารไม่ถูกต้อง')
     if (!['default', 'pending_mgr', 'pending_exec', 'pending_hr'].includes(String(item.firstStage))) throw httpError(400, 'ขั้นแรกไม่ถูกต้อง')
   }
@@ -677,10 +749,10 @@ export async function updateFlowRules(req: Request, res: Response) {
     for (const item of incoming) {
       const managerId = item.managerUserId === null || item.managerUserId === '' ? null : Number(item.managerUserId)
       const executiveId = item.executiveUserId === null || item.executiveUserId === '' ? null : Number(item.executiveUserId)
-      await conn.execute(
+      const [insertResult] = await conn.execute(
         `INSERT INTO document_flow_rules
-          (company_id, scope, department_id, role_id, kind, first_stage, manager_user_id, executive_user_id,
-           require_manager_stage, require_executive_stage, require_hr_stage, record_after_stage, visible_in_records, is_active, updated_by)
+           (company_id, scope, department_id, role_id, kind, first_stage, manager_user_id, executive_user_id,
+            require_manager_stage, require_executive_stage, require_hr_stage, record_after_stage, visible_in_records, is_active, updated_by)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [companyId, String(item.scope), String(item.scope) === 'department' ? Number(item.departmentId) : null,
           String(item.scope) === 'role' ? Number(item.roleId) : null, String(item.kind), String(item.firstStage),
@@ -690,6 +762,29 @@ export async function updateFlowRules(req: Request, res: Response) {
           item.visibleInRecords === false ? 0 : 1,
           item.isActive === false ? 0 : 1, req.user!.id],
       )
+      const ruleId = Number((insertResult as { insertId: number }).insertId)
+      // บันทึก targets หลัก (แผนกหลายตัว เมื่อ scope=department / บทบาทหลายตัว เมื่อ scope=role)
+      if ((item._targetIds as number[]).length > 1) {
+        await conn.execute(`UPDATE document_flow_rules SET department_id = NULL, role_id = NULL WHERE id = ?`, [ruleId])
+      }
+      for (const targetId of item._targetIds as number[]) {
+        await conn.execute(
+          `INSERT IGNORE INTO document_flow_rule_targets (rule_id, scope, target_id) VALUES (?, ?, ?)`,
+          [ruleId, String(item.scope), targetId],
+        )
+      }
+      // role-filter: บทบาทเพิ่มเติมที่กฎจำกัด (เฉพาะกฎ scope=department ที่ระบุ roleIds มา)
+      const roleFilterIds: number[] = Array.isArray(item.roleIds)
+        ? [...new Set((item.roleIds as unknown[]).map((value) => Number(value)).filter((value) => Number.isSafeInteger(value) && value > 0))] as number[]
+        : []
+      if (String(item.scope) === 'department') {
+        for (const roleId of roleFilterIds) {
+          await conn.execute(
+            `INSERT IGNORE INTO document_flow_rule_targets (rule_id, scope, target_id) VALUES (?, 'role', ?)`,
+            [ruleId, roleId],
+          )
+        }
+      }
     }
     await conn.commit()
     await logActivity({
