@@ -186,7 +186,12 @@ export default function Sidebar({
     const [companiesItem] = accessItems.splice(companiesIndex, 1);
     accessItems.splice(accessItems.findIndex((item) => item.key === "settings-modules") + 1, 0, companiesItem);
   }
-  const canViewUsers = Boolean(user && canViewModule(user, "users"));
+  const isHrDepartment = user?.department?.trim().toLowerCase() === "hr div.";
+  const canViewUsers = Boolean(
+    user &&
+    canViewModule(user, "users") &&
+    !isHrDepartment
+  );
   const canViewActivity = Boolean(user && canViewModule(user, "activity_logs"));
   const hasSettingsItems = canViewUsers || accessItems.length > 0 || canViewActivity;
   const hasActiveSettingsItem = activeItem.startsWith("settings-");
