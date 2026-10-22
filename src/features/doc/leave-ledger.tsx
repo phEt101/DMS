@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import EmployeeSearchSelect from '../../components/employee-search-select'
 import ConfirmDialog from '../../components/confirm-dialog'
 import { useToast } from '../../components/toast-provider'
+import { exportLedgerDocx, exportLedgerPdf, exportLedgerXlsx } from './leave-ledger/exports'
 
 export interface LedgerPerson {
   id: string
@@ -33,8 +34,6 @@ export interface LedgerEntry {
 
 const categories = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
 const formatDate = (value?: string, locale = 'th-TH') => value ? new Intl.DateTimeFormat(locale, { day:'numeric', month:'short', year:'2-digit' }).format(new Date(`${value}T00:00:00`)) : ''
-const esc = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]!)
-
 export function LeaveLedger({ person, people, entries, onPersonChange, companyName, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; companyName?: string; copy: any }) {
   const labels: Record<(typeof categories)[number], string> = { personal:c.ledger.personal, sick:c.ledger.sick, vacation:c.ledger.vacation, unpaid:c.leaveTypes.unpaid, other:c.leaveTypes.other }
   const locale = c.dateLocale
@@ -42,6 +41,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
   const departments = useMemo(() => Array.from(new Set(people.map((employee) => employee.department).filter(Boolean))).sort(), [people])
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [confirmExport, setConfirmExport] = useState<'excel' | 'word' | 'pdf' | null>(null)
+  const [exporting, setExporting] = useState(false)
   const { showToast } = useToast()
   const filteredPeople = useMemo(() => departmentFilter ? people.filter((employee) => employee.department === departmentFilter) : people, [people, departmentFilter])
   const rows = useMemo(() => [...entries].sort((a, b) => (a.from ?? '').localeCompare(b.from ?? '')).slice(0, 15), [entries])
@@ -49,37 +49,27 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
   const printRows = Array.from({ length:15 }, (_, index) => rows[index] ?? null)
   const signatureCell = (value: string) => <td className="leave-sheet-approval">{value}</td>
 
-  const exportCsv = () => {
-    const quote = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
-    const csv = [
-      [c.ledger.sequence,c.ledger.dateType,c.ledger.dateType,...categories.map((type) => labels[type]),c.ledger.totalTime,c.ledger.reason,c.ledger.requester,c.ledger.manager,c.detail.hr],
-      ...printRows.map((row, index) => [index + 1, formatDate(row?.from, locale), formatDate(row?.to, locale), ...categories.map((type) => row?.leaveType === type ? row.days ?? '' : ''), row?.days ?? '', row ? c.sampleDocuments[String(row.id)]?.reason ?? row.reason ?? '' : '', row ? person.name : '', row && row.status !== 'pending_mgr' && row.status !== 'pending_exec' ? row.rejectedBy === 'manager' || row.rejectedBy === 'executive' ? c.statuses.rejected : c.statuses.approved : '', row?.status === 'approved' ? c.statuses.approved : row?.status === 'pending_hr' ? c.statuses.pending : row?.rejectedBy === 'hr' ? c.statuses.rejected : '']),
-    ].map((line) => line.map(quote).join(',')).join('\r\n')
-    const blob = new Blob(['\ufeff', csv], { type:'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `ใบลา_${person.name.replace(/\s+/g, '_')}_2569.csv`; link.click(); URL.revokeObjectURL(url)
-  }
-  const exportWord = () => {
-    const sheet = document.querySelector('.leave-sheet')?.outerHTML ?? ''
-    const blob = new Blob([`<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif}table{border-collapse:collapse;width:100%}th,td{border:1px solid #000;padding:4px}</style></head><body>${sheet}</body></html>`], { type:'application/msword' })
-    const url = URL.createObjectURL(blob); const link = document.createElement('a')
-    link.href = url; link.download = `ใบลา_${person.name.replace(/\s+/g, '_')}_2569.doc`; link.click(); URL.revokeObjectURL(url)
-  }
-  const runExport = () => {
-    if (confirmExport === 'pdf') {
-      setConfirmExport(null)
-      showToast(c.ledger.exportReady, 'success')
-      window.setTimeout(() => window.print(), 0)
-      return
-    }
-    if (confirmExport === 'excel') exportCsv()
-    else if (confirmExport === 'word') exportWord()
-    if (confirmExport) showToast(c.ledger.exportReady, 'success')
+  const runExport = async () => {
+    const kind = confirmExport
     setConfirmExport(null)
+    if (!kind) return
+    setExporting(true)
+    try {
+      if (kind === 'excel') await exportLedgerXlsx(person, entries, companyName, c)
+      else if (kind === 'word') await exportLedgerDocx(person, entries, companyName, c)
+      else await exportLedgerPdf(person)
+      showToast(c.ledger.exportReady, 'success')
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : c.ledger.exportError, 'error')
+    } finally {
+      setExporting(false)
+    }
   }
   const confirmDescription = confirmExport === 'pdf'
     ? c.ledger.exportConfirmPdf
-    : c.ledger.exportConfirmExcel
+    : confirmExport === 'word'
+      ? c.ledger.exportConfirmWord
+      : c.ledger.exportConfirmExcel
 
   return <div className="leave-ledger-screen">
     <div className="leave-ledger-toolbar">
@@ -101,10 +91,10 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
         <EmployeeSearchSelect label={c.ledger.chooseEmployee} value={person.id} options={filteredPeople.map((employee) => ({ id: employee.id, name: employee.name, detail: [employee.code, employee.department].filter(Boolean).join(' · ') }))} onChange={onPersonChange} />
       </>}
       <div className="leave-export-group">
-        <button type="button" className="leave-export-btn is-excel" onClick={() => setConfirmExport('excel')}>{c.ledger.exportExcel}</button>
-        <button type="button" className="leave-export-btn is-word" onClick={() => setConfirmExport('word')}>{c.ledger.word}</button>
-        <button type="button" className="leave-export-btn is-pdf" onClick={() => setConfirmExport('pdf')}>{c.ledger.pdf}</button>
-        <button type="button" className="leave-export-btn is-print" onClick={() => window.print()}>{c.ledger.print}</button>
+        <button type="button" className="leave-export-btn is-excel" disabled={exporting} onClick={() => setConfirmExport('excel')}>{c.ledger.exportExcel}</button>
+        <button type="button" className="leave-export-btn is-word" disabled={exporting} onClick={() => setConfirmExport('word')}>{c.ledger.word}</button>
+        <button type="button" className="leave-export-btn is-pdf" disabled={exporting} onClick={() => setConfirmExport('pdf')}>{c.ledger.pdf}</button>
+        <button type="button" className="leave-export-btn is-print" disabled={exporting} onClick={() => window.print()}>{c.ledger.print}</button>
       </div>
     </div>
     <div className="leave-sheet-scroll"><article className="leave-sheet">
@@ -151,7 +141,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
       confirmLabel={c.messages.confirm}
       cancelLabel={c.messages.cancel}
       onOpenChange={(open) => { if (!open) setConfirmExport(null) }}
-      onConfirm={runExport}
+      onConfirm={() => { void runExport() }}
     />
   </div>
 }

@@ -7,7 +7,6 @@ export default function PhotoField({
   value,
   alt,
   onFile,
-  onOpenCamera,
   onRemove,
   translations,
 }: {
