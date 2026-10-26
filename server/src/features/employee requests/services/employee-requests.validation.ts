@@ -52,16 +52,26 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
 
   if (kind === 'leave') {
     const type = v('leaveType'), from = v('from'), to = v('to')
-    const isHour = Boolean(ctx.leaveType?.allowByHour) && values.byHour === true
+    const isHour = Boolean(ctx.leaveType?.allowByHour) && (values.byHour === true || (!values.byHour && Number(values.hours ?? '') > 0))
     let qty = Number(v('days'))
     add(Boolean(from && to && to >= from), 'dateRange')
     if (isHour) {
       const start = minutes(v('start')), end = minutes(v('end')), hours = (end - start) / 60
-      add(start >= 0 && end > start, 'endAfterStart')
-      add(hours > 0 && hours <= p.hoursPerDay, 'emergencyHours', { hours: p.hoursPerDay })
-      const rounded = hours > 0 ? Math.ceil(hours / p.hourStep) * p.hourStep : 0
-      values.hours = rounded ? String(rounded) : ''
-      values.days = rounded ? String(rounded / p.hoursPerDay) : ''
+      const typedHours = Number(v('hours'))
+      if (start >= 0 && end > start) {
+        // มีเวลาเริ่ม/สิ้นสุด → คำนวณจากช่วงเวลาเหมือนเดิม
+        add(start >= 0 && end > start, 'endAfterStart')
+        add(hours > 0 && hours <= p.hoursPerDay, 'emergencyHours', { hours: p.hoursPerDay })
+        const rounded = hours > 0 ? Math.ceil(hours / p.hourStep) * p.hourStep : 0
+        values.hours = rounded ? String(rounded) : ''
+        values.days = rounded ? String(rounded / p.hoursPerDay) : ''
+      } else {
+        // พิมพ์จำนวนชั่วโมงตรง ๆ ได้เลย (ไม่ต้องใส่เวลาเริ่ม/สิ้นสุด)
+        add(typedHours > 0 && typedHours <= p.hoursPerDay, 'emergencyHours', { hours: p.hoursPerDay })
+        const rounded = typedHours > 0 ? Math.ceil(typedHours / p.hourStep) * p.hourStep : 0
+        values.hours = rounded ? String(rounded) : ''
+        values.days = rounded ? String(rounded / p.hoursPerDay) : ''
+      }
       qty = Number(values.days) || 0
     } else {
       values.byHour = false

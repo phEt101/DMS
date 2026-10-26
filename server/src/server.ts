@@ -1,15 +1,18 @@
 import { app } from './app.js'
 import { db } from './config/database.js'
 import { env } from './config/env.js'
+import { startMedicalCertificateRetentionJob, stopMedicalCertificateRetentionJob } from './features/employee requests/services/medical-certificate-retention.service.js'
 
 const server = app.listen(env.port, env.host, () => {
   console.log(`Boswell DMS API listening at http://${env.host}:${env.port}`)
+  startMedicalCertificateRetentionJob()
 })
 
 let shuttingDown = false
 async function shutdown(signal: NodeJS.Signals) {
   if (shuttingDown) return
   shuttingDown = true
+  stopMedicalCertificateRetentionJob()
   console.log(`${signal} received, shutting down`)
   server.close(async (error) => {
     await db.end()

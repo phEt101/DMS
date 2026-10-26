@@ -6,7 +6,7 @@ import { db } from '../../../config/database.js'
 import { httpError } from '../../../middleware/errors.js'
 import { validateRequest, type Kind, type LeaveTypeRow, type Policy, type ValidationContext, type Values } from '../services/employee-requests.validation.js'
 import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
-import { medicalCertificateDirectory } from '../middleware/medical-certificate-upload.middleware.js'
+import { medicalCertificateDirectory, medicalCertificateDisposalDirectory, MEDICAL_CERTIFICATE_RETENTION_DAYS, moveMedicalCertificateToDisposal, deleteMedicalCertificateFile } from '../middleware/medical-certificate-upload.middleware.js'
 
 // ใช้สิทธิ์เดิมของโมดูลเอกสาร + เพิ่ม 'จัดการนโยบายการลา' 1 รายการ (ต้อง seed ในตาราง permissions)
 const PERM = { submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
@@ -1079,6 +1079,25 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
       )
     }
     await notify(conn, [row.employee_user_id], id, next === 'approved' ? 'approved' : next === 'pending_hr' ? 'forwarded_to_hr' : 'forwarded_to_exec')
+    // ไม่อนุมัติ → ย้ายไฟล์ใบรับรองแพทย์ไปโฟลเดอร์พัก เก็บไว้อีก 30 วันก่อนลบจริง
+    let certificatePaths: string[] = []
+    if (action === 'reject') {
+      const [certRows] = await conn.query<any[]>(
+        `SELECT storage_path FROM employee_request_medical_certificates WHERE request_id = ? AND disposal_status = 'active'`, [id],
+      )
+      certificatePaths = certRows.map((cert) => String(cert.storage_path))
+      if (certificatePaths.length) {
+        await conn.execute(
+          `UPDATE employee_request_medical_certificates
+             SET disposal_status = 'retained', disposal_at = DATE_ADD(NOW(), INTERVAL ? DAY), moved_at = NOW()
+           WHERE request_id = ? AND disposal_status = 'active'`,
+          [MEDICAL_CERTIFICATE_RETENTION_DAYS, id],
+        )
+        await conn.execute(
+          `UPDATE employee_request_leave_details SET has_medical_certificate = 0 WHERE request_id = ?`, [id],
+        )
+      }
+    }
     if (next === 'pending_exec') {
       // ขั้น executive: แจ้งผู้ประกอบการที่กำหนดเอง (ถ้ามี) หรือทุกคนผู้ประกอบการ
       const execId = Number(row.executive_user_id ?? 0)
@@ -1090,6 +1109,21 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
       await notify(conn, hrRecipients.length ? hrRecipients : await findExecUserIds(conn, companyId), id, 'submitted')
     }
     await conn.commit()
+    // ย้ายไฟล์จริงไปโฟลเดอร์พักหลัง commit DB สำเร็จ (ถ้าย้ายไม่ได้ก็ไม่กระทบธุรกรรม)
+    // เปลี่ยนชื่อไฟล์ + stored_name ใน DB ด้วย เพื่อไม่ให้ชน unique key กับไฟล์อัปโหลดใหม่ที่ใช้ชื่อเดิม
+    const disposalPaths: string[] = []
+    const movedStoredNames: string[] = []
+    for (const certPath of certificatePaths) {
+      const moved = moveMedicalCertificateToDisposal(certPath)
+      if (moved) { disposalPaths.push(moved.path); movedStoredNames.push(moved.storedName) }
+    }
+    if (disposalPaths.length) {
+      await db.execute(
+        `UPDATE employee_request_medical_certificates
+           SET storage_path = ?, stored_name = ? WHERE request_id = ?`,
+        [disposalPaths[0]!, movedStoredNames[0]!, id],
+      )
+    }
     await logActivity({
       userId: me,
       module: 'documents',
@@ -1114,6 +1148,13 @@ export async function cancel(req: Request, res: Response) {
   needDocumentModule(req)
   const id = idParam(req)
   const companyId = companyIdOf(req)
+  // ดึง path ไฟล์ใบรับรองแพทย์ไว้ก่อน (เผื่อย้ายไฟล์หลังยกเลิกสำเร็จ)
+  const [certRows] = await db.query<any[]>(
+    `SELECT certificate.storage_path FROM employee_request_medical_certificates certificate
+       JOIN employee_requests request ON request.id = certificate.request_id
+      WHERE certificate.request_id = ? AND request.company_id = ? AND certificate.disposal_status = 'active'`,
+    [id, companyId],
+  )
   const [result] = await db.execute<any>(
     `UPDATE employee_requests SET status = 'cancelled', decided_at = CURRENT_TIMESTAMP
       WHERE id = ? AND company_id = ? AND employee_user_id = ?
@@ -1121,6 +1162,29 @@ export async function cancel(req: Request, res: Response) {
     [id, companyId, req.user!.id],
   )
   if (!result.affectedRows) throw httpError(409, 'ไม่สามารถยกเลิกเอกสารนี้ได้')
+  // ยกเลิกแล้ว → ย้ายไฟล์ใบรับรองแพทย์ไปโฟลเดอร์พัก เก็บไว้อีก 30 วันก่อนลบจริง
+  let disposalPaths: string[] = []
+  let movedStoredNames: string[] = []
+  if (certRows.length) {
+    await db.execute(
+      `UPDATE employee_request_medical_certificates
+         SET disposal_status = 'retained', disposal_at = DATE_ADD(NOW(), INTERVAL ? DAY), moved_at = NOW()
+       WHERE request_id = ? AND disposal_status = 'active'`,
+      [MEDICAL_CERTIFICATE_RETENTION_DAYS, id],
+    )
+    await db.execute(`UPDATE employee_request_leave_details SET has_medical_certificate = 0 WHERE request_id = ?`, [id])
+    for (const cert of certRows) {
+      const moved = moveMedicalCertificateToDisposal(cert.storage_path)
+      if (moved) { disposalPaths.push(moved.path); movedStoredNames.push(moved.storedName) }
+    }
+    if (disposalPaths.length) {
+      await db.execute(
+        `UPDATE employee_request_medical_certificates
+           SET storage_path = ?, stored_name = ? WHERE request_id = ?`,
+        [disposalPaths[0]!, movedStoredNames[0]!, id],
+      )
+    }
+  }
   const [rows] = await db.query<any[]>(
     `SELECT request_no, kind FROM employee_requests WHERE id = ? AND company_id = ? LIMIT 1`, [id, companyId],
   )

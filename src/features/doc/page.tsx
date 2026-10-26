@@ -40,7 +40,7 @@ const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; i
 }
 const LEAVE_TYPES_DEFAULT: Record<string, string> = { personal:'ลากิจ', sick:'ลาป่วย', vacation:'ลาพักร้อน', emergency:'ลาพักร้อนฉุกเฉิน', unpaid:'ลากิจไม่รับค่าจ้าง', maternity:'ลาคลอด', ordain:'ลาบวช', marriage:'ลาสมรส', other:'ลาอื่น ๆ' }
 const FORM_FIELDS_DEFAULT: Record<DocKind, Array<{ key: string; label: string; type: 'text' | 'date' | 'time' | 'number' | 'textarea' | 'select' | 'checkbox'; options?: Record<string, string>; step?: number; wide?: boolean }>> = {
-  leave:[{key:'leaveType',label:'ประเภทการลา',type:'select',options:LEAVE_TYPES_DEFAULT,wide:true},{key:'byHour',label:'ลาเป็นชั่วโมง (ลาพักร้อนฉุกเฉินเท่านั้น · 1 วัน = 8 ชม.)',type:'checkbox',wide:true},{key:'from',label:'วันที่ลา',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'start',label:'เวลาเริ่มลา',type:'time'},{key:'end',label:'เวลาสิ้นสุดลา',type:'time'},{key:'days',label:'จำนวนวันทำงาน (แก้ไขได้ เช่น 0.5)',type:'number',step:.5,wide:true},{key:'hours',label:'รวมชั่วโมง (คำนวณอัตโนมัติ)',type:'number',step:.5,wide:true},{key:'reason',label:'เหตุผลการลา',type:'textarea',wide:true}],
+  leave:[{key:'leaveType',label:'ประเภทการลา',type:'select',options:LEAVE_TYPES_DEFAULT,wide:true},{key:'byHour',label:'ลาเป็นชั่วโมง (ระบุจำนวนชั่วโมงได้เลย · 1 วัน = 8 ชม.)',type:'checkbox',wide:true},{key:'from',label:'วันที่ลา',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'start',label:'เวลาเริ่มลา',type:'time'},{key:'end',label:'เวลาสิ้นสุดลา',type:'time'},{key:'hours',label:'จำนวนชั่วโมงที่ลา (เลือกวัน = คำนวณอัตโนมัติ · แก้ไขได้ เช่น 1 = ลา 1 ชั่วโมง)',type:'number',step:.5,wide:true},{key:'reason',label:'เหตุผลการลา',type:'textarea',wide:true}],
   ot:[{key:'dayType',label:'ประเภทวัน',type:'select',options:{weekday:'วันทำงานปกติ',weekend:'วันหยุดประจำสัปดาห์',holiday:'วันหยุดนักขัตฤกษ์'},wide:true},{key:'date',label:'วันที่ทำ OT',type:'date',wide:true},{key:'start',label:'เวลาเริ่ม',type:'time'},{key:'end',label:'เวลาสิ้นสุด',type:'time'},{key:'hours',label:'รวม (ชั่วโมง)',type:'number',step:.5,wide:true},{key:'task',label:'งาน / โครงการที่ทำ',type:'text',wide:true},{key:'reason',label:'เหตุผลที่ต้องทำ OT',type:'textarea',wide:true}],
   timefix:[{key:'date',label:'วันที่ต้องการแก้ไข',type:'date'},{key:'cause',label:'สาเหตุ',type:'select',options:{forgot:'ลืมสแกนนิ้ว',device:'เครื่องสแกนขัดข้อง',offsite:'ปฏิบัติงานนอกสถานที่',other:'อื่น ๆ'}},{key:'inTime',label:'เวลาเข้างานที่ถูกต้อง',type:'time'},{key:'outTime',label:'เวลาออกงานที่ถูกต้อง',type:'time'},{key:'reason',label:'รายละเอียด',type:'textarea',wide:true}],
   outing:[{key:'from',label:'ตั้งแต่วันที่',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'outTime',label:'เวลาออก',type:'time'},{key:'backTime',label:'เวลากลับโดยประมาณ',type:'time'},{key:'company',label:'บริษัท',type:'text',wide:true},{key:'project',label:'โครงการ',type:'text',wide:true},{key:'customerName',label:'ชื่อลูกค้า',type:'text'},{key:'customerPosition',label:'ตำแหน่ง',type:'text'},{key:'phone',label:'เบอร์โทร',type:'text',wide:true},{key:'workDetails',label:'รายละเอียดงาน',type:'textarea',wide:true},{key:'remark',label:'หมายเหตุ',type:'textarea',   wide:true}],
@@ -473,13 +473,30 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       if ((selectedKind === 'leave' || selectedKind === 'outing') && (key === 'from' || key === 'to')) {
         if (next.from && !next.to) next.to = next.from
         if (next.to && !next.from) next.from = next.to
+        // เลือกวัน → แสดงชั่วโมงอัตโนมัติ (1 วันทำงาน = hoursPerDay ชม.) เหมือนของเดิมที่แสดงเป็นวัน
         next.days = String(daysBetween(String(next.from ?? ''), String(next.to ?? '')) || '')
+        const autoDays = Number(next.days) || 0
+        next.hours = autoDays > 0 ? String(autoDays * policy.hoursPerDay) : ''
       }
       if (selectedKind === 'leave' && next.leaveType === 'emergency' && next.byHour === true) {
         next.to = next.from ?? ''
         const duration = (timeMinutes(String(next.end ?? '')) - timeMinutes(String(next.start ?? ''))) / 60
         next.hours = duration > 0 ? String(Math.ceil(duration / policy.hourStep) * policy.hourStep) : ''
         next.days = duration > 0 ? String(Math.ceil(duration / policy.hourStep) * policy.hourStep / policy.hoursPerDay) : ''
+      }
+      // พิมพ์จำนวนชั่วโมงตรง ๆ ได้เลย (ทุกประเภทการลา) — ระบบคำนวณเป็นวันให้เอง
+      if (selectedKind === 'leave' && key === 'hours') {
+        const typed = Number(String(value).trim())
+        if (Number.isFinite(typed) && typed > 0) {
+          const rounded = Math.ceil(typed / policy.hourStep) * policy.hourStep
+          next.byHour = true
+          next.hours = String(rounded)
+          next.days = String(rounded / policy.hoursPerDay)
+          next.to = next.from ?? ''
+        } else {
+          next.byHour = false
+          next.days = String(daysBetween(String(next.from ?? ''), String(next.to ?? '')) || '')
+        }
       }
       if (selectedKind === 'ot' && (key === 'start' || key === 'end')) {
         const hours = (timeMinutes(String(next.end ?? '')) - timeMinutes(String(next.start ?? ''))) / 60
