@@ -9,37 +9,60 @@ function id(value: string | string[] | undefined) {
   return value
 }
 
+const has = (input: Record<string, unknown>, field: string) => Object.hasOwn(input, field)
+
+function readCompanyId(value: unknown) {
+  const companyId = Number(value)
+  if (!Number.isSafeInteger(companyId) || companyId < 1) throw httpError(400, 'Valid company is required')
+  return companyId
+}
+
+function readName(value: unknown) {
+  const name = typeof value === 'string' ? value.trim() : ''
+  if (!name || name.length > 150) throw httpError(400, 'Valid department name is required')
+  return name
+}
+
+function readModuleIds(value: unknown) {
+  if (!Array.isArray(value) || value.some((moduleId) => !Number.isSafeInteger(moduleId) || Number(moduleId) < 1)) {
+    throw httpError(400, 'moduleIds must contain positive integers')
+  }
+  return [...new Set(value.map(Number))]
+}
+
 function validate(body: unknown, partial = false): DepartmentInput {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw httpError(400, 'Request body must be an object')
   const input = body as Record<string, unknown>
   const output: DepartmentInput = {}
-  if (!partial || Object.hasOwn(input, 'companyId')) {
-    const companyId = Number(input.companyId)
-    if (!Number.isSafeInteger(companyId) || companyId < 1) throw httpError(400, 'Valid company is required')
-    output.companyId = companyId
-  }
-  if (!partial || Object.hasOwn(input, 'name')) {
-    const name = typeof input.name === 'string' ? input.name.trim() : ''
-    if (!name || name.length > 150) throw httpError(400, 'Valid department name is required')
-    output.name = name
-  }
-  if (Object.hasOwn(input, 'isActive')) {
+  if (!partial || has(input, 'companyId')) output.companyId = readCompanyId(input.companyId)
+  if (!partial || has(input, 'name')) output.name = readName(input.name)
+  if (has(input, 'isActive')) {
     if (typeof input.isActive !== 'boolean') throw httpError(400, 'isActive must be a boolean')
     output.isActive = input.isActive
   } else if (!partial) output.isActive = true
-  if (Object.hasOwn(input, 'moduleIds')) {
-    if (!Array.isArray(input.moduleIds) || input.moduleIds.some((value) => !Number.isSafeInteger(value) || Number(value) < 1)) throw httpError(400, 'moduleIds must contain positive integers')
-    output.moduleIds = [...new Set(input.moduleIds.map(Number))]
-  } else if (!partial) output.moduleIds = []
+  if (has(input, 'moduleIds')) output.moduleIds = readModuleIds(input.moduleIds)
+  else if (!partial) output.moduleIds = []
   return output
+}
+
+function comparableValue(field: keyof DepartmentInput, value: DepartmentInput[keyof DepartmentInput] | undefined) {
+  if (field === 'isActive') return Boolean(value)
+  if (field === 'moduleIds') return [...(value as number[] | undefined ?? [])].sort((left, right) => left - right).join(',')
+  return value
 }
 
 function collectChanges(current: departments.DepartmentRow, input: DepartmentInput) {
   return (Object.keys(input) as Array<keyof DepartmentInput>).flatMap((field) => {
-    const from = field === 'isActive' ? Boolean(current[field]) : field === 'moduleIds' ? [...current.moduleIds].sort().join(',') : current[field]
-    const to = field === 'isActive' ? Boolean(input[field]) : field === 'moduleIds' ? [...(input.moduleIds ?? [])].sort().join(',') : input[field]
+    const from = comparableValue(field, current[field])
+    const to = comparableValue(field, input[field])
     return from === to ? [] : [{ field, from, to }]
   })
+}
+
+function updateAction(changes: ReturnType<typeof collectChanges>) {
+  const statusChange = changes.length === 1 && changes[0]?.field === 'isActive'
+  if (!statusChange) return 'updated'
+  return changes[0]?.to ? 'activated' : 'deactivated'
 }
 
 export const index: RequestHandler = async (_req, res) => res.json({ data: await departments.findAll() })
@@ -69,13 +92,10 @@ export const patch: RequestHandler = async (req, res) => {
   if (await departments.findDuplicate(input.companyId ?? current.companyId, input.name ?? current.name, departmentId)) throw httpError(409, 'Department name already exists in this company')
   const data = await departments.update(departmentId, input)
   if (changes.length > 0) {
-    const statusChange = changes.length === 1 && changes[0]?.field === 'isActive'
     await logActivity({
       userId: req.user?.id,
       module: 'departments',
-      action: statusChange
-        ? Boolean(changes[0]?.to) ? 'activated' : 'deactivated'
-        : 'updated',
+      action: updateAction(changes),
       entityType: 'department',
       entityId: departmentId,
       details: { name: data?.name ?? current.name, changes },
