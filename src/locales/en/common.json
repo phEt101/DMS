@@ -55,7 +55,35 @@
     "dashboard": {
       "kicker": "Dashboard",
       "title": "System overview",
-      "subtitle": "Summarize recent activity and system status"
+      "subtitle": "Summarize recent activity and system status",
+      "stats": {
+        "myDocuments": "My documents",
+        "myDocumentsHint": "All requests",
+        "pending": "Pending",
+        "pendingHint": "Currently in progress",
+        "approved": "Approved",
+        "approvedHint": "All requests"
+      },
+      "balances": {
+        "heading": "Remaining leave balance",
+        "subheading": "Summary of your leave entitlement (1 day = {{hours}} hours)",
+        "names": {
+          "sick": "Sick leave remaining",
+          "personal": "Personal leave remaining",
+          "vacation": "Vacation leave remaining",
+          "unpaid": "Unpaid leave remaining"
+        },
+        "chipLeft": "{{percent}}% left",
+        "labelRemaining": "Remaining / Total entitlement",
+        "day": "days",
+        "dayShort": "d",
+        "hourShort": "h",
+        "zero": "0 days",
+        "legendUsed": "Used",
+        "legendPending": "Pending",
+        "legendRemaining": "Remaining",
+        "ariaBar": "Used {{used}}, pending {{pending}}, remaining {{remaining}}"
+      }
     },
     "projects": {
       "kicker": "All Projects",

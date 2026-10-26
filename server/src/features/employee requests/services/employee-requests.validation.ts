@@ -59,15 +59,14 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
       const start = minutes(v('start')), end = minutes(v('end')), hours = (end - start) / 60
       const typedHours = Number(v('hours'))
       if (start >= 0 && end > start) {
-        // มีเวลาเริ่ม/สิ้นสุด → คำนวณจากช่วงเวลาเหมือนเดิม
+        // มีเวลาเริ่ม/สิ้นสุด → คำนวณจากช่วงเวลาเหมือนเดิม (ไม่จำกัดจำนวนชั่วโมงต่อวัน)
         add(start >= 0 && end > start, 'endAfterStart')
-        add(hours > 0 && hours <= p.hoursPerDay, 'emergencyHours', { hours: p.hoursPerDay })
         const rounded = hours > 0 ? Math.ceil(hours / p.hourStep) * p.hourStep : 0
         values.hours = rounded ? String(rounded) : ''
         values.days = rounded ? String(rounded / p.hoursPerDay) : ''
       } else {
-        // พิมพ์จำนวนชั่วโมงตรง ๆ ได้เลย (ไม่ต้องใส่เวลาเริ่ม/สิ้นสุด)
-        add(typedHours > 0 && typedHours <= p.hoursPerDay, 'emergencyHours', { hours: p.hoursPerDay })
+        // พิมพ์จำนวนชั่วโมงตรง ๆ ได้เลย (ไม่ต้องใส่เวลาเริ่ม/สิ้นสุด) — ไม่จำกัดจำนวนชั่วโมงต่อวัน
+        add(typedHours > 0, 'hourlyLeavePositive')
         const rounded = typedHours > 0 ? Math.ceil(typedHours / p.hourStep) * p.hourStep : 0
         values.hours = rounded ? String(rounded) : ''
         values.days = rounded ? String(rounded / p.hoursPerDay) : ''

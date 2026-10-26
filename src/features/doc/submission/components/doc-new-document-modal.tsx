@@ -10,7 +10,7 @@ type Check={ok:boolean;message:string;key?:string}
 // map ผลตรวจ (validation key จาก server/mock) → ช่องกรอกที่เกี่ยวข้อง
 const CHECK_FIELD: Record<string,string> = {
   dateRange:'from', overlap:'from', personalLead:'from', vacationLead:'from', emergencyFromToday:'from', withinYear:'from', todayOrFuture:'from', validRange:'from',
-  endAfterStart:'end', emergencyHours:'end', otLimit:'end', backAfterOut:'backTime',
+  endAfterStart:'end', emergencyHours:'end', hourlyLeaveLimit:'hours', otLimit:'end', backAfterOut:'backTime',
   daysPositive:'days', leaveBalance:'days', usePersonalFirst:'days', vacationBalance:'days',
   leaveReason:'reason', emergencyReason:'reason', otReason:'reason', detailsRequired:'reason', reasonRequired:'reason',
   otDate:'date', pastDate:'date', fixLimit:'date',

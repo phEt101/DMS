@@ -97,12 +97,35 @@ export const saveFlowRules = (rules: Array<Partial<ApiFlowRule>>) =>
 // ---------- mappers ----------
 const bangkokDate = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
 const STAGE: Record<ApiSignature['stage'], SignatureStage> = { submitter: 'ผู้ยื่น', manager: 'ผู้จัดการแผนก', executive: 'ผู้ประกอบการ', hr: 'HR' }
-type MapperText = { locale: string; kinds: Record<string, string>; leaveTypes: Record<string, string>; day: string; hour: string }
+type MapperText = { locale: string; kinds: Record<string, string>; leaveTypes: Record<string, string>; day: string; hour: string; hoursPerDay: number }
+
+// แปลงจำนวนวันเป็นข้อความชั่วโมงให้เข้าใจง่าย ตรงกับที่ผู้ใช้กรอก
+// 1 วัน = hoursPerDay ชั่วโมง (ปกติ 8) — ครบ 8 ชม. แสดง "1 วัน", 11 ชม. แสดง "1 วัน 3 ชั่วโมง"
+// ฐานข้อมูลเก็บ days เป็นทศนิยม 2 ตำแหน่ง (เช่น 0.375 → 0.38) จึงปัดเศษนาทีเล็ก ๆ จากการปัดทิ้ง (≤2 นาที = 0)
+const daysLabel = (days: number | null | undefined, t: MapperText): string => {
+  if (days === null || days === undefined) return ''
+  const perDay = t.hoursPerDay > 0 ? t.hoursPerDay : 8
+  let totalHours = days * perDay
+  let wholeHours = Math.floor(totalHours)
+  let minutes = Math.round((totalHours - wholeHours) * 60)
+  if (minutes >= 58) { wholeHours += 1; minutes = 0 }
+  if (minutes <= 2) minutes = 0
+  totalHours = wholeHours + minutes / 60
+  const wholeDays = Math.floor(totalHours / perDay)
+  const restHours = Math.round((totalHours - wholeDays * perDay) * 60) / 60
+  const restWhole = Math.floor(restHours)
+  const restMinutes = Math.round((restHours - restWhole) * 60)
+  const parts: string[] = []
+  if (wholeDays > 0) parts.push(`${wholeDays} ${t.day}`)
+  if (restWhole > 0) parts.push(`${restWhole} ${t.hour}`)
+  if (restMinutes > 0) parts.push(`${restMinutes} นาที`)
+  return parts.join(' ') || `0 ${t.hour}`
+}
 
 export function mapListRow(row: ApiListRow, t: MapperText): MockDocument {
   const fmt = (v?: string | null) => v ? new Intl.DateTimeFormat(t.locale, { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${v}T00:00:00`)) : ''
   const leaveName = t.leaveTypes[row.leaveType ?? ''] ?? row.leaveType ?? ''
-  const title = row.kind === 'leave' ? `${leaveName} · ${row.days ?? 0} ${t.day}`
+  const title = row.kind === 'leave' ? `${leaveName} · ${daysLabel(row.days, t) || `${row.days ?? 0} ${t.day}`}`
     : row.kind === 'ot' ? `OT · ${row.otHours ?? ''} ${t.hour}` : t.kinds[row.kind] ?? row.kind
   const range = row.startDate && row.endDate && row.startDate !== row.endDate ? `${fmt(row.startDate)} – ${fmt(row.endDate)}` : fmt(row.startDate)
   const extra = row.kind === 'ot' ? row.otTask : row.place ?? row.reason

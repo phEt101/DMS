@@ -538,6 +538,8 @@
       "dateRange": "Select a valid leave date range",
       "endAfterStart": "End time must be after start time",
       "emergencyHours": "Emergency vacation by the hour is limited to {hours} hours per day",
+      "hourlyLeaveLimit": "Hourly leave is limited to {hours} hours per day",
+      "hourlyLeavePositive": "Hours must be greater than 0",
       "daysPositive": "Days must be greater than 0",
       "emergencyReason": "Enter a reason for urgent leave",
       "leaveReason": "Enter a leave reason",

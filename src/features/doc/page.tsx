@@ -80,10 +80,16 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     add(Boolean(from && to && to >= from), msg('dateRange'))
     if (isHour) {
       const start = timeMinutes(v('start')), end = timeMinutes(v('end')), hours = (end - start) / 60
-      add(start >= 0 && end > start, msg('endAfterStart'))
-      add(hours > 0 && hours <= policy.hoursPerDay, msg('emergencyHours', { hours: policy.hoursPerDay }))
-      values.hours = hours > 0 ? String(Math.ceil(hours / policy.hourStep) * policy.hourStep) : ''
-      values.days = hours > 0 ? String(Math.ceil(hours / policy.hourStep) * policy.hourStep / policy.hoursPerDay) : ''
+      if (start >= 0 && end > start) {
+        // มีเวลาเริ่ม/สิ้นสุด → คำนวณจากช่วงเวลา (ไม่จำกัดชั่วโมงต่อวัน)
+        add(true, msg('hourlyLeavePositive'))
+      } else {
+        // พิมพ์ชั่วโมงตรง ๆ — เช็คแค่ว่าต้องมากกว่า 0 (ไม่จำกัดชั่วโมงต่อวัน)
+        add(Number(v('hours')) > 0, msg('hourlyLeavePositive'))
+      }
+      const effective = start >= 0 && end > start ? hours : Number(v('hours'))
+      values.hours = effective > 0 ? String(Math.ceil(effective / policy.hourStep) * policy.hourStep) : ''
+      values.days = effective > 0 ? String(Math.ceil(effective / policy.hourStep) * policy.hourStep / policy.hoursPerDay) : ''
       qty = Number(values.days) || 0
     } else add(qty > 0, msg('daysPositive'))
     add(Boolean(v('reason')), msg(type === 'emergency' ? 'emergencyReason' : 'leaveReason'))
@@ -223,7 +229,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const [serverChecks, setServerChecks] = useState<FormCheck[]>([])
   const [validatingForm, setValidatingForm] = useState(false)
 
-  const mapperText = useMemo(() => ({ locale: copy.dateLocale, kinds: copy.kinds, leaveTypes: copy.leaveTypes, day: copy.ledger.day, hour: copy.ledger.hour }), [copy])
+  const mapperText = useMemo(() => ({ locale: copy.dateLocale, kinds: copy.kinds, leaveTypes: copy.leaveTypes, day: copy.ledger.day, hour: copy.ledger.hour, hoursPerDay: policy.hoursPerDay }), [copy, policy])
   const errorText = useCallback((error: unknown) => error instanceof ApiError && error.errors?.length
     ? toFormChecks(error.errors.map((item) => ({ ok: false, ...item })), copy).map((item) => item.message).join(' / ')
     : error instanceof Error ? error.message : 'Error', [copy])
@@ -626,7 +632,8 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       const value = (key: string) => String(values[key] ?? '')
       const date = new Date().toISOString().slice(0,10)
       const leaveLabel = LEAVE_TYPES[value('leaveType')] ?? KIND_INFO[kind].title
-      const title = kind === 'leave' ? `${leaveLabel} · ${value('days')} วัน` : kind === 'ot' ? `ทำ OT · ${value('hours')} ชั่วโมง` : KIND_INFO[kind].title
+      const leaveHours = Number(value('days')) * policy.hoursPerDay
+      const title = kind === 'leave' ? `${leaveLabel} · ${leaveHours ? `${leaveHours} ชั่วโมง` : ''}`.replace(' · ', leaveHours ? ' · ' : '') || leaveLabel : kind === 'ot' ? `ทำ OT · ${value('hours')} ชั่วโมง` : KIND_INFO[kind].title
       const summary = kind === 'leave' ? `${dateText(value('from'))}${value('to') && value('to') !== value('from') ? ` – ${dateText(value('to'))}` : ''} · ${value('reason')}` : kind === 'ot' ? `${dateText(value('date'))} · ${value('start')}–${value('end')} · ${value('task')}` : kind === 'timefix' ? `${dateText(value('date'))} · ${value('reason')}` : kind === 'outing' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('company')} · ${value('address')}` : `${dateText(value('date'))} · ${value('reason')}`
       const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'outing' ? 'from' : 'date'), to:value(kind === 'leave' || kind === 'outing' ? 'to' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, medicalCertificateAvailable:Boolean(medicalCertificateFile), formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
       setDocuments((current) => [doc, ...current])

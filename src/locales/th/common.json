@@ -55,7 +55,35 @@
     "dashboard": {
       "kicker": "แดชบอร์ด",
       "title": "ภาพรวมระบบ",
-      "subtitle": "สรุปสถานะงานและกิจกรรมล่าสุด"
+      "subtitle": "สรุปสถานะงานและกิจกรรมล่าสุด",
+      "stats": {
+        "myDocuments": "เอกสารของฉัน",
+        "myDocumentsHint": "รายการทั้งหมด",
+        "pending": "รอพิจารณา",
+        "pendingHint": "รายการกำลังดำเนินการ",
+        "approved": "อนุมัติแล้ว",
+        "approvedHint": "รายการทั้งหมด"
+      },
+      "balances": {
+        "heading": "สิทธิ์วันลาคงเหลือ",
+        "subheading": "สรุปสิทธิ์การลาของคุณ (1 วัน = {{hours}} ชั่วโมง)",
+        "names": {
+          "sick": "ลาป่วยคงเหลือ",
+          "personal": "ลากิจคงเหลือ",
+          "vacation": "ลาพักร้อนคงเหลือ",
+          "unpaid": "ลาไม่มีเงินคงเหลือ"
+        },
+        "chipLeft": "เหลือ {{percent}}%",
+        "labelRemaining": "คงเหลือ / สิทธิ์ทั้งหมด",
+        "day": "วัน",
+        "dayShort": "วัน",
+        "hourShort": "ชม.",
+        "zero": "0 วัน",
+        "legendUsed": "ใช้แล้ว",
+        "legendPending": "รออนุมัติ",
+        "legendRemaining": "คงเหลือ",
+        "ariaBar": "ใช้แล้ว {{used}} รออนุมัติ {{pending}} คงเหลือ {{remaining}}"
+      }
     },
     "projects": {
       "kicker": "โครงการทั้งหมด",
