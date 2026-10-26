@@ -93,6 +93,38 @@ function validateRoleUpdate(body: unknown): {
   };
 }
 
+function permissionChangeDetails(
+  current: Awaited<ReturnType<typeof roles.findById>> & {},
+  data: NonNullable<Awaited<ReturnType<typeof roles.syncPermissions>>>,
+  permissionIds: number[],
+) {
+  const currentPermissionIds = current.permissions
+    .filter((permission) => permission.isAssigned)
+    .map((permission) => permission.id)
+    .sort((left, right) => left - right);
+  const nextPermissionIds = [...permissionIds].sort((left, right) => left - right);
+  const permissionsChanged = currentPermissionIds.length !== nextPermissionIds.length
+    || currentPermissionIds.some((permissionId, index) => permissionId !== nextPermissionIds[index]);
+  const currentPermissionIdSet = new Set(currentPermissionIds);
+  const nextPermissionIdSet = new Set(nextPermissionIds);
+  const changedPermissionIds = new Set([
+    ...currentPermissionIds.filter((permissionId) => !nextPermissionIdSet.has(permissionId)),
+    ...nextPermissionIds.filter((permissionId) => !currentPermissionIdSet.has(permissionId)),
+  ]);
+  const permissionModules = new Map([...current.permissions, ...data.permissions]
+    .map((permission) => [permission.id, permission.module]));
+  const changedModules = [...new Set([...changedPermissionIds]
+    .map((permissionId) => permissionModules.get(permissionId))
+    .filter((module): module is string => Boolean(module)))]
+    .sort((left, right) => left.localeCompare(right));
+  return { permissionsChanged, changedModules };
+}
+
+function roleUpdateAction(permissionsChanged: boolean, statusChanged: boolean, isActive: boolean) {
+  if (permissionsChanged || !statusChanged) return 'updated';
+  return isActive ? 'activated' : 'deactivated';
+}
+
 export const store: RequestHandler = async (req, res) => {
   const input = validateCreate(req.body);
   if (await roles.nameExists(input.name)) {
@@ -133,38 +165,8 @@ export const syncPermissions: RequestHandler = async (req, res) => {
       input.isActive,
     );
     if (!data) throw httpError(404, "Role not found");
-    const currentPermissionIds = current.permissions
-      .filter((permission) => Boolean(permission.isAssigned))
-      .map((permission) => permission.id)
-      .sort((left, right) => left - right);
-    const nextPermissionIds = [...input.permissionIds].sort(
-      (left, right) => left - right,
-    );
-    const permissionsChanged =
-      currentPermissionIds.length !== nextPermissionIds.length ||
-      currentPermissionIds.some((permissionId, index) =>
-        permissionId !== nextPermissionIds[index]);
+    const { permissionsChanged, changedModules } = permissionChangeDetails(current, data, input.permissionIds);
     const statusChanged = Boolean(current.isActive) !== input.isActive;
-    const currentPermissionIdSet = new Set(currentPermissionIds);
-    const nextPermissionIdSet = new Set(nextPermissionIds);
-    const changedPermissionIds = new Set([
-      ...currentPermissionIds.filter((permissionId) =>
-        !nextPermissionIdSet.has(permissionId)),
-      ...nextPermissionIds.filter((permissionId) =>
-        !currentPermissionIdSet.has(permissionId)),
-    ]);
-    const permissionModules = new Map([
-      ...current.permissions,
-      ...data.permissions,
-    ].map((permission) => [
-      permission.id,
-      permission.module,
-    ]));
-    const changedModules = [...new Set(
-      [...changedPermissionIds]
-        .map((permissionId) => permissionModules.get(permissionId))
-        .filter((module): module is string => Boolean(module)),
-    )].sort();
     const changedFields = [
       ...(permissionsChanged ? ["permissions"] : []),
       ...(statusChanged ? ["isActive"] : []),
@@ -177,9 +179,7 @@ export const syncPermissions: RequestHandler = async (req, res) => {
     await logActivity({
       userId: req.user?.id,
       module: "roles",
-      action: !permissionsChanged && statusChanged
-        ? input.isActive ? "activated" : "deactivated"
-        : "updated",
+      action: roleUpdateAction(permissionsChanged, statusChanged, input.isActive),
       entityType: "role",
       entityId: id,
       details: {
