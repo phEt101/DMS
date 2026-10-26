@@ -78,7 +78,7 @@ export default function DashboardPage({ translations: _translations, onNavigate 
           const usedWidth = total ? Math.min(used / total * 100, 100) : 0
           const pendingWidth = total ? Math.min(pending / total * 100, 100 - usedWidth) : 0
           const percentLeft = total ? Math.round(remaining / total * 100) : 0
-          const tier = !total ? 'is-none' : percentLeft <= 20 ? 'is-low' : percentLeft <= 50 ? 'is-mid' : 'is-good'
+          const tier = !total ? 'is-none' : percentLeft <= 20 ? 'is-low' : percentLeft <= 40 ? 'is-mid' : 'is-good'
           return <article className={`dms-project-card dashboard-balance-card ${tier}`} key={balance.id}>
             <div className="dashboard-balance-head">
               <h3>{balanceTitle(balance.id, balance.title)}</h3>

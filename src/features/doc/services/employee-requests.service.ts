@@ -175,11 +175,38 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
   return { ...base, formData, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures, flow: row.flow ?? null } as MockDocument
 }
 
+// แปลงจำนวนวัน (ทศนิยม) เป็นข้อความอ่านง่าย ตามชั่วโมงทำงานต่อวันของบริษัท
+// เช่น 0.375 วัน × 8 ชม. = 3 ชม. → "3 ชั่วโมง" · 1.25 วัน → "1 วัน 2 ชั่วโมง"
+// ฐานข้อมูลเก็บ days เป็นทศนิยม 2 ตำแหน่ง (0.375 → 0.38) จึงปัดเศษนาทีเล็ก ๆ จากการปัดทิ้ง (≤2 นาที = 0)
+function daysToText(days: number | undefined | null, hoursPerDay: number, day: string, hour: string): string {
+  if (days === null || days === undefined) return ''
+  const perDay = hoursPerDay > 0 ? hoursPerDay : 8
+  const totalHours = days * perDay
+  let wholeHours = Math.floor(totalHours + 1e-9)
+  let minutes = Math.round((totalHours - wholeHours) * 60)
+  if (minutes >= 58) { wholeHours += 1; minutes = 0 }
+  if (minutes <= 2) minutes = 0
+  const wholeDays = Math.floor(wholeHours / perDay)
+  const restHours = wholeHours - wholeDays * perDay
+  const parts: string[] = []
+  if (wholeDays > 0) parts.push(`${wholeDays} ${day}`)
+  if (restHours > 0) parts.push(`${restHours} ${hour}`)
+  if (minutes > 0) parts.push(`${minutes} นาที`)
+  return parts.join(' ') || `0 ${hour}`
+}
+
 // แปลง checks จาก server ให้เป็นรูปแบบเดิมที่ฟอร์มใช้ ({ ok, message })
 export function toFormChecks(checks: ApiCheck[], copy: any) {
   return checks.map((check) => {
     const params = { ...(check.params ?? {}) } as Record<string, string | number>
     if (typeof params.type === 'string') params.type = copy.leaveTypes[params.type] ?? params.type
+    // จำนวนวันที่เป็นทศนิยม (เช่น 0.375) แปลงเป็น "X วัน Y ชั่วโมง" ตามชั่วโมงทำงานต่อวัน — ใช้กับข้อความยอดคงเหลือ/ขอลา
+    const perDay = Number(params.hoursPerDay ?? 0) || 8
+    const asHours = Number(params.isHour ?? 0) === 1
+    for (const key of ['remaining', 'requested', 'days']) {
+      const value = params[key]
+      if (typeof value === 'number') params[key] = daysToText(value, asHours ? perDay : 0, copy.ledger.day, copy.ledger.hour) || String(value)
+    }
     const message = Object.entries(params).reduce((text, [name, value]) => text.split(`{${name}}`).join(String(value)), String(copy.validation[check.key] ?? check.key))
     return { ok: check.ok, message, key: check.key }
   })

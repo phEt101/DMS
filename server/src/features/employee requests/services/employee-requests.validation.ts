@@ -91,13 +91,15 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
 
     // ยอดคงเหลือคิดตามโควตา (bucket) — ลาพักร้อนฉุกเฉินตัดจากโควตาพักร้อนร่วมกัน
     const remaining = (bucket: 'sick' | 'personal' | 'vacation') => ctx.entitlement[bucket] - (ctx.usedByBucket[bucket] ?? 0)
+    // ส่ง hoursPerDay ไปให้ฟรอนต์แปลงจำนวนวันเป็น "X วัน Y ชั่วโมง" เมื่อลาเป็นชั่วโมง (เช่น 0.375 วัน = 3 ชั่วโมง)
+    const hoursPerDay = p.hoursPerDay
     if (type === 'sick' || type === 'personal' || type === 'vacation') {
       const left = remaining(type)
-      add(qty <= left, 'leaveBalance', { type, remaining: Math.max(0, left), requested: qty || 0 })
+      add(qty <= left, 'leaveBalance', { type, remaining: Math.max(0, left), requested: qty || 0, hoursPerDay, isHour: isHour ? 1 : 0 })
     }
     if (type === 'emergency') {
-      add(remaining('personal') <= 0, 'usePersonalFirst', { days: Math.max(0, remaining('personal')) })
-      add(qty <= remaining('vacation'), 'vacationBalance', { days: remaining('vacation') })
+      add(remaining('personal') <= 0, 'usePersonalFirst', { days: Math.max(0, remaining('personal')), hoursPerDay, isHour: isHour ? 1 : 0 })
+      add(qty <= remaining('vacation'), 'vacationBalance', { days: remaining('vacation'), hoursPerDay, isHour: isHour ? 1 : 0 })
     }
     if (type === 'sick' && from && to && to >= from) {
       const span = diffDays(from, to) + 1

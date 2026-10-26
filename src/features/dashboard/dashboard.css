@@ -7,7 +7,7 @@
 .dashboard-stats .dms-project-card { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left; gap: 14px; min-width: 0; padding: 18px 20px; cursor: default; }
 .dashboard-stats .dms-project-card:hover { transform: none; border-color: #e5e9f0; box-shadow: none; }
 .dashboard-stat-icon { display: grid; flex: 0 0 42px; width: 42px; height: 42px; place-items: center; border-radius: 12px; font-size: 17px; }
-.dashboard-stat-icon.is-blue { background: #eef2ff; color: #5e4bff; }
+.dashboard-stat-icon.is-blue { background: #eceafd; color: #5143e8; }
 .dashboard-stat-icon.is-amber { background: #fff4df; color: #d08b09; }
 .dashboard-stat-icon.is-green { background: #e3f7ed; color: #168454; }
 .dashboard-stats article > div { display: grid; min-width: 0; text-align: left; }
@@ -29,16 +29,16 @@
 .dms-card-grid.dashboard-balances { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 
 .dashboard-balances .dashboard-balance-card {
-  /* สีตามระดับคงเหลือ (default = ดี) */
-  --tier: #5143e8; --tier-soft: #eceafd; --tier-text: #5143e8;
+  /* สีตามระดับคงเหลือ (default = ดี / ม่วงสีหลักของระบบ) */
+  --tier: #5143e8; --tier-soft: #eceafd; --tier-text: #4338ca;
   container-type: inline-size;
   display: flex; flex-direction: column; min-width: 0; gap: 18px; padding: 22px;
   border: 1px solid #e5e9f0; border-radius: 16px; background: #fff; cursor: default;
   transition: box-shadow .2s, border-color .2s;
 }
-.dashboard-balances .dashboard-balance-card.is-mid { --tier: #f26b21; --tier-soft: #ffe8da; --tier-text: #c2410c; }
+.dashboard-balances .dashboard-balance-card.is-mid  { --tier: #f26b21; --tier-soft: #ffe8da; --tier-text: #c2410c; }
 .dashboard-balances .dashboard-balance-card.is-low  { --tier: #e5484d; --tier-soft: #fde4e4; --tier-text: #b42318; }
-.dashboard-balances .dashboard-balance-card.is-none { --tier: #c9d1e3; --tier-soft: #e9edf5; --tier-text: #71809e; }
+.dashboard-balances .dashboard-balance-card.is-none { --tier: #c9d1e3; --tier-soft: #e9edf5; --tier-text: #5b6785; }
 .dashboard-balances .dashboard-balance-card:hover { transform: none; border-color: #d6dcf5; box-shadow: 0 8px 24px rgba(81,67,232,.08); }
 
 .dashboard-balance-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -55,7 +55,8 @@
 .dashboard-balance-sub { margin: 0; color: #8792a9; font-size: 13px; }
 .dashboard-balance-total { color: #71809e; font-size: clamp(16px, 1.6vw, 20px); font-weight: 600; white-space: nowrap; }
 
-.dashboard-balance-bar { display: flex; width: 100%; height: 12px; overflow: hidden; border-radius: 999px; background: var(--tier-soft); }
+/* แถบ: ส่วนที่เหลือใช้สี --tier ตรงกับจุด legend */
+.dashboard-balance-bar { display: flex; width: 100%; height: 12px; overflow: hidden; border-radius: 999px; background: var(--tier); }
 .dashboard-balance-bar i { display: block; height: 100%; transition: width .4s ease; }
 .dashboard-balance-bar .is-used { background: #1fa56a; }
 .dashboard-balance-bar .is-pending { background: #f0a313; }

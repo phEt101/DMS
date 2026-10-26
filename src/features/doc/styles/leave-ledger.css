@@ -49,6 +49,19 @@
   width: 100%;
   border-collapse: collapse;
   min-width: 620px;
+  table-layout: fixed;
+}
+
+/* สัดส่วนคอลัมน์: เลขที่ / วันและประเภท / จำนวนวัน / เหตุผล / ใบรับรอง / สถานะ */
+.documents-ledger-table th:nth-child(1), .documents-ledger-table td:nth-child(1) { width: 14%; }
+.documents-ledger-table th:nth-child(2), .documents-ledger-table td:nth-child(2) { width: 30%; }
+.documents-ledger-table th:nth-child(3), .documents-ledger-table td:nth-child(3) { width: 10%; text-align: center; }
+.documents-ledger-table th:nth-child(4), .documents-ledger-table td:nth-child(4) { width: 24%; }
+.documents-ledger-table th:nth-child(5), .documents-ledger-table td:nth-child(5) { width: 10%; text-align: center; }
+.documents-ledger-table th:nth-child(6), .documents-ledger-table td:nth-child(6) { width: 12%; text-align: center; }
+
+.documents-ledger-table td {
+  overflow-wrap: break-word;
 }
 
 .documents-ledger-table th,
@@ -207,28 +220,37 @@
   font-weight: 700;
 }
 
+/* หัวตาราง: ห้ามตัดคำกลางช่องว่าง (เช่น "ลาอื่น ๆ" หล่นเฉพาะ "ๆ" ไปบรรทัดใหม่) — ให้ตัดทั้งคำ */
+.leave-sheet-table thead th {
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  vertical-align: middle;
+}
+
 .leave-sheet-table .c-no {
-  width: 44px;
+  width: 40px;
 }
 
 .leave-sheet-table .c-date {
-  width: 84px;
+  width: 78px;
 }
 
 .leave-sheet-table .c-type {
-  width: 44px;
+  width: 50px;
 }
 
 .leave-sheet-table .c-vacation {
-  width: 56px;
+  width: 60px;
 }
 
 .leave-sheet-table .c-unpaid {
-  width: 72px;
+  width: 66px;
 }
 
 .leave-sheet-table .c-other {
-  width: 48px;
+  width: 60px;
 }
 
 .leave-sheet-table .c-total {
