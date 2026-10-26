@@ -12,28 +12,20 @@ function describeClient(
 ): string {
   if (!userAgent) return activityTranslations.unknownClient
 
-  const browser = /Edg\//.test(userAgent)
-    ? "Microsoft Edge"
-    : /(?:Chrome|CriOS)\//.test(userAgent)
-      ? "Chrome"
-      : /(?:Firefox|FxiOS)\//.test(userAgent)
-        ? "Firefox"
-        : /Safari\//.test(userAgent)
-          ? "Safari"
-          : "Browser"
-  const device = /iPhone/.test(userAgent)
-    ? "iPhone"
-    : /iPad/.test(userAgent)
-      ? "iPad"
-      : /Android/.test(userAgent)
-        ? "Android"
-        : /Macintosh|Mac OS X/.test(userAgent)
-          ? "macOS"
-          : /Windows/.test(userAgent)
-            ? "Windows"
-            : /Linux/.test(userAgent)
-              ? "Linux"
-              : activityTranslations.unknownClient
+  const browser = [
+    { pattern: /Edg\//, name: 'Microsoft Edge' },
+    { pattern: /(?:Chrome|CriOS)\//, name: 'Chrome' },
+    { pattern: /(?:Firefox|FxiOS)\//, name: 'Firefox' },
+    { pattern: /Safari\//, name: 'Safari' },
+  ].find(({ pattern }) => pattern.test(userAgent))?.name ?? 'Browser'
+  const device = [
+    { pattern: /iPhone/, name: 'iPhone' },
+    { pattern: /iPad/, name: 'iPad' },
+    { pattern: /Android/, name: 'Android' },
+    { pattern: /Macintosh|Mac OS X/, name: 'macOS' },
+    { pattern: /Windows/, name: 'Windows' },
+    { pattern: /Linux/, name: 'Linux' },
+  ].find(({ pattern }) => pattern.test(userAgent))?.name ?? activityTranslations.unknownClient
 
   return browser + " " + activityTranslations.onDevice + " " + device
 }
@@ -51,242 +43,216 @@ function resolveActivityModule(log: ActivityLog): string | null {
   return legacyModules[log.entityType ?? ''] ?? log.module
 }
 
+type Details = Record<string, unknown>
+type DetailFormatter = (log: ActivityLog, copy: ActivityFeatureCopy) => string
+type SettingsActivityPageProps = Readonly<{
+  translations: Translations
+  language: Language
+}>
+
+function displayValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint') return String(value)
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  if (Array.isArray(value)) return value.map(displayValue).join(', ')
+  if (typeof value === 'object') return JSON.stringify(value)
+  return '—'
+}
+
+function booleanValue(value: unknown): boolean {
+  return value === true || value === 1 || value === '1' || value === 'true'
+}
+
+function changeRecords(details: Details): Details[] {
+  if (!Array.isArray(details.changes)) return []
+  return details.changes.filter((value): value is Details => Boolean(value)
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && typeof (value as Details).field === 'string')
+}
+
+function namedAction(action: string, name: string, actions: Record<string, string>) {
+  return [actions[action] ?? action, name].filter(Boolean).join(' ')
+}
+
+const formatLogin: DetailFormatter = (log, copy) => {
+  const userAgent = log.details?.userAgent
+  if (typeof userAgent !== 'string') return '—'
+  return `${copy.loginFrom} ${describeClient(userAgent, copy)}`
+}
+
+const formatUser: DetailFormatter = (log, copy) => {
+  const details = log.details!
+  const name = typeof details.name === 'string' ? details.name : ''
+  const prefix = copy.userActions[log.action] ?? log.action
+  const records = changeRecords(details)
+  if (records.length === 0 || log.action === 'activated' || log.action === 'deactivated') {
+    return [prefix, name].filter(Boolean).join(' ')
+  }
+  const changes = records.map((change) => {
+    const field = String(change.field)
+    if (field === 'password') return copy.passwordChanged
+    if (field === 'isActive') return booleanValue(change.to) ? copy.userActions.activated : copy.userActions.deactivated
+    return `${copy.fields[field] ?? field}: ${copy.from} “${displayValue(change.from)}” ${copy.to} “${displayValue(change.to)}”`
+  })
+  if (log.action === 'updated') return [prefix, changes.join(' · ')].filter(Boolean).join(' ')
+  return [`${prefix} ${name}`.trim(), ...changes].join(' · ')
+}
+
+const formatProject: DetailFormatter = (log, copy) => {
+  const details = log.details!
+  const name = typeof details.name === 'string' ? details.name : ''
+  const parts = [namedAction(log.action, name, copy.projectActions)]
+  if (log.action === 'created') {
+    for (const field of ['projectTypeId', 'projectManagerName', 'customerName']) {
+      if (field in details) parts.push(`${copy.projectFields[field] ?? field}: ${displayValue(details[field])}`)
+    }
+  }
+  if (log.action === 'updated') {
+    for (const change of changeRecords(details)) {
+      const field = String(change.field)
+      parts.push(`${copy.projectFields[field] ?? field}: ${copy.from} “${displayValue(change.from)}” ${copy.to} “${displayValue(change.to)}”`)
+    }
+  }
+  return parts.filter(Boolean).join(' · ')
+}
+
+function surveyValue(field: string, value: unknown, copy: ActivityFeatureCopy) {
+  const text = displayValue(value)
+  if (!['status', 'visitType', 'fcpStatus'].includes(field)) return text
+  return copy.surveyValues[text] ?? text
+}
+
+const formatSurvey: DetailFormatter = (log, copy) => {
+  const details = log.details!
+  const name = typeof details.name === 'string' ? details.name : ''
+  const parts = [namedAction(log.action, name, copy.surveyActions)]
+  if (log.action === 'created') {
+    for (const field of ['status', 'surveyDate', 'contactName', 'province']) {
+      if (field in details) parts.push(`${copy.surveyFields[field] ?? field}: ${surveyValue(field, details[field], copy)}`)
+    }
+  }
+  if (log.action === 'updated') {
+    for (const change of changeRecords(details)) {
+      const field = String(change.field)
+      parts.push(`${copy.surveyFields[field] ?? field}: ${copy.from} “${surveyValue(field, change.from, copy)}” ${copy.to} “${surveyValue(field, change.to, copy)}”`)
+    }
+  }
+  return parts.filter(Boolean).join(' · ')
+}
+
+const formatRole: DetailFormatter = (log, copy) => {
+  const details = log.details!
+  const name = typeof details.name === 'string' ? details.name : ''
+  const changedModules = Array.isArray(details.changedModules)
+    ? details.changedModules.filter((module): module is string => typeof module === 'string')
+    : []
+  const legacyStatusOnly = log.action === 'updated' && typeof details.isActive === 'boolean' && changedModules.length === 0
+  let action = log.action
+  if (legacyStatusOnly) action = details.isActive ? 'activated' : 'deactivated'
+  const parts = [namedAction(action, name, copy.roleActions)]
+  if (changedModules.length > 0) {
+    parts.push(`${copy.rolePermissionModules} ${changedModules.map((module) => copy.modules[module] ?? module).join(', ')}`)
+  }
+  if (!legacyStatusOnly && typeof details.isActive === 'boolean') {
+    parts.push(details.isActive ? copy.roleActivated : copy.roleDeactivated)
+  }
+  return parts.filter(Boolean).join(' · ')
+}
+
+const formatCompany: DetailFormatter = (log, copy) => {
+  const name = typeof log.details?.name === 'string' ? log.details.name : ''
+  return namedAction(log.action, name, copy.companyActions)
+}
+
+const formatDocument: DetailFormatter = (log, copy) => {
+  const details = log.details!
+  const parts = [copy.documentActions[log.action] ?? log.action]
+  if (typeof details.requestNo === 'string') parts.push(`${copy.requestNumber}: ${details.requestNo}`)
+  if (typeof details.kind === 'string') parts.push(`${copy.documentType}: ${copy.documentKinds[details.kind] ?? details.kind}`)
+  if (typeof details.status === 'string') parts.push(`${copy.status}: ${copy.documentStatuses[details.status] ?? details.status}`)
+  if (typeof details.stage === 'string') parts.push(`${copy.approvalStage}: ${copy.approvalStages[details.stage] ?? details.stage}`)
+  return parts.join(' · ')
+}
+
+const formatLeavePolicy: DetailFormatter = (log, copy) => {
+  const details = log.details!
+  const parts = [copy.documentActions[log.action] ?? log.action]
+  if (typeof details.year === 'number') parts.push(String(details.year))
+  for (const change of changeRecords(details)) {
+    const field = String(change.field)
+    parts.push(`${copy.policyFields[field] ?? field}: ${copy.from} “${displayValue(change.from)}” ${copy.to} “${displayValue(change.to)}”`)
+  }
+  return parts.join(' · ')
+}
+
+const formatAccessEntity: DetailFormatter = (log, copy) => {
+  const details = log.details!
+  const name = typeof details.name === 'string' ? details.name : ''
+  let actions = copy.moduleActions
+  if (log.entityType === 'department') actions = copy.departmentActions
+  if (log.entityType === 'permission') actions = copy.permissionActions
+  const prefix = actions[log.action] ?? log.action
+  const records = changeRecords(details)
+  if (records.length === 0 || log.action === 'activated' || log.action === 'deactivated') {
+    return [prefix, name].filter(Boolean).join(' ')
+  }
+  const changes = records.map((change) => {
+    const field = String(change.field)
+    if (field === 'isActive') return booleanValue(change.to) ? actions.activated : actions.deactivated
+    const from = field === 'module' && typeof change.from === 'string' ? copy.modules[change.from] ?? change.from : displayValue(change.from)
+    const to = field === 'module' && typeof change.to === 'string' ? copy.modules[change.to] ?? change.to : displayValue(change.to)
+    return `${copy.fields[field] ?? field}: ${copy.from} “${from}” ${copy.to} “${to}”`
+  })
+  return [[prefix, name].filter(Boolean).join(' '), ...changes].filter(Boolean).join(' · ')
+}
+
+const formatGeneric: DetailFormatter = (log, copy) => {
+  const details = log.details!
+  const parts: string[] = []
+  if (typeof details.name === 'string' && details.name) parts.push(details.name)
+  if (typeof details.module === 'string') parts.push(`${copy.module}: ${copy.modules[details.module] ?? details.module}`)
+  if (typeof details.permissionCount === 'number') parts.push(`${copy.permissionCount}: ${details.permissionCount}`)
+  if (Array.isArray(details.changedFields)) {
+    const fields = details.changedFields
+      .filter((field): field is string => typeof field === 'string')
+      .map((field) => copy.fields[field] ?? field)
+    if (fields.length > 0) parts.push(`${copy.changedFields}: ${fields.join(', ')}`)
+  }
+  return parts.join(' · ') || '—'
+}
+
 function formatDetails(
   log: ActivityLog,
   activityTranslations: ActivityFeatureCopy,
 ): string {
   if (!log.details) return '—'
-
-  if (log.action === 'login' && typeof log.details.userAgent === 'string') {
-    return activityTranslations.loginFrom + " " + describeClient(log.details.userAgent, activityTranslations)
+  if (log.action === 'login') return formatLogin(log, activityTranslations)
+  const formatters: Record<string, DetailFormatter> = {
+    user: formatUser,
+    project: formatProject,
+    survey: formatSurvey,
+    role: formatRole,
+    company: formatCompany,
+    employee_request: formatDocument,
+    leave_policy: formatLeavePolicy,
+    department: formatAccessEntity,
+    permission: formatAccessEntity,
+    module: formatAccessEntity,
   }
+  return (formatters[log.entityType] ?? formatGeneric)(log, activityTranslations)
+}
 
-  const name = typeof log.details.name === 'string' ? log.details.name : ''
-
-  if (log.entityType === 'user') {
-    const prefix = activityTranslations.userActions[log.action] ?? log.action
-    if (!Array.isArray(log.details.changes)) {
-      return [prefix, name].filter(Boolean).join(' ')
-    }
-
-    if (log.action === 'activated' || log.action === 'deactivated') {
-      return [prefix, name].filter(Boolean).join(' ')
-    }
-
-    const changes = log.details.changes.flatMap((value) => {
-      if (!value || typeof value !== 'object' || Array.isArray(value)) return []
-      const change = value as Record<string, unknown>
-      if (typeof change.field !== 'string') return []
-      if (change.field === 'password') return [activityTranslations.passwordChanged]
-      if (change.field === 'isActive') {
-        return [Boolean(change.to)
-          ? activityTranslations.userActions.activated
-          : activityTranslations.userActions.deactivated]
-      }
-
-      const displayValue = (item: unknown) => {
-        return item === null || item === undefined || item === '' ? '—' : String(item)
-      }
-
-      return [
-        `${activityTranslations.fields[change.field] ?? change.field}: ${activityTranslations.from} “${displayValue(change.from)}” ${activityTranslations.to} “${displayValue(change.to)}”`,
-      ]
-    })
-
-    if (log.action === 'updated') {
-      return [prefix, changes.join(' · ')].filter(Boolean).join(' ')
-    }
-    return [`${prefix} ${name}`.trim(), ...changes].join(' · ')
-  }
-
-  if (log.entityType === 'project') {
-    const prefix = activityTranslations.projectActions[log.action] ?? log.action
-    const displayValue = (value: unknown) =>
-      value === null || value === undefined || value === '' ? '—' : String(value)
-    const parts = [[prefix, name].filter(Boolean).join(' ')]
-
-    if (log.action === 'created') {
-      for (const field of ['projectTypeId', 'projectManagerName', 'customerName']) {
-        if (!(field in log.details)) continue
-        parts.push(`${activityTranslations.projectFields[field] ?? field}: ${displayValue(log.details[field])}`)
-      }
-    }
-
-    if (log.action === 'updated' && Array.isArray(log.details.changes)) {
-      for (const value of log.details.changes) {
-        if (!value || typeof value !== 'object' || Array.isArray(value)) continue
-        const change = value as Record<string, unknown>
-        if (typeof change.field !== 'string') continue
-        const field = activityTranslations.projectFields[change.field] ?? change.field
-        parts.push(`${field}: ${activityTranslations.from} “${displayValue(change.from)}” ${activityTranslations.to} “${displayValue(change.to)}”`)
-      }
-    }
-
-    return parts.filter(Boolean).join(' · ')
-  }
-
-  if (log.entityType === 'survey') {
-    const prefix = activityTranslations.surveyActions[log.action] ?? log.action
-    const displayValue = (field: string, value: unknown) => {
-      if (value === null || value === undefined || value === '') return '—'
-      const text = String(value)
-      return field === 'status' || field === 'visitType' || field === 'fcpStatus'
-        ? activityTranslations.surveyValues[text] ?? text
-        : text
-    }
-    const parts = [[prefix, name].filter(Boolean).join(' ')]
-
-    if (log.action === 'created') {
-      for (const field of ['status', 'surveyDate', 'contactName', 'province']) {
-        if (!(field in log.details)) continue
-        parts.push(`${activityTranslations.surveyFields[field] ?? field}: ${displayValue(field, log.details[field])}`)
-      }
-    }
-
-    if (log.action === 'updated' && Array.isArray(log.details.changes)) {
-      for (const value of log.details.changes) {
-        if (!value || typeof value !== 'object' || Array.isArray(value)) continue
-        const change = value as Record<string, unknown>
-        if (typeof change.field !== 'string') continue
-        const field = activityTranslations.surveyFields[change.field] ?? change.field
-        parts.push(`${field}: ${activityTranslations.from} “${displayValue(change.field, change.from)}” ${activityTranslations.to} “${displayValue(change.field, change.to)}”`)
-      }
-    }
-
-    return parts.filter(Boolean).join(' · ')
-  }
-
-  if (log.entityType === 'role') {
-    const hasChangedModules = Array.isArray(log.details.changedModules)
-      && log.details.changedModules.length > 0
-    const isLegacyStatusOnly = log.action === 'updated'
-      && typeof log.details.isActive === 'boolean'
-      && !hasChangedModules
-    const action = isLegacyStatusOnly
-      ? log.details.isActive ? 'activated' : 'deactivated'
-      : log.action
-    const prefix = activityTranslations.roleActions[action] ?? action
-    const parts = [[prefix, name].filter(Boolean).join(' ')]
-
-    if (Array.isArray(log.details.changedModules)) {
-      const modules = log.details.changedModules
-        .filter((module): module is string => typeof module === 'string')
-        .map((module) => activityTranslations.modules[module] ?? module)
-      if (modules.length > 0) {
-        parts.push(`${activityTranslations.rolePermissionModules} ${modules.join(', ')}`)
-      }
-    }
-
-    if (!isLegacyStatusOnly && typeof log.details.isActive === 'boolean') {
-      parts.push(log.details.isActive ? activityTranslations.roleActivated : activityTranslations.roleDeactivated)
-    }
-
-    return parts.filter(Boolean).join(' · ')
-  }
-
-  if (log.entityType === 'company') {
-    const prefix = activityTranslations.companyActions[log.action] ?? log.action
-    return [prefix, name].filter(Boolean).join(' ')
-  }
-
-  if (log.entityType === 'employee_request') {
-    const prefix = activityTranslations.documentActions[log.action] ?? log.action
-    const parts = [prefix]
-    if (typeof log.details.requestNo === 'string') {
-      parts.push(`${activityTranslations.requestNumber}: ${log.details.requestNo}`)
-    }
-    if (typeof log.details.kind === 'string') {
-      parts.push(`${activityTranslations.documentType}: ${activityTranslations.documentKinds[log.details.kind] ?? log.details.kind}`)
-    }
-    if (typeof log.details.status === 'string') {
-      parts.push(`${activityTranslations.status}: ${activityTranslations.documentStatuses[log.details.status] ?? log.details.status}`)
-    }
-    if (typeof log.details.stage === 'string') {
-      parts.push(`${activityTranslations.approvalStage}: ${activityTranslations.approvalStages[log.details.stage] ?? log.details.stage}`)
-    }
-    return parts.join(' · ')
-  }
-
-  if (log.entityType === 'leave_policy') {
-    const prefix = activityTranslations.documentActions[log.action] ?? log.action
-    const parts = [prefix]
-    if (typeof log.details.year === 'number') parts.push(String(log.details.year))
-    if (Array.isArray(log.details.changes)) {
-      for (const value of log.details.changes) {
-        if (!value || typeof value !== 'object' || Array.isArray(value)) continue
-        const change = value as Record<string, unknown>
-        if (typeof change.field !== 'string') continue
-        const field = activityTranslations.policyFields[change.field] ?? change.field
-        const displayValue = (item: unknown) =>
-          item === null || item === undefined || item === '' ? '—' : String(item)
-        parts.push(`${field}: ${activityTranslations.from} “${displayValue(change.from)}” ${activityTranslations.to} “${displayValue(change.to)}”`)
-      }
-    }
-    return parts.join(' · ')
-  }
-
-  if (log.entityType === 'department' || log.entityType === 'permission' || log.entityType === 'module') {
-    const actions = log.entityType === 'department'
-      ? activityTranslations.departmentActions
-      : log.entityType === 'permission'
-        ? activityTranslations.permissionActions
-        : activityTranslations.moduleActions
-    const prefix = actions[log.action] ?? log.action
-    if (!Array.isArray(log.details.changes)
-      || log.action === 'activated'
-      || log.action === 'deactivated') {
-      return [prefix, name].filter(Boolean).join(' ')
-    }
-
-    const changes = log.details.changes.flatMap((value) => {
-      if (!value || typeof value !== 'object' || Array.isArray(value)) return []
-      const change = value as Record<string, unknown>
-      if (typeof change.field !== 'string') return []
-      if (change.field === 'isActive') {
-        return [Boolean(change.to) ? actions.activated : actions.deactivated]
-      }
-
-      const displayValue = (item: unknown) => {
-        if (change.field === 'module' && typeof item === 'string') {
-          return activityTranslations.modules[item] ?? item
-        }
-        return item === null || item === undefined || item === '' ? '—' : String(item)
-      }
-
-      const field = activityTranslations.fields[change.field] ?? change.field
-      return [`${field}: ${activityTranslations.from} “${displayValue(change.from)}” ${activityTranslations.to} “${displayValue(change.to)}”`]
-    })
-
-    return [[prefix, name].filter(Boolean).join(' '), ...changes]
-      .filter(Boolean)
-      .join(' · ')
-  }
-
-  const parts: string[] = []
-  if (name) parts.push(name)
-  if (typeof log.details.module === 'string') {
-    parts.push(`${activityTranslations.module}: ${activityTranslations.modules[log.details.module] ?? log.details.module}`)
-  }
-  if (typeof log.details.permissionCount === 'number') {
-    parts.push(`${activityTranslations.permissionCount}: ${log.details.permissionCount}`)
-  }
-  if (Array.isArray(log.details.changedFields)) {
-    const fields = log.details.changedFields
-      .filter((field): field is string => typeof field === 'string')
-      .map((field) => activityTranslations.fields[field] ?? field)
-    if (fields.length > 0) parts.push(`${activityTranslations.changedFields}: ${fields.join(', ')}`)
-  }
-
-  return parts.join(' · ') || '—'
+function actionBadgeClass(action: string) {
+  if (action === 'login') return 'is-login'
+  if (action === 'logout') return 'is-logout'
+  return ''
 }
 
 export default function SettingsActivityPage({
   translations,
   language,
-}: {
-  translations: Translations
-  language: Language
-}) {
+}: SettingsActivityPageProps) {
   const activityTranslations: ActivityFeatureCopy = translations.features.settingsActivity
   const [logs, setLogs] = useState<ActivityLog[]>([])
   const [page, setPage] = useState(1)
@@ -316,8 +282,8 @@ export default function SettingsActivityPage({
       const response = await listActivityLogs(page, pageSize, query)
       setLogs(response.data)
       setTotal(response.meta.total)
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : activityTranslations.loadError)
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : activityTranslations.loadError)
     } finally {
       setLoading(false)
     }
@@ -348,14 +314,44 @@ export default function SettingsActivityPage({
 
   const resetFilters = () => { setSearchInput(''); setQuery(emptyQuery); setPage(1) }
   const moduleOptions = useMemo(
-    () => Array.from(new Set(logs.map((log) => resolveActivityModule(log)).filter((module): module is string => Boolean(module)))).sort(),
+    () => Array.from(new Set(logs.map((log) => resolveActivityModule(log))
+      .filter((module): module is string => typeof module === 'string' && module.length > 0)))
+      .sort((left, right) => left.localeCompare(right)),
     [logs],
   )
   const actionOptions = useMemo(
-    () => Array.from(new Set(logs.map((log) => log.action))).sort(),
+    () => Array.from(new Set(logs.map((log) => log.action))).sort((left, right) => left.localeCompare(right)),
     [logs],
   )
   const hasFilters = Object.values(query).some(Boolean)
+  let tableRows
+  if (loading) {
+    tableRows = <tr><td className="table-message" colSpan={8}>{activityTranslations.loading}</td></tr>
+  } else if (logs.length === 0) {
+    tableRows = <tr><td className="table-message" colSpan={8}>{activityTranslations.empty}</td></tr>
+  } else {
+    tableRows = logs.map((log, index) => {
+      const activityModule = resolveActivityModule(log)
+      return (
+        <tr key={log.id}>
+          <td data-label={activityTranslations.sequence}>{(page - 1) * pageSize + index + 1}</td>
+          <td data-label={activityTranslations.user}><strong>{log.userName ?? activityTranslations.unknownUser}</strong></td>
+          <td data-label={activityTranslations.email}>{log.userEmail ?? '—'}</td>
+          <td data-label={activityTranslations.activity}>
+            <span className={`activity-badge ${actionBadgeClass(log.action)}`}>
+              {actionLabels[log.action] ?? log.action}
+            </span>
+          </td>
+          <td data-label={activityTranslations.module}>
+            {activityTranslations.modules[activityModule ?? ''] ?? activityModule ?? '—'}
+          </td>
+          <td className="activity-details" data-label={activityTranslations.details}>{formatDetails(log, activityTranslations)}</td>
+          <td data-label={activityTranslations.ipAddress}>{log.ipAddress ?? '—'}</td>
+          <td data-label={activityTranslations.dateTime}>{dateFormatter.format(new Date(log.createdAt))}</td>
+        </tr>
+      )
+    })
+  }
 
   return (
     <section className="feature-page feature-page--wide activity-page">
@@ -428,32 +424,7 @@ export default function SettingsActivityPage({
               <th>{activityTranslations.dateTime}</th>
             </tr>
           </thead>
-          <tbody>
-            {loading ? (
-              <tr><td className="table-message" colSpan={8}>{activityTranslations.loading}</td></tr>
-            ) : logs.length === 0 ? (
-              <tr><td className="table-message" colSpan={8}>{activityTranslations.empty}</td></tr>
-            ) : (
-              logs.map((log, index) => (
-                <tr key={log.id}>
-                  <td data-label={activityTranslations.sequence}>{(page - 1) * pageSize + index + 1}</td>
-                  <td data-label={activityTranslations.user}><strong>{log.userName ?? activityTranslations.unknownUser}</strong></td>
-                  <td data-label={activityTranslations.email}>{log.userEmail ?? '—'}</td>
-                  <td data-label={activityTranslations.activity}>
-                    <span className={`activity-badge ${log.action === 'login' ? 'is-login' : log.action === 'logout' ? 'is-logout' : ''}`}>
-                      {actionLabels[log.action] ?? log.action}
-                    </span>
-                  </td>
-                  <td data-label={activityTranslations.module}>
-                    {activityTranslations.modules[resolveActivityModule(log) ?? ''] ?? resolveActivityModule(log) ?? '—'}
-                  </td>
-                  <td className="activity-details" data-label={activityTranslations.details}>{formatDetails(log, activityTranslations)}</td>
-                  <td data-label={activityTranslations.ipAddress}>{log.ipAddress ?? '—'}</td>
-                  <td data-label={activityTranslations.dateTime}>{dateFormatter.format(new Date(log.createdAt))}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
+          <tbody>{tableRows}</tbody>
         </table>
       </div>
 
