@@ -223,9 +223,12 @@
 /* หัวตาราง: ห้ามตัดคำกลางช่องว่าง (เช่น "ลาอื่น ๆ" หล่นเฉพาะ "ๆ" ไปบรรทัดใหม่) — ให้ตัดทั้งคำ */
 .leave-sheet-table thead th {
   font-size: 11px;
-  line-height: 1.25;
-  overflow-wrap: normal;
-  word-break: keep-all;
+  line-height: 1.2;
+  height: auto;
+  min-height: 30px;
+  padding: 4px 3px;
+  overflow-wrap: anywhere;
+  word-break: normal;
   vertical-align: middle;
 }
 

@@ -5,9 +5,13 @@ import { createUser, updateUser, type User } from '../../../settings/users/servi
 import { listDepartments, type Department } from '../../../settings/access/departments/services/departments.service'
 import { listRoles, type Role } from '../../../settings/access/roles/services/roles.service'
 import type { Translations } from '../../../../locales'
+import type { ApiPerson } from '../../services/employee-requests.service'
+import { formatLeaveDayHour } from '../../leave-duration'
 
 type Props = {
   users: User[]
+  leaveBalances: ApiPerson[]
+  hoursPerDay: number
   title: string
   subtitle: string
   companyId: number
@@ -46,7 +50,7 @@ const roleStyle = (role: string) => {
 }
 const dayText = (value: number | null | undefined) => value === null || value === undefined ? '–' : String(value)
 
-export default function DocDatabaseEmployeesPanel({ users, title, subtitle, companyId, companyName, loading, error, query, onQuery, onUpdated, onCreated, copy: c }: Props) {
+export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursPerDay, title, subtitle, companyId, companyName, loading, error, query, onQuery, onUpdated, onCreated, copy: c }: Props) {
   const [selected, setSelected] = useState<User | null>(null)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Draft | null>(null)
@@ -154,10 +158,22 @@ export default function DocDatabaseEmployeesPanel({ users, title, subtitle, comp
 
   // badge สี role + chip วันลาสะสม (ป่วย / กิจ / พักร้อน / อื่น ๆ)
   const roleBadge = (employee: User) => <span className="emp-badge" style={roleStyle(employee.role)}>{employee.role}</span>
+  const leaveBalanceText = (employee: User, type: 'sick' | 'personal' | 'vacation') => {
+    const total = employee[`${type}LeaveDays`]
+    const leaveUsage = leaveBalances.find((person) => person.id === employee.id)
+    const used = leaveUsage?.[`${type}Used`]
+    const pending = leaveUsage?.[`${type}Pending`]
+    if (total === null || total === undefined) return dayText(total)
+    if (used === null || used === undefined || pending === null || pending === undefined) {
+      return formatLeaveDayHour(total, hoursPerDay)
+    }
+    const format = (days: number) => formatLeaveDayHour(days, hoursPerDay)
+    return `${format(Math.max(0, total - used - pending))}/${format(total)}`
+  }
   const leaveChips = (employee: User) => <div className="emp-leaves">
-    <span className="emp-leave emp-leave--sick">{c.leaveTypes.sick} <b>{dayText(employee.sickLeaveDays)}</b></span>
-    <span className="emp-leave emp-leave--personal">{c.leaveTypes.personal} <b>{dayText(employee.personalLeaveDays)}</b></span>
-    <span className="emp-leave emp-leave--vacation">{c.leaveTypes.vacation} <b>{dayText(employee.vacationLeaveDays)}</b></span>
+    <span className="emp-leave emp-leave--sick">{c.leaveTypes.sick} <b>{leaveBalanceText(employee, 'sick')}</b></span>
+    <span className="emp-leave emp-leave--personal">{c.leaveTypes.personal} <b>{leaveBalanceText(employee, 'personal')}</b></span>
+    <span className="emp-leave emp-leave--vacation">{c.leaveTypes.vacation} <b>{leaveBalanceText(employee, 'vacation')}</b></span>
     <span className="emp-leave emp-leave--other">{c.employees.leaveOther} <b>{dayText(employee.otherLeaveDays)}</b></span>
   </div>
   const statusBadge = (employee: User) => <span className={`dms-card-status ${employee.isActive ? 'is-active' : 'is-cancelled'}`}>{employee.isActive ? c.employees.active : c.employees.inactive}</span>

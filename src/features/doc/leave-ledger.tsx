@@ -3,6 +3,7 @@ import EmployeeSearchSelect from '../../components/employee-search-select'
 import ConfirmDialog from '../../components/confirm-dialog'
 import { useToast } from '../../components/toast-provider'
 import { exportLedgerDocx, exportLedgerPdf, exportLedgerXlsx } from './leave-ledger/exports'
+import { formatLeaveDayHour } from './leave-duration'
 
 export interface LedgerPerson {
   id: string
@@ -34,7 +35,7 @@ export interface LedgerEntry {
 
 const categories = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
 const formatDate = (value?: string, locale = 'th-TH') => value ? new Intl.DateTimeFormat(locale, { day:'numeric', month:'short', year:'2-digit' }).format(new Date(`${value}T00:00:00`)) : ''
-export function LeaveLedger({ person, people, entries, onPersonChange, companyName, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; companyName?: string; copy: any }) {
+export function LeaveLedger({ person, people, entries, onPersonChange, companyName, hoursPerDay = 8, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; companyName?: string; hoursPerDay?: number; copy: any }) {
   const labels: Record<(typeof categories)[number], string> = { personal:c.ledger.personal, sick:c.ledger.sick, vacation:c.ledger.vacation, unpaid:c.leaveTypes.unpaid, other:c.leaveTypes.other }
   const locale = c.dateLocale
   const notes: string[] = c.ledger.noteItems
@@ -55,8 +56,8 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
     if (!kind) return
     setExporting(true)
     try {
-      if (kind === 'excel') await exportLedgerXlsx(person, entries, companyName, c)
-      else if (kind === 'word') await exportLedgerDocx(person, entries, companyName, c)
+      if (kind === 'excel') await exportLedgerXlsx(person, entries, companyName, hoursPerDay, c)
+      else if (kind === 'word') await exportLedgerDocx(person, entries, companyName, hoursPerDay, c)
       else await exportLedgerPdf(person)
       showToast(c.ledger.exportReady, 'success')
     } catch (error) {
@@ -124,12 +125,12 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
             <div className="leave-approver-name">{entry.hrSignerName}</div>
             <div className="leave-approver-sub">{entry.rejectedBy === 'hr' ? <span className="leave-approver-state">{c.statuses.rejected}</span> : <span className="leave-approver-state">{c.statuses.approved} {approvedDate(entry.hrSignedAt)}</span>}</div>
           </div> : entry?.status === 'pending_hr' ? <span className="leave-approver-state">{c.statuses.pending_hr}</span> : ''
-          return <tr key={entry?.id ?? `empty-${index}`}><td>{index + 1}</td><td>{formatDate(entry?.from, locale)}</td><td>{formatDate(entry?.to, locale)}</td>{categories.map((type) => <td key={type}>{entry?.leaveType === type ? entry.days : ''}</td>)}<td>{entry?.days ?? ''}</td><td className="leave-sheet-reason">{entry ? <>{c.sampleDocuments[String(entry.id)]?.reason ?? entry.reason}{entry.medicalCertificateAvailable&&<small className="leave-certificate-label">{c.ledger.certificateAttached}</small>}</> : ''}</td><td className="leave-sheet-approval">{requestCell}</td><td className="leave-sheet-approval">{mgrCell}</td><td className="leave-sheet-approval">{hrCell}</td>
+          return <tr key={entry?.id ?? `empty-${index}`}><td>{index + 1}</td><td>{formatDate(entry?.from, locale)}</td><td>{formatDate(entry?.to, locale)}</td>{categories.map((type) => <td key={type}>{entry?.leaveType === type && entry.days !== null && entry.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay) : ''}</td>)}<td>{entry?.days !== null && entry?.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay) : ''}</td><td className="leave-sheet-reason">{entry ? <>{c.sampleDocuments[String(entry.id)]?.reason ?? entry.reason}{entry.medicalCertificateAvailable&&<small className="leave-certificate-label">{c.ledger.certificateAttached}</small>}</> : ''}</td><td className="leave-sheet-approval">{requestCell}</td><td className="leave-sheet-approval">{mgrCell}</td><td className="leave-sheet-approval">{hrCell}</td>
           </tr>
         })}</tbody>
       </table>
       <div className="leave-sheet-footer">
-        <div className="leave-balance-table"><table><thead><tr><th colSpan={3}>{c.ledger.remaining}</th></tr></thead><tbody><tr><td>{c.ledger.sick}</td><td>{person.sick - used('sick')}</td><td>{c.ledger.day}</td></tr><tr><td>{c.ledger.personal}</td><td>{person.personal - used('personal')}</td><td>{c.ledger.day}</td></tr><tr><td>{c.ledger.vacation}</td><td>{person.vacation - used('vacation')}</td><td>{c.ledger.day}</td></tr></tbody></table></div>
+        <div className="leave-balance-table"><table><thead><tr><th colSpan={3}>{c.ledger.remaining}</th></tr></thead><tbody><tr><td>{c.ledger.sick}</td><td>{formatLeaveDayHour(Math.max(0, person.sick - used('sick')), hoursPerDay)}</td><td>{c.ledger.day} / {c.ledger.hour}</td></tr><tr><td>{c.ledger.personal}</td><td>{formatLeaveDayHour(Math.max(0, person.personal - used('personal')), hoursPerDay)}</td><td>{c.ledger.day} / {c.ledger.hour}</td></tr><tr><td>{c.ledger.vacation}</td><td>{formatLeaveDayHour(Math.max(0, person.vacation - used('vacation')), hoursPerDay)}</td><td>{c.ledger.day} / {c.ledger.hour}</td></tr></tbody></table></div>
         <div className="leave-notes"><b>{c.ledger.notes}</b><ol>{notes.map((note) => <li key={note}>{note}</li>)}</ol></div>
         <strong className="leave-expiry">***{c.ledger.expiryNote} {c.ledger.expiryDate}***</strong>
       </div>

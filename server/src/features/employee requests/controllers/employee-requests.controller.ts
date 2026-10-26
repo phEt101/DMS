@@ -1361,12 +1361,17 @@ export async function dashboardSummary(req: Request, res: Response) {
 // มองเห็น: admin/HR เห็นทั้งบริษัท · ผู้จัดการเห็นลูกน้องในแผนกตัวเอง · คนอื่นเห็นตัวเอง
 export async function people(req: Request, res: Response) {
   needDocumentModule(req)
-  const me = req.user!.id
+  const me = req.user!.id, companyId = companyIdOf(req), today = todayBangkok()
   // HR = มีสิทธิ์พิจารณา + อยู่แผนก HR Div.
   const isHr = has(req, PERM.review) && String((req.user as any)?.department ?? '').trim().toLowerCase() === 'hr div.'
   const myRole = String(req.user!.role?.name ?? '')
   const seeAll = isHr || myRole === 'admin'
   const isManager = myRole === 'manager'
+  const [policyRows] = await db.query<any[]>(
+    `${POLICY_SELECT} WHERE company_id = ? AND is_active = 1
+      ORDER BY (year_start <= ? AND year_end >= ?) DESC, policy_year DESC LIMIT 1`, [companyId, today, today],
+  )
+  const policy = policyRows[0] ? policyRow(policyRows[0]) : null
   const [rows] = await db.query<any[]>(
     `SELECT u.id, u.name, u.email, u.is_active, dep.name AS department_name, e.employee_code,
             e.email_notifications_enabled,
@@ -1382,12 +1387,34 @@ export async function people(req: Request, res: Response) {
           : isManager
             ? '(u.id = ? OR u.department_id = (SELECT department_id FROM users me WHERE me.id = ?))'
             : 'u.id = ?'}
-      ORDER BY u.name`, seeAll || !isManager ? [companyIdOf(req), me] : [companyIdOf(req), me, me],
+      ORDER BY u.name`, seeAll || !isManager ? [companyId, me] : [companyId, me, me],
   )
+  const [usageRows] = policy ? await db.query<any[]>(
+    `SELECT r.employee_user_id,
+            SUM(CASE WHEN lt.balance_bucket = 'sick' AND r.status = 'approved' THEN COALESCE(r.days, 0) ELSE 0 END) AS sick_used,
+            SUM(CASE WHEN lt.balance_bucket = 'sick' AND r.status IN ('pending_mgr','pending_exec','pending_hr') THEN COALESCE(r.days, 0) ELSE 0 END) AS sick_pending,
+            SUM(CASE WHEN lt.balance_bucket = 'personal' AND r.status = 'approved' THEN COALESCE(r.days, 0) ELSE 0 END) AS personal_used,
+            SUM(CASE WHEN lt.balance_bucket = 'personal' AND r.status IN ('pending_mgr','pending_exec','pending_hr') THEN COALESCE(r.days, 0) ELSE 0 END) AS personal_pending,
+            SUM(CASE WHEN lt.balance_bucket = 'vacation' AND r.status = 'approved' THEN COALESCE(r.days, 0) ELSE 0 END) AS vacation_used,
+            SUM(CASE WHEN lt.balance_bucket = 'vacation' AND r.status IN ('pending_mgr','pending_exec','pending_hr') THEN COALESCE(r.days, 0) ELSE 0 END) AS vacation_pending
+       FROM employee_requests r
+       JOIN employee_request_leave_details dl ON dl.request_id = r.id
+       JOIN leave_types lt ON lt.id = dl.leave_type_id
+      WHERE r.company_id = ? AND r.kind = 'leave' AND r.status <> 'cancelled'
+        AND r.start_date BETWEEN ? AND ?
+      GROUP BY r.employee_user_id`, [companyId, policy.yearStart, policy.yearEnd],
+  ) : [[]]
+  const usageByEmployee = new Map(usageRows.map((row) => [Number(row.employee_user_id), row]))
   res.json(rows.map((row) => ({
     ...camelize(row), isActive: Boolean(row.is_active),
     emailNotificationsEnabled: row.email_notifications_enabled === null ? null : Boolean(row.email_notifications_enabled),
     sick: Number(row.sick), personal: Number(row.personal), vacation: Number(row.vacation), other: Number(row.other),
+    sickUsed: policy ? Number(usageByEmployee.get(Number(row.id))?.sick_used ?? 0) : null,
+    sickPending: policy ? Number(usageByEmployee.get(Number(row.id))?.sick_pending ?? 0) : null,
+    personalUsed: policy ? Number(usageByEmployee.get(Number(row.id))?.personal_used ?? 0) : null,
+    personalPending: policy ? Number(usageByEmployee.get(Number(row.id))?.personal_pending ?? 0) : null,
+    vacationUsed: policy ? Number(usageByEmployee.get(Number(row.id))?.vacation_used ?? 0) : null,
+    vacationPending: policy ? Number(usageByEmployee.get(Number(row.id))?.vacation_pending ?? 0) : null,
   })))
 }
 
