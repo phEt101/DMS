@@ -1,5 +1,5 @@
 export type DocKind = 'leave' | 'ot' | 'timefix' | 'outing'
-export type Status = 'pending_mgr' | 'pending_exec' | 'pending_hr' | 'approved' | 'rejected'
+export type Status = 'pending_mgr' | 'pending_exec' | 'pending_hr' | 'approved' | 'rejected' | 'cancelled'
 export type MockSignature = { image: string; name: string; date: string }
 export type SignatureStage = 'ผู้ยื่น' | 'ผู้จัดการแผนก' | 'ผู้ประกอบการ' | 'HR'
 export type FormValues = Record<string, string | boolean>

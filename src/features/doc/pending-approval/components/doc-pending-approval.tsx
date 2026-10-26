@@ -33,9 +33,9 @@ export default function DocPendingApproval({
   return <>
     <DocAllDocumentsFilters
       search={search} onSearch={onSearch} layout={layout} onLayout={onLayout}
-      status="all" kind="all" department="all" draftStatus="all" draftKind="all" draftDepartment="all"
-      onDraftStatus={() => {}} onDraftKind={() => {}} onDraftDepartment={() => {}}
-      departmentOptions={[]}
+      status="all" kind="all" department="all" employee="all" draftStatus="all" draftKind="all" draftDepartment="all" draftEmployee="all"
+      onDraftStatus={() => {}} onDraftKind={() => {}} onDraftDepartment={() => {}} onDraftEmployee={() => {}}
+      departmentOptions={[]} employeeOptions={[]}
       filterOpen={false} onToggle={() => {}} count={totalDocs}
       onApply={() => {}} onReset={() => {}} copy={copy}
     />

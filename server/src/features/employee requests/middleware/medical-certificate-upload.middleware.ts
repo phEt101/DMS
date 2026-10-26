@@ -92,6 +92,7 @@ const insideDirectory = (target: string, directory: string) =>
 export function moveMedicalCertificateToDisposal(
   storagePath: string | null | undefined,
 ): { path: string; storedName: string } | null {
+  
   if (!storagePath) return null
   const resolved = path.resolve(String(storagePath))
   if (!insideDirectory(resolved, medicalCertificateDirectory)) return null

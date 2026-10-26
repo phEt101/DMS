@@ -17,6 +17,7 @@ import ConfirmDialog from '../../components/confirm-dialog'
 import { useToast } from '../../components/toast-provider'
 import type { DocKind, FormValues, MockDocument, MockEmployee, MockNotification, MockPolicy, SignatureStage, Status } from './document-types'
 import { listUsers, type User } from '../settings/users/services/users.service'
+import { listDepartments } from '../settings/access/departments/services/departments.service'
 import { useAuth } from '../auth/hooks/use-auth'
 import {
   ApiError, approveRequest, cancelRequest, createRequest, getMySignature, getPolicy, getRequest,
@@ -175,7 +176,8 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const KIND_INFO = Object.fromEntries(Object.entries(KIND_INFO_DEFAULT).map(([key, info]) => [key, { ...info, title: copy.kinds[key as DocKind], description: copy.kindDescriptions[key as DocKind] }])) as typeof KIND_INFO_DEFAULT
   const LEAVE_TYPES = copy.leaveTypes
   const FORM_FIELDS = Object.fromEntries(Object.entries(FORM_FIELDS_DEFAULT).map(([kind, fields]) => [kind, fields.map((field) => ({ ...field, label: copy.fieldLabels[field.key as keyof typeof copy.fieldLabels] ?? field.label, ...(field.key === 'leaveType' ? { options: LEAVE_TYPES } : field.options ? { options: Object.fromEntries(Object.entries(field.options).map(([key]) => [key, copy.fieldOptions[key as keyof typeof copy.fieldOptions] ?? key])) } : {}) }))])) as typeof FORM_FIELDS_DEFAULT
-  const STATUS_INFO = { pending_mgr: { label: copy.statuses.pending_mgr, className: 'pending' }, pending_exec: { label: copy.statuses.pending_exec, className: 'pending' }, pending_hr: { label: copy.statuses.pending_hr, className: 'pending' }, approved: { label: copy.statuses.approved, className: 'approved' }, rejected: { label: copy.statuses.rejected, className: 'rejected' } }
+  // cancelled: เอกสารถูกยกเลิก — คลิกแจ้งเตือนเข้ามายังต้องแสดงรายละเอียดได้ ไม่งั้น STATUS_INFO[status] เป็น undefined แล้วหน้าจอขาว
+  const STATUS_INFO = { pending_mgr: { label: copy.statuses.pending_mgr, className: 'pending' }, pending_exec: { label: copy.statuses.pending_exec, className: 'pending' }, pending_hr: { label: copy.statuses.pending_hr, className: 'pending' }, approved: { label: copy.statuses.approved, className: 'approved' }, rejected: { label: copy.statuses.rejected, className: 'rejected' }, cancelled: { label: copy.statuses.cancelled, className: 'rejected' } }
 
   const [policy, setPolicy] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
   const [policyDraft, setPolicyDraft] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
@@ -208,6 +210,9 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   // กรองตามแผนกของผู้ยื่น (ทางเลือก: 'all' = ทุกแผนก)
   const [departmentFilter, setDepartmentFilter] = useState('all')
   const [draftDepartment, setDraftDepartment] = useState('all')
+  // กรองตามผู้ยื่น (ทางเลือก: 'all' = ทุกคน)
+  const [employeeFilter, setEmployeeFilter] = useState('all')
+  const [draftEmployee, setDraftEmployee] = useState('all')
   const [filterOpen, setFilterOpen] = useState(false)
   const [draftStatus, setDraftStatus] = useState('all')
   const [draftKind, setDraftKind] = useState('all')
@@ -276,7 +281,8 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       setNotifications(rows.map((row) => ({
         id: row.notificationId,
         title: `${row.employeeName} · ${mapperText.kinds[row.kind] ?? row.requestNo}`,
-        body: [row.reason ?? row.otTask ?? row.place ?? '', row.status].filter(Boolean).join(' · '),
+        // แสดงสถานะเป็นข้อความที่อ่านได้ เช่น "ยกเลิกแล้ว" / "รอผู้จัดการแผนก" (ไม่แสดง enum ดิบ)
+        body: [row.reason ?? row.otTask ?? row.place ?? '', copy.statuses[row.status as keyof typeof copy.statuses] ?? row.status].filter(Boolean).join(' · '),
         date: row.createdAt,
         read: row.isRead,
         documentId: row.id,
@@ -390,11 +396,27 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       const kindMatches = kindFilter === 'all' || group === kindFilter || doc.kind === kindFilter
       const searchMatches = !query || [doc.no, doc.title, doc.summary, doc.employee, doc.department].some((field) => field.toLocaleLowerCase('th').includes(query))
       const departmentMatches = departmentFilter === 'all' || doc.department === departmentFilter
-      return roleMatches && statusMatches && kindMatches && searchMatches && departmentMatches
+      const employeeMatches = employeeFilter === 'all' || doc.employee === employeeFilter
+      return roleMatches && statusMatches && kindMatches && searchMatches && departmentMatches && employeeMatches
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documents, kindFilter, mockRole, search, statusFilter, view, copy, departmentFilter])
-  const departmentOptions = useMemo(() => Array.from(new Set(documents.map((doc) => doc.department).filter(Boolean))).sort(), [documents])
+  }, [documents, kindFilter, mockRole, search, statusFilter, view, copy, departmentFilter, employeeFilter])
+  // ตัวเลือกแผนก: โหมด DB ใช้แผนกทั้งหมดของบริษัท (เหมือน "ทุกสถานะ" ที่เป็นตัวเลือกคงที่) ไม่จำกัดเฉพาะแผนกที่มีเอกสารแล้ว
+  const [allDepartments, setAllDepartments] = useState<string[]>([])
+  useEffect(() => {
+    if (!USE_DB) return
+    let cancelled = false
+    listDepartments()
+      .then((response) => { if (!cancelled) setAllDepartments(response.data.filter((department) => Boolean(department.isActive) && department.companyId === user?.company?.id).map((department) => department.name).sort()) })
+      .catch(() => { /* โหลดไม่สำเร็จ → fallback ใช้แผนกจากเอกสารที่มีอยู่ */ })
+    return () => { cancelled = true }
+  }, [user?.company?.id])
+  const departmentOptions = useMemo(
+    () => Array.from(new Set([...allDepartments, ...documents.map((doc) => doc.department).filter(Boolean)])).sort(),
+    [allDepartments, documents],
+  )
+  // ตัวเลือกผู้ยื่น: จากเอกสารที่มองเห็น
+  const employeeOptions = useMemo(() => Array.from(new Set(documents.map((doc) => doc.employee).filter(Boolean))).sort(), [documents])
 
   // แบ่งหน้า (เหมือนหน้าจอ survey): ทั้ง pending และ all ใช้ pagination
   const totalDocs = visibleDocs.length
@@ -726,14 +748,14 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     {USE_DB && docsError && ['all', 'pending'].includes(view) && <p className="documents-empty" role="alert">{docsError}</p>}
 
     {view === 'all' && <DocAllDocumentsFilters
-      search={search} onSearch={setSearch} layout={layout} onLayout={setLayout} status={statusFilter} kind={kindFilter} department={departmentFilter}
-      draftStatus={draftStatus} draftKind={draftKind} draftDepartment={draftDepartment}
-      onDraftStatus={setDraftStatus} onDraftKind={setDraftKind} onDraftDepartment={setDraftDepartment}
-      departmentOptions={departmentOptions}
-      filterOpen={filterOpen} onToggle={() => { setDraftStatus(statusFilter); setDraftKind(kindFilter); setDraftDepartment(departmentFilter); setFilterOpen(open => !open) }} count={visibleDocs.length}
-      onApply={() => { setStatusFilter(draftStatus); setKindFilter(draftKind); setDepartmentFilter(draftDepartment); setPage(1); setFilterOpen(false) }}
+      search={search} onSearch={setSearch} layout={layout} onLayout={setLayout} status={statusFilter} kind={kindFilter} department={departmentFilter} employee={employeeFilter}
+      draftStatus={draftStatus} draftKind={draftKind} draftDepartment={draftDepartment} draftEmployee={draftEmployee}
+      onDraftStatus={setDraftStatus} onDraftKind={setDraftKind} onDraftDepartment={setDraftDepartment} onDraftEmployee={setDraftEmployee}
+      departmentOptions={departmentOptions} employeeOptions={employeeOptions}
+      filterOpen={filterOpen} onToggle={() => { setDraftStatus(statusFilter); setDraftKind(kindFilter); setDraftDepartment(departmentFilter); setDraftEmployee(employeeFilter); setFilterOpen(open => !open) }} count={visibleDocs.length}
+      onApply={() => { setStatusFilter(draftStatus); setKindFilter(draftKind); setDepartmentFilter(draftDepartment); setEmployeeFilter(draftEmployee); setPage(1); setFilterOpen(false) }}
       scope={scope} onScope={(next) => { if (next !== scope) { setScope(next); setPage(1) } }}
-      onReset={() => { setDraftStatus('all'); setDraftKind('all'); setDraftDepartment('all'); setStatusFilter('all'); setKindFilter('all'); setDepartmentFilter('all'); setPage(1); setFilterOpen(false) }} copy={copy}
+      onReset={() => { setDraftStatus('all'); setDraftKind('all'); setDraftDepartment('all'); setDraftEmployee('all'); setStatusFilter('all'); setKindFilter('all'); setDepartmentFilter('all'); setEmployeeFilter('all'); setPage(1); setFilterOpen(false) }} copy={copy}
     />}
 
     {view === 'all' && <DocAllDocumentsList
@@ -762,7 +784,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       document={selectedDocument}
       detailValues={detailValues}
       kindTitle={KIND_INFO[selectedDocument.kind].title}
-      statusLabel={STATUS_INFO[selectedDocument.status].label}
+      statusLabel={STATUS_INFO[selectedDocument.status]?.label ?? selectedDocument.status}
       dateText={dateText}
       copy={copy}
       canApprove={USE_DB ? Boolean(detail?.canApprove) : false}

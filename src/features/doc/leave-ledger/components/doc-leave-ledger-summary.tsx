@@ -51,7 +51,7 @@ export default function DocLeaveLedgerSummary({ employees, employee, employeeId,
       <thead><tr><th>{c.ledger.number}</th><th>{c.ledger.dateType}</th><th>{c.ledger.days}</th><th>{c.ledger.reason}</th><th>{c.fieldLabels.cert}</th><th>{c.ledger.status}</th></tr></thead>
       <tbody>{rows.map((doc) => { const sample = c.sampleDocuments[String(doc.id)] ?? {}; return <tr key={doc.id}>
         <td>{doc.no}</td><td>{sample.summary ?? doc.summary}</td><td>{doc.title.match(/[\d.]+(?= วัน)/)?.[0] ?? '—'}</td>
-        <td>{sample.reason ?? doc.summary.split('·').pop()?.trim()}</td><td>{doc.medicalCertificateAvailable ? c.ledger.certificateAttached : '—'}</td><td><span className={`documents-pill is-${statusInfo[doc.status].className}`}>{statusInfo[doc.status].label}</span></td>
+        <td>{sample.reason ?? doc.summary.split('·').pop()?.trim()}</td><td>{doc.medicalCertificateAvailable ? c.ledger.certificateAttached : '—'}</td><td><span className={`documents-pill is-${statusInfo[doc.status]?.className ?? 'pending'}`}>{statusInfo[doc.status]?.label ?? doc.status}</span></td>
       </tr>})}</tbody>
     </table></div>
     <ConfirmDialog

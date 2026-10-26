@@ -15,7 +15,7 @@ type Props = {
 }
 
 const statusClass = (status: MockDocument['status']) =>
-  status === 'approved' ? 'is-done' : status === 'rejected' ? 'is-cancelled' : 'is-submitted'
+  status === 'approved' ? 'is-done' : status === 'rejected' || status === 'cancelled' ? 'is-cancelled' : 'is-submitted'
 
 function activateOnKey(event: KeyboardEvent<HTMLElement>, action: () => void) {
   if (event.key === 'Enter' || event.key === ' ') {
@@ -53,7 +53,7 @@ export default function DocAllDocumentsList({
               <div className="dms-card-head">
                 <span className="dms-project-icon-pill"><Icon /></span>
                 <div className="dms-project-actions">
-                  <span className={`dms-card-status ${statusClass(doc.status)}`}>{statusInfo[doc.status].label}</span>
+                  <span className={`dms-card-status ${statusClass(doc.status)}`}>{statusInfo[doc.status]?.label ?? doc.status}</span>
                 </div>
               </div>
               <h3 className="dms-card-name">{title}</h3>
@@ -119,7 +119,7 @@ export default function DocAllDocumentsList({
                 </td>
                 <td>{dateText(doc.date)}</td>
                 <td>
-                  <span className={`dms-card-status ${statusClass(doc.status)}`}>{statusInfo[doc.status].label}</span>
+                  <span className={`dms-card-status ${statusClass(doc.status)}`}>{statusInfo[doc.status]?.label ?? doc.status}</span>
                 </td>
               </tr>
             )

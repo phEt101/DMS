@@ -20,7 +20,7 @@ export interface LedgerEntry {
   no: string
   title: string
   employee?: string
-  status: 'pending_mgr' | 'pending_exec' | 'pending_hr' | 'approved' | 'rejected'
+  status: 'pending_mgr' | 'pending_exec' | 'pending_hr' | 'approved' | 'rejected' | 'cancelled'
   leaveType?: 'personal' | 'sick' | 'vacation' | 'unpaid' | 'other'
   from?: string
   to?: string

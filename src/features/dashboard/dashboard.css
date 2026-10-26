@@ -30,7 +30,7 @@
 
 .dashboard-balances .dashboard-balance-card {
   /* สีตามระดับคงเหลือ (default = ดี) */
-  --tier: #1fa56a; --tier-soft: #dff3e8; --tier-text: #168454;
+  --tier: #5143e8; --tier-soft: #eceafd; --tier-text: #5143e8;
   container-type: inline-size;
   display: flex; flex-direction: column; min-width: 0; gap: 18px; padding: 22px;
   border: 1px solid #e5e9f0; border-radius: 16px; background: #fff; cursor: default;
@@ -57,7 +57,7 @@
 
 .dashboard-balance-bar { display: flex; width: 100%; height: 12px; overflow: hidden; border-radius: 999px; background: var(--tier-soft); }
 .dashboard-balance-bar i { display: block; height: 100%; transition: width .4s ease; }
-.dashboard-balance-bar .is-used { background: #5143e8; }
+.dashboard-balance-bar .is-used { background: #1fa56a; }
 .dashboard-balance-bar .is-pending { background: #f0a313; }
 
 .dashboard-balance-legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding-top: 16px; border-top: 1px dashed #e5e9f0; }
@@ -67,7 +67,7 @@
 .dashboard-balance-legend > div:last-child dd { color: var(--tier-text); }
 .dashboard-balance-legend dd small { color: #8792a9; font-size: 12px; font-weight: 600; }
 .dashboard-balance-legend .dot { display: inline-block; flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; }
-.dashboard-balance-legend .dot.is-used { background: #5143e8; }
+.dashboard-balance-legend .dot.is-used { background: #1fa56a; }
 .dashboard-balance-legend .dot.is-pending { background: #f0a313; }
 .dashboard-balance-legend .dot.is-left { background: var(--tier); }
 

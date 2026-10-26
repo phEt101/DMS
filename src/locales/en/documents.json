@@ -41,6 +41,7 @@
       "pending_hr": "Awaiting HR",
       "approved": "Approved",
       "rejected": "Rejected",
+      "cancelled": "Cancelled",
       "pending": "Pending review",
       "all": "All statuses"
     },
@@ -192,6 +193,10 @@
       "certificateAttached": "Attached",
       "certificateMissing": "No file attached",
       "allStatuses": "All statuses",
+      "department": "Department",
+      "allDepartments": "All departments",
+      "employee": "Submitter",
+      "allEmployees": "Everyone",
       "pending": "Pending review",
       "clear": "Clear filters",
       "mine": "My documents",

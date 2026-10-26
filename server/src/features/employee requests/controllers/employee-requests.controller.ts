@@ -1148,6 +1148,7 @@ export async function cancel(req: Request, res: Response) {
   needDocumentModule(req)
   const id = idParam(req)
   const companyId = companyIdOf(req)
+  const me = req.user!.id
   // ดึง path ไฟล์ใบรับรองแพทย์ไว้ก่อน (เผื่อย้ายไฟล์หลังยกเลิกสำเร็จ)
   const [certRows] = await db.query<any[]>(
     `SELECT certificate.storage_path FROM employee_request_medical_certificates certificate
@@ -1155,13 +1156,27 @@ export async function cancel(req: Request, res: Response) {
       WHERE certificate.request_id = ? AND request.company_id = ? AND certificate.disposal_status = 'active'`,
     [id, companyId],
   )
+  // ผู้รับแจ้งเตือน: ผู้อนุมัติที่กำลังรอเอกสารอยู่ (จะได้รู้ว่าถูกยกเลิกไปแล้ว ไม่ต้องพิจารณา)
+  const [beforeRows] = await db.query<any[]>(
+    `SELECT status, manager_user_id, department_id, employee_user_id FROM employee_requests WHERE id = ? AND company_id = ? LIMIT 1`, [id, companyId],
+  )
+  const before = beforeRows[0]
+  const cancelRecipients: number[] = []
+  if (before && before.status !== 'cancelled' && before.employee_user_id !== me) {
+    if (before.status === 'pending_mgr' && before.manager_user_id) cancelRecipients.push(Number(before.manager_user_id))
+    else if (before.status === 'pending_exec') cancelRecipients.push(...await findExecUserIds(db as any, companyId))
+    else if (before.status === 'pending_hr') cancelRecipients.push(...(await findHrUserIds(db as any, companyId, before.employee_user_id)).length
+      ? await findHrUserIds(db as any, companyId, before.employee_user_id)
+      : await findExecUserIds(db as any, companyId))
+  }
   const [result] = await db.execute<any>(
     `UPDATE employee_requests SET status = 'cancelled', decided_at = CURRENT_TIMESTAMP
       WHERE id = ? AND company_id = ? AND employee_user_id = ?
         AND (status = 'pending_mgr' OR status = 'pending_exec' OR (status = 'pending_hr' AND manager_user_id IS NULL))`,
-    [id, companyId, req.user!.id],
+    [id, companyId, me],
   )
   if (!result.affectedRows) throw httpError(409, 'ไม่สามารถยกเลิกเอกสารนี้ได้')
+  await notify(db as any, cancelRecipients, id, 'cancelled')
   // ยกเลิกแล้ว → ย้ายไฟล์ใบรับรองแพทย์ไปโฟลเดอร์พัก เก็บไว้อีก 30 วันก่อนลบจริง
   let disposalPaths: string[] = []
   let movedStoredNames: string[] = []
@@ -1188,6 +1203,7 @@ export async function cancel(req: Request, res: Response) {
   const [rows] = await db.query<any[]>(
     `SELECT request_no, kind FROM employee_requests WHERE id = ? AND company_id = ? LIMIT 1`, [id, companyId],
   )
+  if (!rows.length) throw httpError(404, 'Request not found')
   await logActivity({
     userId: req.user!.id,
     module: 'documents',

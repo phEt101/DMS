@@ -41,6 +41,7 @@
       "pending_hr": "รอ HR",
       "approved": "อนุมัติแล้ว",
       "rejected": "ไม่อนุมัติ",
+      "cancelled": "ยกเลิกแล้ว",
       "pending": "รอพิจารณา",
       "all": "ทุกสถานะ"
     },
@@ -150,6 +151,10 @@
       "certificateAttached": "แนบแล้ว",
       "certificateMissing": "ไม่มีไฟล์แนบ",
       "allStatuses": "ทุกสถานะ",
+      "department": "แผนก",
+      "allDepartments": "ทุกแผนก",
+      "employee": "ผู้ยื่น",
+      "allEmployees": "ทุกคน",
       "pending": "รอพิจารณา",
       "clear": "ล้างตัวกรอง",
       "mine": "เอกสารของฉัน",
