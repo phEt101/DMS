@@ -16,6 +16,7 @@ import { PaginationFooter } from '../../components/pagination-footer'
 import ConfirmDialog from '../../components/confirm-dialog'
 import { useToast } from '../../components/toast-provider'
 import type { DocKind, FormValues, MockDocument, MockEmployee, MockNotification, MockPolicy, SignatureStage, Status } from './document-types'
+import { translateServerErrorMessage } from '../../services/api'
 import { listUsers, type User } from '../settings/users/services/users.service'
 import { listDepartments } from '../settings/access/departments/services/departments.service'
 import { useAuth } from '../auth/hooks/use-auth'
@@ -235,9 +236,9 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const [validatingForm, setValidatingForm] = useState(false)
 
   const mapperText = useMemo(() => ({ locale: copy.dateLocale, kinds: copy.kinds, leaveTypes: copy.leaveTypes, day: copy.ledger.day, hour: copy.ledger.hour, hoursPerDay: policy.hoursPerDay }), [copy, policy])
-  const errorText = useCallback((error: unknown) => error instanceof ApiError && error.errors?.length
+  const errorText = useCallback((error: unknown) => translateServerErrorMessage(error instanceof ApiError && error.errors?.length
     ? toFormChecks(error.errors.map((item) => ({ ok: false, ...item })), copy).map((item) => item.message).join(' / ')
-    : error instanceof Error ? error.message : 'Error', [copy])
+    : error instanceof Error ? error.message : 'Error', language), [copy, language])
 
   // เก็บ mock ลง localStorage เฉพาะโหมด mock
   useEffect(() => {

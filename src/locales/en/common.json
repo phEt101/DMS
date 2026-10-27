@@ -667,6 +667,7 @@
       "fromDate": "From date",
       "toDate": "To date",
       "apply": "Apply",
+      "filters": "Filter",
       "clearFilters": "Clear filters",
       "records": "{count} records"
     }

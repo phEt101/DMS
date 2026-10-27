@@ -70,6 +70,7 @@ export type ActivityFeatureCopy = FeatureCopy & {
   fromDate: string
   toDate: string
   apply: string
+  filters: string
   clearFilters: string
   records: string
 }

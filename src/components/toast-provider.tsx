@@ -8,6 +8,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { translateServerErrorMessage } from "../services/api";
+
+// ภาษาปัจจุบันของระบบ (App ตั้งค่าผ่าน setCurrentLanguage) — ใช้แปลข้อความ error จาก server ให้เป็น th/en
+let currentLanguage: "th" | "en" = "th";
+export function setCurrentLanguage(language: "th" | "en") {
+  currentLanguage = language;
+}
 
 type ToastKind = "error" | "success" | "info";
 
@@ -33,7 +40,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback((message: string, kind: ToastKind = "error") => {
     const id = ++nextId.current;
-    setToasts((current) => [...current, { id, kind, message }]);
+    // แปลข้อความ error ที่มาจาก server (เช่น "Invalid or expired session") ให้เป็นภาษาที่ผู้ใช้ใช้อยู่
+    setToasts((current) => [...current, { id, kind, message: translateServerErrorMessage(message, currentLanguage) }]);
     window.setTimeout(() => dismiss(id), 5000);
   }, [dismiss]);
 

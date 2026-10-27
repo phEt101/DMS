@@ -329,7 +329,7 @@
     "policy": {
       "title": "Leave and document policy",
       "subtitle": "These settings validate employee submissions",
-      "year": "Leave entitlement year (B.E.)",
+      "year": "Leave entitlement year",
       "expiry": "Entitlements valid through (form text)",
       "yearStart": "Entitlement year starts",
       "yearEnd": "Entitlement year ends",

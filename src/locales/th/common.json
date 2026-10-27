@@ -667,6 +667,7 @@
       "fromDate": "จากวันที่",
       "toDate": "ถึงวันที่",
       "apply": "กรอง",
+      "filters": "ตัวกรอง",
       "clearFilters": "ล้างตัวกรอง",
       "records": "รายการ"
     }

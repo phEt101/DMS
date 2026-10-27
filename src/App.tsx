@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import LoginPage from './features/auth/page'
+import { setCurrentLanguage } from './components/toast-provider'
 import { useAuth } from './features/auth/hooks/use-auth'
 import Sidebar from './layout/sidebar'
 import Topbar from './layout/topbar'
@@ -86,6 +87,8 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [language, setLanguage] = useState<'th' | 'en'>('th')
+  // แจ้งภาษาปัจจุบันให้ toast provider แปลข้อความ error จาก server ให้ถูกภาษา
+  setCurrentLanguage(language)
   const [activeItem, setActiveItem] = useState<PageKey>(() => pageFromPath(window.location.pathname))
   const translations = getLocale(language)
   const handleNavigate = (item: PageKey) => {

@@ -27,6 +27,16 @@ export function apiUrl(path: string) {
   return path.startsWith('http') ? path : `${API_PREFIX}${path}`
 }
 
+// แปลข้อความ error จาก server ให้เป็นภาษาไทย/อังกฤษ ตามภาษาที่ระบบใช้อยู่
+const ERROR_TRANSLATIONS: Record<string, { th: string; en: string }> = {
+  'Invalid or expired session': { th: 'เซสชันหมดอายุหรือไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่อีกครั้ง', en: 'Invalid or expired session' },
+}
+export function translateServerErrorMessage(message: unknown, language: 'th' | 'en' = 'th'): string {
+  const text = typeof message === 'string' ? message : message instanceof Error ? message.message : ''
+  const entry = text ? Object.entries(ERROR_TRANSLATIONS).find(([key]) => text.toLowerCase() === key.toLowerCase()) : undefined
+  return entry ? entry[1][language] : text
+}
+
 export async function request(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers)
   let body: any = options.body

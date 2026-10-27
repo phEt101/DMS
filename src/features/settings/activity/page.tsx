@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FaFileLines, FaFilter, FaMagnifyingGlass } from 'react-icons/fa6'
 
 import type { Language, Translations } from '../../../locales'
 import type { ActivityFeatureCopy } from '../../../types/localization'
@@ -246,6 +247,10 @@ function formatDetails(
 function actionBadgeClass(action: string) {
   if (action === 'login') return 'is-login'
   if (action === 'logout') return 'is-logout'
+  if (action === 'created' || action === 'activated' || action === 'submitted') return 'is-created'
+  if (action === 'updated' || action === 'policy_updated') return 'is-updated'
+  if (action === 'deleted' || action === 'deactivated' || action === 'rejected' || action === 'cancelled') return 'is-deleted'
+  if (action === 'approved') return 'is-approved'
   return ''
 }
 
@@ -324,6 +329,17 @@ export default function SettingsActivityPage({
     [logs],
   )
   const hasFilters = Object.values(query).some(Boolean)
+  // ปิดแผ่นกรองเมื่อคลิกด้านนอก (เหมือนหน้าจัดการเอกสาร)
+  const filterWrapRef = useRef<HTMLDivElement>(null)
+  const [filterOpen, setFilterOpen] = useState(false)
+  useEffect(() => {
+    if (!filterOpen) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!filterWrapRef.current?.contains(event.target as Node)) setFilterOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [filterOpen])
   let tableRows
   if (loading) {
     tableRows = <tr><td className="table-message" colSpan={8}>{activityTranslations.loading}</td></tr>
@@ -363,51 +379,70 @@ export default function SettingsActivityPage({
         </div>
       </header>
 
-      <div className="activity-filter-panel">
-        <div className="activity-filter-row activity-filter-row--search">
-          <div className="activity-search-field">
-            <svg className="activity-search-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M10 4a6 6 0 1 0 3.874 10.577l4.274 4.275a1 1 0 0 0 1.415-1.414l-4.275-4.275A6 6 0 0 0 10 4Zm-4 6a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z" fill="currentColor"/>
-            </svg>
+      <div className="documents-filter-wrap activity-filter-wrap" ref={filterWrapRef}>
+        <div className="documents-tools documents-filter-row">
+          <label className="documents-search">
+            <FaMagnifyingGlass />
             <input
-              className="users-filter-search"
               aria-label={activityTranslations.search}
               placeholder={activityTranslations.search}
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
-          </div>
-          <span className="activity-filter-count">
-            <strong>{total.toLocaleString()}</strong>&nbsp;{activityTranslations.records.replace('{count}', '').trim()}
-          </span>
-        </div>
-        <div className="activity-filter-row">
-          <select className="users-filter-status" aria-label={activityTranslations.module} value={query.module ?? ''} onChange={(event) => { setQuery({ ...query, module: event.target.value }); setPage(1) }}>
-            <option value="">{activityTranslations.allModules}</option>
-            {moduleOptions.map((module) => (
-              <option key={module} value={module}>{activityTranslations.modules[module] ?? module}</option>
-            ))}
-          </select>
-          <select className="users-filter-role" aria-label={activityTranslations.activity} value={query.action ?? ''} onChange={(event) => { setQuery({ ...query, action: event.target.value }); setPage(1) }}>
-            <option value="">{activityTranslations.allActions}</option>
-            {actionOptions.map((action) => (
-              <option key={action} value={action}>{actionLabels[action] ?? action}</option>
-            ))}
-          </select>
-          <label className="activity-filter-date">
-            <span>{activityTranslations.fromDate}</span>
-            <input type="date" value={query.from ?? ''} onChange={(event) => { setQuery({ ...query, from: event.target.value }); setPage(1) }} />
           </label>
-          <label className="activity-filter-date">
-            <span>{activityTranslations.toDate}</span>
-            <input type="date" value={query.to ?? ''} onChange={(event) => { setQuery({ ...query, to: event.target.value }); setPage(1) }} />
-          </label>
-          {hasFilters && (
-            <button type="button" className="activity-clear-button" onClick={resetFilters}>
-              <span aria-hidden="true">✕</span> {activityTranslations.clearFilters}
+          <div className="documents-filter-tools">
+            <button
+              type="button"
+              className={`documents-filter-trigger ${hasFilters ? 'is-active' : ''}`}
+              aria-expanded={filterOpen}
+              aria-controls="activity-filter-dropdown"
+              onClick={() => setFilterOpen(open => !open)}
+            >
+              <FaFilter /> {activityTranslations.filters}{hasFilters ? ' (1)' : ''}
             </button>
-          )}
+            <span className="documents-stat">
+              <FaFileLines /> {total.toLocaleString()} {activityTranslations.records.replace('{count}', '').trim()}
+            </span>
+          </div>
         </div>
+        {filterOpen && (
+          <form id="activity-filter-dropdown" className="documents-filter-panel" onSubmit={(event) => { event.preventDefault(); setFilterOpen(false) }}>
+            <label className="documents-filter-field">
+              <span>{activityTranslations.module}</span>
+              <select value={query.module ?? ''} onChange={(event) => { setQuery({ ...query, module: event.target.value }); setPage(1) }}>
+                <option value="">{activityTranslations.allModules}</option>
+                {moduleOptions.map((module) => (
+                  <option key={module} value={module}>{activityTranslations.modules[module] ?? module}</option>
+                ))}
+              </select>
+            </label>
+            <label className="documents-filter-field">
+              <span>{activityTranslations.activity}</span>
+              <select value={query.action ?? ''} onChange={(event) => { setQuery({ ...query, action: event.target.value }); setPage(1) }}>
+                <option value="">{activityTranslations.allActions}</option>
+                {actionOptions.map((action) => (
+                  <option key={action} value={action}>{actionLabels[action] ?? action}</option>
+                ))}
+              </select>
+            </label>
+            <label className="documents-filter-field">
+              <span>{activityTranslations.fromDate}</span>
+              <input type="date" value={query.from ?? ''} onChange={(event) => { setQuery({ ...query, from: event.target.value }); setPage(1) }} />
+            </label>
+            <label className="documents-filter-field">
+              <span>{activityTranslations.toDate}</span>
+              <input type="date" value={query.to ?? ''} onChange={(event) => { setQuery({ ...query, to: event.target.value }); setPage(1) }} />
+            </label>
+            <div className="documents-filter-actions">
+              {hasFilters && (
+                <button type="button" className="documents-filter-reset" onClick={() => { resetFilters(); setFilterOpen(false) }}>
+                  {activityTranslations.clearFilters}
+                </button>
+              )}
+              <button type="submit" className="documents-filter-apply">{activityTranslations.apply}</button>
+            </div>
+          </form>
+        )}
       </div>
 
       <div className="users-table-wrap">

@@ -293,6 +293,23 @@
   color: #9a4d30;
   background: #fff0e9;
 }
+/* สี badge ตามประเภทการกระทำ: เพิ่ม/ยื่น (เขียวอ่อน) · แก้ไข (ฟ้า) · อนุมัติ (ม่วง) · ลบ/ปฏิเสธ/ยกเลิก (แดงอ่อน) */
+.activity-badge.is-created {
+  color: #1d6f3f;
+  background: #bcf9d4;
+}
+.activity-badge.is-updated {
+  color: #1d5fa8;
+  background: #cadefa;
+}
+.activity-badge.is-approved {
+  color: #5b3fd1;
+  background: #e2defb;
+}
+.activity-badge.is-deleted {
+  color: #b3283e;
+  background: #fadce0;
+}
 
 /* ---- Activity log: filter panel ------------------------------------------ */
 .activity-filter-panel {
