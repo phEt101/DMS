@@ -5,10 +5,10 @@ import type { Connection } from 'mysql2/promise'
 // — ไม่ซ้ำถ้ามีอยู่แล้ว (รันซ้ำได้ปลอดภัย)
 const DEPARTMENT = 'Managing Director'
 const MODULES = ['documents_pending']
-
 const LOGOS: Array<[string, string]> = [
-  ['Big money', '/boswell-api/v1/branding/logo-big-money.svg'],
+  ['Big money', '/boswell-api/v1/branding/logo-big-money.png'],
   ['Boswell Digital', '/boswell-api/v1/branding/logo-boswell-digital.png'],
+  ['Boswell', '/boswell-api/v1/branding/logo-boswell.png'],
 ]
 
 export async function up(connection: Connection) {
@@ -29,7 +29,7 @@ export async function up(connection: Connection) {
   }
   for (const [company, logoUrl] of LOGOS) {
     await connection.execute(
-      `UPDATE companies SET logo_url = ? WHERE name = ? AND deleted_at IS NULL`,
+      'UPDATE companies SET logo_url = ? WHERE name = ? AND deleted_at IS NULL',
       [logoUrl, company],
     )
   }

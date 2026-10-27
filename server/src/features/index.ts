@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Router } from "express";
 import { authRouter } from "./auth/routes/auth.routes.js";
 import { activityRouter } from "./settings/activity/routes/activity.routes.js";
@@ -21,9 +24,9 @@ import { requireAuth } from "./auth/middleware/require-auth.middleware.js";
 export const apiRouter = Router();
 apiRouter.use("/health", healthRouter);
 // โลโก้บริษัท (public — ไม่ต้องล็อกอิน เพราะต้องแสดงใน sidebar/login ได้ทันที)
-import fs from "node:fs";
-import path from "node:path";
-const brandingDir = path.resolve(process.cwd(), "storage", "branding");
+const packagedBrandingDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../database/files/Logo");
+const sourceBrandingDir = path.resolve(process.cwd(), "database/files/Logo");
+const brandingDir = fs.existsSync(packagedBrandingDir) ? packagedBrandingDir : sourceBrandingDir;
 apiRouter.get("/branding/:file", (req, res) => {
   const name = path.basename(String(req.params.file));
   if (!/^[A-Za-z0-9._-]+\.(svg|png|jpg|jpeg|webp)$/i.test(name)) return res.status(400).json({ error: "invalid file" });
