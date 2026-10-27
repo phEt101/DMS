@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react'
 import { FaFileLines, FaFilter, FaList, FaMagnifyingGlass, FaPlus, FaTableCellsLarge, FaUser, FaXmark } from 'react-icons/fa6'
 import { PaginationFooter } from '../../../../components/pagination-footer'
 import { createUser, updateUser, type User } from '../../../settings/users/services/users.service'
@@ -146,6 +146,16 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
   // toolbar แบบหน้าจัดการเอกสาร: Filter + Card/List toggle + Pagination
   const [layout, setLayout] = useState<'grid' | 'list'>('grid')
   const [filterOpen, setFilterOpen] = useState(false)
+  // ปิดแผ่นกรองเมื่อคลิกด้านนอก
+  const filterWrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!filterOpen) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!filterWrapRef.current?.contains(event.target as Node)) setFilterOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [filterOpen])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const activeCount = (departmentFilter !== 'all' ? 1 : 0) + (roleFilter !== 'all' ? 1 : 0)
@@ -183,7 +193,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
       <div><h1>{title}</h1><span>{subtitle}</span></div>
       <button type="button" className="documents-primary" onClick={() => void beginCreate()}><FaPlus /> {c.employees.add}</button>
     </div>
-    <div className="documents-filter-wrap">
+    <div className="documents-filter-wrap" ref={filterWrapRef}>
       <div className="documents-tools documents-filter-row">
         <label className="documents-search"><FaMagnifyingGlass /><input value={query} onChange={(event) => { onQuery(event.target.value); setPage(1) }} placeholder={c.employees.search} aria-label={c.employees.searchLabel} /></label>
         <div className="documents-filter-tools">

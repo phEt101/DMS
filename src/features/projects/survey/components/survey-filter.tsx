@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as RadixSelect from '@radix-ui/react-select'
 import { FaFilter, FaList, FaTableCellsLarge, FaMagnifyingGlass } from 'react-icons/fa6'
 
@@ -28,11 +28,22 @@ export default function SurveyFilter({
   const [open, setOpen] = useState(false)
   const [draftStatus, setDraftStatus] = useState<SurveyStatusFilter>(statusFilter)
 
+  // ปิดแผ่นกรองเมื่อคลิกด้านนอก
+  const wrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [open])
+
   const activeCount = draftStatus ? 1 : 0
   const t = translations?.features?.survey ?? {}
 
   return (
-    <div className="dms-filter-wrap" style={{ marginBottom: 12 }}>
+    <div className="dms-filter-wrap" ref={wrapRef} style={{ marginBottom: 12 }}>
       <div className="dms-survey-filter-row">
         <div className="dms-search-wrap">
           <FaMagnifyingGlass className="dms-search-icon" />

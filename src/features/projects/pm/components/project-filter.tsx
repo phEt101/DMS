@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as RadixSelect from "@radix-ui/react-select";
 import { FaFilter } from "react-icons/fa6";
 import type { CommonTranslations, ProjectTranslations } from "../types";
@@ -88,10 +88,20 @@ export function ProjectFilter({
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(filters);
+  // ปิดแผ่นกรองเมื่อคลิกด้านนอก
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
   const activeCount = Object.values(filters).filter(Boolean).length;
 
   return (
-    <div className="dms-filter-wrap">
+    <div className="dms-filter-wrap" ref={wrapRef}>
       <button
         type="button"
         className={`dms-tool-btn ${activeCount ? "is-active" : ""}`}
