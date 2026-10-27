@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS employee_requests (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   company_id BIGINT UNSIGNED NOT NULL,
-  request_no VARCHAR(30) NOT NULL COMMENT 'เลขที่เอกสาร เช่น LV-2569-0012',
+  request_no VARCHAR(30) NOT NULL COMMENT 'Request number, e.g. LV-2026-0012',
   kind ENUM('leave','ot','timefix','wfh','outing','swap') NOT NULL COMMENT 'ประเภทเอกสาร',
   employee_user_id BIGINT UNSIGNED NOT NULL COMMENT 'ผู้ยื่น',
   department_id BIGINT UNSIGNED NULL COMMENT 'แผนกของผู้ยื่น ณ วันที่ยื่น (snapshot)',

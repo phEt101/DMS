@@ -1,7 +1,28 @@
 import { Fragment, useRef, type FormEvent } from 'react'
+import DatePicker, { registerLocale } from 'react-datepicker'
+import { addDays, format, getDay, parseISO } from 'date-fns'
+import { enUS, th } from 'date-fns/locale'
 import type { IconType } from 'react-icons'
 import type { DocKind, FormValues } from '../../document-types'
 import DocOutingLocationField from './doc-outing-location-field'
+import 'react-datepicker/dist/react-datepicker.css'
+
+registerLocale('th', th)
+registerLocale('en', enUS)
+
+function addWorkdaysAfter(date: string, workdays: number) {
+ let result = parseISO(date)
+ let counted = 0
+ while (counted < workdays) {
+  result = addDays(result, 1)
+  const day = getDay(result)
+  if(day!==0&&day!==6)counted+=1
+ }
+ return result
+}
+function addCalendarDaysAfter(date: string, days: number) {
+ return addDays(parseISO(date), days)
+}
 // TODO: เปิดขั้นพัฒนาเมื่อพร้อมใช้งาน — ot: ขอทำงานล่วงเวลา (OT), timefix: ขอแก้ไขเวลาเข้า–ออกงาน
 const HIDDEN_KINDS: DocKind[] = ['ot', 'timefix']
 type Field={key:string;label:string;type:'text'|'date'|'time'|'number'|'textarea'|'select'|'checkbox';options?:Record<string,string>;step?:number;wide?:boolean;hint?:string}
@@ -18,7 +39,7 @@ const CHECK_FIELD: Record<string,string> = {
   outTimeRequired:'outTime', timeRequired:'inTime', companyRequired:'company', addressRequired:'address',
   workDetailsRequired:'workDetails', phoneInvalid:'phone', certificateRequired:'cert',
 }
-type Props={open:boolean;selectedKind:DocKind|'';kindInfo:Record<DocKind,{title:string;description:string;icon:IconType}>;fields:Record<DocKind,Field[]>;values:FormValues;checks:Check[];validating:boolean;today:string;role:string;medicalCertificateFile:File|null;certificateRequired:boolean;onMedicalCertificateFile:(file:File|null)=>void;onSubmit:(event:FormEvent<HTMLFormElement>)=>void;onClose:()=>void;onClearKind:()=>void;onPickKind:(kind:DocKind)=>void;onChange:(key:string,value:string|boolean)=>void;copy:any;translations:any}
+type Props={open:boolean;selectedKind:DocKind|'';kindInfo:Record<DocKind,{title:string;description:string;icon:IconType}>;fields:Record<DocKind,Field[]>;values:FormValues;checks:Check[];validating:boolean;today:string;leadPersonal:number;leadVacation:number;language:'th'|'en';role:string;medicalCertificateFile:File|null;certificateRequired:boolean;onMedicalCertificateFile:(file:File|null)=>void;onSubmit:(event:FormEvent<HTMLFormElement>)=>void;onClose:()=>void;onClearKind:()=>void;onPickKind:(kind:DocKind)=>void;onChange:(key:string,value:string|boolean)=>void;copy:any;translations:any}
 export default function DocNewDocumentModal(p:Props){
  const formRef=useRef<HTMLFormElement>(null)
  // คลิกข้อความแจ้งเตือนที่ยังไม่ผ่าน (!) → เลื่อนไปโฟกัสช่องที่กรอกผิด/ยังไม่กรอก
@@ -43,7 +64,24 @@ export default function DocNewDocumentModal(p:Props){
       :field.type==='time'?p.copy.submission.hintTime
       :field.type==='number'?p.copy.submission.hintNumber
       :undefined)
-    return <Fragment key={field.key}>{p.selectedKind==='outing'&&field.key==='project'&&<DocOutingLocationField values={p.values} onChange={p.onChange} translations={p.translations}/>}<label className={`dms-form-field dms-submission-field ${field.wide?'dms-form-field--full':''} ${field.type==='checkbox'?'is-checkbox':''}`} data-field={field.key}><span className="dms-form-label">{field.label}{field.type!=='checkbox'&&<span className="dms-form-required" aria-hidden="true"> *</span>}</span>{field.type==='textarea'?<textarea className="dms-form-input dms-form-textarea" rows={3} value={String(value)} onChange={e=>p.onChange(field.key,e.target.value)}/>:field.type==='select'?<select className="dms-form-input" value={String(value)} onChange={e=>p.onChange(field.key,e.target.value)}>{Object.entries(field.options??{}).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>:field.type==='checkbox'?<input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e=>p.onChange(field.key,e.target.checked)}/>:<input className="dms-form-input" type={field.type} min={field.type==='number'?0:p.selectedKind==='outing'&&field.key==='from'?p.today:undefined} step={field.type==='number'&&field.key==='hours'&&p.selectedKind==='leave'?0.5:field.step} readOnly={field.key==='hours'&&p.selectedKind==='ot'||field.key==='days'&&(p.selectedKind==='leave'&&hourly||p.selectedKind==='ot')} value={String(value)} onChange={e=>p.onChange(field.key,e.target.value)}/>}{hint&&<small className="dms-form-hint">{hint}</small>}</label></Fragment>
+    const vacation = p.selectedKind === 'leave' && p.values.leaveType === 'vacation'
+    const personal = p.selectedKind === 'leave' && ['personal', 'unpaid'].includes(String(p.values.leaveType))
+    const leaveMinDate = vacation
+      ? addWorkdaysAfter(p.today, Math.max(0, p.leadVacation))
+      : personal
+        ? addCalendarDaysAfter(p.today, Math.max(0, p.leadPersonal))
+        : undefined
+    const fromDate = String(p.values.from ?? '') ? parseISO(String(p.values.from)) : undefined
+    const minDate = p.selectedKind === 'leave' && field.key === 'from'
+      ? leaveMinDate
+      : p.selectedKind === 'leave' && field.key === 'to'
+        ? fromDate ?? leaveMinDate
+        : p.selectedKind === 'outing' && field.key === 'from'
+          ? parseISO(p.today)
+          : p.selectedKind === 'outing' && field.key === 'to' && fromDate
+            ? fromDate
+            : undefined
+    return <Fragment key={field.key}>{p.selectedKind==='outing'&&field.key==='project'&&<DocOutingLocationField values={p.values} onChange={p.onChange} translations={p.translations}/>}<label className={`dms-form-field dms-submission-field ${field.wide?'dms-form-field--full':''} ${field.type==='checkbox'?'is-checkbox':''}`} data-field={field.key}><span className="dms-form-label">{field.label}{field.type!=='checkbox'&&<span className="dms-form-required" aria-hidden="true"> *</span>}</span>{field.type==='textarea'?<textarea className="dms-form-input dms-form-textarea" rows={3} value={String(value)} onChange={e=>p.onChange(field.key,e.target.value)}/>:field.type==='select'?<select className="dms-form-input" value={String(value)} onChange={e=>p.onChange(field.key,e.target.value)}>{Object.entries(field.options??{}).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>:field.type==='checkbox'?<input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e=>p.onChange(field.key,e.target.checked)}/>:field.type==='date'?<DatePicker className="dms-form-input" selected={String(value)?parseISO(String(value)):null} onChange={(date:Date|null)=>p.onChange(field.key,date?format(date,'yyyy-MM-dd'):'')} dateFormat={p.language==='th'?'d MMM yyyy':'MMM d, yyyy'} locale={p.language} minDate={minDate} openToDate={(vacation||personal)&&field.key==='from'&&!value?minDate:undefined} strictParsing placeholderText={p.copy.submission.hintDate}/>:<input className="dms-form-input" type={field.type} min={field.type==='number'?0:undefined} step={field.type==='number'&&field.key==='hours'&&p.selectedKind==='leave'?0.5:field.step} readOnly={field.key==='hours'&&p.selectedKind==='ot'||field.key==='days'&&(p.selectedKind==='leave'&&hourly||p.selectedKind==='ot')} value={String(value)} onChange={e=>p.onChange(field.key,e.target.value)}/>}{hint&&<small className="dms-form-hint">{hint}</small>}</label></Fragment>
    })}</div>
    {p.selectedKind==='leave'&&p.values.leaveType==='sick'&&<label className="dms-form-field dms-submission-field dms-form-field--full" data-field="cert">
     <span className="dms-form-label">{p.copy.submission.medicalCertificateLabel}{p.certificateRequired?' *':''}</span>

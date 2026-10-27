@@ -179,6 +179,21 @@
   min-width: 0;
 }
 
+.dms-submission-field .react-datepicker-wrapper,
+.dms-submission-field .react-datepicker__input-container {
+  display: block;
+  width: 100%;
+}
+
+.documents-submission-modal .react-datepicker-popper {
+  z-index: 10;
+}
+
+.documents-submission-modal .react-datepicker__day--disabled {
+  color: #b7bdca;
+  cursor: not-allowed;
+}
+
 /* ดอกจันแดงบนช่องกรอกที่จำเป็น (ฟอร์มยื่นเอกสารใหม่) */
 .dms-submission-field .dms-form-required {
   color: #dc2626;

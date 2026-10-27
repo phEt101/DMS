@@ -127,7 +127,7 @@ export async function updatePolicy(req: Request, res: Response) {
   if (roleName !== 'admin' && departmentName !== 'hr div.') throw httpError(403, 'ไม่มีสิทธิ์จัดการนโยบายการลา')
   const companyId = companyIdOf(req), b = req.body ?? {}
   const year = Number(b.year), yearStart = String(b.yearStart ?? ''), yearEnd = String(b.yearEnd ?? '')
-  if (!Number.isSafeInteger(year) || year < 2500 || year > 2700) throw httpError(400, 'ปีนโยบายไม่ถูกต้อง')
+  if (!Number.isSafeInteger(year) || year < 1900 || year > 2200) throw httpError(400, 'ปีนโยบายไม่ถูกต้อง')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(yearStart) || !/^\d{4}-\d{2}-\d{2}$/.test(yearEnd) || yearEnd < yearStart) throw httpError(400, 'ช่วงปีการลาไม่ถูกต้อง')
   const fields = {
     leadPersonal: num(b.leadPersonal), leadVacation: num(b.leadVacation), hoursPerDay: num(b.hoursPerDay), hourStep: num(b.hourStep),

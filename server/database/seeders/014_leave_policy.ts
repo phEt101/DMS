@@ -40,10 +40,10 @@ export async function up(connection: Connection) {
      WHERE u.deleted_at IS NULL`,
   )
 
-  // นโยบายการลาเริ่มต้น (ปี 2027) — HR/admin แก้ไขเพิ่มเติมได้จากหน้านโยบาย
+  // Default leave policy for 2026 (AD) — HR/admin can adjust it from the policy page
   await connection.execute(
     `INSERT INTO leave_policies (company_id, policy_year, year_start, year_end, is_active)
-     SELECT 1, 2027, '2026-06-26', '2027-06-25', 1
+     SELECT 1, 2026, '2026-06-26', '2027-06-25', 1
      FROM DUAL
      WHERE NOT EXISTS (SELECT 1 FROM leave_policies WHERE company_id = 1 AND policy_year = 2026)`,
   )

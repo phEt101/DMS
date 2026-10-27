@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS leave_policies (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'รหัสนโยบาย',
   company_id BIGINT UNSIGNED NOT NULL COMMENT 'บริษัทเจ้าของนโยบาย',
-  policy_year SMALLINT UNSIGNED NOT NULL COMMENT 'ปีนโยบาย (พ.ศ.)',
+  policy_year SMALLINT UNSIGNED NOT NULL COMMENT 'Policy year (AD)',
   year_start DATE NOT NULL COMMENT 'วันเริ่มต้นปีการลา',
   year_end DATE NOT NULL COMMENT 'วันสิ้นสุดปีการลา (ใช้แสดงวันหมดอายุสิทธิ์)',
   lead_days_personal SMALLINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'ลากิจ/ลากิจไม่รับค่าจ้าง: ล่วงหน้าอย่างน้อย (วัน)',

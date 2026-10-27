@@ -12,10 +12,11 @@ type Props = {
   rows: MockDocument[]
   statusInfo: Record<MockDocument['status'], { label: string; className: string }>
   onExport: () => void
+  policyYear: number
   copy: any
 }
 
-export default function DocLeaveLedgerSummary({ employees, employee, employeeId, onEmployee, rows, statusInfo, onExport, copy: c }: Props) {
+export default function DocLeaveLedgerSummary({ employees, employee, employeeId, onEmployee, rows, statusInfo, onExport, policyYear, copy: c }: Props) {
   const [confirmExport, setConfirmExport] = useState<'excel' | 'pdf' | null>(null)
   const { showToast } = useToast()
   const used = (type: 'sick' | 'personal' | 'vacation') => rows
@@ -36,7 +37,7 @@ export default function DocLeaveLedgerSummary({ employees, employee, employeeId,
   return <>
     <div className="documents-ledger-summary">
       <EmployeeSearchSelect label={c.ledger.chooseEmployee} value={employeeId} options={employees.map((person) => ({ id: person.id, name: person.name, detail: `${person.code} · ${person.department}` }))} onChange={onEmployee} />
-      <span>{c.ledger.year} 2569</span>
+      <span>{c.ledger.year} {policyYear}</span>
       <div className="documents-balances">
         <span>{c.ledger.sick} <b>{employee.sick} {c.ledger.day} · {c.ledger.used} {used('sick')}</b></span>
         <span>{c.ledger.personal} <b>{employee.personal} {c.ledger.day} · {c.ledger.used} {used('personal')}</b></span>

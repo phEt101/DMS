@@ -32,7 +32,7 @@ const USE_DB = true
 
 type View = 'all' | 'pending' | 'ledger' | 'employees' | 'policy' | 'flowRules' | 'notifications'
 type FormCheck = { ok: boolean; message: string; key?: string }
-const INITIAL_POLICY: MockPolicy = { year:2569, expiry:'25 พฤศจิกายน 2569', yearStart:'2025-11-26', yearEnd:'2026-11-25', leadPersonal:1, leadVacation:15, hoursPerDay:8, hourStep:1, certDays:3, otMax:4, fixDays:7 }
+const INITIAL_POLICY: MockPolicy = { year:2026, expiry:'25 พฤศจิกายน 2026', yearStart:'2025-11-26', yearEnd:'2026-11-25', leadPersonal:1, leadVacation:15, hoursPerDay:8, hourStep:1, certDays:3, otMax:4, fixDays:7 }
 
 const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; icon: typeof FaFileLines; group: 'leave' | 'ot' | 'other' }> = {
   leave: { title: 'ใบลา', description: 'ลาป่วย ลากิจ พักร้อน ลาคลอด และอื่น ๆ', icon: FaCalendarDays, group: 'leave' },
@@ -137,13 +137,13 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
 }
 
 const INITIAL_DOCS: MockDocument[] = [
-  { id: 1, no: 'LV-2569-0012', kind: 'leave', title: 'ลากิจ · 1 วัน', summary: '30 ต.ค. 2569 · ธุระส่วนตัว', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-10-10', status: 'pending_hr', leaveType:'personal', from:'2026-10-30', to:'2026-10-30', days:1, reason:'ธุระส่วนตัว' },
-  { id: 2, no: 'LV-2569-0011', kind: 'leave', title: 'ลาพักร้อน · 3 วัน', summary: '18–20 พ.ย. 2569 · พักผ่อนปลายปี', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr', leaveType:'vacation', from:'2026-11-18', to:'2026-11-20', days:3, reason:'พักผ่อนปลายปี' },
-  { id: 3, no: 'OT-2569-0008', kind: 'ot', title: 'ทำ OT · 2.5 ชั่วโมง', summary: '14 ต.ค. 2569 · ออกแบบแบนเนอร์งานอีเวนต์', employee: 'วีระ ศรีสุข', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr' },
-  { id: 4, no: 'LV-2569-0010', kind: 'leave', title: 'ลาป่วย · 1 วัน', summary: '9 ต.ค. 2569 · แนบใบรับรองแพทย์', employee: 'วีระ ศรีสุข', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr', leaveType:'sick', from:'2026-10-09', to:'2026-10-09', days:1, reason:'ป่วย มีใบรับรองแพทย์' },
-  { id: 6, no: 'LV-2569-0009', kind: 'leave', title: 'ลาพักร้อน · 3 วัน', summary: '15–17 มิ.ย. 2569 · เดินทางกับครอบครัว', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-05-19', status: 'approved', leaveType:'vacation', from:'2026-06-15', to:'2026-06-17', days:3, reason:'เดินทางกับครอบครัว' },
-  { id: 7, no: 'LV-2569-0008', kind: 'leave', title: 'ลากิจ · 1 วัน', summary: '14 ก.ย. 2569 · ธุระที่ธนาคาร', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-09-09', status: 'rejected', note: 'ตรงกับช่วงปิดงบ ขอเลื่อนเป็นสัปดาห์ถัดไป', leaveType:'personal', from:'2026-09-14', to:'2026-09-14', days:1, reason:'ธุระที่ธนาคาร', rejectedBy:'manager' },
-  { id: 8, no: 'TF-2569-0002', kind: 'timefix', title: 'ขอแก้เวลาเข้างาน', summary: '9 ต.ค. 2569 · ลืมสแกนเข้างานตอนเช้า', employee: 'ธนากร ปัญญา', department: 'ฝ่ายขาย', date: '2026-10-12', status: 'pending_mgr' },
+  { id: 1, no: 'LV-2026-0012', kind: 'leave', title: 'ลากิจ · 1 วัน', summary: '30 ต.ค. 2026 · ธุระส่วนตัว', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-10-10', status: 'pending_hr', leaveType:'personal', from:'2026-10-30', to:'2026-10-30', days:1, reason:'ธุระส่วนตัว' },
+  { id: 2, no: 'LV-2026-0011', kind: 'leave', title: 'ลาพักร้อน · 3 วัน', summary: '18–20 พ.ย. 2026 · พักผ่อนปลายปี', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr', leaveType:'vacation', from:'2026-11-18', to:'2026-11-20', days:3, reason:'พักผ่อนปลายปี' },
+  { id: 3, no: 'OT-2026-0008', kind: 'ot', title: 'ทำ OT · 2.5 ชั่วโมง', summary: '14 ต.ค. 2026 · ออกแบบแบนเนอร์งานอีเวนต์', employee: 'วีระ ศรีสุข', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr' },
+  { id: 4, no: 'LV-2026-0010', kind: 'leave', title: 'ลาป่วย · 1 วัน', summary: '9 ต.ค. 2026 · แนบใบรับรองแพทย์', employee: 'วีระ ศรีสุข', department: 'การตลาด', date: '2026-10-12', status: 'pending_mgr', leaveType:'sick', from:'2026-10-09', to:'2026-10-09', days:1, reason:'ป่วย มีใบรับรองแพทย์' },
+  { id: 6, no: 'LV-2026-0009', kind: 'leave', title: 'ลาพักร้อน · 3 วัน', summary: '15–17 มิ.ย. 2026 · เดินทางกับครอบครัว', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-05-19', status: 'approved', leaveType:'vacation', from:'2026-06-15', to:'2026-06-17', days:3, reason:'เดินทางกับครอบครัว' },
+  { id: 7, no: 'LV-2026-0008', kind: 'leave', title: 'ลากิจ · 1 วัน', summary: '14 ก.ย. 2026 · ธุระที่ธนาคาร', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-09-09', status: 'rejected', note: 'ตรงกับช่วงปิดงบ ขอเลื่อนเป็นสัปดาห์ถัดไป', leaveType:'personal', from:'2026-09-14', to:'2026-09-14', days:1, reason:'ธุระที่ธนาคาร', rejectedBy:'manager' },
+  { id: 8, no: 'TF-2026-0002', kind: 'timefix', title: 'ขอแก้เวลาเข้างาน', summary: '9 ต.ค. 2026 · ลืมสแกนเข้างานตอนเช้า', employee: 'ธนากร ปัญญา', department: 'ฝ่ายขาย', date: '2026-10-12', status: 'pending_mgr' },
 ]
 const INITIAL_EMPLOYEES: MockEmployee[] = [
   { id:'e1', name:'สมชาย ใจดี', code:'BCG-0142', department:'การตลาด', email:'somchai@example.com', emailNotify:true, role:'พนักงาน', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2023-03-01', appointedDate:'2023-06-01' },
@@ -154,8 +154,8 @@ const INITIAL_EMPLOYEES: MockEmployee[] = [
   { id:'e6', name:'ธนากร ปัญญา', code:'BCG-0188', department:'ฝ่ายขาย', email:'thanakorn@example.com', emailNotify:false, role:'พนักงาน', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2025-02-03', appointedDate:'2025-05-03' },
 ]
 const INITIAL_NOTIFICATIONS: MockNotification[] = [
-  { id:1, title:'ใบ OT ของวีระ ศรีสุข รอพิจารณา', body:'14 ต.ค. 2569 · 18:00–20:30 · 2.5 ชั่วโมง', date:'2026-10-12T09:00:00+07:00', read:false, documentId:3 },
-  { id:2, title:'ใบลาของสมชาย ใจดี รอ HR ตรวจ', body:'ลากิจ 30 ต.ค. 2569 · 1 วัน', date:'2026-10-12T10:00:00+07:00', read:false, documentId:1 },
+  { id:1, title:'ใบ OT ของวีระ ศรีสุข รอพิจารณา', body:'14 ต.ค. 2026 · 18:00–20:30 · 2.5 ชั่วโมง', date:'2026-10-12T09:00:00+07:00', read:false, documentId:3 },
+  { id:2, title:'ใบลาของสมชาย ใจดี รอ HR ตรวจ', body:'ลากิจ 30 ต.ค. 2026 · 1 วัน', date:'2026-10-12T10:00:00+07:00', read:false, documentId:1 },
   { id:3, title:'ผู้จัดการอนุมัติใบลาของคุณแล้ว', body:'เอกสารส่งต่อให้ HR ตรวจแล้ว', date:'2026-10-11T15:00:00+07:00', read:true, documentId:1 },
 ]
 const MOCK_STORAGE_KEY = 'boswell-leave-v2-mock'
@@ -502,6 +502,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       if ((selectedKind === 'leave' || selectedKind === 'outing') && (key === 'from' || key === 'to')) {
         if (next.from && !next.to) next.to = next.from
         if (next.to && !next.from) next.from = next.to
+        if (key === 'from' && next.from && next.to && String(next.to) < String(next.from)) next.to = next.from
         // เลือกวัน → แสดงชั่วโมงอัตโนมัติ (1 วันทำงาน = hoursPerDay ชม.) เหมือนของเดิมที่แสดงเป็นวัน
         next.days = String(daysBetween(String(next.from ?? ''), String(next.to ?? '')) || '')
         const autoDays = Number(next.days) || 0
@@ -658,7 +659,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       const leaveHours = Number(value('days')) * policy.hoursPerDay
       const title = kind === 'leave' ? `${leaveLabel} · ${leaveHours ? `${leaveHours} ชั่วโมง` : ''}`.replace(' · ', leaveHours ? ' · ' : '') || leaveLabel : kind === 'ot' ? `ทำ OT · ${value('hours')} ชั่วโมง` : KIND_INFO[kind].title
       const summary = kind === 'leave' ? `${dateText(value('from'))}${value('to') && value('to') !== value('from') ? ` – ${dateText(value('to'))}` : ''} · ${value('reason')}` : kind === 'ot' ? `${dateText(value('date'))} · ${value('start')}–${value('end')} · ${value('task')}` : kind === 'timefix' ? `${dateText(value('date'))} · ${value('reason')}` : kind === 'outing' ? `${dateText(value('from'))} – ${dateText(value('to'))} · ${value('company')} · ${value('address')}` : `${dateText(value('date'))} · ${value('reason')}`
-      const doc: MockDocument = { id:nextId, no:`MOCK-2569-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'outing' ? 'from' : 'date'), to:value(kind === 'leave' || kind === 'outing' ? 'to' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, medicalCertificateAvailable:Boolean(medicalCertificateFile), formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
+      const doc: MockDocument = { id:nextId, no:`MOCK-${policy.year}-${String(nextId).padStart(4,'0')}`, kind, title, summary, employee:submitter.name, department:submitter.department, date, status:mockRole === 'พนักงาน' ? 'pending_mgr' : 'pending_hr', from:value(kind === 'leave' || kind === 'outing' ? 'from' : 'date'), to:value(kind === 'leave' || kind === 'outing' ? 'to' : 'date'), days:Number(value('days')) || undefined, reason:value('reason'), leaveType:kind === 'leave' ? value('leaveType') as MockDocument['leaveType'] : undefined, medicalCertificateAvailable:Boolean(medicalCertificateFile), formData:values, signatures: image ? { 'ผู้ยื่น':{ image, name:submitter.name, date } } : undefined }
       setDocuments((current) => [doc, ...current])
       if (rememberSignature && image) setSavedSignature(image)
       setPendingSubmission(null); setSelectedKind(''); setFormValues({})
@@ -713,7 +714,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   return <section className="feature-page feature-page--wide documents-page">
     <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
     {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'flowRules' ? copy.flowRulesSubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
-    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} companyName={ledgerCompanyName} hoursPerDay={policy.hoursPerDay} copy={copy} />}
+    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} companyName={ledgerCompanyName} hoursPerDay={policy.hoursPerDay} policyYear={policy.year} copy={copy} />}
 
     {view === 'employees' && <DocDatabaseEmployeesPanel users={dbEmployees} leaveBalances={dbPeople} hoursPerDay={policy.hoursPerDay} title={pageTitle} subtitle={copy.employeesSubtitle} companyId={user?.company?.id ?? 0} companyName={user?.company?.name ?? ''} loading={dbEmployeesLoading} error={dbEmployeesError} query={employeeQuery} onQuery={setEmployeeQuery} onUpdated={(updated) => setDbEmployees((current) => current.map((employee) => employee.id === updated.id ? updated : employee))} onCreated={(created) => setDbEmployees((current) => [created, ...current])} copy={copy} />}
 
@@ -821,7 +822,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={480} height={160} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" onClick={() => void confirmSignature()}>{signatureHasInk ? copy.signature.confirmOrSend : copy.signature.confirmWithoutSign}</button></div></section></div>}
 
     <DocNewDocumentModal
-      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} role={mockRole} copy={copy} translations={translations}
+      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} leadPersonal={policy.leadPersonal} leadVacation={policy.leadVacation} language={language} role={mockRole} copy={copy} translations={translations}
       onSubmit={submitMock}
       onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}
       onClearKind={() => { setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}

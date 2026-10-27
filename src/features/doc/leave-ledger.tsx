@@ -35,7 +35,7 @@ export interface LedgerEntry {
 
 const categories = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
 const formatDate = (value?: string, locale = 'th-TH') => value ? new Intl.DateTimeFormat(locale, { day:'numeric', month:'short', year:'2-digit' }).format(new Date(`${value}T00:00:00`)) : ''
-export function LeaveLedger({ person, people, entries, onPersonChange, companyName, hoursPerDay = 8, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; companyName?: string; hoursPerDay?: number; copy: any }) {
+export function LeaveLedger({ person, people, entries, onPersonChange, companyName, hoursPerDay = 8, policyYear, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; companyName?: string; hoursPerDay?: number; policyYear: number; copy: any }) {
   const labels: Record<(typeof categories)[number], string> = { personal:c.ledger.personal, sick:c.ledger.sick, vacation:c.ledger.vacation, unpaid:c.leaveTypes.unpaid, other:c.leaveTypes.other }
   const locale = c.dateLocale
   const notes: string[] = c.ledger.noteItems
@@ -56,9 +56,9 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
     if (!kind) return
     setExporting(true)
     try {
-      if (kind === 'excel') await exportLedgerXlsx(person, entries, companyName, hoursPerDay, c)
-      else if (kind === 'word') await exportLedgerDocx(person, entries, companyName, hoursPerDay, c)
-      else await exportLedgerPdf(person)
+      if (kind === 'excel') await exportLedgerXlsx(person, entries, companyName, hoursPerDay, policyYear, c)
+      else if (kind === 'word') await exportLedgerDocx(person, entries, companyName, hoursPerDay, policyYear, c)
+      else await exportLedgerPdf(person, policyYear)
       showToast(c.ledger.exportReady, 'success')
     } catch (error) {
       showToast(error instanceof Error ? error.message : c.ledger.exportError, 'error')
@@ -102,7 +102,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
       <h2>{companyName || c.ledger.companyName}</h2>
       <div className="leave-sheet-info">
         <span>{c.ledger.fullName}&nbsp; {person.name}</span><span>{c.ledger.startDate}&nbsp; {formatDate(person.startDate, locale)}</span><span>{c.ledger.sick} {person.sick} {c.ledger.day}&nbsp; {c.ledger.personal} {person.personal} {c.ledger.day}</span>
-        <span>{c.ledger.employeeCode}&nbsp; {person.code}&nbsp;&nbsp; {c.ledger.department} {person.department}</span><span>{c.ledger.appointedDate}&nbsp; {formatDate(person.appointedDate, locale)}</span><span>{c.ledger.annualVacation} 2569 = {person.vacation} {c.ledger.day}</span>
+        <span>{c.ledger.employeeCode}&nbsp; {person.code}&nbsp;&nbsp; {c.ledger.department} {person.department}</span><span>{c.ledger.appointedDate}&nbsp; {formatDate(person.appointedDate, locale)}</span><span>{c.ledger.annualVacation} {policyYear} = {person.vacation} {c.ledger.day}</span>
       </div>
       <table className="leave-sheet-table"><colgroup><col className="c-no"/><col className="c-date"/><col className="c-date"/><col className="c-type"/><col className="c-type"/><col className="c-vacation"/><col className="c-unpaid"/><col className="c-other"/><col className="c-total"/><col/><col className="c-approval"/><col className="c-review"/><col className="c-review"/></colgroup>
         <thead><tr><th rowSpan={2}>{c.ledger.sequence}</th><th colSpan={7}>{c.ledger.dateType}</th><th rowSpan={2}>{c.ledger.totalTime}</th><th rowSpan={2}>{c.ledger.reason}</th><th rowSpan={2}>{c.ledger.requester}</th><th colSpan={2}>{c.ledger.reviewResult}</th></tr><tr><th>{c.ledger.leaveDate}</th><th>{c.ledger.endDate}</th>{categories.map((type) => <th key={type}>{labels[type]}</th>)}<th>{c.ledger.manager}</th><th>{c.detail.hr}</th></tr></thead>
