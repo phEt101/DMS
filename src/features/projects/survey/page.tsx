@@ -271,7 +271,7 @@ export default function SurveyPage({ translations, language }: { translations: T
 
   return (
     <ErrorBoundary>
-      <section className="feature-page">
+      <section className="feature-page feature-page--wide">
         <p className="dms-kicker">{translations.features.projects.kicker}</p>
         <div className="dms-title-row">
           <div className="dms-title-block">

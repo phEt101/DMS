@@ -309,7 +309,7 @@
         "signatureHint": "Preparer and approver signatures are shown when saved. Blank signature lines are left for manual signing.",
         "sheet": {
           "sale": "Sale",
-          "date": "Date (from–to)",
+          "date": "Date (from – to)",
           "page": "Page",
           "preparedBy": "Prepared by",
           "approvedBy": "Approved by",
@@ -319,8 +319,8 @@
         },
         "columns": {
           "kind": "Work type",
-          "date": "Date (from–to)",
-          "time": "Departure–return time",
+          "date": "Date (from – to)",
+          "time": "Departure – return time",
           "company": "Company",
           "address": "Address",
           "project": "Project",

@@ -74,7 +74,7 @@ export default function CmProjectsPage({ translations, language }: { translation
 	}, [])
 
 	return (
-		<section className="feature-page">
+		<section className="feature-page feature-page--wide">
 			<p className="dms-kicker">{translations?.features?.projects?.kicker ?? 'โครงการทั้งหมด'}</p>
 			<div className="dms-title-row">
 				<div className="dms-title-block"><h1>โครงการ CM</h1><div className="dms-subtitle">รายการงานซ่อมและแก้ไข</div></div>

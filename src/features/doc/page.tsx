@@ -204,8 +204,8 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const signaturePreviewImage = useRef<HTMLImageElement | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  // ขอบเขตการแสดงผล: 'mine' = เฉพาะเอกสารของตัวเอง · 'related' = ของตัวเอง + ที่เกี่ยวข้อง (ค่าเริ่มต้นของ server)
-  const [scope, setScope] = useState<'mine' | 'related'>('related')
+  // ขอบเขตการแสดงผล: 'mine' = เฉพาะเอกสารของตัวเอง (ค่าเริ่มต้น) · 'related' = ของตัวเอง + ที่เกี่ยวข้อง
+  const [scope, setScope] = useState<'mine' | 'related'>('mine')
   const [kindFilter, setKindFilter] = useState('all')
   // กรองตามแผนกของผู้ยื่น (ทางเลือก: 'all' = ทุกแผนก)
   const [departmentFilter, setDepartmentFilter] = useState('all')
