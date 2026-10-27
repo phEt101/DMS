@@ -221,6 +221,10 @@ export default function Topbar({
             <path d="M4 7h16M4 12h16M4 17h16" />
           </TopbarIcon>
         </button>
+        {/* โลโก้บนมือถือ: sidebar ซ่อนอยู่เมื่อจอ < 720px จึงแสดงโลโก้ใน topbar แทน (แสดงเฉพาะจอเล็ก) */}
+        <span className="topbar-brand" aria-hidden="true">
+          {user.company?.logoUrl ? <img className="brand-company-logo" src={user.company.logoUrl} alt="" /> : <span className="brand-mark boswell-logo-mark"><span /></span>}
+        </span>
       </div>
       <div className="topbar-actions">
         <div className="notification-menu" ref={notificationsRef}>

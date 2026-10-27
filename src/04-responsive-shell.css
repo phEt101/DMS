@@ -60,6 +60,10 @@
   .sidebar.is-mobile-open {
     transform: translateX(0);
   }
+  /* แสดงโลโก้ใน topbar เมื่อจอ <= 720px (sidebar ซ่อนอยู่ ต้องกด hamburger ถึงจะเห็นโลโก้) */
+  .topbar-brand {
+    display: flex;
+  }
   .sidebar.is-collapsed .brand-copy,
   .sidebar.is-collapsed .nav-item span,
   .sidebar.is-collapsed .nav-item i,

@@ -482,6 +482,22 @@ a {
 .menu-button {
   display: none;
 }
+/* โลโก้ใน topbar: ซ่อนบนจอใหญ่ (sidebar มีโลโก้อยู่แล้ว) แล้วแสดงเฉพาะบนมือถือ */
+.topbar-brand {
+  display: none;
+  align-items: center;
+}
+.topbar-brand .brand-company-logo {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  margin-left: 4px;
+}
+.topbar-brand .boswell-logo-mark {
+  width: 30px;
+  height: 30px;
+  margin-left: 4px;
+}
 .notification-button .notification-badge {
   position: absolute;
   top: 2px;
