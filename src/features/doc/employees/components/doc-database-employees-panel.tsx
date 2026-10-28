@@ -91,8 +91,20 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
   const [roleFilter, setRoleFilter] = useState('all')
   const [draftDepartment, setDraftDepartment] = useState('all')
   const [draftRole, setDraftRole] = useState('all')
-  const departmentOptions = useMemo(() => Array.from(new Set(users.map((user) => user.department).filter(Boolean) as string[])).sort(), [users])
-  const roleOptions = useMemo(() => Array.from(new Set(users.map((user) => user.role).filter(Boolean) as string[])).sort(), [users])
+  const departmentOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(users.map((user) => user.department).filter(Boolean) as string[])
+      ).sort((a, b) => a.localeCompare(b)),
+    [users]
+  )
+  const roleOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(users.map((user) => user.role).filter(Boolean) as string[])
+      ).sort((a, b) => a.localeCompare(b)),
+    [users]
+  )
   const matches = useMemo(() => users.filter((user) => {
     if (query && !`${user.name} ${user.email} ${user.department ?? ''} ${user.role}`.toLocaleLowerCase('th').includes(query.toLocaleLowerCase('th'))) return false
     if (departmentFilter !== 'all' && (user.department ?? '') !== departmentFilter) return false
