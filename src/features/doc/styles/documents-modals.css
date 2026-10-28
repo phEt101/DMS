@@ -442,6 +442,7 @@
 .documents-workflow-steps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
   gap: 10px;
 }
 
@@ -529,14 +530,120 @@
   font-size: 13px;
 }
 
-.documents-detail-fields dd {
-  min-width: 0;
-  margin: 0;
-  color: #283451;
-  font-size: 13px;
-  overflow-wrap: anywhere;
+.documents-detail-avatar {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+}
+.documents-detail-avatar--fallback.documents-detail-avatar {
+  background: #e2e8f0;
+}
+.documents-detail-avatar img,
+.documents-detail-avatar--fallback img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
+.documents-detail-avatar--image {
+  padding: 0;
+  border: none;
+  cursor: zoom-in;
+  background: transparent;
+}
+.documents-detail-avatar--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.documents-avatar-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: rgb(15 23 42 / 72%);
+  backdrop-filter: blur(4px);
+}
+.documents-avatar-lightbox img {
+  width: min(360px, 76vw);
+  height: min(360px, 76vw);
+  border-radius: 24px;
+  object-fit: cover;
+  border: 4px solid #fff;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 35%);
+}
+.documents-avatar-lightbox strong {
+  justify-self: center;
+  color: #fff;
+  font-size: 20px;
+}
+.documents-avatar-lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  color: #fff;
+}
+.documents-detail-submitter { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.documents-detail-submitter .documents-detail-avatar { width: 52px; height: 52px; font-size: 17px; }
+.documents-detail-submitter-copy { display: grid; gap: 2px; min-width: 0; }
+.documents-detail-submitter-copy strong { color: #1f2937; font-size: 16px; }
+.documents-detail-submitter-copy small { color: #64748b; font-size: 12px; }
+.documents-workflow-copy { display: grid; min-width: 0; gap: 3px; flex: 1 1 auto; }
+
+/* รูป+ชื่อขนาดใหญ่ (แบบลายเซ็น) — แสดงต่อจากขั้นตอนการพิจารณา ก่อนลายเซ็น */
+.documents-portrait-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 16px;
+}
+.documents-portrait-card {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 7px;
+  box-sizing: border-box;
+  flex: 1 1 150px;
+  min-width: 150px;
+  max-width: 200px;
+  width: auto;
+  padding: 14px 10px;
+  border: 1px solid #e5e9f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  text-align: center;
+}
+.documents-portrait-card img,
+.documents-portrait-empty {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.documents-portrait-empty {
+  display: grid;
+  place-items: center;
+  border: 1px solid #dbe1ea;
+  background: #eef1f6;
+  color: #64748b;
+  font-size: 24px;
+  font-weight: 800;
+}
+.documents-portrait-card b { font-size: 12px; color: #334155; }
+.documents-portrait-card small { color: #64748b; font-size: 11px; overflow-wrap: anywhere; }
+.documents-portrait-card img { cursor: zoom-in; }
 .documents-reject {
   border-color: #fecaca;
   background: #fef2f2;

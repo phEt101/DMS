@@ -6,6 +6,7 @@ import { db } from '../../../config/database.js'
 import { httpError } from '../../../middleware/errors.js'
 import { validateRequest, type Kind, type LeaveTypeRow, type Policy, type ValidationContext, type Values } from '../services/employee-requests.validation.js'
 import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
+import { avatarUrlOf } from '../../settings/users/middleware/avatar-upload.middleware.js'
 import { medicalCertificateDirectory, medicalCertificateDisposalDirectory, MEDICAL_CERTIFICATE_RETENTION_DAYS, moveMedicalCertificateToDisposal, deleteMedicalCertificateFile } from '../middleware/medical-certificate-upload.middleware.js'
 
 // ใช้สิทธิ์เดิมของโมดูลเอกสาร + เพิ่ม 'จัดการนโยบายการลา' 1 รายการ (ต้อง seed ในตาราง permissions)
@@ -120,6 +121,14 @@ const flowViewOf = (row: { flow_json?: unknown } | null | undefined) => {
 const nz = (value: unknown) => { const text = String(value ?? '').trim(); return text || null }
 const num = (value: unknown) => { const n = Number(value); return Number.isFinite(n) && String(value ?? '') !== '' ? n : null }
 const camel = (text: string) => text.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+const withAvatarUrls = (row: any) => row && typeof row === 'object' ? {
+  ...row,
+  ...(row.employee_avatar_url !== undefined ? { employee_avatar_url: avatarUrlOf(row.employee_avatar_url) } : {}),
+  ...(row.mgr_signer_avatar_url !== undefined ? { mgr_signer_avatar_url: avatarUrlOf(row.mgr_signer_avatar_url) } : {}),
+  ...(row.exec_signer_avatar_url !== undefined ? { exec_signer_avatar_url: avatarUrlOf(row.exec_signer_avatar_url) } : {}),
+  ...(row.hr_signer_avatar_url !== undefined ? { hr_signer_avatar_url: avatarUrlOf(row.hr_signer_avatar_url) } : {}),
+  ...(row.signer_avatar_url !== undefined ? { signer_avatar_url: avatarUrlOf(row.signer_avatar_url) } : {}),
+} : row
 const camelize = (row: any) => Object.fromEntries(Object.entries(row).map(([key, value]) => [camel(key), value]))
 const checkSignature = (value: unknown, required: boolean) => {
   const image = String(value ?? '')
@@ -300,7 +309,7 @@ export async function index(req: Request, res: Response) {
   const [rows] = await db.query<any[]>(
     `SELECT r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at,
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
-            r.employee_user_id, eu.name AS employee_name, dep.name AS department_name,
+            r.employee_user_id, eu.name AS employee_name, eu.avatar_path AS employee_avatar_url, dep.name AS department_name,
             lt.code AS leave_type, ot.hours AS ot_hours, ot.task AS ot_task,
             outing.place AS place,
             (medical_certificate.request_id IS NOT NULL) AS medical_certificate_available,
@@ -308,7 +317,9 @@ export async function index(req: Request, res: Response) {
             se.signer_name AS exec_signer_name, DATE_FORMAT(se.signed_at,'%Y-%m-%d') AS exec_signed_at,
             sh.signer_name AS hr_signer_name, DATE_FORMAT(sh.signed_at,'%Y-%m-%d') AS hr_signed_at,
             smi.signature_image AS mgr_signature_image, sei.signature_image AS exec_signature_image, shi.signature_image AS hr_signature_image,
-            ss.signer_name AS submitter_name, ssi.signature_image AS submitter_signature_image
+            ss.signer_name AS submitter_name, ssi.signature_image AS submitter_signature_image,
+            eu.avatar_path AS employee_avatar_url,
+            smu.avatar_path AS mgr_signer_avatar_url, seu.avatar_path AS exec_signer_avatar_url, shu.avatar_path AS hr_signer_avatar_url
        FROM employee_requests r
        JOIN users eu ON eu.id = r.employee_user_id
        LEFT JOIN departments dep ON dep.id = r.department_id
@@ -325,10 +336,13 @@ export async function index(req: Request, res: Response) {
         LEFT JOIN signature_images sei ON sei.id = se.signature_file_id
         LEFT JOIN signature_images shi ON shi.id = sh.signature_file_id
         LEFT JOIN signature_images ssi ON ssi.id = ss.signature_file_id
+        LEFT JOIN users smu ON smu.id = sm.signer_user_id
+        LEFT JOIN users seu ON seu.id = se.signer_user_id
+        LEFT JOIN users shu ON shu.id = sh.signer_user_id
       WHERE ${where.join(' AND ')}
       ORDER BY r.submitted_at DESC, r.id DESC LIMIT 1000`, params,
   )
-  res.json(rows.map((row) => ({
+  res.json(rows.map((row) => withAvatarUrls({
     ...camelize(row),
     medicalCertificateAvailable: Boolean(row.medical_certificate_available)
       && (canViewCompanyCertificates || Number(row.employee_user_id) === me),
@@ -379,7 +393,7 @@ export async function show(req: Request, res: Response) {
   const [rows] = await db.query<any[]>(
     `SELECT r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at, r.decided_at,
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
-            r.employee_user_id, r.manager_user_id, r.department_id, r.flow_json, eu.name AS employee_name, dep.name AS department_name
+            r.employee_user_id, r.manager_user_id, r.department_id, r.flow_json, eu.name AS employee_name, eu.avatar_path AS employee_avatar_url, dep.name AS department_name
        FROM employee_requests r JOIN users eu ON eu.id = r.employee_user_id LEFT JOIN departments dep ON dep.id = r.department_id
       WHERE r.id = ? AND r.company_id = ? LIMIT 1`, [id, companyId],
   )
@@ -411,9 +425,11 @@ export async function show(req: Request, res: Response) {
     detail.medicalCertificateAvailable = canViewCertificate && hasCertificateFile
   }
   const [signatures] = await db.query<any[]>(
-    `SELECT signature.stage, signature.action, signature.signer_name, image.signature_image, signature.note, signature.signed_at
+    `SELECT signature.stage, signature.action, signature.signer_name, image.signature_image, signature.note, signature.signed_at,
+            signer.avatar_path AS signer_avatar_url
        FROM employee_request_signatures signature
        LEFT JOIN signature_images image ON image.id = signature.signature_file_id
+       LEFT JOIN users signer ON signer.id = signature.signer_user_id
       WHERE signature.request_id = ? ORDER BY signature.signed_at, signature.id`, [id],
   )
   const notSelf = row.employee_user_id !== me
@@ -426,7 +442,7 @@ export async function show(req: Request, res: Response) {
   const isHrMember = hrMemberIds.includes(me)
   const { manager_user_id: _manager, executive_user_id: _exec, department_id: _dep, flow_json: _flow, ...publicRow } = row as any
   res.json({
-    ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map(camelize),
+    ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map((sig: any) => withAvatarUrls(camelize(sig))),
     flow: flowViewOf(row),
     canViewMedicalCertificate: canViewCertificate,
     canApprove: notSelf && (
@@ -1266,7 +1282,7 @@ export async function validate(req: Request, res: Response) {
 // ---------- รายการ/ใบที่ใช้ร่วมกับการแจ้งเตือน ----------
 const LIST_COLUMNS = `r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at,
   DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
-  r.employee_user_id, eu.name AS employee_name, dep.name AS department_name,
+  r.employee_user_id, eu.name AS employee_name, eu.avatar_path AS employee_avatar_url, dep.name AS department_name,
   lt.code AS leave_type, ot.hours AS ot_hours, ot.task AS ot_task, outing.place AS place`
 const LIST_JOINS = `JOIN users eu ON eu.id = r.employee_user_id
   LEFT JOIN departments dep ON dep.id = r.department_id
@@ -1274,7 +1290,7 @@ const LIST_JOINS = `JOIN users eu ON eu.id = r.employee_user_id
   LEFT JOIN leave_types lt ON lt.id = dl.leave_type_id
   LEFT JOIN employee_request_ot_details ot ON ot.request_id = r.id
   LEFT JOIN employee_request_outing_details outing ON outing.request_id = r.id`
-const listRow = (row: any) => ({ ...camelize(row), days: row.days === null ? null : Number(row.days), otHours: row.ot_hours === null ? null : Number(row.ot_hours) })
+const listRow = (row: any) => ({ ...withAvatarUrls(camelize(row)), days: row.days === null ? null : Number(row.days), otHours: row.ot_hours === null ? null : Number(row.ot_hours) })
 
 export async function notifications(req: Request, res: Response) {
   needDocumentModule(req)

@@ -6,6 +6,7 @@ export interface AuthUserRow extends RowDataPacket {
   email: string;
   passwordHash: string | null;
   name: string;
+  avatarPath: string | null;
   companyId: number;
   companyName: string;
   companyLogoUrl: string | null;
@@ -32,6 +33,7 @@ export interface AuthSessionRow extends RowDataPacket {
   userId: number;
   email: string;
   name: string;
+  avatarPath: string | null;
   companyId: number;
   companyName: string;
   companyLogoUrl: string | null;
@@ -60,6 +62,7 @@ export async function findUserByEmail(
             users.email, 
             users.password_hash AS passwordHash,
             users.name,
+            users.avatar_path AS avatarPath,
             companies.id AS companyId,
             companies.name AS companyName,
             companies.logo_url AS companyLogoUrl,
@@ -119,6 +122,7 @@ export async function findSessionByTokenHash(
        users.id AS userId,
        users.email,
        users.name,
+       users.avatar_path AS avatarPath,
        companies.id AS companyId,
        companies.name AS companyName,
        companies.logo_url AS companyLogoUrl,

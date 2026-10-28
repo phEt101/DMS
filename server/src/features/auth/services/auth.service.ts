@@ -1,3 +1,4 @@
+import { avatarUrlOf } from "../../settings/users/middleware/avatar-upload.middleware.js";
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import * as authRepository from "../repositories/auth.repository.js";
@@ -23,6 +24,7 @@ export interface AuthenticatedUser {
   id: number;
   email: string;
   name: string;
+  avatarUrl: string | null;
   company: { id: number; name: string; logoUrl: string | null };
   department: string | null;
   departmentModules: string[];
@@ -105,6 +107,7 @@ export async function login(input: LoginInput): Promise<LoginResult> {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: avatarUrlOf(user.avatarPath),
       company: { id: user.companyId, name: user.companyName, logoUrl: user.companyLogoUrl },
       department: user.departmentName,
       departmentModules,

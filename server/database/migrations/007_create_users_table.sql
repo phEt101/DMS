@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   department_id BIGINT UNSIGNED NULL COMMENT 'รหัสแผนกของผู้ใช้งาน; NULL=ไม่สังกัดแผนก',
   company_id BIGINT UNSIGNED NOT NULL COMMENT 'บริษัทของผู้ใช้งาน',
   phone VARCHAR(30) NULL COMMENT 'หมายเลขโทรศัพท์',
+  avatar_path VARCHAR(255) NULL COMMENT 'พาธไฟล์รูปโปรไฟล์ในเซิร์ฟเวอร์ (storage/avatars); NULL=ยังไม่มีรูป',
   is_active BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'สถานะการใช้งาน: 1=ใช้งาน, 0=ปิดใช้งาน',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'วันที่และเวลาที่สร้าง',
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'วันที่และเวลาที่แก้ไขล่าสุด',

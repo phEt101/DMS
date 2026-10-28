@@ -18,7 +18,7 @@
     "allTitle": "เอกสารรายบุคคล",
     "pendingTitle": "รายการใบลาที่รอตรวจ",
     "ledgerTitle": "สมุดบันทึกการลา",
-    "employeesTitle": "รายชื่อพนักงาน",
+    "employeesTitle": "จัดการพนักงาน",
     "policyTitle": "นโยบายการลา",
     "flowRulesTitle": "กำหนดสิทธิ์ในการยื่นเอกสาร (Flow)",
     "notificationsTitle": "การแจ้งเตือน",
@@ -187,6 +187,7 @@
       "signature": "ลายเซ็น",
       "noSignature": "ยังไม่มีลายเซ็น",
       "confirmedNoSign": "ยืนยันโดยไม่เซ็น",
+      "portraits": "รูปผู้เกี่ยวข้อง",
       "rejectionNote": "หมายเหตุจากผู้พิจารณา",
       "submitted": "ผู้ยื่น",
       "manager": "ผู้จัดการแผนก",
@@ -289,7 +290,14 @@
       "leaveOther": "ลาพิเศษอื่น ๆ",
       "required": "กรอกชื่อและรหัสประจำตัวให้ครบ",
       "invalidEmail": "กรอกอีเมลให้ถูกต้อง",
-      "duplicateCode": "รหัสประจำตัวนี้มีอยู่แล้ว"
+      "duplicateCode": "รหัสประจำตัวนี้มีอยู่แล้ว",
+      "avatar": "รูปโปรไฟล์",
+      "avatarReplace": "เลือกไฟล์ใหม่เพื่อเปลี่ยนรูป",
+      "avatarRemove": "ลบรูปโปรไฟล์",
+      "avatarKeep": "เก็บรูปเดิมไว้",
+      "avatarNone": "ยังไม่มีรูป — เลือกไฟล์เพื่อเพิ่มรูปโปรไฟล์",
+      "avatarUploading": "กำลังอัปโหลดรูป...",
+      "avatarError": "อัปโหลดรูปโปรไฟล์ไม่สำเร็จ"
     },
     "policy": {
       "title": "นโยบายการลาและเอกสาร",

@@ -340,3 +340,88 @@
 .leave-ledger-toolbar .employee-search-select {
   min-width: min(320px, 100%);
 }
+
+/* ---------- รูปโปรไฟล์พนักงาน ---------- */
+.documents-employee-avatar--image {
+  padding: 0;
+  overflow: hidden;
+}
+.documents-employee-avatar--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.documents-employee-avatar-field {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: 0 auto 18px;
+  padding: 16px;
+  max-width: 320px;
+  border: 1px solid #e5e9f0;
+  border-radius: 16px;
+  background: #f8fafc;
+  text-align: center;
+}
+.documents-employee-avatar-field-preview {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+.documents-employee-avatar-field-preview .documents-employee-avatar {
+  width: 72px;
+  height: 72px;
+  font-size: 22px;
+}
+.documents-employee-avatar-field-preview .documents-employee-avatar--image {
+  border-radius: 50%;
+}
+.documents-employee-avatar-field-input {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  justify-items: center;
+  color: #34405d;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.documents-employee-avatar-field-input input {
+  align-self: flex-start;
+  font-weight: 400;
+  font-size: 12px;
+}
+.documents-employee-avatar-field-input small {
+  color: #7a849e;
+  font-weight: 400;
+}
+.documents-employee-avatar-remove {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #dc2626;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.documents-employee-avatar-remove:hover {
+  text-decoration: underline;
+}
+button.documents-employee-avatar--image {
+  padding: 0;
+  border: none;
+  background: #e2e8f0;
+  cursor: zoom-in;
+}
+.documents-employee-avatar-field.is-readonly {
+  max-width: none;
+  border: none;
+  background: none;
+  padding: 0 0 4px;
+}
+.documents-employee-avatar-remove.is-pending {
+  color: #5143e8;
+}

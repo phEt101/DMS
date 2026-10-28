@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 
 import { httpError } from "../../../middleware/errors.js";
 import * as authRepository from "../repositories/auth.repository.js";
+import { avatarUrlOf } from "../../settings/users/middleware/avatar-upload.middleware.js";
 import {
   hashSessionToken,
   SESSION_COOKIE_NAME,
@@ -47,6 +48,7 @@ export const requireAuth: RequestHandler = async (
     id: session.userId,
     email: session.email,
     name: session.name,
+    avatarUrl: avatarUrlOf(session.avatarPath),
     company: { id: session.companyId, name: session.companyName, logoUrl: session.companyLogoUrl },
     department: session.departmentName,
     departmentModules,

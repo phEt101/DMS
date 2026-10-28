@@ -27,18 +27,22 @@ export type ApiListRow = {
   days: number | null; reason: string | null; rejectionNote: string | null; rejectedStage: 'manager' | 'executive' | 'hr' | null
   submittedAt: string; startDate: string | null; endDate: string | null
   employeeUserId: number; employeeName: string; departmentName: string | null; medicalCertificateAvailable?: boolean
+  employeeAvatarUrl?: string | null
+  mgrSignerAvatarUrl?: string | null
   leaveType: string | null; otHours: number | null; otTask: string | null; place: string | null
   mgrSignerName: string | null; mgrSignedAt: string | null; mgrSignatureImage: string | null
   execSignerName: string | null; execSignedAt: string | null; execSignatureImage: string | null
-  hrSignerName: string | null; hrSignedAt: string | null; hrSignatureImage: string | null
+  hrSignerAvatarUrl?: string | null; hrSignerName: string | null; hrSignedAt: string | null; hrSignatureImage: string | null
   submitterName: string | null; submitterSignatureImage: string | null
+  execSignerAvatarUrl?: string | null
+  submitterAvatarUrl?: string | null
 }
-export type ApiSignature = { stage: 'submitter' | 'manager' | 'executive' | 'hr'; action: string; signerName: string; signatureImage: string | null; note: string | null; signedAt: string }
+export type ApiSignature = { stage: 'submitter' | 'manager' | 'executive' | 'hr'; action: string; signerName: string; signatureImage: string | null; note: string | null; signedAt: string; signerAvatarUrl?: string | null }
 export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean; flow?: { stages: Array<'manager' | 'executive' | 'hr'>; recordAfterStage: string | null } | null }
 export type ApiCheck = { ok: boolean; key: string; params?: Record<string, string | number> }
 export type ApiNotification = ApiListRow & { notificationId: number; event: string; isRead: boolean; createdAt: string }
 export type ApiPolicy = { id: number; year: number; yearStart: string; yearEnd: string; expiryDate: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number; certDays: number; otMax: number; fixDays: number }
-export type ApiPerson = { id: number; name: string; email: string; isActive: boolean; departmentName: string | null; employeeCode: string | null; sick: number; personal: number; vacation: number; other: number; sickUsed: number | null; sickPending: number | null; personalUsed: number | null; personalPending: number | null; vacationUsed: number | null; vacationPending: number | null; startDate: string | null; appointedDate: string | null; emailNotificationsEnabled: boolean | null }
+export type ApiPerson = { id: number; name: string; email: string; isActive: boolean; avatarUrl: string | null; departmentName: string | null; employeeCode: string | null; sick: number; personal: number; vacation: number; other: number; sickUsed: number | null; sickPending: number | null; personalUsed: number | null; personalPending: number | null; vacationUsed: number | null; vacationPending: number | null; startDate: string | null; appointedDate: string | null; emailNotificationsEnabled: boolean | null }
 
 // ---------- calls ----------
 export const listRequests = (params: { status?: string; kind?: string; awaiting?: 'me'; mine?: 'me'; employeeId?: number } = {}) => {
@@ -133,18 +137,21 @@ export function mapListRow(row: ApiListRow, t: MapperText): MockDocument {
     id: row.id, no: row.requestNo, kind: row.kind, title, summary: [range, extra].filter(Boolean).join(' · '),
     medicalCertificateAvailable: row.medicalCertificateAvailable,
     employee: row.employeeName, department: row.departmentName ?? '', date: bangkokDate(row.submittedAt),
+    employeeAvatarUrl: row.employeeAvatarUrl ?? undefined,
     status: row.status as Status, leaveType: (row.leaveType ?? undefined) as MockDocument['leaveType'],
     from: row.startDate ?? undefined, to: row.endDate ?? undefined, days: row.days ?? undefined,
     reason: row.reason ?? undefined, note: row.rejectionNote ?? undefined, rejectedBy: row.rejectedStage ?? undefined,
     mgrSignerName: row.mgrSignerName ?? undefined, mgrSignedAt: row.mgrSignedAt ?? undefined,
+    mgrSignerAvatarUrl: row.mgrSignerAvatarUrl ?? undefined,
     execSignerName: row.execSignerName ?? undefined, execSignedAt: row.execSignedAt ?? undefined,
     hrSignerName: row.hrSignerName ?? undefined, hrSignedAt: row.hrSignedAt ?? undefined,
+    hrSignerAvatarUrl: row.hrSignerAvatarUrl ?? undefined,
     signatures: {
-      ...(row.submitterName && row.submitterSignatureImage ? { 'ผู้ยื่น': { image: row.submitterSignatureImage, name: row.submitterName, date: row.submittedAt ? String(row.submittedAt).slice(0,10) : '' } } : {}),
+      ...(row.submitterName && row.submitterSignatureImage ? { 'ผู้ยื่น': { image: row.submitterSignatureImage, name: row.submitterName, date: row.submittedAt ? String(row.submittedAt).slice(0,10) : '', avatarUrl: row.employeeAvatarUrl } } : {}),
       // ยืนยันโดยไม่เซ็น = signatureImage เป็น null → ยังแสดงขั้นตอน + ชื่อผู้ยืนยัน (ไม่มีรูป)
-      ...(row.mgrSignerName ? { 'ผู้จัดการแผนก': { image: row.mgrSignatureImage ?? '', name: row.mgrSignerName, date: row.mgrSignedAt ?? '' } } : {}),
-      ...(row.execSignerName ? { 'ผู้ประกอบการ': { image: row.execSignatureImage ?? '', name: row.execSignerName, date: row.execSignedAt ?? '' } } : {}),
-      ...(row.hrSignerName ? { 'HR': { image: row.hrSignatureImage ?? '', name: row.hrSignerName, date: row.hrSignedAt ?? '' } } : {}),
+      ...(row.mgrSignerName ? { 'ผู้จัดการแผนก': { image: row.mgrSignatureImage ?? '', name: row.mgrSignerName, date: row.mgrSignedAt ?? '', avatarUrl: row.mgrSignerAvatarUrl } } : {}),
+      ...(row.execSignerName ? { 'ผู้ประกอบการ': { image: row.execSignatureImage ?? '', name: row.execSignerName, date: row.execSignedAt ?? '', avatarUrl: row.execSignerAvatarUrl } } : {}),
+      ...(row.hrSignerName ? { 'HR': { image: row.hrSignatureImage ?? '', name: row.hrSignerName, date: row.hrSignedAt ?? '', avatarUrl: row.hrSignerAvatarUrl } } : {}),
     },
   } as MockDocument
 }
@@ -170,7 +177,7 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
   const signedActions = ['approved', 'submitted']
   for (const sig of row.signatures) {
     // ยืนยันโดยไม่เซ็น = signatureImage เป็น null → ยังคงแสดงในขั้นตอน แต่ไม่มีรูปลายเซ็น
-    if (signedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage ?? '', name: sig.signerName, date: bangkokDate(sig.signedAt) }
+    if (signedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage ?? '', name: sig.signerName, date: bangkokDate(sig.signedAt), avatarUrl: sig.signerAvatarUrl ?? null }
   }
   return { ...base, formData, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures, flow: row.flow ?? null } as MockDocument
 }

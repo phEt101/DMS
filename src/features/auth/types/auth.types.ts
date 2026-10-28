@@ -7,6 +7,7 @@ export interface AuthUser {
   id: number;
   email: string;
   name: string;
+  avatarUrl?: string | null;
   company?: { id: number; name: string; logoUrl: string | null };
   department?: string | null;
   departmentModules: string[];

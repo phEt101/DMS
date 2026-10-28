@@ -1,5 +1,6 @@
 import { db } from "../../../../config/database.js";
 import { httpError } from "../../../../middleware/errors.js";
+import { avatarUrlOf } from "../middleware/avatar-upload.middleware.js";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 export interface UserRow extends RowDataPacket {
@@ -14,6 +15,7 @@ export interface UserRow extends RowDataPacket {
   role: string;
   department: string | null;
   phone: string | null;
+  avatarPath: string | null;
   employeeCode: string | null;
   employmentStartDate: string | null;
   appointedDate: string | null;
@@ -37,6 +39,7 @@ export interface UserWriteInput {
   role?: string;
   department?: string | null;
   phone?: string | null;
+  avatarPath?: string | null;
   isActive?: boolean;
   employeeCode?: string | null;
   employmentStartDate?: string | null;
@@ -48,9 +51,10 @@ export interface UserWriteInput {
   emailNotificationsEnabled?: boolean | null;
 }
 
-interface CreateUserInput extends Required<Omit<UserWriteInput, "department" | "phone" | "passwordHash" | "employeeCode" | "employmentStartDate" | "appointedDate" | "sickLeaveDays" | "personalLeaveDays" | "vacationLeaveDays" | "otherLeaveDays" | "emailNotificationsEnabled">> {
+interface CreateUserInput extends Required<Omit<UserWriteInput, "department" | "phone" | "avatarPath" | "passwordHash" | "employeeCode" | "employmentStartDate" | "appointedDate" | "sickLeaveDays" | "personalLeaveDays" | "vacationLeaveDays" | "otherLeaveDays" | "emailNotificationsEnabled">> {
   department: string | null;
   phone: string | null;
+  avatarPath?: string | null;
   passwordHash: string;
   employeeCode?: string | null;
   employmentStartDate?: string | null;
@@ -75,7 +79,7 @@ interface FindUsersOptions {
 const selectFields = `
   users.id, users.email, users.name, users.first_name AS firstName, users.last_name AS lastName,
   users.company_id AS companyId, companies.name AS company, companies.logo_url AS companyLogoUrl,
-  roles.name AS role, departments.name AS department, users.phone,
+  roles.name AS role, departments.name AS department, users.phone, users.avatar_path AS avatarPath,
   employees.employee_code AS employeeCode,
   employees.employment_start_date AS employmentStartDate, employees.appointed_date AS appointedDate,
   employees.sick_leave_days AS sickLeaveDays, employees.personal_leave_days AS personalLeaveDays,
@@ -121,6 +125,13 @@ async function resolveCompanyId(id: number) {
   return rows[0].id
 }
 
+// แปลง avatar_path ใน DB เป็น avatarUrl สำหรับส่งให้ frontend (และไม่ส่ง path จริงออกไป)
+function withAvatarUrl<T extends { avatarPath?: string | null; avatarUrl?: string | null }>(row: T): T {
+  if (!row) return row;
+  const { avatarPath, ...rest } = row;
+  return { ...rest, avatarUrl: avatarUrlOf(avatarPath) } as T;
+}
+
 export async function findAll({
   search = "",
   status = "all",
@@ -160,7 +171,7 @@ export async function findAll({
     `SELECT ${selectFields} ${joins} ${where} ORDER BY users.created_at DESC, users.id DESC LIMIT ? OFFSET ?`,
     [...values, limit, offset],
   );
-  return { rows, total: countRows[0]?.total ?? 0 };
+  return { rows: rows.map(withAvatarUrl), total: countRows[0]?.total ?? 0 };
 }
 
 export async function findById(id: number | string) {
@@ -168,7 +179,7 @@ export async function findById(id: number | string) {
     `SELECT ${selectFields} ${joins} WHERE users.id = ? AND users.deleted_at IS NULL LIMIT 1`,
     [id],
   );
-  return rows[0] ?? null;
+  return rows[0] ? withAvatarUrl(rows[0]) : null;
 }
 
 export async function findByEmail(email: string, excludeId: number | string | null = null) {
@@ -192,6 +203,7 @@ export async function create({
   role,
   department,
   phone,
+  avatarPath,
   isActive,
   employeeCode,
   employmentStartDate,
@@ -210,8 +222,8 @@ export async function create({
   try {
     await connection.beginTransaction();
     const [result] = await connection.execute<ResultSetHeader>(
-      "INSERT INTO users (email, password_hash, name, first_name, last_name, role_id, department_id, company_id, phone, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [email, passwordHash, name, firstName, lastName, roleId, departmentId, resolvedCompanyId, phone, isActive],
+      "INSERT INTO users (email, password_hash, name, first_name, last_name, role_id, department_id, company_id, phone, avatar_path, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [email, passwordHash, name, firstName, lastName, roleId, departmentId, resolvedCompanyId, phone, avatarPath ?? null, isActive],
     );
     userId = result.insertId;
     await connection.execute(
@@ -265,6 +277,7 @@ export async function update(id: number | string, input: UserWriteInput) {
     departmentId: "department_id",
     companyId: "company_id",
     phone: "phone",
+    avatarPath: "avatar_path",
     isActive: "is_active",
   };
   for (const [key, column] of Object.entries(userColumns)) {

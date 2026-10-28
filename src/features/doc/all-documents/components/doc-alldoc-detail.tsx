@@ -1,6 +1,8 @@
 import type { MockDocument, FormValues, SignatureStage } from '../../document-types'
 import { medicalCertificateUrl } from '../../services/employee-requests.service'
 import { FaPenNib } from 'react-icons/fa6'
+import { useState } from 'react'
+import { avatarSrc } from '../../../../services/avatar'
 
 type Props = {
   document: MockDocument
@@ -22,6 +24,32 @@ function DetailField({ label, value, full = false }: { label: string; value?: st
   return <div className={`dms-form-field documents-readonly-field${full ? ' dms-form-field--full' : ''}`}><span className="dms-form-label">{label}</span><div className="documents-readonly-value">{value}</div></div>
 }
 
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
+function DetailAvatar({ src, name, onZoom }: { src?: string | null; name: string; onZoom?: (src: string, name: string) => void }) {
+  const resolved = avatarSrc(src)
+  const [broken, setBroken] = useState(false)
+  if (!resolved || broken) return <span className="documents-detail-avatar documents-detail-avatar--fallback">{initials(name) || '?'}</span>;
+  return (
+    <button
+      type="button"
+      className="documents-detail-avatar documents-detail-avatar--image"
+      title={name}
+      onClick={onZoom ? () => onZoom(resolved, name) : undefined}
+    >
+      <img src={resolved} alt={name} onError={() => setBroken(true)} />
+    </button>
+  );
+}
+
 // flow ที่เก็บไว้กับเอกสารตอนยื่น (snapshot) — ไม่มี = เอกสารเก่าก่อนมีระบบกฎ flow
 type FlowKey = 'manager' | 'executive' | 'hr'
 type FlowSnap = { stages: FlowKey[]; recordAfterStage: string | null } | null
@@ -33,6 +61,8 @@ export default function DocAllDocumentsDetail({ document: doc, detailValues, kin
   const statusStyle = doc.status === 'approved' ? 'is-done' : doc.status === 'rejected' ? 'is-cancelled' : 'is-submitted'
   const outingAddress = [detailValues.address, detailValues.subdistrict, detailValues.district, detailValues.province, detailValues.postalCode, detailValues.country].map((value) => String(value ?? '').trim()).filter(Boolean).join(' ')
   const outingCoordinates = [detailValues.latitude, detailValues.longitude].every((value) => value !== undefined && value !== '') ? `${detailValues.latitude}, ${detailValues.longitude}` : ''
+  const [zoomAvatar, setZoomAvatar] = useState<{ src: string; name: string } | null>(null)
+  const zoom = (src: string, name: string) => setZoomAvatar({ src, name })
 
   // ขั้นตอนที่แสดง:
   //  - เอกสารใหม่ (มี flow snapshot): แสดงตาม flow ที่ใช้ตอนยื่น เช่น ผู้ยื่น → HR (ตัดขั้นหลังจุดบันทึกออก เพราะไม่ถูกใช้)
@@ -57,7 +87,15 @@ export default function DocAllDocumentsDetail({ document: doc, detailValues, kin
     <h2 className="dms-modal-title">{c.detail.title}</h2><p className="dms-modal-subtitle">{doc.no} · {c.detail.submittedAt} {dateText(doc.date)}</p><button type="button" className="modal-close documents-detail-close" aria-label={c.detail.close} onClick={(event) => { event.stopPropagation(); onClose() }}>×</button>
     <div className="dms-create-doc-body documents-detail-body">
       <div className="documents-detail-header"><div><span className={`dms-card-status ${statusStyle}`}>{statusLabel}</span><h2 id="document-detail-title">{doc.title}</h2></div></div>
-      <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.submitterInfo}</h3><div className="dms-pm-create-grid"><DetailField label={c.detail.fullName} value={doc.employee} /><DetailField label={c.detail.department} value={doc.department} /><DetailField label={c.detail.kind} value={kindTitle} /><DetailField label={c.detail.date} value={dateText(doc.date)} /><DetailField label={c.detail.number} value={doc.no} /><DetailField label={c.detail.status} value={statusLabel} /></div></section>
+      <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.submitterInfo}</h3>
+        <div className="documents-detail-submitter">
+          <DetailAvatar src={doc.employeeAvatarUrl} name={doc.employee} onZoom={zoom} />
+          <div className="documents-detail-submitter-copy">
+            <strong>{doc.employee}</strong>
+            <small>{doc.department}</small>
+          </div>
+        </div>
+        <div className="dms-pm-create-grid"><DetailField label={c.detail.fullName} value={doc.employee} /><DetailField label={c.detail.department} value={doc.department} /><DetailField label={c.detail.kind} value={kindTitle} /><DetailField label={c.detail.date} value={dateText(doc.date)} /><DetailField label={c.detail.number} value={doc.no} /><DetailField label={c.detail.status} value={statusLabel} /></div></section>
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.request}</h3><div className="dms-pm-create-grid">
         {doc.kind === 'leave' && <>
           <DetailField label={c.fieldLabels.leaveType} value={leaveNames[String(detailValues.leaveType ?? doc.leaveType ?? '')] ?? String(detailValues.leaveType ?? doc.leaveType ?? '')} />
@@ -94,11 +132,23 @@ export default function DocAllDocumentsDetail({ document: doc, detailValues, kin
         const current = doc.status === 'pending_mgr' && stage === 'ผู้จัดการแผนก' || doc.status === 'pending_exec' && stage === 'ผู้ประกอบการ' || doc.status === 'pending_hr' && stage === 'HR'
         const done = stage === 'ผู้ยื่น' || Boolean(sig) || doc.status === 'approved'
         const stageLabel = stage === 'ผู้ยื่น' ? c.detail.submitted : stage === 'ผู้ประกอบการ' ? c.detail.executive : stage === 'HR' ? c.detail.hr : c.detail.manager
-        return <div className={`documents-workflow-step ${rejected ? 'is-rejected' : done ? 'is-done' : current ? 'is-current' : ''}`} key={stage}><span>{rejected ? '!' : done ? '✓' : '•'}</span><div><b>{stageLabel}</b><small>{sig ? `${sig.name} · ${dateText(sig.date)}` : rejected ? c.detail.rejected : current ? c.detail.waiting : stage === 'ผู้ยื่น' ? `${c.detail.submittedAt} ${dateText(doc.date)}` : c.detail.notStarted}</small></div></div>
+        return <div className={`documents-workflow-step ${rejected ? 'is-rejected' : done ? 'is-done' : current ? 'is-current' : ''}`} key={stage}><span>{rejected ? '!' : done ? '✓' : '•'}</span><div className="documents-workflow-copy"><b>{stageLabel}</b><small>{sig ? `${sig.name} · ${dateText(sig.date)}` : rejected ? c.detail.rejected : current ? c.detail.waiting : stage === 'ผู้ยื่น' ? `${c.detail.submittedAt} ${dateText(doc.date)}` : c.detail.notStarted}</small></div></div>
       })}</div>{doc.note&&<p className="documents-review-note">{c.detail.rejectionNote}: {doc.note}</p>}</section>
+      {/* รูป+ชื่อขนาดใหญ่ (แบบลายเซ็น) ต่อจากขั้นตอนการพิจารณา ก่อนลายเซ็น */}
+      <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.portraits}</h3><div className="documents-portrait-list">{workflowStages.map((stage) => {
+        const sig = doc.signatures?.[stage]
+        const stageLabel = stage === 'ผู้ยื่น' ? c.detail.submitted : stage === 'ผู้ประกอบการ' ? c.detail.executive : stage === 'HR' ? c.detail.hr : c.detail.manager
+        const shown = avatarSrc(stage === 'ผู้ยื่น' ? doc.employeeAvatarUrl : sig?.avatarUrl)
+        return <div className="documents-portrait-card" key={stage}>{shown ? <img src={shown} alt={stageLabel} onClick={() => zoom(shown, sig?.name ?? doc.employee)} /> : <div className="documents-portrait-empty">{initials(sig?.name ?? doc.employee)}</div>}<b>{stageLabel}</b><small>{sig ? `${sig.name} · ${dateText(sig.date)}` : `${doc.employee} · ${dateText(doc.date)}`}</small></div>
+      })}</div></section>
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.signature}</h3><div className="documents-signature-list">{(['ผู้ยื่น','ผู้จัดการแผนก','ผู้ประกอบการ','HR'] as SignatureStage[]).filter((stage) => doc.signatures?.[stage]).map((stage) => {const sig=doc.signatures?.[stage];const stageLabel=stage==='ผู้ยื่น'?c.detail.submitted:stage==='ผู้ประกอบการ'?c.detail.executive:stage==='HR'?c.detail.hr:c.detail.manager;return <div className="documents-signature-card" key={stage}>{sig!.image?<div className="documents-signature-image"><img src={sig!.image} alt={`${c.detail.signature}: ${stageLabel}`}/></div>:<div className="documents-signature-image documents-signature-image--empty">{c.detail.confirmedNoSign ?? 'ยืนยันโดยไม่เซ็น'}</div>}<b>{stageLabel}</b><small>{sig!.name} · {dateText(sig!.date)}</small></div>})}</div></section>
       {canApprove&&<div className="documents-detail-actions"><button className="dms-create-btn" onClick={onSign}><FaPenNib /> {c.detail.signApproval}</button><button className="documents-reject" onClick={onReject}>{c.detail.reject}</button></div>}
       {canCancel&&<button className="dms-back-btn" onClick={onCancel}>{c.detail.cancel}</button>}
+      {zoomAvatar && <div className="documents-avatar-lightbox" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setZoomAvatar(null) }}>
+        <button type="button" className="modal-close documents-avatar-lightbox-close" aria-label={c.detail.close} onClick={() => setZoomAvatar(null)}>×</button>
+        <img src={zoomAvatar.src} alt={zoomAvatar.name} />
+        <strong>{zoomAvatar.name}</strong>
+      </div>}
     </div>
   </section></div>
 }

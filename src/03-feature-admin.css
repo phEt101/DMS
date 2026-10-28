@@ -235,6 +235,30 @@
   font-size: 11px;
   font-weight: 700;
 }
+.user-avatar--image {
+  padding: 0;
+  border: 1px solid #e3dffc;
+  object-fit: cover;
+  background: #fff;
+}
+.user-avatar-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.user-avatar-field-preview { display: grid; flex: 0 0 auto; place-items: center; }
+.user-avatar-field-preview .user-avatar { width: 52px; height: 52px; font-size: 17px; }
+.user-avatar-field-preview .user-avatar--image { width: 52px; height: 52px; border-radius: 50%; }
+.user-avatar-field-input {
+  display: grid;
+  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
 .role-badge {
   display: inline-flex;
   padding: 4px 8px;

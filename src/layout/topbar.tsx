@@ -4,6 +4,7 @@ import type { Translations } from "../locales";
 import type { AuthUser } from "../features/auth/types/auth.types";
 import type { PageKey } from "../services/routes/pageTypes";
 import { getBadges, listNotifications, markNotificationsRead } from "../features/doc/services/employee-requests.service";
+import { avatarSrc } from "../services/avatar";
 
 // โหมด DB: แจ้งเตือนจริงจาก /employee-requests/notifications (เหมือนหน้าจอการแจ้งเตือน)
 type TopbarNotification = { id: number; notificationId: number; documentId: number; title: string; body: string; date: string; read: boolean };
@@ -268,7 +269,7 @@ export default function Topbar({
             aria-expanded={profileOpen}
             aria-haspopup="menu"
           >
-            <span className="avatar">{initials}</span>
+            <span className="avatar">{avatarSrc(user.avatarUrl) ? <img src={avatarSrc(user.avatarUrl)!} alt={user.name} /> : initials}</span>
             <span className="profile-copy">
               <strong>{user.name}</strong>
               <small>{user.role.name}</small>

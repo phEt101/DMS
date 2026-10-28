@@ -3,8 +3,10 @@ import type { Translations } from "../../../../locales";
 import {
   createUser,
   deleteUser,
+  deleteUserAvatar,
   listUsers,
   updateUser,
+  uploadUserAvatar,
   type User,
   type UserInput,
   type UserRole,
@@ -19,6 +21,7 @@ import { PaginationFooter } from "../../../../components/pagination-footer";
 import { useErrorToast } from "../../../../components/toast-provider";
 import { useAuth } from "../../../auth/hooks/use-auth";
 import { hasPermission } from "../../../auth/permissions";
+import { avatarSrc } from "../../../../services/avatar";
 
 const emptyForm = (): UserInput => ({
   email: "",
@@ -28,6 +31,7 @@ const emptyForm = (): UserInput => ({
   role: "user",
   department: "",
   phone: "",
+  avatarUrl: "",
   isActive: true,
   password: "",
 });
@@ -68,6 +72,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
   const [form, setForm] = useState<UserInput>(emptyForm);
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -123,6 +128,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
       role: user.role,
       department: user.department ?? "",
       phone: user.phone ?? "",
+      avatarUrl: user.avatarUrl ?? "",
       isActive: Boolean(user.isActive),
       password: "",
     });
@@ -143,12 +149,17 @@ export function UsersSection({ translations }: { translations: Translations }) {
         if (payload.department === (editing.department ?? "")) {
           delete payload.department;
         }
+        if (payload.avatarUrl === (editing.avatarUrl ?? "")) delete payload.avatarUrl;
         await updateUser(editing.id, payload);
+        if (avatarFile) await uploadUserAvatar(editing.id, avatarFile);
         if (editing.id === authenticatedUser?.id) await refreshUser();
       } else {
-        await createUser(form);
+        const created = await createUser(form);
+        if (avatarFile) await uploadUserAvatar(created.data.id, avatarFile);
+        if (created.data.id === authenticatedUser?.id) await refreshUser();
       }
       setFormOpen(false);
+      setAvatarFile(null);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
@@ -268,6 +279,10 @@ export function UsersSection({ translations }: { translations: Translations }) {
           onChange={setForm}
           onClose={() => setFormOpen(false)}
           onSubmit={submit}
+          onSubmitRefresh={() => void load()}
+          onPickAvatar={setAvatarFile}
+          authenticatedUserId={authenticatedUser?.id}
+          canEdit={canEdit}
         />
       )}
     </div>
@@ -328,7 +343,9 @@ function UsersTable({
               <tr key={user.id}>
                 <td data-label={settingsTranslations.name}>
                   <div className="user-identity">
-                    <span className="user-avatar">{initials(user.name)}</span>
+                    {avatarSrc(user.avatarUrl)
+                      ? <img className="user-avatar user-avatar--image" src={avatarSrc(user.avatarUrl)!} alt={user.name} />
+                      : <span className="user-avatar">{initials(user.name)}</span>}
                     <strong>{user.name}</strong>
                   </div>
                 </td>
@@ -384,6 +401,10 @@ function UserFormModal({
   onChange,
   onClose,
   onSubmit,
+  onSubmitRefresh,
+  onPickAvatar,
+  authenticatedUserId,
+  canEdit,
 }: {
   editing: User | null;
   form: UserInput;
@@ -395,8 +416,27 @@ function UserFormModal({
   onChange: (form: UserInput) => void;
   onClose: () => void;
   onSubmit: (event: SyntheticEvent<HTMLFormElement>) => Promise<void>;
+  onSubmitRefresh: () => void;
+  onPickAvatar: (file: File | null) => void;
+  authenticatedUserId?: number;
+  canEdit: boolean;
 }) {
   const settingsTranslations = translations.features.settingsUser;
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(editing?.avatarUrl ?? null);
+  const canRemoveAvatar = Boolean(editing?.avatarUrl) && (authenticatedUserId === editing?.id || canEdit);
+  async function removeAvatarFor(id: number) {
+    if (!window.confirm(settingsTranslations.avatarRemove)) return;
+    try {
+      await deleteUserAvatar(id);
+      onPickAvatar(null);
+      setAvatarPreview(null);
+      onSubmitRefresh();
+    } catch {
+      /* toast แสดงโดย caller */
+    }
+  }
+  // รูปใหม่ (เลือกไฟล์) — แสดง preview ทันทีแม้ยังไม่บันทึก
+
   return (
     <div
       className="modal-backdrop"
@@ -426,6 +466,35 @@ function UserFormModal({
           </button>
         </header>
         <form onSubmit={(event) => void onSubmit(event)}>
+          <div className="user-avatar-field">
+            <span className="user-avatar-field-preview">
+              {avatarPreview
+                ? <img className="user-avatar user-avatar--image" src={avatarPreview} alt={settingsTranslations.avatar} />
+                : <span className="user-avatar">{initials(`${form.firstName} ${form.lastName}`.trim() || '?')}</span>}
+            </span>
+            <label className="user-avatar-field-input">
+              {settingsTranslations.avatar}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  onPickAvatar(file);
+                  setAvatarPreview(file ? URL.createObjectURL(file) : editing?.avatarUrl ?? null);
+                }}
+              />
+              {editing?.avatarUrl && !avatarPreview?.startsWith('blob:') && <small>{settingsTranslations.avatarReplace}</small>}
+            </label>
+            {canRemoveAvatar && (
+              <button
+                className="danger-link"
+                type="button"
+                onClick={() => void removeAvatarFor(editing!.id)}
+              >
+                {settingsTranslations.avatarRemove}
+              </button>
+            )}
+          </div>
           <div className="form-grid">
             <label>{settingsTranslations.firstName}<input required maxLength={150} value={form.firstName} onChange={(event) => onChange({ ...form, firstName: event.target.value })}/></label>
             <label>{settingsTranslations.lastName}<input required maxLength={150} value={form.lastName} onChange={(event) => onChange({ ...form, lastName: event.target.value })}/></label>

@@ -23,7 +23,7 @@ function collectChanges(
   if (!current) return [];
 
   const changes: UserChange[] = [];
-  const fields = ["firstName", "lastName", "email", "role", "department", "companyId", "phone", "isActive", "employeeCode", "employmentStartDate", "appointedDate", "sickLeaveDays", "personalLeaveDays", "vacationLeaveDays", "otherLeaveDays", "emailNotificationsEnabled"] as const;
+  const fields = ["firstName", "lastName", "email", "role", "department", "companyId", "phone", "avatarPath", "isActive", "employeeCode", "employmentStartDate", "appointedDate", "sickLeaveDays", "personalLeaveDays", "vacationLeaveDays", "otherLeaveDays", "emailNotificationsEnabled"] as const;
   for (const field of fields) {
     if (!Object.hasOwn(input, field)) continue;
     const from = field === "isActive" ? Boolean(current[field]) : current[field];
@@ -113,9 +113,11 @@ function validate(input: unknown, { partial = false }: { partial?: boolean } = {
   }
   const department = optionalText(body, "department", 100);
   const phone = optionalText(body, "phone", 30);
+  const avatarPath = optionalText(body, "avatarPath", 255);
   const employeeCode = optionalText(body, "employeeCode", 50);
   if (department !== undefined) output.department = department;
   if (phone !== undefined) output.phone = phone;
+  if (avatarPath !== undefined) output.avatarPath = avatarPath;
   if (employeeCode !== undefined) output.employeeCode = employeeCode;
   for (const field of ["employmentStartDate", "appointedDate"] as const) {
     const value = optionalDate(body, field);
@@ -198,6 +200,7 @@ export const store: RequestHandler = async (req, res) => {
     role: input.role!,
     department: input.department ?? null,
     phone: input.phone ?? null,
+    avatarPath: input.avatarPath ?? null,
     isActive: input.isActive!,
     passwordHash: await bcrypt.hash(input.password!, 12),
   });

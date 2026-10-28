@@ -5,6 +5,7 @@
 .documents-signature-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
   gap: 10px;
 }
 
@@ -21,6 +22,7 @@
 
 .documents-signature-image {
   display: grid;
+  flex: 1 1 auto;
   min-height: 76px;
   place-items: center;
   overflow: hidden;

@@ -18,7 +18,7 @@
     "allTitle": "Individual documents",
     "pendingTitle": "Documents awaiting review",
     "ledgerTitle": "Leave ledger",
-    "employeesTitle": "Employees",
+    "employeesTitle": "Employees Management ",
     "policyTitle": "Leave policy",
     "flowRulesTitle": "Document submission routing (Flow)",
     "notificationsTitle": "Notifications",
@@ -229,6 +229,7 @@
       "signature": "Signatures",
       "noSignature": "No signature yet",
       "confirmedNoSign": "Confirmed without signature",
+      "portraits": "People involved",
       "rejectionNote": "Reviewer note",
       "submitted": "Submitter",
       "manager": "Department manager",
@@ -331,7 +332,14 @@
       "leaveOther": "Other leave",
       "required": "Enter a name and employee ID",
       "invalidEmail": "Enter a valid email address",
-      "duplicateCode": "This employee ID already exists"
+      "duplicateCode": "This employee ID already exists",
+      "avatar": "Profile photo",
+      "avatarReplace": "Choose a new file to replace the photo",
+      "avatarRemove": "Remove photo",
+      "avatarKeep": "Keep current photo",
+      "avatarNone": "No photo yet — choose a file to add a profile photo",
+      "avatarUploading": "Uploading photo...",
+      "avatarError": "Could not upload the profile photo"
     },
     "policy": {
       "title": "Leave and document policy",
