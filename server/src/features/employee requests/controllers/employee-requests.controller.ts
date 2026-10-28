@@ -123,11 +123,11 @@ const num = (value: unknown) => { const n = Number(value); return Number.isFinit
 const camel = (text: string) => text.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
 const withAvatarUrls = (row: any) => row && typeof row === 'object' ? {
   ...row,
-  ...(row.employee_avatar_url !== undefined ? { employee_avatar_url: avatarUrlOf(row.employee_avatar_url) } : {}),
-  ...(row.mgr_signer_avatar_url !== undefined ? { mgr_signer_avatar_url: avatarUrlOf(row.mgr_signer_avatar_url) } : {}),
-  ...(row.exec_signer_avatar_url !== undefined ? { exec_signer_avatar_url: avatarUrlOf(row.exec_signer_avatar_url) } : {}),
-  ...(row.hr_signer_avatar_url !== undefined ? { hr_signer_avatar_url: avatarUrlOf(row.hr_signer_avatar_url) } : {}),
-  ...(row.signer_avatar_url !== undefined ? { signer_avatar_url: avatarUrlOf(row.signer_avatar_url) } : {}),
+  ...(row.employeeAvatarUrl !== undefined ? { employeeAvatarUrl: avatarUrlOf(row.employeeAvatarUrl) } : {}),
+  ...(row.mgrSignerAvatarUrl !== undefined ? { mgrSignerAvatarUrl: avatarUrlOf(row.mgrSignerAvatarUrl) } : {}),
+  ...(row.execSignerAvatarUrl !== undefined ? { execSignerAvatarUrl: avatarUrlOf(row.execSignerAvatarUrl) } : {}),
+  ...(row.hrSignerAvatarUrl !== undefined ? { hrSignerAvatarUrl: avatarUrlOf(row.hrSignerAvatarUrl) } : {}),
+  ...(row.signerAvatarUrl !== undefined ? { signerAvatarUrl: avatarUrlOf(row.signerAvatarUrl) } : {}),
 } : row
 const camelize = (row: any) => Object.fromEntries(Object.entries(row).map(([key, value]) => [camel(key), value]))
 const checkSignature = (value: unknown, required: boolean) => {

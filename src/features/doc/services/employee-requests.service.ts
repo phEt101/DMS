@@ -174,10 +174,10 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
     workDetails: s(d.workDetails), remark: s(d.remark),
   }
   const signatures: NonNullable<MockDocument['signatures']> = {}
-  const signedActions = ['approved', 'submitted']
+  const displayedActions = ['approved', 'rejected', 'submitted']
   for (const sig of row.signatures) {
-    // ยืนยันโดยไม่เซ็น = signatureImage เป็น null → ยังคงแสดงในขั้นตอน แต่ไม่มีรูปลายเซ็น
-    if (signedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage ?? '', name: sig.signerName, date: bangkokDate(sig.signedAt), avatarUrl: sig.signerAvatarUrl ?? null }
+    // เก็บผู้ปฏิเสธไว้แสดงในขั้นตอนและรูปผู้เกี่ยวข้อง แม้ไม่มีภาพลายเซ็น
+    if (displayedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage ?? '', name: sig.signerName, date: bangkokDate(sig.signedAt), avatarUrl: sig.signerAvatarUrl ?? null }
   }
   return { ...base, formData, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures, flow: row.flow ?? null } as MockDocument
 }
