@@ -1,3 +1,7 @@
 {
-  "mssql.intelliSense.enableErrorChecking": false
+  "mssql.intelliSense.enableErrorChecking": false,
+  "sonarlint.connectedMode.project": {
+    "connectionId": "apec",
+    "projectKey": "phEt101_DMS"
+  }
 }

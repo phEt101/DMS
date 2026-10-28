@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as PointerEventType } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { FaCalendarDays, FaClock, FaFileLines, FaLocationDot, FaRotate, FaPlus, FaUser, FaUsers, FaXmark } from 'react-icons/fa6'
 import type { Translations } from '../../locales'
 import { LeaveLedger, type LedgerEntry } from './leave-ledger'
@@ -132,7 +132,7 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     values.hours = hours > 0 ? String(Math.round(hours*2)/2) : ''
   }
   if (kind === 'timefix') { add(Boolean(v('date') && v('date') < todayIso), msg('pastDate')); const ago = v('date') ? (today.getTime()-new Date(`${v('date')}T00:00:00`).getTime())/86400000 : Infinity; add(ago <= policy.fixDays, msg('fixLimit', { days: policy.fixDays })); add(Boolean(v('inTime') || v('outTime')), msg('timeRequired')); add(Boolean(v('reason')), msg('detailsRequired')) }
-  if (kind === 'outing') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), msg('dateRange')); add(Boolean(v('from') && v('from') >= todayIso), msg('todayOrFuture')); add(timeMinutes(v('outTime')) >= 0, msg('outTimeRequired')); add(!v('backTime') || timeMinutes(v('backTime')) > timeMinutes(v('outTime')), msg('backAfterOut')); add(Boolean(v('company')), msg('companyRequired')); add(Boolean(v('address')), msg('addressRequired')); add(Boolean(v('workDetails')), msg('workDetailsRequired')); add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8),  msg('phoneInvalid')) }
+  if (kind === 'outing') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), msg('dateRange')); const outingAgo = v('from') ? (today.getTime()-new Date(`${v('from')}T00:00:00`).getTime())/86400000 : Infinity; add((Boolean(v('from')) && v('from') >= todayIso) || outingAgo <= policy.fixDays, msg('outingRange', { days: policy.fixDays })); add(timeMinutes(v('outTime')) >= 0, msg('outTimeRequired')); add(!v('backTime') || timeMinutes(v('backTime')) > timeMinutes(v('outTime')), msg('backAfterOut')); add(Boolean(v('company')), msg('companyRequired')); add(Boolean(v('address')), msg('addressRequired')); add(Boolean(v('workDetails')), msg('workDetailsRequired')); add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8),  msg('phoneInvalid')) }
   return checks
 }
 
@@ -197,12 +197,9 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null)
   const [signingDocumentId, setSigningDocumentId] = useState<number | null>(null)
   const [savedSignature, setSavedSignature] = useState(() => readMockSnapshot().savedSignature ?? '')
-  const [signatureHasInk, setSignatureHasInk] = useState(false)
-  const [signatureEdited, setSignatureEdited] = useState(false)
+  const [signatureImage, setSignatureImage] = useState('')
+  const [signatureProcessing, setSignatureProcessing] = useState(false)
   const [rememberSignature, setRememberSignature] = useState(true)
-  const signatureCanvas = useRef<HTMLCanvasElement>(null)
-  const signatureDrawing = useRef(false)
-  const signaturePreviewImage = useRef<HTMLImageElement | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   // ขอบเขตการแสดงผล: 'mine' = เฉพาะเอกสารของตัวเอง (ค่าเริ่มต้น) · 'related' = ของตัวเอง + ที่เกี่ยวข้อง
@@ -354,32 +351,8 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   }, [selectedKind, formValues, copy, errorText])
 
   useEffect(() => {
-    const canvas = signatureCanvas.current
-    if (!canvas || (signingDocumentId === null && !pendingSubmission)) return
-    const context = canvas.getContext('2d')
-    if (!context) return
-    context.clearRect(0, 0, canvas.width, canvas.height)
-    setSignatureHasInk(false)
-    setSignatureEdited(false)
-    if (!savedSignature) return
-    let cancelled = false
-    const image = new Image()
-    signaturePreviewImage.current = image
-    image.onload = () => {
-      if (cancelled || signaturePreviewImage.current !== image) return
-      // วาดลายเซ็นที่จดจำไว้โดยรักษาสัดส่วน (ไม่ยืดเต็ม canvas ทำให้ลายเซ็นใหญ่เกิน)
-      const scale = Math.min(canvas.width / image.width, canvas.height / image.height, 1)
-      const width = image.width * scale, height = image.height * scale
-      context.clearRect(0, 0, canvas.width, canvas.height)
-      context.drawImage(image, (canvas.width - width) / 2, canvas.height - height, width, height)
-      setSignatureHasInk(true)
-    }
-    image.src = savedSignature
-    return () => {
-      cancelled = true
-      image.onload = null
-      if (signaturePreviewImage.current === image) signaturePreviewImage.current = null
-    }
+    if (signingDocumentId === null && !pendingSubmission) return
+    setSignatureImage(savedSignature)
   }, [signingDocumentId, pendingSubmission, savedSignature])
 
   const pageTitle = view === 'pending' ? copy.pendingTitle : view === 'ledger' ? copy.ledgerTitle : view === 'employees' ? copy.employeesTitle : view === 'policy' ? copy.policyTitle : view === 'flowRules' ? copy.flowRulesTitle : view === 'notifications' ? copy.notificationsTitle : copy.allTitle
@@ -488,8 +461,8 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       if (checks.some((check) => !check.ok)) return
     }
     setPendingSubmission({ kind:selectedKind, values:{ ...formValues } })
+    setSignatureImage(savedSignature)
     setFormOpen(false)
-    setSignatureHasInk(false)
   }
 
   const updateFormValue = (key: string, value: string | boolean) => {
@@ -587,46 +560,50 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     finally { setCancelSubmitting(false) }
   }
 
-  const signaturePoint = (event: PointerEventType<HTMLCanvasElement>) => {
-    const canvas = event.currentTarget
-    const rect = canvas.getBoundingClientRect()
-    return { x:(event.clientX - rect.left) * canvas.width / rect.width, y:(event.clientY - rect.top) * canvas.height / rect.height }
-  }
-  const startSignature = (event: PointerEventType<HTMLCanvasElement>) => {
-    event.preventDefault()
-    const canvas = event.currentTarget
-    const context = canvas.getContext('2d')
-    if (!context) return
-    canvas.setPointerCapture(event.pointerId)
-    const point = signaturePoint(event)
-    context.beginPath(); context.moveTo(point.x, point.y); context.lineTo(point.x + .1, point.y + .1)
-    context.lineWidth = 4; context.lineCap = 'round'; context.lineJoin = 'round'; context.strokeStyle = '#172554'; context.stroke()
-    signatureDrawing.current = true; setSignatureHasInk(true); setSignatureEdited(true)
-  }
-  const drawSignature = (event: PointerEventType<HTMLCanvasElement>) => {
-    if (!signatureDrawing.current) return
-    const context = event.currentTarget.getContext('2d')
-    if (!context) return
-    const point = signaturePoint(event); context.lineTo(point.x, point.y); context.stroke()
-  }
-  const finishSignature = () => { signatureDrawing.current = false }
-  const clearSignature = () => {
-    const canvas = signatureCanvas.current
-    canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
-    if (signaturePreviewImage.current) {
-      signaturePreviewImage.current.onload = null
-      signaturePreviewImage.current = null
+  const attachSignature = async (file: File | undefined) => {
+    if (!file) return
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      showToast(copy.signature.invalidFile, 'error')
+      return
     }
-    signatureDrawing.current = false
-    setSignatureHasInk(false)
-    setSignatureEdited(true)
+    let bitmap: ImageBitmap | null = null
+    setSignatureProcessing(true)
+    try {
+      bitmap = await createImageBitmap(file)
+      if (bitmap.width * bitmap.height > 40_000_000) throw new Error(copy.signature.invalidFile)
+      const canvas = document.createElement('canvas')
+      const scale = Math.min(1, 1200 / bitmap.width, 500 / bitmap.height)
+      let width = Math.max(1, Math.round(bitmap.width * scale))
+      let height = Math.max(1, Math.round(bitmap.height * scale))
+      let image = ''
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        canvas.width = width
+        canvas.height = height
+        const context = canvas.getContext('2d')
+        if (!context) throw new Error(copy.signature.processError)
+        context.fillStyle = '#fff'
+        context.fillRect(0, 0, width, height)
+        context.drawImage(bitmap, 0, 0, width, height)
+        image = canvas.toDataURL('image/jpeg', Math.max(0.35, 0.88 - attempt * 0.08))
+        if (image.length <= 180_000) break
+        width = Math.max(1, Math.round(width * 0.8))
+        height = Math.max(1, Math.round(height * 0.8))
+      }
+      bitmap.close()
+      bitmap = null
+      if (!image || image.length > 180_000) throw new Error(copy.signature.fileTooLarge)
+      setSignatureImage(image)
+    } catch (error) {
+      bitmap?.close()
+      showToast(error instanceof Error ? error.message : copy.signature.processError, 'error')
+    } finally {
+      setSignatureProcessing(false)
+    }
   }
+  const clearSignature = () => setSignatureImage('')
   const confirmSignature = async () => {
-    if (!signingDocument && !pendingSubmission) return
-    // เซ็นหรือไม่เซ็นก็ได้ — ไม่เซ็นส่ง image ว่างไป (server บันทึกเป็น null = ยืนยันโดยไม่เซ็น)
-    const image = signatureHasInk
-      ? !signatureEdited && savedSignature ? savedSignature : signatureCanvas.current?.toDataURL('image/png') ?? ''
-      : ''
+    if ((!signingDocument && !pendingSubmission) || signatureProcessing) return
+    const image = signatureImage
 
     if (USE_DB) {
       try {
@@ -819,10 +796,10 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       onConfirm={() => void cancelDocument()}
     />
 
-    {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><div className="documents-signature-pad"><canvas ref={signatureCanvas} width={480} height={160} aria-label={copy.signature.area} onPointerDown={startSignature} onPointerMove={drawSignature} onPointerUp={finishSignature} onPointerCancel={finishSignature} /></div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button onClick={clearSignature}>{copy.signature.clear}</button><button className="documents-primary" onClick={() => void confirmSignature()}>{signatureHasInk ? copy.signature.confirmOrSend : copy.signature.confirmWithoutSign}</button></div></section></div>}
+    {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><label className="documents-signature-upload"><span>{copy.signature.upload}</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { void attachSignature(event.target.files?.[0]); event.currentTarget.value = '' }} /><small>{signatureProcessing ? copy.signature.processing : copy.signature.uploadHelp}</small></label><div className={`documents-signature-preview${signatureImage ? '' : ' is-empty'}`}>{signatureImage ? <img src={signatureImage} alt={copy.signature.preview} /> : <span>{copy.signature.noImage}</span>}</div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button type="button" onClick={clearSignature} disabled={!signatureImage || signatureProcessing}>{copy.signature.remove}</button><button type="button" className="documents-primary" onClick={() => void confirmSignature()} disabled={signatureProcessing}>{signatureProcessing ? copy.signature.processing : signatureImage ? copy.signature.confirmOrSend : copy.signature.confirmWithoutSign}</button></div></section></div>}
 
     <DocNewDocumentModal
-      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} leadPersonal={policy.leadPersonal} leadVacation={policy.leadVacation} language={language} role={mockRole} copy={copy} translations={translations}
+      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} leadPersonal={policy.leadPersonal} leadVacation={policy.leadVacation} fixDays={policy.fixDays} language={language} role={mockRole} copy={copy} translations={translations}
       onSubmit={submitMock}
       onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}
       onClearKind={() => { setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}

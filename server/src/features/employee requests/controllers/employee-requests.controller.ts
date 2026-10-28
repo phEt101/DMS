@@ -25,6 +25,38 @@ async function storeSignatureImage(conn: any, image: string): Promise<number> {
   return Number(result.insertId)
 }
 
+async function deleteUnusedSignatureImage(conn: any, signatureFileId: number) {
+  await conn.execute(
+    `DELETE FROM signature_images
+      WHERE id = ?
+        AND NOT EXISTS (
+          SELECT 1 FROM employee_request_signatures
+           WHERE signature_file_id = ?
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM user_saved_signatures
+           WHERE signature_file_id = ?
+        )`,
+    [signatureFileId, signatureFileId, signatureFileId],
+  )
+}
+
+async function rememberUserSignature(conn: any, userId: number, signatureFileId: number) {
+  const [rows] = await conn.query(
+    'SELECT signature_file_id FROM user_saved_signatures WHERE user_id = ? FOR UPDATE',
+    [userId],
+  )
+  const previousId = rows[0] ? Number(rows[0].signature_file_id) : null
+  await conn.execute(
+    `INSERT INTO user_saved_signatures (user_id, signature_file_id) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`,
+    [userId, signatureFileId],
+  )
+  if (previousId !== null && previousId !== signatureFileId) {
+    await deleteUnusedSignatureImage(conn, previousId)
+  }
+}
+
 const has = (req: Request, name: string) => {
   return Boolean(req.user?.permissions.some((permission) => permission.name === name))
 }
@@ -92,7 +124,7 @@ const camelize = (row: any) => Object.fromEntries(Object.entries(row).map(([key,
 const checkSignature = (value: unknown, required: boolean) => {
   const image = String(value ?? '')
   if (!image) { if (required) throw httpError(400, 'กรุณาลงลายมือชื่อ'); return null }
-  if (!image.startsWith('data:image/png;base64,') || image.length > MAX_SIGNATURE_LENGTH) throw httpError(400, 'ลายมือชื่อไม่ถูกต้อง')
+  if (!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(image) || image.length > MAX_SIGNATURE_LENGTH) throw httpError(400, 'ลายมือชื่อไม่ถูกต้อง')
   return image
 }
 
@@ -197,11 +229,7 @@ export async function saveMySignature(req: Request, res: Response) {
   try {
     await conn.beginTransaction()
     const signatureFileId = await storeSignatureImage(conn, image)
-    await conn.execute(
-      `INSERT INTO user_saved_signatures (user_id, signature_file_id) VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`,
-      [req.user!.id, signatureFileId],
-    )
+    await rememberUserSignature(conn, req.user!.id, signatureFileId)
     await conn.commit()
   } catch (error) {
     await conn.rollback()
@@ -945,10 +973,7 @@ export async function store(req: Request, res: Response) {
       [id, me, user.name, signatureFileId],
     )
     if ((req.body?.rememberSignature === true || req.body?.rememberSignature === 'true') && signatureFileId !== null) {
-      await conn.execute(
-        `INSERT INTO user_saved_signatures (user_id, signature_file_id) VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`, [me, signatureFileId],
-      )
+      await rememberUserSignature(conn, me, signatureFileId)
     }
     // แจ้งเตือนตามขั้นแรกของ flow: pending_mgr → manager ทุกคนในแผนก + manager ที่ผูกไว้
     const recipients = status === 'pending_mgr'
@@ -1073,10 +1098,7 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
     )
     // จดจำลายเซ็นเฉพาะเมื่อมีลายเซ็นจริง (กดยืนยันโดยไม่เซ็น = ไม่บันทึก)
     if (action === 'approve' && req.body?.rememberSignature === true && signatureFileId !== null) {
-      await conn.execute(
-        `INSERT INTO user_saved_signatures (user_id, signature_file_id) VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE signature_file_id = VALUES(signature_file_id)`, [me, signatureFileId],
-      )
+      await rememberUserSignature(conn, me, signatureFileId)
     }
     await notify(conn, [row.employee_user_id], id, next === 'approved' ? 'approved' : next === 'pending_hr' ? 'forwarded_to_hr' : 'forwarded_to_exec')
     // ไม่อนุมัติ → ย้ายไฟล์ใบรับรองแพทย์ไปโฟลเดอร์พัก เก็บไว้อีก 30 วันก่อนลบจริง

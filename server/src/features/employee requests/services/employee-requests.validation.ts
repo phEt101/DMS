@@ -128,7 +128,9 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
 
   if (kind === 'outing') {
     add(Boolean(v('from') && v('to') && v('to') >= v('from')), 'validRange')
-    add(Boolean(v('from') && v('from') >= today), 'todayOrFuture')
+    // ยื่นได้ทั้งวันปัจจุบัน/อนาคต และย้อนหลังได้ไม่เกิน fixDays วัน ตามนโยบายการลา
+    const ago = v('from') ? diffDays(v('from'), today) : Infinity
+    add((Boolean(v('from')) && v('from') >= today) || ago <= p.fixDays, 'outingRange', { days: p.fixDays })
     add(minutes(v('outTime')) >= 0, 'outTimeRequired')
     add(!v('backTime') || minutes(v('backTime')) > minutes(v('outTime')), 'backAfterOut')
     add(Boolean(v('company')), 'companyRequired')

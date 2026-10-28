@@ -266,11 +266,18 @@
       "hintNumber": "Enter a number, e.g. 1"
     },
     "signature": {
-      "submitter": "Sign as submitter",
-      "approve": "Sign approval",
-      "area": "Signature area. Sign with your finger or mouse",
+      "submitter": "Attach submitter signature",
+      "approve": "Attach approval signature",
+      "upload": "Attach a signature image",
+      "uploadHelp": "PNG, JPG, and WebP up to 10 MB. The image is resized before saving.",
+      "processing": "Processing image...",
+      "preview": "Signature image preview",
+      "noImage": "No signature image attached",
+      "invalidFile": "Choose a PNG, JPG, or WebP file up to 10 MB",
+      "processError": "Could not process the signature image",
+      "fileTooLarge": "The signature image is still too large. Choose a smaller file.",
       "remember": "Remember this signature for next time",
-      "clear": "Clear signature",
+      "remove": "Do not use this signature",
       "confirmOrSend": "Confirm with signature",
       "confirmWithoutSign": "Confirm without signing",
       "send": "Sign and submit"
@@ -341,6 +348,7 @@
       "certificate": "Require a medical certificate for sick leave of (days or more)",
       "otMax": "Maximum OT per day (hours)",
       "fixDays": "Time corrections allowed up to (days back)",
+      "fixDaysNote": "Leave policy: time corrections are allowed up to {days} days back — the calendar blocks earlier dates",
       "reset": "Reset data",
       "save": "Save policy"
     },
@@ -569,6 +577,7 @@
       "placeRequired": "Enter a work location",
       "planRequired": "Enter a work plan",
       "todayOrFuture": "Select today or a future date",
+      "outingRange": "Backdated requests are allowed up to {days} days (or today/future)",
       "outTimeRequired": "Enter a departure time",
       "backAfterOut": "Return time must be after departure",
       "companyRequired": "Enter a company",

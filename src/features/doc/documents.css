@@ -10,3 +10,14 @@
 @import './styles/documents-policy.css';
 @import './styles/documents-responsive.css';
 @import './styles/doc-database-employees-panel.css';
+
+.documents-policy-note {
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid #dbe1ec;
+  border-radius: 11px;
+  background: #f4f6fb;
+  color: #51437a;
+  font-size: 13px;
+  font-weight: 600;
+}
