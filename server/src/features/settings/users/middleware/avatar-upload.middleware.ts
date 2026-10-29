@@ -19,9 +19,12 @@ function safeSegment(value: string): string {
 }
 
 // โฟลเดอร์ย่อยของแผนก (จาก session ของคนอัปโหลด) + ชื่อไฟล์อิงชื่อผู้ใช้ปลายทาง
-export function avatarRelativePathOf(department: string | null | undefined, targetUserId: number | string, extension: string): string {
+export function avatarRelativePathOf(department: string | null | undefined, targetUserId: number | string, userName: string | null | undefined, extension: string): string {
   const departmentFolder = safeSegment(department ?? 'ไม่มีแผนก')
-  const fileName = `user-${targetUserId}${extension.toLowerCase()}`
+  // ตั้งชื่อไฟล์อิงชื่อผู้ใช้ (เหมือนใบรับรองแพทย์) และคง -<userId> ท้ายชื่อไว้
+  // เพื่อให้ avatarUrlOf() หา user id จากชื่อไฟล์เดิมได้ — ระบบยังเสิร์ฟรูปจาก path ในฐานข้อมูล ชื่อไทยจึงไม่กระทบการแสดงผล
+  const base = safeSegment(userName ?? '') || `user-${targetUserId}`
+  const fileName = `${base}-${targetUserId}${extension.toLowerCase()}`
   return path.join(departmentFolder, fileName)
 }
 
@@ -81,11 +84,13 @@ export function deleteAvatarFile(relativePath: string | null | undefined): void 
   }
 }
 
-// URL สำหรับเรียกดูรูปผ่าน API — encode ทีละ segment เพื่อรองรับโฟลเดอร์ย่อยตามแผนก
+// URL สำหรับเรียกดูรูปผ่าน API — หา user id จากชื่อไฟล์ (รองรับชื่อไฟล์อิงชื่อผู้ใช้ เช่น สมชาย-3.png)
+// แล้วคืน URL แบบ /avatars/user/<id> ให้ browser เรียกดูจาก path ในฐานข้อมูล ชื่อไทยจึงไม่กระทบการแสดงรูป
 export function avatarUrlOf(relativePath: string | null | undefined): string | null {
   if (!relativePath) return null
   const fileName = path.basename(relativePath)
-  const userId = fileName.match(/^(?:user-)?(?:.*-)?(\d+)\.[^.]+$/)?.[1]
+  // รูปแบบทั้งเก่าและใหม่: ตัวเลขสุดท้ายของชื่อไฟล์ก่อนนามสกุล = user id (เช่น สมชาย-3.png, user-3.png, hr-user-a-3.png)
+  const userId = fileName.match(/^(?:user-)?(?:.*-)?(\d+)\.\w+$/)?.[1]
   if (userId) return `/boswell-api/v1/avatars/user/${userId}`
   const encoded = relativePath
     .split(path.sep)

@@ -7,13 +7,13 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { avatarDirectory, avatarRelativePathOf, avatarUrlOf, deleteAvatarFile } from "../middleware/avatar-upload.middleware.js";
 import { logActivity } from "../../activity/repositories/activity.repository.js";
 
-// ดึงแผนกของเจ้าของรูปเพื่อจัดเก็บไฟล์ไว้ในโฟลเดอร์ย่อย
-async function targetUserInfo(id: number | string): Promise<{ department: string | null }> {
-  const [rows] = await db.execute<(RowDataPacket & { department: string | null })[]>(
-    "SELECT departments.name AS department FROM users LEFT JOIN departments ON departments.id = users.department_id WHERE users.id = ? AND users.deleted_at IS NULL LIMIT 1",
+// ดึงแผนกของเจ้าของรูปเพื่อจัดเก็บไฟล์ไว้ในโฟลเดอร์ย่อย + ชื่อผู้ใช้สำหรับตั้งชื่อไฟล์
+async function targetUserInfo(id: number | string): Promise<{ department: string | null; name: string | null }> {
+  const [rows] = await db.execute<(RowDataPacket & { department: string | null; name: string | null })[]>(
+    "SELECT users.name AS name, departments.name AS department FROM users LEFT JOIN departments ON departments.id = users.department_id WHERE users.id = ? AND users.deleted_at IS NULL LIMIT 1",
     [id],
   );
-  return { department: rows[0]?.department ?? null };
+  return { department: rows[0]?.department ?? null, name: rows[0]?.name ?? null };
 }
 
 // ย้ายไฟล์ชั่วคราว → storage/avatars/<แผนก>/<ชื่อผู้ใช้>-<id>.<นามสกุล>
@@ -83,10 +83,11 @@ export const uploadAvatar: RequestHandler = async (req, res) => {
     throw httpError(403, "เปลี่ยนรูปโปรไฟล์ได้เฉพาะรูปของตัวเองหรือผู้มีสิทธิ์จัดการพนักงาน");
   }
   const previousPath = await currentAvatarPath(id);
-  // ใช้ชื่อไฟล์ ASCII ที่อิง user ID เพื่อไม่ให้ชื่อภาษาไทยกระทบการโหลดรูป
+  // ใช้ชื่อไฟล์อิงชื่อผู้ใช้ (เหมือนใบรับรองแพทย์) + user ID ท้ายชื่อไว้
+  // ระบบเสิร์ฟรูปจาก path ในฐานข้อมูล ชื่อไทยในชื่อไฟล์จึงไม่กระทบการโหลดรูป
   const target = await targetUserInfo(id);
   const extension = path.extname(file.filename).toLowerCase();
-  const relativePath = avatarRelativePathOf(target.department, id, extension);
+  const relativePath = avatarRelativePathOf(target.department, id, target.name, extension);
   try {
     moveAvatarFile(file.filename, relativePath);
   } catch {

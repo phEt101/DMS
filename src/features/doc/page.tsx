@@ -99,6 +99,7 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
       const overlap = docs.some((doc) => doc.employee === employee.name && doc.kind === 'leave' && doc.status !== 'rejected' && doc.from && doc.to && doc.from <= to && doc.to >= from)
       add(!overlap, msg('overlap'))
     }
+    const startDate = from ? new Date(`${from}T00:00:00`) : null
     const leadDays = startDate ? Math.floor((startDate.getTime() - today.getTime()) / 86400000) : 0
     // นับยื่นล่วงหน้าตามวันปฏิทินล้วน (รวมเสาร์-อาทิตย์) ให้ตรงกับปฏิทินหน้าฟอร์ม เช่น ลาพักร้อน 15 = เว้น 15 วันพอดี
     if (type === 'personal' || type === 'unpaid') add(leadDays >= policy.leadPersonal, msg('personalLead', { days: policy.leadPersonal }))

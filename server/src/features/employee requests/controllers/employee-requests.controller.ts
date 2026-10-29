@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express'
 import fs from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { db } from '../../../config/database.js'
@@ -9,6 +10,37 @@ import { logActivity } from '../../settings/activity/repositories/activity.repos
 import { avatarUrlOf } from '../../settings/users/middleware/avatar-upload.middleware.js'
 import { medicalCertificateDirectory, medicalCertificateDisposalDirectory, MEDICAL_CERTIFICATE_RETENTION_DAYS, moveMedicalCertificateToDisposal, deleteMedicalCertificateFile } from '../middleware/medical-certificate-upload.middleware.js'
 
+// โฟลเดอร์เก็บสำเนาไฟล์ลายเซ็น (บันทึกไว้ข้างนอกข้างเดียวกับใบรับรองแพทย์)
+// หลักการยังเก็บข้อมูลต้นฉบับในฐานข้อมูล — ไฟล์ในดิสก์เป็นสำเนาเพื่อการตรวจสอบ/คลังไฟล์ ระบบทำงานไม่ขึ้นกับมัน
+const signaturesDirectory = path.resolve(process.cwd(), 'storage', 'signatures')
+
+// ชื่อไฟล์/โฟลเดอร์ที่ปลอดภัย (ตัดอักขระจัดไฟล์ทิ้ง เก็บตัวอักษร ตัวเลข ขีด _)
+function safeSegment(value: string): string {
+  return value
+    .trim()
+    .replace(/[\\/:*?"<>|\s]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80) || 'unknown'
+}
+
+// เขียนไฟล์ลายเซ็น (base64) ลงดิสก์ — สำเร็จหรือไม่ก็ไม่กระทบข้อมูลต้นฉบับในฐานข้อมูล
+function writeSignatureFile(department: string | null | undefined, userName: string | null | undefined, userId: number | string, image: string): void {
+  try {
+    // ถอดส่วนข้อมูลออกจาก data URL: "data:image/png;base64,xxxxx" → xxxxx
+    const match = /^data:image\/\w+;base64,(.+)$/s.exec(image)
+    if (!match) return
+    const folder = safeSegment(department ?? 'ไม่มีแผนก')
+    const base = safeSegment(userName ?? '') || `user-${userId}`
+    const fileName = `${base}-${userId}-${new Date().toISOString().replace(/[-:.TZ]/g, '')}.png`
+    const fullPath = path.join(signaturesDirectory, folder, fileName)
+    mkdirSync(path.dirname(fullPath), { recursive: true })
+    writeFileSync(fullPath, Buffer.from(String(match[1]), 'base64'))
+  } catch {
+    // ล้มเหลวไม่ถือว่า error หลัก — ระบบทำงานจากฐานข้อมูล
+  }
+}
+
 // ใช้สิทธิ์เดิมของโมดูลเอกสาร + เพิ่ม 'จัดการนโยบายการลา' 1 รายการ (ต้อง seed ในตาราง permissions)
 const PERM = { submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
 const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'outing']
@@ -16,13 +48,16 @@ const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', out
 const STATUSES = ['pending_mgr', 'pending_exec', 'pending_hr', 'approved', 'rejected', 'cancelled']
 const MAX_SIGNATURE_LENGTH = 200_000
 
-async function storeSignatureImage(conn: any, image: string): Promise<number> {
+// บันทึกลายเซ็น: เก็บข้อมูลต้นฉบับในฐานข้อมูล (ผูกกับ content hash)
+// และเขียนสำเนาไฟล์ลงดิสก์ storage/signatures/<แผนก>/<ชื่อผู้ใช้>-<userId>-<timestamp>.png เพื่อคลังไฟล์
+async function storeSignatureImage(conn: any, image: string, context?: { department?: string | null; userName?: string | null; userId?: number | string }): Promise<number> {
   const contentHash = createHash('sha256').update(image).digest('hex')
   const [result] = await conn.execute(
     `INSERT INTO signature_images (content_hash, signature_image) VALUES (?, ?)
      ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
     [contentHash, image],
   )
+  if (context && context.userId !== undefined) writeSignatureFile(context.department, context.userName, context.userId, image)
   return Number(result.insertId)
 }
 
@@ -237,7 +272,7 @@ export async function saveMySignature(req: Request, res: Response) {
   const conn = await db.getConnection()
   try {
     await conn.beginTransaction()
-    const signatureFileId = await storeSignatureImage(conn, image)
+    const signatureFileId = await storeSignatureImage(conn, image, { department: req.user?.department, userName: req.user?.name, userId: req.user!.id })
     await rememberUserSignature(conn, req.user!.id, signatureFileId)
     await conn.commit()
   } catch (error) {
@@ -983,7 +1018,7 @@ export async function store(req: Request, res: Response) {
           s('workDetails'), s('remark')],
       )
     }
-    const signatureFileId = signature ? await storeSignatureImage(conn, signature) : null
+    const signatureFileId = signature ? await storeSignatureImage(conn, signature, { department: user.department_name, userName: user.name, userId: me }) : null
     await conn.execute(
       `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_file_id) VALUES (?, 'submitter', 'submitted', ?, ?, ?)`,
       [id, me, user.name, signatureFileId],
@@ -1106,8 +1141,8 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
       [next, action === 'reject' ? stage : null, action === 'reject' ? note : null, next, id, row.status],
     )
     if (!update.affectedRows) throw httpError(409, 'เอกสารไม่อยู่ในสถานะรออนุมัติแล้ว')
-    const [names] = await conn.query<any[]>(`SELECT name FROM users WHERE id = ? LIMIT 1`, [me])
-    const signatureFileId = signature ? await storeSignatureImage(conn, signature) : null
+    const [names] = await conn.query<any[]>(`SELECT u.name, dep.name AS department_name FROM users u LEFT JOIN departments dep ON dep.id = u.department_id WHERE u.id = ? LIMIT 1`, [me])
+    const signatureFileId = signature ? await storeSignatureImage(conn, signature, { department: names[0]?.department_name, userName: names[0]?.name, userId: me }) : null
     await conn.execute(
       `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_file_id, note) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [id, stage, action === 'approve' ? 'approved' : 'rejected', me, names[0]?.name ?? '', signatureFileId, note],
