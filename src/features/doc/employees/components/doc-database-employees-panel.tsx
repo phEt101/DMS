@@ -57,7 +57,7 @@ const nameInitials = (name: string) => name.split(/\s+/).filter(Boolean).map((wo
 
 export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursPerDay, title, subtitle, companyId, companyName, loading, error, query, onQuery, onUpdated, onCreated, copy: c }: Props) {
   const { showToast } = useToast()
-  const { user: authenticatedUser } = useAuth()
+  const { user: authenticatedUser, refreshUser } = useAuth()
   // สิทธิ์แก้ไขพนักงาน: admin / สิทธิ์ "สร้าง-แก้ไขผู้ใช้งาน" / แผนกเข้าถึงโมดูล users หรือ documents_employees
   // (ตรงกับ requireDepartmentModule("users") ของ backend — HR Div. ที่เห็นโมดูล "พนักงาน" ในหน้าจัดการแผนกจะแก้ไขได้)
   const canEditEmployees = Boolean(
@@ -162,6 +162,9 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
         const avatarResponse = await uploadUserAvatar(selected.id, avatarFile)
         updated = { ...updated, avatarUrl: avatarResponse.data.avatarUrl }
       }
+      // แก้โปรไฟล์ตัวเอง → ดึงข้อมูล user ใหม่จาก server ให้ Topbar (ชื่อ/รูป) เปลี่ยนทันที
+      // เหมือนหน้าจัดการผู้ใช้งาน (users-section) — ไม่ต้องออกจากหน้า/รีเฟรชเบราว์เซอร์
+      if (selected.id === authenticatedUser?.id) await refreshUser()
       onUpdated(updated)
       setSelected(updated)
       setEditing(false)
