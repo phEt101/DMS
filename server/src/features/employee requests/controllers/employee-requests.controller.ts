@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
 import fs from 'node:fs'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { db } from '../../../config/database.js'
@@ -11,6 +11,7 @@ import { avatarUrlOf } from '../../settings/users/middleware/avatar-upload.middl
 import { medicalCertificateDirectory, medicalCertificateDisposalDirectory, MEDICAL_CERTIFICATE_RETENTION_DAYS, moveMedicalCertificateToDisposal, deleteMedicalCertificateFile } from '../middleware/medical-certificate-upload.middleware.js'
 
 // โฟลเดอร์เก็บสำเนาไฟล์ลายเซ็น (บันทึกไว้ข้างนอกข้างเดียวกับใบรับรองแพทย์)
+// เก็บแบบ "1 ไฟล์ต่อผู้ใช้" เหมือน avatars — เซ็นใหม่/เปลี่ยนลายเซ็น = เขียนทับไฟล์เดิม ไม่เก็บไฟล์ซ้ำ/ประวัติ
 // หลักการยังเก็บข้อมูลต้นฉบับในฐานข้อมูล — ไฟล์ในดิสก์เป็นสำเนาเพื่อการตรวจสอบ/คลังไฟล์ ระบบทำงานไม่ขึ้นกับมัน
 const signaturesDirectory = path.resolve(process.cwd(), 'storage', 'signatures')
 
@@ -24,7 +25,9 @@ function safeSegment(value: string): string {
     .slice(0, 80) || 'unknown'
 }
 
-// เขียนไฟล์ลายเซ็น (base64) ลงดิสก์ — สำเร็จหรือไม่ก็ไม่กระทบข้อมูลต้นฉบับในฐานข้อมูล
+// เขียนไฟล์ลายเซ็น (base64) ลงดิสก์ — เขียนทับไฟล์เดิมของผู้ใช้เสมอ (ชื่อไฟล์คงที่ <ชื่อผู้ใช้>-<userId>.png)
+// ลบไฟล์รูปแบบเก่า (มี timestamp ต่อท้าย) ของผู้ใช้เดียวกันทิ้งด้วย กันไฟล์ขยะตกค้าง
+// สำเร็จหรือไม่ก็ไม่กระทบข้อมูลต้นฉบับในฐานข้อมูล
 function writeSignatureFile(department: string | null | undefined, userName: string | null | undefined, userId: number | string, image: string): void {
   try {
     // ถอดส่วนข้อมูลออกจาก data URL: "data:image/png;base64,xxxxx" → xxxxx
@@ -32,10 +35,19 @@ function writeSignatureFile(department: string | null | undefined, userName: str
     if (!match) return
     const folder = safeSegment(department ?? 'ไม่มีแผนก')
     const base = safeSegment(userName ?? '') || `user-${userId}`
-    const fileName = `${base}-${userId}-${new Date().toISOString().replace(/[-:.TZ]/g, '')}.png`
-    const fullPath = path.join(signaturesDirectory, folder, fileName)
-    mkdirSync(path.dirname(fullPath), { recursive: true })
-    writeFileSync(fullPath, Buffer.from(String(match[1]), 'base64'))
+    const targetDirectory = path.join(signaturesDirectory, folder)
+    mkdirSync(targetDirectory, { recursive: true })
+    // ลบไฟล์ลายเซ็นเดิมของผู้ใช้นี้ทั้งหมด (รูปแบบใหม่ -<userId>.png และรูปแบบเก่า -<userId>-<timestamp>.png)
+    // เทียบแบบยุบขีดซ้ำ (--) เป็นขีดเดียว เพื่อให้ match กับไฟล์เก่าที่ชื่อมีขีด/ช่องว่างหลายสไตล์
+    const mine = `${base}-${userId}`
+    for (const entry of readdirSync(targetDirectory)) {
+      if (!entry.endsWith('.png') && !entry.endsWith('.jpg') && !entry.endsWith('.jpeg')) continue
+      const normalized = entry.slice(0, entry.lastIndexOf('.')).replace(/-+/g, '-')
+      const isMine = normalized === mine || /^-\d+$/.test(normalized.slice(mine.length))
+      if (!isMine) continue
+      try { rmSync(path.join(targetDirectory, entry)) } catch { /* ลบไม่ได้ข้ามไป */ }
+    }
+    writeFileSync(path.join(targetDirectory, `${mine}.png`), Buffer.from(String(match[1]), 'base64'))
   } catch {
     // ล้มเหลวไม่ถือว่า error หลัก — ระบบทำงานจากฐานข้อมูล
   }
