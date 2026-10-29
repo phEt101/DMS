@@ -28,6 +28,9 @@ function moveAvatarFile(tempName: string, relativePath: string): void {
 function sendStoredAvatar(relativePath: string, res: Response): void {
   const fullPath = path.resolve(avatarDirectory, relativePath);
   if (!fullPath.startsWith(`${avatarDirectory}${path.sep}`)) throw httpError(400, "Invalid avatar path");
+  // กันแคช: รูปโปรไฟล์เปลี่ยนได้ตลอด แต่ URL คงที่ (/avatars/user/<id>) — ถ้าไม่ห้ามแคช
+  // browser จะแสดงรูปเก่าจนกว่าจะลบผู้ใช้แล้วสร้างใหม่ (id เปลี่ยน URL ถึงเปลี่ยน)
+  res.set("Cache-Control", "no-store, must-revalidate");
   res.sendFile(fullPath, (error) => {
     if (error && !res.headersSent) res.status(404).json({ message: "Avatar not found" });
   });

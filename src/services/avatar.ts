@@ -22,5 +22,8 @@ export function avatarSrc(avatarUrl: string | null | undefined): string | null {
     .split('/')
     .map(encodePathSegment)
     .join('/')
-  return apiUrl(encoded)
+  // cache-busting: URL เสิร์ฟรูปคงที่ตาม user id (/avatars/user/<id>) — ถ้า proxy/CDN
+  // หรือ browser แคชรูปเก่าไว้ ผู้ใช้จะเปลี่ยนรูปไม่ได้จนกว่าจะลบบัญชีแล้วสร้างใหม่
+  // (ฝั่ง server ก็ตั้ง Cache-Control: no-store แล้ว อันนี้กันเหนียวอีกชั้นสำหรับ proxy)
+  return apiUrl(`${encoded}?v=${Date.now()}`)
 }

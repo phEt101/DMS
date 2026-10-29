@@ -271,6 +271,33 @@ export default function DocumentPage({ translations, view = 'all', language = 't
 
   useEffect(() => { if (USE_DB && ['all', 'pending', 'ledger'].includes(view)) void reload() }, [view, reload])
 
+  // Real-time: ดึงข้อมูลใหม่อัตโนมัติ (polling ทุก 15 วิ + กลับมาที่แท็บ/โฟกัสหน้าต่าง) — ไม่ต้องรอผู้ใช้กดรีเฟรช
+  // เงื่อนไข: poll เฉพาะเมื่อไม่ได้พิมพ์ฟอร์ม/เปิด popup เพื่อไม่รบกวนสิ่งที่ผู้ใช้กำลังทำ
+  const realtimeBusyRef = useRef(false)
+  useEffect(() => {
+    if (!USE_DB) return
+    realtimeBusyRef.current = formOpen || pendingSubmission !== null || signingDocumentId !== null || rejectTarget !== null || cancelTargetId !== null
+  }, [formOpen, pendingSubmission, signingDocumentId, rejectTarget, cancelTargetId])
+  useEffect(() => {
+    if (!USE_DB || !['all', 'pending', 'ledger'].includes(view)) return
+    const refreshQuietly = () => {
+      if (document.hidden || realtimeBusyRef.current) return
+      void reload()
+      if (selectedDocumentId !== null) {
+        // รายละเอียดที่เปิดค้างไว้ก็อัปเดตตาม (สถานะเปลี่ยน เช่น ถูกอนุมัติแล้ว ต้องเห็นทันที)
+        getRequest(selectedDocumentId).then((row) => setDetail({ doc: mapDetail(row, mapperText), canApprove: row.canApprove, canCancel: row.canCancel, canViewMedicalCertificate: row.canViewMedicalCertificate })).catch(() => {})
+      }
+    }
+    const timer = window.setInterval(refreshQuietly, 15000)
+    window.addEventListener('focus', refreshQuietly)
+    document.addEventListener('visibilitychange', refreshQuietly)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshQuietly)
+      document.removeEventListener('visibilitychange', refreshQuietly)
+    }
+  }, [view, reload, selectedDocumentId, mapperText])
+
   // โหมด DB: แจ้งเตือนจากตาราง employee_request_notifications
   const reloadNotifications = useCallback(async () => {
     if (!USE_DB) return
@@ -291,6 +318,19 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     }
   }, [mapperText, errorText, showToast])
   useEffect(() => { if (USE_DB && view === 'notifications') void reloadNotifications() }, [view, reloadNotifications])
+  // Real-time หน้าแจ้งเตือน: polling ทุก 15 วิ + ตอนกลับมาที่แท็บ
+  useEffect(() => {
+    if (!USE_DB || view !== 'notifications') return
+    const refreshQuietly = () => { if (!document.hidden) void reloadNotifications() }
+    const timer = window.setInterval(refreshQuietly, 15000)
+    window.addEventListener('focus', refreshQuietly)
+    document.addEventListener('visibilitychange', refreshQuietly)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshQuietly)
+      document.removeEventListener('visibilitychange', refreshQuietly)
+    }
+  }, [view, reloadNotifications])
 
   // Topbar คลิกแจ้งเตือน → ส่ง document id มาทาง sessionStorage + custom event → เปิด popup รายละเอียดเอกสารทันที
   // (custom event สำคัญ: ถ้าอยู่หน้าเอกสารอยู่แล้ว component ไม่ re-mount effect ต้องฟัง event เอง)

@@ -2,7 +2,11 @@
   .dms-title-row { flex-direction: column; align-items: flex-start; gap: 12px; }
   .dms-title-search-row { width: 100%; display: flex; flex-direction: column; gap: 8px; }
   .dms-create-actions, .dms-create-btn { width: 100%; }
+  /* เดิม: ซ่อนตารางทุกหน้าบนจอเล็ก — แต่หน้าเอกสาร (documents-page) ต้องยังแสดง list จึง override ด้านล่าง */
   .dms-project-table-wrap { display: none; }
+  /* แก้: แสดง list/ตารางของหน้าเอกสารบนมือถือ (บีบเป็นแถวอ่านง่าย + เลื่อนซ้ายขวาได้) */
+  .documents-page .dms-project-table-wrap { display: block; }
+  .documents-page .dms-project-table { min-width: 560px; }
   .dms-project-empty { padding: 18px; }
   .users-pagination { flex-direction: column; gap: 8px; }
 }
