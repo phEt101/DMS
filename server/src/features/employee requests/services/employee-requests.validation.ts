@@ -80,10 +80,9 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
     if (from && to && to >= from) add(!ctx.hasOverlap, 'overlap')
 
     const leadDays = from ? diffDays(today, from) : 0
-    const todayIsWeekday = ![0, 6].includes(dow(today))
-    const leadWorkdays = from ? weekdaysBetween(today, from) - (today <= from && todayIsWeekday ? 1 : 0) : 0
+    // นับยื่นล่วงหน้าตามวันปฏิทินล้วน (รวมเสาร์-อาทิตย์) ให้ตรงกับปฏิทินหน้าฟอร์ม เช่น ลาพักร้อน 15 = เว้น 15 วันพอดี
     if (type === 'personal' || type === 'unpaid') add(leadDays >= p.leadPersonal, 'personalLead', { days: p.leadPersonal })
-    if (type === 'vacation') add(leadWorkdays >= p.leadVacation, 'vacationLead', { days: p.leadVacation })
+    if (type === 'vacation') add(leadDays >= p.leadVacation, 'vacationLead', { days: p.leadVacation })
     if (type === 'emergency') add(Boolean(from && from >= today), 'emergencyFromToday')
     if (['sick', 'personal', 'vacation', 'emergency'].includes(type) && from && to) {
       add(from >= p.yearStart && to <= p.yearEnd, 'withinYear', { year: p.year, from: p.yearStart, to: p.yearEnd })

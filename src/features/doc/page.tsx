@@ -99,11 +99,10 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
       const overlap = docs.some((doc) => doc.employee === employee.name && doc.kind === 'leave' && doc.status !== 'rejected' && doc.from && doc.to && doc.from <= to && doc.to >= from)
       add(!overlap, msg('overlap'))
     }
-    const startDate = from ? new Date(`${from}T00:00:00`) : null
     const leadDays = startDate ? Math.floor((startDate.getTime() - today.getTime()) / 86400000) : 0
-    const leadWorkdays = from ? daysBetween(todayIso, from) - (todayIso <= from && ![0,6].includes(today.getDay()) ? 1 : 0) : 0
+    // นับยื่นล่วงหน้าตามวันปฏิทินล้วน (รวมเสาร์-อาทิตย์) ให้ตรงกับปฏิทินหน้าฟอร์ม เช่น ลาพักร้อน 15 = เว้น 15 วันพอดี
     if (type === 'personal' || type === 'unpaid') add(leadDays >= policy.leadPersonal, msg('personalLead', { days: policy.leadPersonal }))
-    if (type === 'vacation') add(leadWorkdays >= policy.leadVacation, msg('vacationLead', { days: policy.leadVacation }))
+    if (type === 'vacation') add(leadDays >= policy.leadVacation, msg('vacationLead', { days: policy.leadVacation }))
     if (type === 'emergency') add(Boolean(from && from >= todayIso), msg('emergencyFromToday'))
     if (['sick','personal','vacation','emergency'].includes(type) && from && to) add(from >= policy.yearStart && to <= policy.yearEnd, msg('withinYear', { year: policy.year, from: policy.yearStart, to: policy.yearEnd }))
     const approvedUsage = (leaveType: string) => docs.filter((doc) => doc.employee === employee.name && doc.kind === 'leave' && doc.leaveType === leaveType && doc.status !== 'rejected').reduce((sum, doc) => sum + (doc.days ?? 0), 0)

@@ -194,6 +194,43 @@
   cursor: not-allowed;
 }
 
+/* ไฮไลในปฏิทินตามนโยบายการลา */
+.documents-submission-modal .react-datepicker__day.documents-day-blocked {
+  /* ขนาดเท่ากับวันปกติ (1.7rem + margin .166rem x2) แต่ไม่เว้นช่องว่างให้สีติดกัน */
+  width: 2.032rem;
+  line-height: 2.032rem;
+  margin: 0;
+  color: #a36060;
+  background: #559412;
+  border-radius: 0;
+  opacity: 1;
+}
+/* ปลายแถบมน: วันแรก/วันสุดท้ายของช่วง และต้น/ท้ายสัปดาห์ */
+.documents-submission-modal .react-datepicker__day.documents-day-blocked--start {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+.documents-submission-modal .react-datepicker__day.documents-day-blocked--end {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+.documents-submission-modal .react-datepicker__day--disabled.documents-day-blocked {
+  color: #000000;
+  background: #d5daff;
+  cursor: not-allowed;
+}
+
+/* เสาร์-อาทิตย์นอกช่วงห้ามเลือก — เทา */
+.documents-submission-modal .react-datepicker__day.documents-day-weekend {
+  color: #9ca3af;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+.documents-submission-modal .react-datepicker__day--disabled.documents-day-weekend {
+  color: #cbd5e1;
+  background: #f8fafc;
+}
+
 /* ดอกจันแดงบนช่องกรอกที่จำเป็น (ฟอร์มยื่นเอกสารใหม่) */
 .dms-submission-field .dms-form-required {
   color: #dc2626;
