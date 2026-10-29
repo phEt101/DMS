@@ -313,7 +313,6 @@ export default function SurveyPage({ translations, language }: { translations: T
                   <article
                     key={s.id}
                     className="dms-project-card"
-                    role="button"
                     tabIndex={0}
                     onClick={() => openDetailById(s.id)}
                     onKeyDown={(e) => {
@@ -356,7 +355,7 @@ export default function SurveyPage({ translations, language }: { translations: T
                   </thead>
                   <tbody>
                     {pageItems.map((s) => (
-                      <tr key={s.id} role="button" tabIndex={0} onClick={() => openDetailById(s.id)}>
+                      <tr key={s.id} tabIndex={0} onClick={() => openDetailById(s.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailById(s.id) } }}>
                         <td>
                           <div className="dms-table-document">
                             <span className="dms-project-icon-pill"><FaFileLines /></span>

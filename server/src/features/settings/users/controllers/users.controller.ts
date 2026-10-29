@@ -85,7 +85,7 @@ function validate(input: unknown, { partial = false }: { partial?: boolean } = {
   const output: UserPayload = {};
   if (!partial || Object.hasOwn(body, "email")) {
     output.email = normalizeEmail(body.email);
-    if (!/^\S+@\S+\.\S+$/.test(output.email))
+    if (!/^[^\s]+@[^\s]+$/.test(output.email) || !output.email.includes("."))
       throw httpError(400, "Valid email is required");
   }
   for (const field of ["firstName", "lastName"] as const) {

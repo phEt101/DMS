@@ -41,7 +41,7 @@ export default function DocAllDocumentsList({
           const showCancel = canCancel && doc.status === 'pending_mgr' && doc.employee === 'สมชาย ใจดี'
 
           return (
-            <article
+            <div
               className="dms-project-card documents-survey-card"
               key={doc.id}
               role="button"
@@ -72,7 +72,7 @@ export default function DocAllDocumentsList({
                   </button>
                 )}
               </div>
-            </article>
+            </div>
           )
         })}
       </div>
@@ -98,7 +98,6 @@ export default function DocAllDocumentsList({
             return (
               <tr
                 key={doc.id}
-                role="button"
                 tabIndex={0}
                 onClick={() => onSelect(doc.id)}
                 onKeyDown={(event) => activateOnKey(event, () => onSelect(doc.id))}

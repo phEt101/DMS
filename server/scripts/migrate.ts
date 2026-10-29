@@ -30,7 +30,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
-  const files = (await fs.readdir(directory)).filter((file) => file.endsWith('.sql')).sort()
+  const files = (await fs.readdir(directory)).filter((file) => file.endsWith('.sql')).sort((left, right) => left.localeCompare(right))
   const [appliedRows] = await connection.query<(RowDataPacket & { name: string })[]>('SELECT name FROM schema_migrations')
   const applied = new Set(appliedRows.map((row) => row.name))
 

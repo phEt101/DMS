@@ -97,25 +97,25 @@ export default function CmProjectsPage({ translations, language }: { translation
 				) : (
 					<div className="dms-card-grid">
 						{pageItems.map((p) => (
-							<article
+							<button
 								key={p.id}
-								className={`dms-project-card`}
-								role="button"
-								tabIndex={0}
+								type="button"
+								className="dms-project-card"
+								style={{ textAlign: 'left', width: '100%' }}
 								onClick={() => { history.pushState({}, '', `/projects/cm/${p.id}`); window.dispatchEvent(new PopStateEvent('popstate')) }}
 								onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); history.pushState({}, '', `/projects/cm/${p.id}`); window.dispatchEvent(new PopStateEvent('popstate')) } }}
-							>
-								<div className="dms-card-head">
-									<div className="dms-project-icon-pill">🔧</div>
-									<div className="dms-project-actions">
+								>
+														<div className="dms-card-head">
+																				<div className="dms-project-icon-pill">🔧</div>
+																				<div className="dms-project-actions">
 										<span className={`dms-card-status is-${p.status}`}>{CM_STATUSES.find((s) => s.value === p.status)?.label ?? p.status}</span>
 										<div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
 											<button className="dms-tool-btn" onClick={(e) => { e.stopPropagation(); setEditingProject(p); setFormOpen(true) }}>แก้ไข</button>
 											<button className="dms-tool-btn is-danger" onClick={(e) => { e.stopPropagation(); handleDelete(p.id) }}>ลบ</button>
 										</div>
 									</div>
-								</div>
-								<h3 className="dms-card-name">{p.name}</h3>
+																																																																</div>
+																														<h3 className="dms-card-name">{p.name}</h3>
 								<div className="dms-card-foot">
 									<div>
 										<div className="dms-card-meta"><span className="dms-card-date">{p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : ''}</span></div>
@@ -126,7 +126,7 @@ export default function CmProjectsPage({ translations, language }: { translation
 										<div style={{ fontSize: 12 }}>{p.responsible || '-'}</div>
 									</div>
 								</div>
-							</article>
+							</button>
 						))}
 					</div>
 				)}

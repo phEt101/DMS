@@ -137,7 +137,6 @@ export function ProjectList({
           <article
             key={project.encryptedId}
             className={`dms-project-card ${selectedId === project.encryptedId ? "is-selected" : ""}`}
-            role="button"
             {...interactionProps(project.encryptedId)}
           >
             <div className="dms-card-head">

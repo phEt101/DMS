@@ -89,7 +89,6 @@ export default function LoginPage({
                 autoComplete="email"
                 maxLength={255}
                 required
-                autoFocus
               />
             </label>
 

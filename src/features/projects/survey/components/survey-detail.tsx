@@ -238,12 +238,18 @@ export default function SurveyDetail({ survey, onClose: _onClose, onEdit, transl
                     {yes && details ? <div style={{ fontSize: 13, color: '#555', marginTop: 2 }}>{details}</div> : null}
                   </div>
                   {yes && e.photo ? (
-                    <img
-                      src={e.photo as string}
-                      alt={e.name ?? ''}
+                    <button
+                      type="button"
+                      className="dms-photo-thumb"
                       onClick={() => setPreview(e.photo as string)}
-                      style={{ width: 72, height: 54, objectFit: 'cover', borderRadius: 6, cursor: 'zoom-in' }}
-                    />
+                      style={{ border: 0, padding: 0, background: 'none', cursor: 'zoom-in' }}
+                    >
+                      <img
+                        src={e.photo as string}
+                        alt={e.name ?? ''}
+                        style={{ width: 72, height: 54, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+                      />
+                    </button>
                   ) : null}
                   <Badge yes={yes} t={t} />
                 </div>

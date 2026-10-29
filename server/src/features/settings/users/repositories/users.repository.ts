@@ -259,8 +259,8 @@ export async function update(id: number | string, input: UserWriteInput) {
   }
   if (input.department !== undefined || (input.companyId !== undefined && input.companyId !== current.companyId)) {
     normalized.departmentId = await resolveDepartmentId(input.department ?? current.department, resolvedCompanyId);
-    delete normalized.department;
-  } else if (input.department !== undefined) {
+  }
+  if (input.department !== undefined) {
     // แผนกไม่เปลี่ยน — ไม่ต้อง resolve/update ที่ DB
     delete normalized.department;
   }

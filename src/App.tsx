@@ -70,8 +70,8 @@ function firstAccessiblePage(user: AuthUser): PageKey | null {
 
 function pageFromPath(pathname: string): PageKey {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
-  if (/^\/projects\/[A-Za-z0-9_-]{43}$/.test(normalized)) return 'projects'
   if (/^\/projects\/cm\/[A-Za-z0-9_-]+$/.test(normalized)) return 'projects-cm'
+  if (/^\/projects\/[A-Za-z0-9_-]{43}$/.test(normalized)) return 'projects'
   return (Object.entries(pathByPage).find(([, path]) => path === normalized)?.[0] as PageKey | undefined) ?? 'dashboard'
 }
 

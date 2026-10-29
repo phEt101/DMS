@@ -31,7 +31,7 @@ try {
 
   const files = (await fs.readdir(directory))
     .filter((file) => /^\d+_.+\.(?:sql|js|ts)$/.test(file))
-    .sort()
+    .sort((left, right) => left.localeCompare(right))
   const [appliedRows] = await connection.query<(RowDataPacket & { name: string })[]>('SELECT name FROM database_seeders')
   const applied = new Set(appliedRows.map((row) => row.name))
 

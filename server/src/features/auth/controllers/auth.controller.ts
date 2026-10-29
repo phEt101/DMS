@@ -23,7 +23,7 @@ function validateLoginPayload(input: unknown): LoginPayload {
   if (!email || !password) {
     throw httpError(400, "Email and password are required");
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
     throw httpError(400, "Invalid email format");
   }
   if (email.length > 255 || password.length > 255) {

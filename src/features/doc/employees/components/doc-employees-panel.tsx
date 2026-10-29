@@ -89,7 +89,7 @@ export default function DocEmployeesPanel({ employees, documents, policyStart, p
       <h2 className="dms-modal-title">{editing ? c.employees.edit : c.employees.add}</h2><p className="dms-modal-subtitle">{editing ? `${editing.code} · ${c.employees.formSubtitleEdit}` : c.employees.formSubtitleAdd}</p>
       <button type="button" className="modal-close" aria-label={c.detail.close} onClick={closeForm}><FaXmark/></button>
       <div className="documents-employee-form-grid">
-        <label className="dms-form-field"><span className="dms-form-label">{c.employees.name}</span><input className="dms-form-input" required value={draft.name} onChange={(event) => change('name', event.target.value)} autoFocus/></label>
+        <label className="dms-form-field"><span className="dms-form-label">{c.employees.name}</span><input className="dms-form-input" required value={draft.name} onChange={(event) => change('name', event.target.value)}/></label>
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.code}</span><input className="dms-form-input" required value={draft.code} onChange={(event) => change('code', event.target.value)}/></label>
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.departmentLabel}</span><input className="dms-form-input" value={draft.department} onChange={(event) => change('department', event.target.value)}/></label>
         <label className="dms-form-field"><span className="dms-form-label">{c.employees.email}</span><input className="dms-form-input" type="email" required value={draft.email ?? ''} onChange={(event) => change('email', event.target.value)}/></label>

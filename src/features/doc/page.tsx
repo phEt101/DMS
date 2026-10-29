@@ -381,16 +381,16 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     if (!USE_DB) return
     let cancelled = false
     listDepartments()
-      .then((response) => { if (!cancelled) setAllDepartments(response.data.filter((department) => Boolean(department.isActive) && department.companyId === user?.company?.id).map((department) => department.name).sort()) })
+      .then((response) => { if (!cancelled) setAllDepartments(response.data.filter((department) => Boolean(department.isActive) && department.companyId === user?.company?.id).map((department) => department.name).sort((left, right) => left.localeCompare(right))) })
       .catch(() => { /* โหลดไม่สำเร็จ → fallback ใช้แผนกจากเอกสารที่มีอยู่ */ })
     return () => { cancelled = true }
   }, [user?.company?.id])
   const departmentOptions = useMemo(
-    () => Array.from(new Set([...allDepartments, ...documents.map((doc) => doc.department).filter(Boolean)])).sort(),
+    () => Array.from(new Set([...allDepartments, ...documents.map((doc) => doc.department).filter(Boolean)])).sort((left, right) => left.localeCompare(right)),
     [allDepartments, documents],
   )
   // ตัวเลือกผู้ยื่น: จากเอกสารที่มองเห็น
-  const employeeOptions = useMemo(() => Array.from(new Set(documents.map((doc) => doc.employee).filter(Boolean))).sort(), [documents])
+  const employeeOptions = useMemo(() => Array.from(new Set(documents.map((doc) => doc.employee).filter(Boolean))).sort((left, right) => left.localeCompare(right)), [documents])
 
   // แบ่งหน้า (เหมือนหน้าจอ survey): ทั้ง pending และ all ใช้ pagination
   const totalDocs = visibleDocs.length

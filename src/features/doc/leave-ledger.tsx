@@ -39,7 +39,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
   const labels: Record<(typeof categories)[number], string> = { personal:c.ledger.personal, sick:c.ledger.sick, vacation:c.ledger.vacation, unpaid:c.leaveTypes.unpaid, other:c.leaveTypes.other }
   const locale = c.dateLocale
   const notes: string[] = c.ledger.noteItems
-  const departments = useMemo(() => Array.from(new Set(people.map((employee) => employee.department).filter(Boolean))).sort(), [people])
+  const departments = useMemo(() => Array.from(new Set(people.map((employee) => employee.department).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [people])
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [confirmExport, setConfirmExport] = useState<'excel' | 'word' | 'pdf' | null>(null)
   const [exporting, setExporting] = useState(false)
