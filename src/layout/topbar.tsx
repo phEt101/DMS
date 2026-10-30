@@ -158,14 +158,22 @@ export default function Topbar({
       prevUnreadRef.current = badges.unreadNotifications;
     }).catch(() => {});
   };
-  // Badge แจ้งเตือน: รีเฟรชเมื่อมีการกระทำในโมดูลเอกสาร (event) + ตอนกลับมาที่แท็บ — ไม่ poll ตามเวลา
+  // Badge + dropdown แจ้งเตือน + โปรไฟล์ (Topbar): รีเฟรชเมื่อ "มีการกระทำ" เท่านั้น (ไม่ poll ตามเวลา)
+  // - dms:doc-data-changed : ยื่น/อนุมัติ/ปฏิเสธ/ยกเลิก/อ่านแจ้งเตือน ฯลฯ → badge + dropdown + bell อัปเดตทันที
+  // - dms:user-updated     : บันทึกข้อมูล/รูปโปรไฟล์พนักงานเสร็จ → Topbar ชื่อ+รูปใหม่ทันที (ผ่าน auth provider)
+  // ปิดท้าย: กลับมาที่แท็บ/โฟกัสหน้าต่างก็รีเฟรชครั้งเดียว (ไม่รบกวนระหว่างใช้งาน)
   useEffect(() => {
     const refresh = () => { loadDbNotifications() }
+    const onVisible = () => { if (!document.hidden) refresh() }
     window.addEventListener('dms:doc-data-changed', refresh)
     window.addEventListener('dms:user-updated', refresh)
+    window.addEventListener('focus', onVisible)
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       window.removeEventListener('dms:doc-data-changed', refresh)
       window.removeEventListener('dms:user-updated', refresh)
+      window.removeEventListener('focus', onVisible)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, []);
   useEffect(() => { if (notificationsOpen) { setBellPing(false); loadDbNotifications(); } }, [notificationsOpen]);

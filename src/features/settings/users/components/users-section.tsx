@@ -153,10 +153,12 @@ export function UsersSection({ translations }: { translations: Translations }) {
         await updateUser(editing.id, payload);
         if (avatarFile) await uploadUserAvatar(editing.id, avatarFile);
         if (editing.id === authenticatedUser?.id) await refreshUser();
+        window.dispatchEvent(new Event("dms:user-updated"));
       } else {
         const created = await createUser(form);
         if (avatarFile) await uploadUserAvatar(created.data.id, avatarFile);
         if (created.data.id === authenticatedUser?.id) await refreshUser();
+        window.dispatchEvent(new Event("dms:user-updated"));
       }
       setFormOpen(false);
       setAvatarFile(null);
@@ -431,6 +433,7 @@ function UserFormModal({
       onPickAvatar(null);
       setAvatarPreview(null);
       onSubmitRefresh();
+      window.dispatchEvent(new Event("dms:user-updated"));
     } catch {
       /* toast แสดงโดย caller */
     }
