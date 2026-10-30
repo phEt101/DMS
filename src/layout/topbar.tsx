@@ -158,8 +158,21 @@ export default function Topbar({
       prevUnreadRef.current = badges.unreadNotifications;
     }).catch(() => {});
   };
-  useEffect(() => { loadDbNotifications(); const timer = window.setInterval(loadDbNotifications, 30000); return () => window.clearInterval(timer); }, []);
+  // Badge แจ้งเตือน: รีเฟรชเมื่อมีการกระทำในโมดูลเอกสาร (event) + ตอนกลับมาที่แท็บ — ไม่ poll ตามเวลา
+  useEffect(() => {
+    const refresh = () => { loadDbNotifications() }
+    window.addEventListener('dms:doc-data-changed', refresh)
+    window.addEventListener('dms:user-updated', refresh)
+    return () => {
+      window.removeEventListener('dms:doc-data-changed', refresh)
+      window.removeEventListener('dms:user-updated', refresh)
+    }
+  }, []);
   useEffect(() => { if (notificationsOpen) { setBellPing(false); loadDbNotifications(); } }, [notificationsOpen]);
+
+  // การแจ้งเตือนบน Topbar: เมื่อมี event (เอกสารใหม่/อ่านแจ้งเตือน/แก้โปรไฟล์)
+  // → loadDbNotifications ด้านบนรีโหลดทั้ง badge และรายการใน dropdown (setDbNotifications)
+  //   ทำให้ dropdown ที่เปิดค้างอยู่อัปเดตทันทีโดยไม่ต้องปิด-เปิดใหม่
 
   useEffect(() => {
     if (!notificationsOpen) return;

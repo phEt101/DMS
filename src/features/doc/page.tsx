@@ -271,8 +271,9 @@ export default function DocumentPage({ translations, view = 'all', language = 't
 
   useEffect(() => { if (USE_DB && ['all', 'pending', 'ledger'].includes(view)) void reload() }, [view, reload])
 
-  // Real-time: ดึงข้อมูลใหม่อัตโนมัติ (polling ทุก 15 วิ + กลับมาที่แท็บ/โฟกัสหน้าต่าง) — ไม่ต้องรอผู้ใช้กดรีเฟรช
-  // เงื่อนไข: poll เฉพาะเมื่อไม่ได้พิมพ์ฟอร์ม/เปิด popup เพื่อไม่รบกวนสิ่งที่ผู้ใช้กำลังทำ
+  // Real-time: ไม่ poll ตามเวลาแล้ว — รีเฟรชเมื่อ "มีการกระทำ" เท่านั้น (event dms:doc-data-changed)
+  // และตอนกลับมาที่แท็บ/โฟกัสหน้าต่าง (ครั้งเดียวต่อการกลับมา ไม่รบกวนระหว่างใช้งาน)
+  // เงื่อนไข: ไม่รีเฟรชระหว่างที่ผู้ใช้กำลังกรอกฟอร์ม/เซ็น/ยืนยันอะไรอยู่ — รอให้ทำจนเสร็จแล้วค่อยรีเฟรช
   const realtimeBusyRef = useRef(false)
   useEffect(() => {
     if (!USE_DB) return
@@ -288,11 +289,11 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         getRequest(selectedDocumentId).then((row) => setDetail({ doc: mapDetail(row, mapperText), canApprove: row.canApprove, canCancel: row.canCancel, canViewMedicalCertificate: row.canViewMedicalCertificate })).catch(() => {})
       }
     }
-    const timer = window.setInterval(refreshQuietly, 15000)
+    window.addEventListener('dms:doc-data-changed', refreshQuietly)
     window.addEventListener('focus', refreshQuietly)
     document.addEventListener('visibilitychange', refreshQuietly)
     return () => {
-      window.clearInterval(timer)
+      window.removeEventListener('dms:doc-data-changed', refreshQuietly)
       window.removeEventListener('focus', refreshQuietly)
       document.removeEventListener('visibilitychange', refreshQuietly)
     }
@@ -318,15 +319,15 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     }
   }, [mapperText, errorText, showToast])
   useEffect(() => { if (USE_DB && view === 'notifications') void reloadNotifications() }, [view, reloadNotifications])
-  // Real-time หน้าแจ้งเตือน: polling ทุก 15 วิ + ตอนกลับมาที่แท็บ
+  // Real-time หน้าแจ้งเตือน: ไม่ poll ตามเวลา — รีเฟรชเมื่อมีการกระทำ (event) + ตอนกลับมาที่แท็บ
   useEffect(() => {
     if (!USE_DB || view !== 'notifications') return
     const refreshQuietly = () => { if (!document.hidden) void reloadNotifications() }
-    const timer = window.setInterval(refreshQuietly, 15000)
+    window.addEventListener('dms:doc-data-changed', refreshQuietly)
     window.addEventListener('focus', refreshQuietly)
     document.addEventListener('visibilitychange', refreshQuietly)
     return () => {
-      window.clearInterval(timer)
+      window.removeEventListener('dms:doc-data-changed', refreshQuietly)
       window.removeEventListener('focus', refreshQuietly)
       document.removeEventListener('visibilitychange', refreshQuietly)
     }
@@ -348,6 +349,10 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     window.addEventListener('dms:open-doc', handler)
     return () => window.removeEventListener('dms:open-doc', handler)
   }, [view])
+
+  // Event กลาง: ยิงเมื่อมีการกระทำในโมดูลเอกสารสำเร็จ (ยื่น/อนุมัติ/ปฏิเสธ/ยกเลิก/แก้พนักงาน/อ่านแจ้งเตือน ฯลฯ)
+  // เพื่อให้ badge (sidebar / topbar) รีเฟรชทันทีโดยไม่ต้องรอ polling
+  const notifyDocChanged = useCallback(() => window.dispatchEvent(new Event('dms:doc-data-changed')), [])
 
   // นโยบาย + ลายเซ็นที่จดจำไว้ + รายชื่อพนักงาน (ledger)
   useEffect(() => {
@@ -582,6 +587,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       setSelectedDocumentId(null)
       if (USE_DB) showToast(copy.messages.rejectedToast, 'success')
       await reload()
+      notifyDocChanged()
     } catch (error) { showToast(errorText(error), 'error') }
     finally { setRejectSubmitting(false) }
   }
@@ -596,6 +602,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       setSelectedDocumentId(null)
       showToast(copy.messages.cancelledToast, 'success')
       if (USE_DB) await reload()
+      notifyDocChanged()
     } catch (error) { showToast(errorText(error), 'error') }
     finally { setCancelSubmitting(false) }
   }
@@ -662,6 +669,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         }
         if (rememberSignature && image) setSavedSignature(image)
         await reload()
+        notifyDocChanged()
       } catch (error) { showToast(errorText(error), 'error') }
       return
     }
@@ -721,7 +729,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     if (USE_DB) {
       markNotificationsRead()
         .then(() => reloadNotifications())
-        .then(() => showToast(copy.notifications.readAll, 'success'))
+        .then(() => { notifyDocChanged(); showToast(copy.notifications.readAll, 'success') })
         .catch((error) => showToast(errorText(error), 'error'))
       return
     }
@@ -733,7 +741,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'flowRules' ? copy.flowRulesSubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
     {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} companyName={ledgerCompanyName} hoursPerDay={policy.hoursPerDay} policyYear={policy.year} copy={copy} />}
 
-    {view === 'employees' && <DocDatabaseEmployeesPanel users={dbEmployees} leaveBalances={dbPeople} hoursPerDay={policy.hoursPerDay} title={pageTitle} subtitle={copy.employeesSubtitle} companyId={user?.company?.id ?? 0} companyName={user?.company?.name ?? ''} loading={dbEmployeesLoading} error={dbEmployeesError} query={employeeQuery} onQuery={setEmployeeQuery} onUpdated={(updated) => setDbEmployees((current) => current.map((employee) => employee.id === updated.id ? updated : employee))} onCreated={(created) => setDbEmployees((current) => [created, ...current])} copy={copy} />}
+    {view === 'employees' && <DocDatabaseEmployeesPanel users={dbEmployees} leaveBalances={dbPeople} hoursPerDay={policy.hoursPerDay} title={pageTitle} subtitle={copy.employeesSubtitle} companyId={user?.company?.id ?? 0} companyName={user?.company?.name ?? ''} loading={dbEmployeesLoading} error={dbEmployeesError} query={employeeQuery} onQuery={setEmployeeQuery} onUpdated={(updated) => { setDbEmployees((current) => current.map((employee) => employee.id === updated.id ? updated : employee)); notifyDocChanged() }} onCreated={(created) => { setDbEmployees((current) => [created, ...current]); notifyDocChanged() }} copy={copy} />}
 
     {view === 'flowRules' && <DocFlowRulesSettings
       copy={copy}
@@ -757,6 +765,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         const docId = notification.documentId ?? null
         if (USE_DB) void markNotificationsRead(notification.id)
           .then(() => reloadNotifications())
+          .then(() => notifyDocChanged())
           .catch((error) => showToast(errorText(error), 'error'))
         else setNotifications(current => current.map(item => item.id === notification.id ? {...item,read:true} : item))
         if (docId !== null) setSelectedDocumentId(docId)

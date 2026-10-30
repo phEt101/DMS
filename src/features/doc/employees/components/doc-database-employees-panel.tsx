@@ -165,6 +165,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
       // แก้โปรไฟล์ตัวเอง → ดึงข้อมูล user ใหม่จาก server ให้ Topbar (ชื่อ/รูป) เปลี่ยนทันที
       // เหมือนหน้าจัดการผู้ใช้งาน (users-section) — ไม่ต้องออกจากหน้า/รีเฟรชเบราว์เซอร์
       if (selected.id === authenticatedUser?.id) await refreshUser()
+      window.dispatchEvent(new Event('dms:user-updated'))
       onUpdated(updated)
       setSelected(updated)
       setEditing(false)
@@ -199,6 +200,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
       } else {
         onCreated(created)
       }
+      window.dispatchEvent(new Event('dms:user-updated'))
       setAvatarFile(null)
       setCreateOpen(false)
       setNewDraft(null)
@@ -240,6 +242,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
   const roleBadge = (employee: User) => <span className="emp-badge" style={roleStyle(employee.role)}>{employee.role}</span>
   const handleAvatarUpdated = (updated: User) => {
     onUpdated(updated)
+    window.dispatchEvent(new Event('dms:user-updated'))
     setSelected((current) => current && current.id === updated.id ? updated : current)
   }
   const leaveBalanceText = (employee: User, type: 'sick' | 'personal' | 'vacation') => {

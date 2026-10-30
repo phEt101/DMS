@@ -45,9 +45,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user, isLoading, login, logout, refreshUser],
   );
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  // โปรไฟล์ที่ Topbar: เมื่อมีการแก้ไขข้อมูลผู้ใช้ (ชื่อ/รูป/บทบาท ฯลฯ) → ดึงข้อมูลตัวเองใหม่ทันที
+  // (ยิงจากหน้าจัดการพนักงาน/ผู้ใช้งาน/แผนก เมื่อบันทึกเสร็จ)
+  useEffect(() => {
+    const refresh = () => { void refreshUser() }
+    window.addEventListener('dms:user-updated', refresh)
+    return () => window.removeEventListener('dms:user-updated', refresh)
+  }, [refreshUser])
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

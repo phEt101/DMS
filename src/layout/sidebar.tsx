@@ -112,8 +112,10 @@ export default function Sidebar({
         .catch(() => {});
     };
     load();
-    const timer = window.setInterval(load, 30_000);
-    return () => { cancelled = true; window.clearInterval(timer) };
+    // รีเฟรช badge เมื่อมีการกระทำในโมดูลเอกสาร (ยื่น/อนุมัติ/อ่านแจ้งเตือน ฯลฯ) แทนการ poll ทุก 30 วิ
+    const refresh = () => { load() }
+    window.addEventListener('dms:doc-data-changed', refresh)
+    return () => { cancelled = true; window.removeEventListener('dms:doc-data-changed', refresh) }
   }, [canOpenDocuments, activeItem]);
   const docBadge = pendingBadge + notificationsBadge;
 
