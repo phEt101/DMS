@@ -1,22 +1,20 @@
-.documents-notification-tabs {
-  display: flex;
-  gap: 8px;
-  margin: 0 0 12px;
-}
+/* ===== Notifications (แทนที่บล็อก .documents-notification* / .documents-email-* เดิมใน documents.css) ===== */
 
-.documents-notification-tabs button[aria-pressed="true"] {
-  border-color: #5143e8;
-  background: #5143e8;
-  color: #fff;
+.documents-notification-tools {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .documents-email-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: #35405d;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .documents-email-toggle input {
@@ -25,46 +23,258 @@
   accent-color: #5143e8;
 }
 
-.documents-notification {
-  display: flex;
-  width: 100%;
+.documents-email-toggle b.is-on { color: #12805c; }
+.documents-email-toggle b.is-off { color: #8a93aa; }
+
+.documents-readall {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
-  margin-bottom: 9px;
-  border: 1px solid #e3e8f2;
-  border-radius: 15px;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid #d9def0;
+  border-radius: 999px;
   background: #fff;
-  text-align: left;
+  color: #5143e8;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.documents-readall:hover:not(:disabled) { background: #f3f1ff; border-color: #5143e8; }
+.documents-readall:disabled { color: #a3abc2; cursor: default; }
+
+/* ---- Tabs ---- */
+.documents-notification-tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin: 4px 0 14px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #eef0f8;
+}
+
+.documents-notification-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #5b6684;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+
+.documents-notification-tabs button[aria-pressed="true"] {
+  background: #fff;
+  color: #5143e8;
+  box-shadow: 0 2px 8px rgba(40, 52, 81, .12);
+}
+
+.documents-tab-count {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #dfe3f2;
+  color: #5b6684;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+.documents-tab-count.has-unread { background: #5143e8; color: #fff; }
+
+/* ---- Filter chips ---- */
+.documents-notification-filter {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.documents-notification-filter button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #dde2f1;
+  border-radius: 999px;
+  background: #fff;
+  color: #5b6684;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.documents-notification > span:last-child {
+.documents-notification-filter button[aria-pressed="true"] {
+  border-color: #5143e8;
+  background: #5143e8;
+  color: #fff;
+}
+
+.documents-filter-badge {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .25);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+/* ---- List + groups ---- */
+.documents-notification-group { margin-bottom: 18px; }
+
+.documents-notification-group-title {
+  margin: 0 0 8px 4px;
+  color: #6a7592;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+/* ---- Card ---- */
+.documents-notification {
+  --tone: #5143e8;
+  --tone-soft: #efedff;
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px 14px 18px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border: 1px solid #e3e8f2;
+  border-radius: 16px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  animation: doc-notif-in .35s ease forwards;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+/* แถบสีด้านซ้ายบอกประเภทเหตุการณ์ */
+.documents-notification::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--tone);
+  opacity: .35;
+}
+
+.documents-notification:hover {
+  transform: translateY(-1px);
+  border-color: var(--tone);
+  box-shadow: 0 8px 22px rgba(40, 52, 81, .1);
+}
+
+.documents-notification:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.documents-notification.tone-approved { --tone: #12805c; --tone-soft: #e5f6ef; }
+.documents-notification.tone-rejected { --tone: #d33a4a; --tone-soft: #fdebed; }
+.documents-notification.tone-cancelled { --tone: #7b849c; --tone-soft: #eef0f5; }
+.documents-notification.tone-submitted { --tone: #5143e8; --tone-soft: #efedff; }
+.documents-notification.tone-pending { --tone: #c98100; --tone-soft: #fff4dc; }
+
+.documents-notification.is-unread {
+  border-color: color-mix(in srgb, var(--tone) 35%, #e3e8f2);
+  background: linear-gradient(90deg, var(--tone-soft), #fff 55%);
+}
+.documents-notification.is-unread::before { opacity: 1; }
+
+.documents-notification-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: 18px;
+}
+
+.documents-notification-content {
+  display: grid;
+  flex: 1 1 auto;
   min-width: 0;
+  gap: 3px;
   overflow-wrap: anywhere;
 }
 
-.documents-notification.is-unread {
-  border-color: #5143e8;
-  background: #faf9ff;
-}
-
 .documents-notification b,
-.documents-notification small {
-  display: block;
-}
+.documents-notification small { display: block; }
 
 .documents-notification b {
   color: #283451;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
 }
+.documents-notification.is-unread b { font-weight: 800; }
 
 .documents-notification small {
-  margin-top: 4px;
+  margin: 0;
   color: #6a7592;
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
+.documents-notification-meta {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.documents-notification-meta time {
+  color: #8a93aa;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.documents-unread-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tone);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 22%, transparent);
+}
+
+/* ---- Empty state ---- */
+.documents-notification-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 56px 16px;
+  border: 1px dashed #d4daee;
+  border-radius: 18px;
+  background: #fafbff;
+  text-align: center;
+}
+.documents-notification-empty b { color: #283451; font-size: 15px; }
+.documents-notification-empty small { color: #6a7592; font-size: 12px; }
+.documents-notification-empty-icon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: #efedff;
+  color: #5143e8;
+  font-size: 22px;
+}
+
+/* ---- Email preview ---- */
 .documents-email-preview {
   display: grid;
   gap: 10px;
@@ -73,18 +283,43 @@
 }
 
 .documents-email-preview article {
-  display: grid;
-  gap: 5px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
   padding: 15px;
   border: 1px solid #e3e8f2;
-  border-radius: 15px;
+  border-radius: 16px;
   background: #fff;
 }
 
-.documents-email-preview b {
-  color: #283451;
+.documents-email-preview article > div { display: grid; gap: 5px; min-width: 0; }
+
+.documents-email-avatar {
+  display: grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: #efedff;
+  color: #5143e8;
 }
 
-.documents-email-preview small {
-  color: #6a7592;
+.documents-email-preview b { color: #283451; }
+.documents-email-preview small { color: #6a7592; }
+
+/* ---- Motion ---- */
+@keyframes doc-notif-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 560px) {
+  .documents-notification { gap: 10px; padding: 12px 12px 12px 14px; }
+  .documents-notification-icon { width: 36px; height: 36px; font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .documents-notification { animation: none; opacity: 1; transition: none; }
+  .documents-notification:hover { transform: none; }
 }

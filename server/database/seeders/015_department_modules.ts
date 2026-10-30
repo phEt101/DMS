@@ -22,8 +22,7 @@ export async function up(connection: Connection) {
        CROSS JOIN permission_modules target
       WHERE u.department_id IS NOT NULL AND u.deleted_at IS NULL AND target.deleted_at IS NULL
         AND ((p.name = 'ยื่นเอกสาร' AND target.name IN ('documents','documents_ledger','documents_notifications'))
-          OR (p.name = 'พิจารณาเอกสาร' AND target.name = 'documents_pending')
-          OR (p.name = 'จัดการนโยบายการลา' AND target.name = 'documents_policy'))`,
+          OR (p.name = 'พิจารณาเอกสาร' AND target.name = 'documents_pending'))`,
   )
   await connection.execute(
     `INSERT IGNORE INTO department_modules SELECT d.id, m.id FROM departments d CROSS JOIN permission_modules m
