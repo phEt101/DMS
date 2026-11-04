@@ -314,6 +314,14 @@
     max-height: calc(100dvh - 20px);
     border-radius: 16px 16px 10px 10px;
   }
+  .modal-backdrop.account-dialog-backdrop {
+    align-items: center;
+  }
+  .user-modal.account-dialog-modal {
+    width: min(520px, 100%);
+    max-height: calc(100dvh - 20px);
+    border-radius: 18px;
+  }
   .role-form-fields,
   .role-permission-picker-grid,
   .role-module-grid {

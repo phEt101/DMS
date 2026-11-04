@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { createPortal } from "react-dom";
 
 import { useToast } from "../../../components/toast-provider";
 import type { Translations } from "../../../locales";
@@ -54,15 +55,15 @@ export default function AccountDialog({ mode, user, translations, onClose }: Pro
 
   const title = mode === "profile" ? translations.editProfile : translations.changePassword;
 
-  return (
+  return createPortal(
     <div
-      className="modal-backdrop"
+      className="modal-backdrop account-dialog-backdrop"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <section className="user-modal" role="dialog" aria-modal="true" aria-labelledby="account-dialog-title">
+      <section className="user-modal account-dialog-modal" role="dialog" aria-modal="true" aria-labelledby="account-dialog-title">
         <header>
           <div>
             <h2 id="account-dialog-title">{title}</h2>
@@ -110,6 +111,7 @@ export default function AccountDialog({ mode, user, translations, onClose }: Pro
           </footer>
         </form>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

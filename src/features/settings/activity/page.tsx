@@ -32,6 +32,7 @@ function describeClient(
 }
 
 function resolveActivityModule(log: ActivityLog): string | null {
+  if (log.entityType === 'payslip') return 'payslips'
   if (log.module !== 'users') return log.module
 
   const legacyModules: Record<string, string> = {
@@ -187,6 +188,14 @@ const formatLeavePolicy: DetailFormatter = (log, copy) => {
   return parts.join(' · ')
 }
 
+const formatPayslip: DetailFormatter = (log, copy) => {
+  const details = log.details!
+  const parts: string[] = []
+  if (typeof details.employee === 'string') parts.push(`${copy.fields.employee}: ${details.employee}`)
+  if (typeof details.period === 'string') parts.push(`${copy.fields.period}: ${details.period}`)
+  return parts.join(' · ')
+}
+
 const formatAccessEntity: DetailFormatter = (log, copy) => {
   const details = log.details!
   const name = typeof details.name === 'string' ? details.name : ''
@@ -237,6 +246,7 @@ function formatDetails(
     company: formatCompany,
     employee_request: formatDocument,
     leave_policy: formatLeavePolicy,
+    payslip: formatPayslip,
     department: formatAccessEntity,
     permission: formatAccessEntity,
     module: formatAccessEntity,
@@ -318,6 +328,8 @@ export default function SettingsActivityPage({
     policy_updated: activityTranslations.policyUpdated,
     profile_updated: activityTranslations.profileUpdated,
     password_changed: activityTranslations.ownPasswordChanged,
+    viewed: activityTranslations.viewed,
+    downloaded: activityTranslations.downloaded,
   }
 
   const resetFilters = () => { setSearchInput(''); setQuery(emptyQuery); setPage(1) }

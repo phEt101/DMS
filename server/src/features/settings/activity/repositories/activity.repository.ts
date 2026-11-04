@@ -140,7 +140,9 @@ export async function findActivityLogs(page: number, limit: number, filters: Act
             x.ipAddress, x.createdAt, x.surveyNo, x.projectName,
             u.name AS userName, u.email AS userEmail
      FROM (
-       SELECT a.id, a.user_id, a.module, a.action, a.entity_type AS entityType,
+       SELECT a.id, a.user_id,
+              CASE WHEN a.entity_type = 'payslip' THEN 'payslips' ELSE a.module END AS module,
+              a.action, a.entity_type AS entityType,
               a.entity_id AS entityId, a.details, a.ip_address AS ipAddress,
               a.created_at AS createdAt, NULL AS surveyNo, NULL AS projectName
        FROM activity_logs a
@@ -158,7 +160,9 @@ export async function findActivityLogs(page: number, limit: number, filters: Act
   )
   const [countRows] = await db.query<ActivityCountRow[]>(
     `SELECT COUNT(*) AS total FROM (
-       SELECT a.id, a.user_id, a.module, a.action, a.created_at FROM activity_logs a
+       SELECT a.id, a.user_id,
+              CASE WHEN a.entity_type = 'payslip' THEN 'payslips' ELSE a.module END AS module,
+              a.action, a.created_at FROM activity_logs a
        UNION ALL
        SELECT l.id, l.user_id, 'surveys', l.action, l.created_at FROM survey_logs l
      ) x

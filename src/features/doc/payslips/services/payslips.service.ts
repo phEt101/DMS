@@ -1,4 +1,4 @@
-import { apiUrl, request } from '../../../services/api'
+import { apiUrl, request } from '../../../../services/api'
 
 export type MyPayslip = {
   id: number

@@ -141,9 +141,9 @@ export const file: RequestHandler = async (req, res) => {
   if (!req.user) throw httpError(401, 'Authentication required')
   const id = parseId(req.params.id)
   const [rows] = await db.execute<RowDataPacket[]>(
-    `SELECT user_id AS userId, company_id AS companyId, file_path AS filePath, original_name AS originalName,
-            period_year AS year, period_month AS month, viewed_at AS viewedAt
-       FROM payslips WHERE id = ? LIMIT 1`,
+    `SELECT p.user_id AS userId, p.company_id AS companyId, p.file_path AS filePath, p.original_name AS originalName,
+            p.period_year AS year, p.period_month AS month, p.viewed_at AS viewedAt, u.name AS employee
+       FROM payslips p JOIN users u ON u.id = p.user_id WHERE p.id = ? LIMIT 1`,
     [id],
   )
   const row = rows[0]
@@ -160,6 +160,15 @@ export const file: RequestHandler = async (req, res) => {
   const preview = req.query.preview === '1'
   const mimeType = preview ? previewMimeType(resolveStoredPath(row.filePath as string), originalName) : null
   if (preview && !mimeType) throw httpError(415, 'ไฟล์ชนิดนี้ไม่รองรับการแสดงตัวอย่าง กรุณาดาวน์โหลดไฟล์')
+  await logActivity({
+    userId: req.user.id,
+    module: 'payslips',
+    action: preview ? 'viewed' : 'downloaded',
+    entityType: 'payslip',
+    entityId: id,
+    details: { employee: row.employee, period: `${row.year}-${String(row.month).padStart(2, '0')}` },
+    ipAddress: req.ip,
+  })
   res.setHeader('Content-Type', mimeType ?? 'application/octet-stream')
   res.setHeader('Content-Disposition', `${preview ? 'inline' : contentDispositionFilename(originalName)}`)
   res.setHeader('X-Content-Type-Options', 'nosniff')
@@ -204,7 +213,7 @@ export const upload: RequestHandler = async (req, res) => {
     const saved = await savePayslip({ companyId, userId, year, month, note: noteOf(req.body?.note), file: upload, uploadedBy: req.user!.id })
     await logActivity({
       userId: req.user!.id,
-      module: 'documents',
+      module: 'payslips',
       action: saved.replaced ? 'updated' : 'created',
       entityType: 'payslip',
       entityId: saved.id,
@@ -265,7 +274,7 @@ export const bulkUpload: RequestHandler = async (req, res) => {
         const result = await savePayslip({ companyId, userId: match.id, year, month, note: null, file: upload, uploadedBy: req.user!.id })
         await logActivity({
           userId: req.user!.id,
-          module: 'documents',
+          module: 'payslips',
           action: result.replaced ? 'updated' : 'created',
           entityType: 'payslip',
           entityId: result.id,
@@ -297,7 +306,7 @@ export const remove: RequestHandler = async (req, res) => {
   if (result.affectedRows > 0) await removeStored(row.filePath as string)
   await logActivity({
     userId: req.user!.id,
-    module: 'documents',
+    module: 'payslips',
     action: 'deleted',
     entityType: 'payslip',
     entityId: id,

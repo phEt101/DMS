@@ -27,6 +27,8 @@ export type ActivityFeatureCopy = FeatureCopy & {
   policyUpdated: string
   profileUpdated: string
   ownPasswordChanged: string
+  viewed: string
+  downloaded: string
   loginFrom: string
   onDevice: string
   unknownClient: string
