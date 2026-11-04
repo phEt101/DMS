@@ -9,6 +9,7 @@ export const employeeRequestsRouter = Router()
 
 // เส้นทางคงที่ต้องมาก่อน '/:id'
 employeeRequestsRouter.get('/policy', asyncHandler(controller.policy))
+employeeRequestsRouter.get('/policy-years', asyncHandler(controller.policyYears))
 employeeRequestsRouter.put('/policy', asyncHandler(controller.updatePolicy))
 employeeRequestsRouter.get('/flow-rules', asyncHandler(controller.flowRules))
 employeeRequestsRouter.put('/flow-rules', asyncHandler(controller.updateFlowRules))

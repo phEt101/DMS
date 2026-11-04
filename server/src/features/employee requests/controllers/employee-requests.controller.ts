@@ -208,6 +208,19 @@ export async function policy(req: Request, res: Response) {
   res.json(await loadPolicy(companyIdOf(req), todayBangkok()))
 }
 
+export async function policyYears(req: Request, res: Response) {
+  needDocumentModule(req)
+  const [rows] = await db.query<any[]>(
+    `SELECT policy_year AS year, DATE_FORMAT(year_start,'%Y-%m-%d') AS yearStart,
+            DATE_FORMAT(year_end,'%Y-%m-%d') AS yearEnd
+       FROM leave_policies
+      WHERE company_id = ?
+      ORDER BY policy_year DESC`,
+    [companyIdOf(req)],
+  )
+  res.json(rows.map((row) => ({ year: Number(row.year), yearStart: row.yearStart, yearEnd: row.yearEnd })))
+}
+
 export async function updatePolicy(req: Request, res: Response) {
   need(req, PERM.policy)
   const roleName = String(req.user!.role?.name ?? '').trim().toLocaleLowerCase()

@@ -42,6 +42,7 @@ export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; s
 export type ApiCheck = { ok: boolean; key: string; params?: Record<string, string | number> }
 export type ApiNotification = ApiListRow & { notificationId: number; event: string; isRead: boolean; createdAt: string }
 export type ApiPolicy = { id: number; year: number; yearStart: string; yearEnd: string; expiryDate: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number; certDays: number; otMax: number; fixDays: number }
+export type ApiPolicyYear = Pick<ApiPolicy, 'year' | 'yearStart' | 'yearEnd'>
 export type ApiPerson = { id: number; name: string; email: string; isActive: boolean; avatarUrl: string | null; departmentName: string | null; employeeCode: string | null; sick: number; personal: number; vacation: number; other: number; sickUsed: number | null; sickPending: number | null; personalUsed: number | null; personalPending: number | null; vacationUsed: number | null; vacationPending: number | null; startDate: string | null; appointedDate: string | null; emailNotificationsEnabled: boolean | null }
 
 // ---------- calls ----------
@@ -69,6 +70,7 @@ export const validateRequestDryRun = (kind: DocKind, values: FormValues) => call
 export const listNotifications = () => call<ApiNotification[]>('/notifications')
 export const markNotificationsRead = (id?: number) => call<void>('/notifications/read', body(id === undefined ? {} : { id }))
 export const getPolicy = () => call<ApiPolicy>('/policy')
+export const listPolicyYears = () => call<ApiPolicyYear[]>('/policy-years')
 export const savePolicy = (policy: Omit<ApiPolicy, 'id' | 'expiryDate'>) => call<ApiPolicy>('/policy', { method: 'PUT', body: JSON.stringify(policy) })
 export const getMySignature = () => call<{ signature: string }>('/signature/me')
 export const listPeople = () => call<ApiPerson[]>('/people')

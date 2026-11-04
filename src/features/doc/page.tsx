@@ -22,7 +22,7 @@ import { listDepartments } from '../settings/access/departments/services/departm
 import { useAuth } from '../auth/hooks/use-auth'
 import {
   ApiError, approveRequest, cancelRequest, createRequest, getMySignature, getPolicy, getRequest,
-  listNotifications, listPeople, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, toFormChecks, validateRequestDryRun,
+  listNotifications, listPeople, listPolicyYears, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, toFormChecks, validateRequestDryRun,
 } from './services/employee-requests.service'
 import DocRejectModal from './all-documents/components/doc-reject-modal'
 
@@ -188,6 +188,8 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const [notifications, setNotifications] = useState(() => readMockSnapshot().notifications ?? INITIAL_NOTIFICATIONS)
   const [mockRole, setMockRole] = useState<MockEmployee['role']>(() => readMockSnapshot().mockRole ?? 'พนักงาน')
   const [ledgerEmployeeId, setLedgerEmployeeId] = useState(() => readMockSnapshot().ledgerEmployeeId ?? 'e1')
+  const [ledgerPolicyYear, setLedgerPolicyYear] = useState(INITIAL_POLICY.year)
+  const [ledgerPolicyYears, setLedgerPolicyYears] = useState<import('./services/employee-requests.service').ApiPolicyYear[]>([])
   const [notificationTab, setNotificationTab] = useState<'app' | 'email'>('app')
   const [emailEnabled, setEmailEnabled] = useState(() => readMockSnapshot().emailEnabled ?? true)
   const [employeeQuery, setEmployeeQuery] = useState('')
@@ -357,7 +359,11 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   // นโยบาย + ลายเซ็นที่จดจำไว้ + รายชื่อพนักงาน (ledger)
   useEffect(() => {
     if (!USE_DB) return
-    getPolicy().then((p) => { const next: MockPolicy = { ...INITIAL_POLICY, ...p, expiry: p.expiryDate }; setPolicy(next); setPolicyDraft(next) }).catch((error) => showToast(errorText(error), 'error'))
+    getPolicy().then((p) => {
+      const next: MockPolicy = { ...INITIAL_POLICY, ...p, expiry: p.expiryDate }
+      setPolicy(next); setPolicyDraft(next); setLedgerPolicyYear(p.year)
+    }).catch((error) => showToast(errorText(error), 'error'))
+    listPolicyYears().then(setLedgerPolicyYears).catch((error) => showToast(errorText(error), 'error'))
     getMySignature().then((r) => setSavedSignature(r.signature)).catch((error) => showToast(errorText(error), 'error'))
     listPeople().then((rows) => setDbPeople(rows)).catch((error) => showToast(errorText(error), 'error'))
   }, [errorText, showToast])
@@ -460,8 +466,14 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       }))
     : mockRole === 'HR' ? employees : mockRole === 'ผู้จัดการแผนก' ? employees.filter((employee) => employee.id === 'e2') : employees.filter((employee) => employee.id === 'e1')
   const ledgerEmployee = availableLedgerEmployees.find((employee) => employee.id === ledgerEmployeeId) ?? availableLedgerEmployees[0] ?? employees[0]
+  const availablePolicyYears = ledgerPolicyYears.length
+    ? ledgerPolicyYears
+    : [{ year: policy.year, yearStart: policy.yearStart, yearEnd: policy.yearEnd }]
+  const selectedLedgerPolicy = availablePolicyYears.find((item) => item.year === ledgerPolicyYear) ?? availablePolicyYears[0]
   // สมุดบันทึกการลา: แสดงเฉพาะรายการที่ยังไม่ถูกปฏิเสธ (ปฏิเสธแล้วต้องไม่ค้างในสมุด)
-  const ledgerRows = documents.filter((doc) => doc.kind === 'leave' && doc.status !== 'rejected' && (!USE_DB || doc.employee === ledgerEmployee.name)).sort((left, right) => (left.from ?? '').localeCompare(right.from ?? ''))
+  const ledgerRows = documents.filter((doc) => doc.kind === 'leave' && doc.status !== 'rejected' && (!USE_DB || doc.employee === ledgerEmployee.name)
+    && (!USE_DB || !selectedLedgerPolicy || Boolean(doc.from && doc.from >= selectedLedgerPolicy.yearStart && doc.from <= selectedLedgerPolicy.yearEnd)))
+    .sort((left, right) => (left.from ?? '').localeCompare(right.from ?? ''))
   // ชื่อบริษัทเต็มบนหัวกระดาษสมุดบันทึกการลา — อิงบริษัทของผู้ใช้ + ภาษาที่เลือก
   const COMPANY_FULL_NAMES: Record<string, Record<'th' | 'en', string>> = {
     boswell: { th: 'บริษัท บอสเวลล์ คอนเนคชั่น กรุ๊ป จำกัด', en: 'Boswell Connection Group Co., Ltd.' },
@@ -716,6 +728,11 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       })
       const next: MockPolicy = { ...INITIAL_POLICY, ...saved, expiry: saved.expiryDate }
       setPolicy(next); setPolicyDraft(next)
+      setLedgerPolicyYears((current) => [
+        ...current.filter((item) => item.year !== saved.year),
+        { year: saved.year, yearStart: saved.yearStart, yearEnd: saved.yearEnd },
+      ].sort((left, right) => right.year - left.year))
+      setLedgerPolicyYear(saved.year)
       showToast(copy.messages.policySaved, 'success')
     } catch (error) { showToast(errorText(error), 'error') }
   }
@@ -739,7 +756,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   return <section className="feature-page feature-page--wide documents-page">
     <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
     {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'flowRules' ? copy.flowRulesSubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
-    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} companyName={ledgerCompanyName} hoursPerDay={policy.hoursPerDay} policyYear={policy.year} copy={copy} />}
+    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} companyName={ledgerCompanyName} hoursPerDay={policy.hoursPerDay} policyYear={selectedLedgerPolicy?.year ?? ledgerPolicyYear} policyYearEnd={selectedLedgerPolicy?.yearEnd ?? policy.yearEnd} policyYears={availablePolicyYears} onPolicyYearChange={setLedgerPolicyYear} copy={copy} />}
 
     {view === 'employees' && <DocDatabaseEmployeesPanel users={dbEmployees} leaveBalances={dbPeople} hoursPerDay={policy.hoursPerDay} title={pageTitle} subtitle={copy.employeesSubtitle} companyId={user?.company?.id ?? 0} companyName={user?.company?.name ?? ''} loading={dbEmployeesLoading} error={dbEmployeesError} query={employeeQuery} onQuery={setEmployeeQuery} onUpdated={(updated) => { setDbEmployees((current) => current.map((employee) => employee.id === updated.id ? updated : employee)); notifyDocChanged() }} onCreated={(created) => { setDbEmployees((current) => [created, ...current]); notifyDocChanged() }} copy={copy} />}
 

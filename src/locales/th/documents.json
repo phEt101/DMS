@@ -400,7 +400,7 @@
     "ledger": {
       "chooseEmployee": "เลือกพนักงาน",
       "allDepartments": "ทุกแผนก",
-      "year": "ปีสิทธิ",
+      "year": "ปีสิทธิ (พ.ศ.)",
       "sick": "ลาป่วย",
       "personal": "ลากิจ",
       "vacation": "ลาพักร้อน",
@@ -440,7 +440,6 @@
       "hour": "ชั่วโมง",
       "leaveDate": "วันที่ลา",
       "endDate": "ถึงวันที่",
-      "expiryDate": "25 พฤศจิกายน 2569",
       "notes": "หมายเหตุ",
       "expiryNote": "สิทธิวันลาสามารถใช้ได้ถึงวันที่",
       "noteItems": [

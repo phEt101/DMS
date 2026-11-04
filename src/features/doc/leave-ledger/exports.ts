@@ -67,9 +67,11 @@ const balanceRows = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay: 
   ]
 }
 
-const reportName = (person: LedgerPerson, policyYear: number) => `Leave_Ledger_${safeFilePart(person.name)}_${policyYear}`
+const displayYear = (policyYear: number, locale: string) =>
+  new Intl.DateTimeFormat(locale, { year: 'numeric' }).format(new Date(policyYear, 0, 1))
+const reportName = (person: LedgerPerson, policyYear: number, locale: string) => `Leave_Ledger_${safeFilePart(person.name)}_${displayYear(policyYear, locale)}`
 
-export async function exportLedgerXlsx(person: LedgerPerson, entries: LedgerEntry[], companyName: string | undefined, hoursPerDay: number, policyYear: number, copy: any) {
+export async function exportLedgerXlsx(person: LedgerPerson, entries: LedgerEntry[], companyName: string | undefined, hoursPerDay: number, policyYear: number, policyYearEnd: string, copy: any) {
   const { default: ExcelJS } = await import('exceljs')
   const { headers, data } = rowsForExport(person, entries, hoursPerDay, copy)
   const workbook = new ExcelJS.Workbook()
@@ -88,7 +90,7 @@ export async function exportLedgerXlsx(person: LedgerPerson, entries: LedgerEntr
   sheet.getCell(2, 1).value = `${copy.ledger.fullName}: ${person.name}    ${copy.ledger.employeeCode}: ${person.code}    ${copy.ledger.department}: ${person.department}`
   sheet.getCell(2, 1).font = { name: 'Tahoma', size: 11, bold: true }
   sheet.mergeCells(3, 1, 3, headers.length)
-  sheet.getCell(3, 1).value = `${copy.ledger.startDate}: ${formatDate(person.startDate, copy.dateLocale)}    ${copy.ledger.appointedDate}: ${formatDate(person.appointedDate, copy.dateLocale)}    ${copy.ledger.annualVacation} ${policyYear}: ${person.vacation} ${copy.ledger.day}`
+  sheet.getCell(3, 1).value = `${copy.ledger.startDate}: ${formatDate(person.startDate, copy.dateLocale)}    ${copy.ledger.appointedDate}: ${formatDate(person.appointedDate, copy.dateLocale)}    ${copy.ledger.annualVacation} ${displayYear(policyYear, copy.dateLocale)}: ${person.vacation} ${copy.ledger.day}`
   sheet.getCell(3, 1).font = { name: 'Tahoma', size: 10 }
 
   const border = { style: 'thin' as const, color: { argb: 'FF000000' } }
@@ -114,15 +116,16 @@ export async function exportLedgerXlsx(person: LedgerPerson, entries: LedgerEntr
   sheet.addRow([copy.ledger.remaining])
   sheet.addRow([copy.ledger.sick, copy.ledger.year, copy.ledger.used, copy.ledger.remaining, copy.ledger.day])
   balanceRows(person, entries, hoursPerDay, copy).forEach((row) => sheet.addRow(row))
+  sheet.addRow([`${copy.ledger.expiryNote} ${new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${policyYearEnd}T00:00:00`))}`])
 
   const buffer = await workbook.xlsx.writeBuffer()
   downloadBlob(
     new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-    `${reportName(person, policyYear)}.xlsx`,
+    `${reportName(person, policyYear, copy.dateLocale)}.xlsx`,
   )
 }
 
-export async function exportLedgerDocx(person: LedgerPerson, entries: LedgerEntry[], companyName: string | undefined, hoursPerDay: number, policyYear: number, copy: any) {
+export async function exportLedgerDocx(person: LedgerPerson, entries: LedgerEntry[], companyName: string | undefined, hoursPerDay: number, policyYear: number, policyYearEnd: string, copy: any) {
   const {
     AlignmentType, BorderStyle, Document, PageOrientation, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType,
   } = await import('docx')
@@ -150,7 +153,7 @@ export async function exportLedgerDocx(person: LedgerPerson, entries: LedgerEntr
       children: [
         new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: companyName || copy.ledger.companyName, bold: true, font: 'Tahoma', size: 28 })] }),
         new Paragraph({ children: [new TextRun({ text: `${copy.ledger.fullName}: ${person.name}    ${copy.ledger.employeeCode}: ${person.code}    ${copy.ledger.department}: ${person.department}`, font: 'Tahoma', size: 20 })] }),
-        new Paragraph({ children: [new TextRun({ text: `${copy.ledger.startDate}: ${formatDate(person.startDate, copy.dateLocale)}    ${copy.ledger.appointedDate}: ${formatDate(person.appointedDate, copy.dateLocale)}    ${copy.ledger.annualVacation} ${policyYear}: ${person.vacation} ${copy.ledger.day}`, font: 'Tahoma', size: 18 })] }),
+        new Paragraph({ children: [new TextRun({ text: `${copy.ledger.startDate}: ${formatDate(person.startDate, copy.dateLocale)}    ${copy.ledger.appointedDate}: ${formatDate(person.appointedDate, copy.dateLocale)}    ${copy.ledger.annualVacation} ${displayYear(policyYear, copy.dateLocale)}: ${person.vacation} ${copy.ledger.day}`, font: 'Tahoma', size: 18 })] }),
         new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
         new Paragraph({ children: [new TextRun({ text: copy.ledger.remaining, bold: true, font: 'Tahoma', size: 18 })] }),
         new Table({
@@ -160,14 +163,15 @@ export async function exportLedgerDocx(person: LedgerPerson, entries: LedgerEntr
             ...balances.map((row) => new TableRow({ children: row.map((value) => cell(value)) })),
           ],
         }),
+        new Paragraph({ children: [new TextRun({ text: `${copy.ledger.expiryNote} ${new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${policyYearEnd}T00:00:00`))}`, font: 'Tahoma', size: 16 })] }),
         ...copy.ledger.noteItems.map((note: string) => new Paragraph({ children: [new TextRun({ text: `- ${note}`, font: 'Tahoma', size: 16 })] })),
       ],
     }],
   })
-  downloadBlob(await Packer.toBlob(doc), `${reportName(person, policyYear)}.docx`)
+  downloadBlob(await Packer.toBlob(doc), `${reportName(person, policyYear, copy.dateLocale)}.docx`)
 }
 
-export async function exportLedgerPdf(person: LedgerPerson, policyYear: number) {
+export async function exportLedgerPdf(person: LedgerPerson, policyYear: number, locale: string) {
   const sheet = document.querySelector<HTMLElement>('.leave-sheet')
   if (!sheet) throw new Error('Leave ledger is not available for export')
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
@@ -189,8 +193,8 @@ export async function exportLedgerPdf(person: LedgerPerson, policyYear: number) 
     const width = Math.min(maxWidth, maxHeight * ratio)
     const height = width / ratio
     pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', (297 - width) / 2, (210 - height) / 2, width, height)
-    pdf.setProperties({ title: reportName(person, policyYear), author: person.name })
-    downloadBlob(pdf.output('blob'), `${reportName(person, policyYear)}.pdf`)
+    pdf.setProperties({ title: reportName(person, policyYear, locale), author: person.name })
+    downloadBlob(pdf.output('blob'), `${reportName(person, policyYear, locale)}.pdf`)
   } finally {
     host.remove()
   }
