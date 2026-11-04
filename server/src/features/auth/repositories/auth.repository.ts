@@ -222,3 +222,38 @@ export async function revokeSession(
 
   return result.affectedRows > 0;
 }
+
+export async function findPasswordHashByUserId(userId: number): Promise<string | null> {
+  const [rows] = await db.execute<RowDataPacket[]>(
+    "SELECT password_hash AS passwordHash FROM users WHERE id = ? AND deleted_at IS NULL LIMIT 1",
+    [userId],
+  );
+  return (rows[0]?.passwordHash as string | null | undefined) ?? null;
+}
+
+export async function updateOwnName(
+  userId: number,
+  firstName: string,
+  lastName: string,
+  name: string,
+): Promise<void> {
+  await db.execute(
+    "UPDATE users SET first_name = ?, last_name = ?, name = ? WHERE id = ?",
+    [firstName, lastName, name, userId],
+  );
+}
+
+export async function updateOwnPasswordHash(userId: number, passwordHash: string): Promise<void> {
+  await db.execute("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, userId]);
+}
+
+export async function revokeOtherSessions(userId: number, keepSessionId: number): Promise<void> {
+  await db.execute(
+    `UPDATE user_sessions
+     SET revoked_at = CURRENT_TIMESTAMP
+     WHERE user_id = ?
+       AND id <> ?
+       AND revoked_at IS NULL`,
+    [userId, keepSessionId],
+  );
+}

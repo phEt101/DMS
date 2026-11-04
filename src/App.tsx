@@ -31,7 +31,8 @@ const pathByPage: Record<PageKey, string> = {
   'documents-employees': '/documents/employees',
   'documents-policy': '/documents/policy',
   'documents-flow-rules': '/documents/flow-rules',
-  'documents-notifications': '/documents/notifications'
+  'documents-notifications': '/documents/notifications',
+  'documents-payslips': '/documents/payslips'
 }
 
 const moduleByPage: Record<PageKey, string> = {
@@ -55,7 +56,8 @@ const moduleByPage: Record<PageKey, string> = {
   'documents-employees': 'documents_employees',
   'documents-policy': 'documents_policy',
   'documents-flow-rules': 'documents_flow_rules',
-  'documents-notifications': 'documents_notifications'
+  'documents-notifications': 'documents_notifications',
+  'documents-payslips': 'documents_payslips'
 }
 
 const pageOrder = Object.keys(pathByPage) as PageKey[]

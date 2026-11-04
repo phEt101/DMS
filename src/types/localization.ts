@@ -25,6 +25,8 @@ export type ActivityFeatureCopy = FeatureCopy & {
   rejected: string
   cancelled: string
   policyUpdated: string
+  profileUpdated: string
+  ownPasswordChanged: string
   loginFrom: string
   onDevice: string
   unknownClient: string
@@ -172,5 +174,5 @@ export type UserFeatureCopy = FeatureCopy & {
   deleteRoleConfirm: string
   deleteRoleError: string
   permissionsFor: string
-  permissionModules: Record<'dashboard' | 'projects' | 'projects_cm' | 'survey' | 'documents' | 'documents_pending' | 'documents_ledger' | 'report' | 'documents_employees' | 'documents_policy' | 'documents_notifications' | 'users' | 'roles' | 'departments' | 'permissions' | 'modules' | 'companies' | 'activity_logs', string>
+  permissionModules: Record<'dashboard' | 'projects' | 'projects_cm' | 'survey' | 'documents' | 'documents_pending' | 'documents_ledger' | 'report' | 'documents_employees' | 'documents_policy' | 'documents_notifications' | 'documents_payslips' | 'users' | 'roles' | 'departments' | 'permissions' | 'modules' | 'companies' | 'activity_logs', string>
 }

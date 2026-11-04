@@ -21,3 +21,17 @@ export function logout(): Promise<null> {
     method: "POST",
   }) as Promise<null>;
 }
+
+export function updateProfile(input: { firstName: string; lastName: string }): Promise<CurrentUserResponse> {
+  return request("/auth/profile", {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  }) as Promise<CurrentUserResponse>;
+}
+
+export function changePassword(input: { currentPassword: string; newPassword: string }): Promise<null> {
+  return request("/auth/password", {
+    method: "POST",
+    body: JSON.stringify(input),
+  }) as Promise<null>;
+}

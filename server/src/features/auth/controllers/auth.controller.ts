@@ -110,3 +110,69 @@ export const logout: RequestHandler = async (req, res) => {
 
   res.status(204).end();
 };
+
+function readBody(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw httpError(400, "Invalid request payload");
+  }
+  return input as Record<string, unknown>;
+}
+
+export const updateProfile: RequestHandler = async (req, res) => {
+  if (!req.user) throw httpError(401, "Authentication required");
+
+  const body = readBody(req.body);
+  const firstName = typeof body.firstName === "string" ? body.firstName.trim() : "";
+  const lastName = typeof body.lastName === "string" ? body.lastName.trim() : "";
+  if (!firstName) throw httpError(400, "First name is required");
+  if (firstName.length > 150 || lastName.length > 150 || `${firstName} ${lastName}`.trim().length > 150) {
+    throw httpError(400, "Full name is too long");
+  }
+
+  const previousName = req.user.name;
+  const name = await authService.updateOwnProfile(req.user.id, firstName, lastName);
+
+  await logActivity({
+    userId: req.user.id,
+    module: "authentication",
+    action: "profile_updated",
+    entityType: "user",
+    entityId: req.user.id,
+    details: { name, previousName },
+    ipAddress: req.ip,
+  });
+
+  res.json({ data: { ...req.user, name } });
+};
+
+export const changePassword: RequestHandler = async (req, res, next) => {
+  if (!req.user || req.sessionId === undefined) throw httpError(401, "Authentication required");
+
+  const body = readBody(req.body);
+  const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
+  const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+  if (!currentPassword || !newPassword) throw httpError(400, "Current and new password are required");
+  if (newPassword.length < 8) throw httpError(400, "Password must be at least 8 characters");
+  if (newPassword.length > 255 || currentPassword.length > 255) throw httpError(400, "Password is too long");
+  if (newPassword === currentPassword) throw httpError(400, "New password must differ from current password");
+
+  try {
+    await authService.changeOwnPassword(req.user.id, req.sessionId, currentPassword, newPassword);
+  } catch (error) {
+    if (error instanceof authService.InvalidCurrentPasswordError) {
+      return next(httpError(400, error.message));
+    }
+    return next(error);
+  }
+
+  await logActivity({
+    userId: req.user.id,
+    module: "authentication",
+    action: "password_changed",
+    entityType: "user",
+    entityId: req.user.id,
+    ipAddress: req.ip,
+  });
+
+  res.status(204).end();
+};

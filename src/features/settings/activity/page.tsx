@@ -300,7 +300,8 @@ export default function SettingsActivityPage({
 
   const dateFormatter = new Intl.DateTimeFormat(language === 'th' ? 'th-TH' : 'en-US', {
     dateStyle: 'medium',
-    timeStyle: 'short',
+    timeStyle: 'medium',
+    hourCycle: 'h23',
   })
   const actionLabels: Record<string, string> = {
     login: activityTranslations.login,
@@ -315,6 +316,8 @@ export default function SettingsActivityPage({
     rejected: activityTranslations.rejected,
     cancelled: activityTranslations.cancelled,
     policy_updated: activityTranslations.policyUpdated,
+    profile_updated: activityTranslations.profileUpdated,
+    password_changed: activityTranslations.ownPasswordChanged,
   }
 
   const resetFilters = () => { setSearchInput(''); setQuery(emptyQuery); setPage(1) }

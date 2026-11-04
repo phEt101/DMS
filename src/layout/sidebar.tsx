@@ -46,6 +46,7 @@ type SidebarItem =
   | "documents-policy"
   | "documents-flow-rules"
   | "documents-notifications"
+  | "documents-payslips"
   | "report"
   | "settings-user"
   | "settings-roles"
@@ -306,11 +307,13 @@ if (item.key === "documents") {
     { key: "documents-policy", label: documentNavTranslations.policy },
     { key: "documents-flow-rules", label: documentNavTranslations.flowRules },
     { key: "documents-notifications", label: documentNavTranslations.notifications },
+    { key: "documents-payslips", label: documentNavTranslations.payslips },
   ];
   const documentModuleByPage: Partial<Record<PageKey, string>> = {
     "documents-all": "documents", "documents-pending": "documents_pending", "documents-ledger": "documents_ledger",
     report: "report", "documents-employees": "documents_employees", "documents-policy": "documents_policy", "documents-flow-rules": "documents_flow_rules",
     "documents-notifications": "documents_notifications",
+    "documents-payslips": "documents_payslips",
   };
   const visibleDocumentItems = documentItems.filter((documentItem) => user && (
     user.role.name.trim().toLowerCase() === "admin" || user.departmentModules.includes(documentModuleByPage[documentItem.key] ?? "")

@@ -26,5 +26,7 @@ export const env = {
     user: process.env.DB_USER ?? 'root',
     password: process.env.DB_PASSWORD ?? '',
     connectionLimit: integer(process.env.DB_CONNECTION_LIMIT, 10),
+    // เขตเวลาของ MySQL (ค่าเวลาในฐานข้อมูลเก็บเป็นเวลาไทย) — ใช้แปลง DATETIME/TIMESTAMP ให้ตรง
+    timezone: process.env.DB_TIMEZONE ?? '+07:00',
   },
 }

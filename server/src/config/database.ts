@@ -5,6 +5,5 @@ export const db = mysql.createPool({
   ...env.db,
   waitForConnections: true,
   queueLimit: 0,
-  timezone: 'Z',
   decimalNumbers: true,
 })

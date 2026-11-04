@@ -453,6 +453,7 @@
         "documents_policy": "Leave policy",
         "documents_flow_rules": "Document submission routing",
         "documents_notifications": "Notifications",
+        "documents_payslips": "Payslips",
         "users": "Users",
         "roles": "Roles and permissions",
         "departments": "Departments",
@@ -486,6 +487,8 @@
       "rejected": "Rejected",
       "cancelled": "Cancelled",
       "policyUpdated": "Updated leave policy",
+      "profileUpdated": "Updated own profile",
+      "ownPasswordChanged": "Changed own password",
       "loginFrom": "Signed in with",
       "onDevice": "on",
       "unknownClient": "Unknown device",
@@ -706,6 +709,20 @@
     "switchToThai": "Switch to Thai",
     "profileRole": "Project Admin",
     "logout": "Sign out",
-    "loggingOut": "Signing out..."
+    "loggingOut": "Signing out...",
+    "editProfile": "Edit profile",
+    "changePassword": "Change password",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordHint": "At least 8 characters. Other signed-in devices will be signed out.",
+    "passwordMismatch": "New passwords do not match",
+    "profileSaved": "Profile updated",
+    "passwordSaved": "Password changed",
+    "close": "Close",
+    "save": "Save",
+    "saving": "Saving..."
   }
 }

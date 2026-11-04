@@ -453,6 +453,7 @@
         "documents_policy": "นโยบายการลา",
         "documents_flow_rules": "กำหนดสิทธิ์ในการยื่นเอกสาร",
         "documents_notifications": "แจ้งเตือน",
+        "documents_payslips": "สลิปเงินเดือน",
         "users": "ผู้ใช้",
         "roles": "บทบาทและสิทธิ์",
         "departments": "แผนก",
@@ -486,6 +487,8 @@
       "rejected": "ไม่อนุมัติ",
       "cancelled": "ยกเลิกเอกสาร",
       "policyUpdated": "แก้ไขนโยบายการลา",
+      "profileUpdated": "แก้ไขโปรไฟล์ตนเอง",
+      "ownPasswordChanged": "เปลี่ยนรหัสผ่านตนเอง",
       "loginFrom": "เข้าสู่ระบบผ่าน",
       "onDevice": "บน",
       "unknownClient": "อุปกรณ์ที่ไม่ทราบ",
@@ -706,6 +709,20 @@
     "switchToThai": "สลับเป็นภาษาไทย",
     "profileRole": "ผู้ดูแลโครงการ",
     "logout": "ออกจากระบบ",
-    "loggingOut": "กำลังออก..."
+    "loggingOut": "กำลังออก...",
+    "editProfile": "แก้ไขโปรไฟล์",
+    "changePassword": "เปลี่ยนรหัสผ่าน",
+    "firstName": "ชื่อ",
+    "lastName": "นามสกุล",
+    "currentPassword": "รหัสผ่านปัจจุบัน",
+    "newPassword": "รหัสผ่านใหม่",
+    "confirmPassword": "ยืนยันรหัสผ่านใหม่",
+    "passwordHint": "อย่างน้อย 8 ตัวอักษร อุปกรณ์อื่นที่เข้าสู่ระบบอยู่จะถูกออกจากระบบ",
+    "passwordMismatch": "รหัสผ่านใหม่ไม่ตรงกัน",
+    "profileSaved": "บันทึกโปรไฟล์แล้ว",
+    "passwordSaved": "เปลี่ยนรหัสผ่านแล้ว",
+    "close": "ปิด",
+    "save": "บันทึก",
+    "saving": "กำลังบันทึก..."
   }
 }

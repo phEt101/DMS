@@ -123,3 +123,30 @@ export async function login(input: LoginInput): Promise<LoginResult> {
 export async function logout(sessionId: number): Promise<void> {
   await authRepository.revokeSession(sessionId);
 }
+
+export class InvalidCurrentPasswordError extends Error {
+  constructor() {
+    super("Current password is incorrect");
+    this.name = "InvalidCurrentPasswordError";
+  }
+}
+
+export async function updateOwnProfile(userId: number, firstName: string, lastName: string): Promise<string> {
+  const name = `${firstName} ${lastName}`.trim();
+  await authRepository.updateOwnName(userId, firstName, lastName, name);
+  return name;
+}
+
+export async function changeOwnPassword(
+  userId: number,
+  sessionId: number,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const currentHash = await authRepository.findPasswordHashByUserId(userId);
+  const matches = await bcrypt.compare(currentPassword, currentHash ?? (await dummyPasswordHashPromise));
+  if (!currentHash || !matches) throw new InvalidCurrentPasswordError();
+
+  await authRepository.updateOwnPasswordHash(userId, await bcrypt.hash(newPassword, BCRYPT_ROUNDS));
+  await authRepository.revokeOtherSessions(userId, sessionId);
+}

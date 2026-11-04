@@ -745,6 +745,25 @@ a {
   font-size: 11px;
   font-weight: 700;
 }
+.profile-action {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-top: 1px solid #eef0f5;
+  color: #384056;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.profile-action:hover {
+  background: #f5f7fb;
+}
 .profile-logout {
   width: 100%;
   min-height: 43px;

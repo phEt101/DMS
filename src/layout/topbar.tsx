@@ -1,3 +1,4 @@
+import AccountDialog from "../features/auth/components/account-dialog";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Translations } from "../locales";
@@ -99,6 +100,7 @@ export default function Topbar({
 }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [accountDialog, setAccountDialog] = useState<"profile" | "password" | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   // โหมด DB: ใช้แจ้งเตือนจริงจาก API — ถ้าโหลดไม่ได้ fallback ไป mock เดิม
   const [dbNotifications, setDbNotifications] = useState<TopbarNotification[] | null>(null);
@@ -307,6 +309,24 @@ export default function Topbar({
               </div>
               <button
                 type="button"
+                className="profile-action"
+                onClick={() => { setProfileOpen(false); setAccountDialog("profile"); }}
+                role="menuitem"
+              >
+                <span aria-hidden="true">✎</span>
+                {topbarTranslations.editProfile}
+              </button>
+              <button
+                type="button"
+                className="profile-action"
+                onClick={() => { setProfileOpen(false); setAccountDialog("password"); }}
+                role="menuitem"
+              >
+                <span aria-hidden="true">🔑</span>
+                {topbarTranslations.changePassword}
+              </button>
+              <button
+                type="button"
                 className="profile-logout"
                 onClick={() => void handleLogout()}
                 disabled={isLoggingOut}
@@ -319,6 +339,14 @@ export default function Topbar({
           )}
         </div>
       </div>
+      {accountDialog && (
+        <AccountDialog
+          mode={accountDialog}
+          user={user}
+          translations={topbarTranslations}
+          onClose={() => setAccountDialog(null)}
+        />
+      )}
     </header>
   );
 }

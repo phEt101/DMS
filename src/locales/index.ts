@@ -12,6 +12,7 @@ function mergeFeatureLocales(base: any, survey: any, documents: any) {
       ...(base.features ?? {}),
       survey: survey.survey,
       documentManagement: documents.documentManagement,
+      payslips: documents.payslips,
     },
     sidebar: {
       ...base.sidebar,
