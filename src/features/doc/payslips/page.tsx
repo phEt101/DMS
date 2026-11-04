@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { FaDownload, FaEye, FaFilePdf, FaLock, FaMagnifyingGlass, FaTrash, FaUpload } from 'react-icons/fa6'
+import { FaDownload, FaEye, FaFileLines, FaFilter, FaLock, FaMagnifyingGlass, FaTrash, FaUpload, FaUser, FaXmark } from 'react-icons/fa6'
 import ConfirmDialog from '../../../components/confirm-dialog'
 import { useToast } from '../../../components/toast-provider'
 import type { Language, Translations } from '../../../locales'
 import { translateServerErrorMessage } from '../../../services/api'
 import { useAuth } from '../../auth/hooks/use-auth'
+import { avatarSrc } from '../../../services/avatar'
 import {
-  bulkUploadPayslips, deletePayslip, listManagedPayslips, listMyPayslips, payslipFileUrl, uploadPayslip,
+  bulkUploadPayslips, deletePayslip, listManagedPayslips, listMyPayslips, payslipFileUrl, payslipPreviewUrl, uploadPayslip,
   type BulkResult, type ManagedPayslipRow, type MyPayslip,
 } from './payslips.service'
 import './payslips.css'
 
 type Tab = 'mine' | 'manage'
-type Filter = 'all' | 'pending' | 'sent'
+type Filter = 'all' | 'pending' | 'sent' | 'viewed'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const fill = (template: string, values: Record<string, string | number>) =>
@@ -73,6 +74,7 @@ function MyPayslips({ copy, locale, periodLabel, errorText }: SharedProps & { lo
   const { showToast } = useToast()
   const [items, setItems] = useState<MyPayslip[] | null>(null)
   const [year, setYear] = useState<number | 'all'>('all')
+  const [previewItem, setPreviewItem] = useState<{ id: number; fileName: string } | null>(null)
 
   const load = useCallback(() => {
     listMyPayslips().then(setItems).catch((error) => { setItems([]); showToast(errorText(error), 'error') })
@@ -95,7 +97,7 @@ function MyPayslips({ copy, locale, periodLabel, errorText }: SharedProps & { lo
 
       {items !== null && visible.length === 0 && (
         <div className="payslips-empty">
-          <FaFilePdf aria-hidden="true" />
+          <FaFileLines aria-hidden="true" />
           <strong>{copy.mineEmptyTitle}</strong>
           <span>{copy.mineEmptyBody}</span>
         </div>
@@ -104,7 +106,7 @@ function MyPayslips({ copy, locale, periodLabel, errorText }: SharedProps & { lo
       <div className="payslips-grid">
         {visible.map((item) => (
           <article key={item.id} className={`payslip-card${item.viewedAt ? '' : ' is-new'}`}>
-            <div className="payslip-card-icon"><FaFilePdf aria-hidden="true" /></div>
+            <div className="payslip-card-icon"><FaFileLines aria-hidden="true" /></div>
             <div className="payslip-card-body">
               <strong>{periodLabel(item.year, item.month)}</strong>
               <small>{formatSize(item.fileSize)}</small>
@@ -112,14 +114,22 @@ function MyPayslips({ copy, locale, periodLabel, errorText }: SharedProps & { lo
             </div>
             {!item.viewedAt && <span className="documents-pill is-pending">{copy.new}</span>}
             <div className="payslip-card-actions">
-              <a className="payslip-action" href={payslipFileUrl(item.id)} target="_blank" rel="noopener noreferrer" onClick={() => window.setTimeout(load, 1200)}>
-                <FaEye /> {copy.view}
-              </a>
+              {canPreviewFile(item.fileName) && (
+                <button type="button" className="payslip-action" onClick={() => setPreviewItem(item)}>
+                  <FaEye /> {copy.preview}
+                </button>
+              )}
               <a className="payslip-action" href={payslipFileUrl(item.id, true)}><FaDownload /> {copy.download}</a>
             </div>
           </article>
         ))}
       </div>
+      {previewItem && <FilePreviewDialog
+        url={payslipPreviewUrl(previewItem.id)}
+        fileName={previewItem.fileName}
+        closeLabel={copy.close}
+        onClose={() => setPreviewItem(null)}
+      />}
     </>
   )
 }
@@ -135,14 +145,23 @@ function ManagePayslips({ copy, language, periodLabel, errorText, showToast }: S
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
+  const [department, setDepartment] = useState('all')
+  const [employee, setEmployee] = useState('all')
+  const [draftFilter, setDraftFilter] = useState<Filter>('all')
+  const [draftDepartment, setDraftDepartment] = useState('all')
+  const [draftEmployee, setDraftEmployee] = useState('all')
+  const [filterOpen, setFilterOpen] = useState(false)
   const [busyUser, setBusyUser] = useState<number | null>(null)
   const [bulkBusy, setBulkBusy] = useState(false)
   const [bulkResult, setBulkResult] = useState<BulkResult | null>(null)
   const [toDelete, setToDelete] = useState<ManagedPayslipRow | null>(null)
+  const [previewItem, setPreviewItem] = useState<{ id: number; fileName: string } | null>(null)
+  const [zoomAvatar, setZoomAvatar] = useState<{ src: string; name: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const rowInputRef = useRef<HTMLInputElement>(null)
   const bulkInputRef = useRef<HTMLInputElement>(null)
   const pendingUserRef = useRef<ManagedPayslipRow | null>(null)
+  const filterWrapRef = useRef<HTMLDivElement>(null)
   const locale = language === 'th' ? 'th-TH' : 'en-US'
 
   const load = useCallback(async () => {
@@ -152,6 +171,14 @@ function ManagePayslips({ copy, language, periodLabel, errorText, showToast }: S
     finally { setLoading(false) }
   }, [year, month, errorText, showToast])
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    if (!filterOpen) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!filterWrapRef.current?.contains(event.target as Node)) setFilterOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [filterOpen])
 
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear()
@@ -171,13 +198,22 @@ function ManagePayslips({ copy, language, periodLabel, errorText, showToast }: S
     return rows.filter((row) => {
       if (filter === 'pending' && row.payslipId !== null) return false
       if (filter === 'sent' && row.payslipId === null) return false
+      if (filter === 'viewed' && !row.viewedAt) return false
+      if (department !== 'all' && row.department !== department) return false
+      if (employee !== 'all' && String(row.userId) !== employee) return false
       return !keyword || [row.name, row.email, row.department ?? ''].some((text) => text.toLowerCase().includes(keyword))
     })
-  }, [rows, search, filter])
+  }, [rows, search, filter, department, employee])
+
+  const departmentOptions = useMemo(
+    () => Array.from(new Set(rows.map((row) => row.department).filter((value): value is string => Boolean(value))).values()).sort((a, b) => a.localeCompare(b)),
+    [rows],
+  )
+  const activeFilterCount = Number(filter !== 'all') + Number(department !== 'all') + Number(employee !== 'all')
 
   const validate = (file: File) => {
-    if (!file.name.toLowerCase().endsWith('.pdf') || (file.type && file.type !== 'application/pdf') || file.size > MAX_BYTES) {
-      showToast(copy.pdfOnly, 'error')
+    if (file.size === 0 || file.size > MAX_BYTES) {
+      showToast(copy.fileLimit, 'error')
       return false
     }
     return true
@@ -235,6 +271,7 @@ function ManagePayslips({ copy, language, periodLabel, errorText, showToast }: S
         <div><span>{copy.statViewed}</span><b>{stats.viewed}</b></div>
       </div>
 
+      <div className="documents-filter-wrap" ref={filterWrapRef}>
       <div className="documents-tools payslips-toolbar">
         <select value={month} onChange={(event) => setMonth(Number(event.target.value))} aria-label={copy.month}>
           {Array.from({ length: 12 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{monthName(value)}</option>)}
@@ -246,19 +283,59 @@ function ManagePayslips({ copy, language, periodLabel, errorText, showToast }: S
           <FaMagnifyingGlass aria-hidden="true" />
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={copy.search} />
         </label>
-        <select value={filter} onChange={(event) => setFilter(event.target.value as Filter)} aria-label={copy.colStatus}>
-          <option value="all">{copy.filterAll}</option>
-          <option value="pending">{copy.filterPending}</option>
-          <option value="sent">{copy.filterSent}</option>
-        </select>
+        <button type="button" className={`documents-filter-trigger ${activeFilterCount ? 'is-active' : ''}`} aria-expanded={filterOpen} onClick={() => {
+          setDraftFilter(filter)
+          setDraftDepartment(department)
+          setDraftEmployee(employee)
+          setFilterOpen((open) => !open)
+        }}>
+          <FaFilter /> {copy.filter}{activeFilterCount > 0 && ` (${activeFilterCount})`}
+        </button>
         <button type="button" className="documents-primary" disabled={bulkBusy} onClick={() => bulkInputRef.current?.click()} title={copy.bulkHint}>
           <FaUpload /> {copy.bulkUpload}
         </button>
       </div>
-      <p className="payslips-hint">{copy.bulkHint} · {copy.pdfOnly}</p>
+      {filterOpen && <form className="documents-filter-panel" onSubmit={(event) => {
+        event.preventDefault()
+        setFilter(draftFilter)
+        setDepartment(draftDepartment)
+        setEmployee(draftEmployee)
+        setFilterOpen(false)
+      }}>
+        <label className="documents-filter-field"><span>{copy.colStatus}</span>
+          <select value={draftFilter} onChange={(event) => setDraftFilter(event.target.value as Filter)}>
+            <option value="all">{copy.filterAll}</option>
+            <option value="pending">{copy.filterPending}</option>
+            <option value="sent">{copy.filterSent}</option>
+            <option value="viewed">{copy.filterViewed}</option>
+          </select>
+        </label>
+        <label className="documents-filter-field"><span>{copy.colDepartment}</span>
+          <select value={draftDepartment} onChange={(event) => setDraftDepartment(event.target.value)}>
+            <option value="all">{copy.filterAllDepartments}</option>
+            {departmentOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+        <label className="documents-filter-field"><span>{copy.colEmployee}</span>
+          <select value={draftEmployee} onChange={(event) => setDraftEmployee(event.target.value)}>
+            <option value="all">{copy.filterAllEmployees}</option>
+            {rows.map((row) => <option key={row.userId} value={row.userId}>{row.name}</option>)}
+          </select>
+        </label>
+        <div className="documents-filter-actions">
+          <button type="button" className="documents-filter-reset" onClick={() => {
+            setFilter('all'); setDepartment('all'); setEmployee('all')
+            setDraftFilter('all'); setDraftDepartment('all'); setDraftEmployee('all')
+            setFilterOpen(false)
+          }}>{copy.clearFilter}</button>
+          <button type="submit" className="documents-filter-apply">{copy.applyFilter}</button>
+        </div>
+      </form>}
+      </div>
+      <p className="payslips-hint">{copy.bulkHint} · {copy.fileLimit}</p>
 
-      <input ref={rowInputRef} type="file" accept="application/pdf,.pdf" hidden onChange={(event) => void onRowFile(event)} />
-      <input ref={bulkInputRef} type="file" accept="application/pdf,.pdf" multiple hidden onChange={(event) => void onBulkFiles(event)} />
+      <input ref={rowInputRef} type="file" hidden onChange={(event) => void onRowFile(event)} />
+      <input ref={bulkInputRef} type="file" multiple hidden onChange={(event) => void onBulkFiles(event)} />
 
       {bulkResult && (
         <div className="payslips-bulk-result" role="status">
@@ -284,9 +361,22 @@ function ManagePayslips({ copy, language, periodLabel, errorText, showToast }: S
           <tbody>
             {visible.map((row) => {
               const state = row.payslipId === null ? 'notSent' : row.viewedAt ? 'viewed' : 'sent'
+              const payslipId = row.payslipId
+              const profileImage = avatarSrc(row.avatarUrl)
               return (
                 <tr key={row.userId}>
-                  <td data-label={copy.colEmployee}><strong>{row.name}</strong><small>{row.email}</small></td>
+                  <td data-label={copy.colEmployee}>
+                    <div className="payslips-employee">
+                      {profileImage ? (
+                        <button type="button" className="payslips-avatar payslips-avatar-button" title={row.name} aria-label={`${copy.viewProfile}: ${row.name}`} onClick={() => setZoomAvatar({ src: profileImage, name: row.name })}>
+                          <img src={profileImage} alt="" />
+                        </button>
+                      ) : (
+                        <span className="payslips-avatar">{row.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || <FaUser />}</span>
+                      )}
+                      <span><strong>{row.name}</strong><small>{row.email}</small></span>
+                    </div>
+                  </td>
                   <td data-label={copy.colDepartment}>{row.department ?? '-'}</td>
                   <td data-label={copy.colStatus}>
                     <span className={`documents-pill ${state === 'notSent' ? 'is-pending' : 'is-approved'}`}>
@@ -299,9 +389,14 @@ function ManagePayslips({ copy, language, periodLabel, errorText, showToast }: S
                     <button type="button" className="payslip-action" disabled={busyUser === row.userId} onClick={() => pickFor(row)}>
                       <FaUpload /> {row.payslipId ? copy.replace : copy.upload}
                     </button>
-                    {row.payslipId !== null && (
+                    {payslipId !== null && (
                       <>
-                        <a className="payslip-action" href={payslipFileUrl(row.payslipId)} target="_blank" rel="noopener noreferrer"><FaEye /> {copy.view}</a>
+                        {canPreviewFile(row.fileName ?? '') && (
+                          <button type="button" className="payslip-action" onClick={() => setPreviewItem({ id: payslipId, fileName: row.fileName ?? '' })}>
+                            <FaEye /> {copy.preview}
+                          </button>
+                        )}
+                        <a className="payslip-action" href={payslipFileUrl(payslipId, true)}><FaDownload /> {copy.download}</a>
                         <button type="button" className="payslip-action is-danger" onClick={() => setToDelete(row)}><FaTrash /> {copy.delete}</button>
                       </>
                     )}
@@ -313,6 +408,20 @@ function ManagePayslips({ copy, language, periodLabel, errorText, showToast }: S
           </tbody>
         </table>
       </div>
+
+      {previewItem && <FilePreviewDialog
+        url={payslipPreviewUrl(previewItem.id)}
+        fileName={previewItem.fileName}
+        closeLabel={copy.close}
+        onClose={() => setPreviewItem(null)}
+      />}
+      {zoomAvatar && <div className="payslips-avatar-lightbox" role="presentation" onMouseDown={(event) => {
+        if (event.target === event.currentTarget) setZoomAvatar(null)
+      }}>
+        <button type="button" className="modal-close payslips-lightbox-close" aria-label={copy.close} onClick={() => setZoomAvatar(null)}><FaXmark /></button>
+        <img src={zoomAvatar.src} alt={zoomAvatar.name} />
+        <strong>{zoomAvatar.name}</strong>
+      </div>}
 
       <ConfirmDialog
         open={toDelete !== null}
@@ -326,5 +435,44 @@ function ManagePayslips({ copy, language, periodLabel, errorText, showToast }: S
         onConfirm={() => void confirmDelete()}
       />
     </>
+  )
+}
+
+function canPreviewFile(fileName: string) {
+  return /\.(pdf|png|jpe?g|gif|webp)$/i.test(fileName)
+}
+
+function FilePreviewDialog({ url, fileName, closeLabel, onClose }: {
+  url: string
+  fileName: string
+  closeLabel: string
+  onClose: () => void
+}) {
+  const isImage = /\.(png|jpe?g|gif|webp)$/i.test(fileName)
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
+
+  return (
+    <div className="payslips-preview-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose()
+    }}>
+      <section className="payslips-preview-dialog" role="dialog" aria-modal="true" aria-label={fileName}>
+        <header>
+          <strong title={fileName}>{fileName}</strong>
+          <button type="button" className="modal-close" aria-label={closeLabel} onClick={onClose}><FaXmark /></button>
+        </header>
+        <div className={`payslips-preview-content${isImage ? ' is-image' : ''}`}>
+          {isImage
+            ? <img src={url} alt={fileName} />
+            : <iframe src={url} title={fileName} />}
+        </div>
+      </section>
+    </div>
   )
 }

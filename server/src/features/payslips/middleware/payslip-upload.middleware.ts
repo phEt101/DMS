@@ -14,18 +14,13 @@ export const MAX_BULK_FILES = 300
 // ชื่อไฟล์บนดิสก์เป็น UUID เสมอ (ไม่ใช้ชื่อจากผู้ใช้) กัน path traversal และชื่อซ้ำ
 const storage = multer.diskStorage({
   destination: (_req, _file, callback) => callback(null, payslipDirectory),
-  filename: (_req, _file, callback) => callback(null, `${randomUUID()}.pdf`),
+  filename: (_req, _file, callback) => callback(null, randomUUID()),
 })
 
 export const payslipUpload = multer({
   storage,
   defParamCharset: 'utf8',
   limits: { fileSize: MAX_PAYSLIP_BYTES, files: MAX_BULK_FILES },
-  fileFilter: (_req, file, callback) => {
-    const isPdf = path.extname(file.originalname).toLowerCase() === '.pdf' && file.mimetype === 'application/pdf'
-    if (isPdf) callback(null, true)
-    else callback(httpError(400, 'อัปโหลดได้เฉพาะไฟล์ PDF'))
-  },
 })
 
 // แปลง error ของ multer ให้เป็น 400 พร้อมข้อความที่อ่านเข้าใจ (ไม่ให้กลายเป็น 500)

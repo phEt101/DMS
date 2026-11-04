@@ -15,6 +15,7 @@ export type ManagedPayslipRow = {
   userId: number
   name: string
   email: string
+  avatarUrl: string | null
   department: string | null
   payslipId: number | null
   fileName: string | null
@@ -31,6 +32,8 @@ export type BulkResult = {
 
 export const payslipFileUrl = (id: number, download = false) =>
   apiUrl(`/payslips/${id}/file${download ? '?download=1' : ''}`)
+
+export const payslipPreviewUrl = (id: number) => apiUrl(`/payslips/${id}/file?preview=1`)
 
 export async function listMyPayslips(): Promise<MyPayslip[]> {
   return ((await request('/payslips/me')) as { data: MyPayslip[] }).data

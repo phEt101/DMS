@@ -6,6 +6,7 @@ import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 import { db } from '../../../config/database.js'
 import { httpError } from '../../../middleware/errors.js'
 import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
+import { avatarUrlOf } from '../../settings/users/middleware/avatar-upload.middleware.js'
 import { payslipDirectory } from '../middleware/payslip-upload.middleware.js'
 
 type UploadedFile = Express.Multer.File
@@ -54,20 +55,38 @@ async function removeStored(fileName: string | null | undefined) {
   await rm(resolveStoredPath(fileName), { force: true }).catch(() => undefined)
 }
 
-// ตรวจเนื้อไฟล์จริง (ไม่เชื่อแค่นามสกุล/mimetype ที่ client ส่งมา)
-function isPdfFile(filePath: string): boolean {
+async function discard(files: UploadedFile[]) {
+  await Promise.all(files.map((file) => removeStored(file.filename)))
+}
+
+function safeOriginalName(value: string): string {
+  const name = path.basename(value.replace(/\\/g, '/')).replace(/[\u0000-\u001f\u007f]/g, '').trim()
+  return Array.from(name || 'payslip-file').slice(0, 255).join('')
+}
+
+function contentDispositionFilename(value: string): string {
+  const name = safeOriginalName(value)
+  const fallback = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\;]/g, '_')
+  const encoded = encodeURIComponent(name).replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encoded}`
+}
+
+function previewMimeType(filePath: string, originalName: string): string | null {
+  const extension = path.extname(originalName).toLowerCase()
   const fd = openSync(filePath, 'r')
   try {
-    const header = Buffer.alloc(5)
-    readSync(fd, header, 0, 5, 0)
-    return header.toString('latin1') === '%PDF-'
+    const header = Buffer.alloc(12)
+    const length = readSync(fd, header, 0, header.length, 0)
+    const bytes = header.subarray(0, length)
+    if (extension === '.pdf' && bytes.subarray(0, 5).toString('ascii') === '%PDF-') return 'application/pdf'
+    if (extension === '.png' && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return 'image/png'
+    if (['.jpg', '.jpeg'].includes(extension) && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
+    if (extension === '.gif' && ['GIF87a', 'GIF89a'].includes(bytes.subarray(0, 6).toString('ascii'))) return 'image/gif'
+    if (extension === '.webp' && bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp'
+    return null
   } finally {
     closeSync(fd)
   }
-}
-
-async function discard(files: UploadedFile[]) {
-  await Promise.all(files.map((file) => removeStored(file.filename)))
 }
 
 function noteOf(raw: unknown): string | null {
@@ -97,7 +116,7 @@ async function savePayslip(input: SaveInput): Promise<{ id: number; replaced: bo
      ON DUPLICATE KEY UPDATE note = VALUES(note), file_path = VALUES(file_path), original_name = VALUES(original_name),
        file_size = VALUES(file_size), uploaded_by = VALUES(uploaded_by), viewed_at = NULL`,
     [input.companyId, input.userId, input.year, input.month, input.note, input.file.filename,
-      input.file.originalname.slice(0, 255), input.file.size, input.uploadedBy],
+      safeOriginalName(input.file.originalname), input.file.size, input.uploadedBy],
   )
   const [rows] = await db.execute<RowDataPacket[]>(
     'SELECT id FROM payslips WHERE user_id = ? AND period_year = ? AND period_month = ?',
@@ -122,7 +141,8 @@ export const file: RequestHandler = async (req, res) => {
   if (!req.user) throw httpError(401, 'Authentication required')
   const id = parseId(req.params.id)
   const [rows] = await db.execute<RowDataPacket[]>(
-    `SELECT user_id AS userId, company_id AS companyId, file_path AS filePath, period_year AS year, period_month AS month, viewed_at AS viewedAt
+    `SELECT user_id AS userId, company_id AS companyId, file_path AS filePath, original_name AS originalName,
+            period_year AS year, period_month AS month, viewed_at AS viewedAt
        FROM payslips WHERE id = ? LIMIT 1`,
     [id],
   )
@@ -136,9 +156,12 @@ export const file: RequestHandler = async (req, res) => {
     await db.execute('UPDATE payslips SET viewed_at = CURRENT_TIMESTAMP WHERE id = ? AND viewed_at IS NULL', [id])
   }
 
-  const downloadName = `payslip-${row.year}-${String(row.month).padStart(2, '0')}.pdf`
-  res.setHeader('Content-Type', 'application/pdf')
-  res.setHeader('Content-Disposition', `${req.query.download === '1' ? 'attachment' : 'inline'}; filename="${downloadName}"`)
+  const originalName = String(row.originalName ?? 'payslip-file')
+  const preview = req.query.preview === '1'
+  const mimeType = preview ? previewMimeType(resolveStoredPath(row.filePath as string), originalName) : null
+  if (preview && !mimeType) throw httpError(415, 'ไฟล์ชนิดนี้ไม่รองรับการแสดงตัวอย่าง กรุณาดาวน์โหลดไฟล์')
+  res.setHeader('Content-Type', mimeType ?? 'application/octet-stream')
+  res.setHeader('Content-Disposition', `${preview ? 'inline' : contentDispositionFilename(originalName)}`)
   res.setHeader('X-Content-Type-Options', 'nosniff')
   res.setHeader('Cache-Control', 'private, no-store')
   res.sendFile(resolveStoredPath(row.filePath as string), (error) => {
@@ -150,7 +173,7 @@ export const manageList: RequestHandler = async (req, res) => {
   needManager(req)
   const { year, month } = parsePeriod(req.query.year, req.query.month)
   const [rows] = await db.execute<RowDataPacket[]>(
-    `SELECT u.id AS userId, u.name, u.email, d.name AS department,
+    `SELECT u.id AS userId, u.name, u.email, u.avatar_path AS avatarPath, d.name AS department,
             p.id AS payslipId, p.original_name AS fileName, p.file_size AS fileSize, p.note,
             p.viewed_at AS viewedAt, p.updated_at AS updatedAt
        FROM users u
@@ -160,7 +183,7 @@ export const manageList: RequestHandler = async (req, res) => {
       ORDER BY u.name ASC`,
     [year, month, companyIdOf(req)],
   )
-  res.json({ data: rows })
+  res.json({ data: rows.map((row) => ({ ...row, avatarUrl: avatarUrlOf(row.avatarPath as string | null) })) })
 }
 
 export const upload: RequestHandler = async (req, res) => {
@@ -168,12 +191,10 @@ export const upload: RequestHandler = async (req, res) => {
   try {
     needManager(req)
     const upload = req.file
-    if (!upload) throw httpError(400, 'กรุณาเลือกไฟล์ PDF')
+    if (!upload) throw httpError(400, 'กรุณาเลือกไฟล์')
     const { year, month } = parsePeriod(req.query.year ?? req.body?.year, req.query.month ?? req.body?.month)
     const userId = parseId(req.params.userId)
     const companyId = companyIdOf(req)
-    if (!isPdfFile(upload.path)) throw httpError(400, 'ไฟล์ไม่ใช่ PDF ที่ถูกต้อง')
-
     const [users] = await db.execute<RowDataPacket[]>(
       'SELECT id, name FROM users WHERE id = ? AND company_id = ? AND is_active = 1 AND deleted_at IS NULL',
       [userId, companyId],
@@ -202,7 +223,7 @@ export const bulkUpload: RequestHandler = async (req, res) => {
   const files = Array.isArray(req.files) ? (req.files as UploadedFile[]) : []
   try {
     needManager(req)
-    if (files.length === 0) throw httpError(400, 'กรุณาเลือกไฟล์ PDF')
+    if (files.length === 0) throw httpError(400, 'กรุณาเลือกไฟล์')
     const { year, month } = parsePeriod(req.body?.year, req.body?.month)
     const companyId = companyIdOf(req)
 
@@ -238,9 +259,6 @@ export const bulkUpload: RequestHandler = async (req, res) => {
         await removeStored(upload.filename)
       } else if (usedUserIds.has(match.id)) {
         failed.push({ file: display, reason: 'มีไฟล์อื่นของพนักงานคนนี้ในชุดเดียวกันแล้ว' })
-        await removeStored(upload.filename)
-      } else if (!isPdfFile(upload.path)) {
-        failed.push({ file: display, reason: 'ไฟล์ไม่ใช่ PDF ที่ถูกต้อง' })
         await removeStored(upload.filename)
       } else {
         usedUserIds.add(match.id)
