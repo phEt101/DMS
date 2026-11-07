@@ -20,6 +20,12 @@ export async function findAll() {
   );
   return rows;
 }
+export async function findAllIcons() {
+  const [rows] = await db.query<Array<RowDataPacket & Pick<PermissionModuleRow, "name" | "iconName">>>(
+    `SELECT name, icon_name AS iconName FROM permission_modules WHERE deleted_at IS NULL ORDER BY sort_order, name`,
+  );
+  return rows;
+}
 export async function exists(id: number) {
   const [rows] = await db.query<RowDataPacket[]>(
     `SELECT id FROM permission_modules WHERE id = ? AND is_active = 1 AND deleted_at IS NULL LIMIT 1`,

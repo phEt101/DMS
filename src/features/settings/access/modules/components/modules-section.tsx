@@ -12,6 +12,7 @@ import {
   type PermissionModule,
   type PermissionModuleInput,
 } from "../services/modules.service";
+import { getModuleIcon, moduleIconComponents, moduleIconOptions } from "../module-icons";
 
 const emptyForm: PermissionModuleInput = {
   name: "",
@@ -50,6 +51,7 @@ export function ModulesSection({ translations }: { translations: Translations })
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       setModules((await listPermissionModules()).data);
     } catch (caught) {
@@ -77,7 +79,7 @@ export function ModulesSection({ translations }: { translations: Translations })
       module
         ? {
             name: module.name,
-            iconName: module.iconName ?? "",
+            iconName: module.iconName || "FaLayerGroup",
             sortOrder: module.sortOrder,
             isActive: Boolean(module.isActive),
           }
@@ -168,9 +170,11 @@ export function ModulesSection({ translations }: { translations: Translations })
                 </td>
               </tr>
             ) : (
-              visibleModules.map((module) => (
-                <tr key={module.id}>
+              visibleModules.map((module) => {
+                const ModuleIcon = getModuleIcon(module.iconName);
+                return <tr key={module.id}>
                   <td data-label={settingsTranslations.name}>
+                    <ModuleIcon className="module-list-icon" aria-hidden="true" />
                     <strong>{settingsTranslations.permissionModules[module.name as keyof typeof settingsTranslations.permissionModules] ?? module.name}</strong>
                   </td>
                   <td data-label={settingsTranslations.sortOrder}>{module.sortOrder}</td>
@@ -200,7 +204,7 @@ export function ModulesSection({ translations }: { translations: Translations })
                     </div>
                   </td>
                 </tr>
-              ))
+              })
             )}
           </tbody>
         </table>
@@ -266,18 +270,35 @@ export function ModulesSection({ translations }: { translations: Translations })
                     }
                   />
                 </label>
-                <label>
-                  {settingsTranslations.iconName}
-                  <input
-                    maxLength={100}
-                    pattern="Fa[A-Z][A-Za-z0-9]*"
-                    value={form.iconName ?? ""}
-                    onChange={(event) =>
-                      setForm({ ...form, iconName: event.target.value.trim() })
-                    }
-                  />
-                </label>
               </div>
+              <fieldset className="module-icon-picker">
+                <legend>{settingsTranslations.iconName}</legend>
+                <div className="module-icon-picker-grid">
+                  {form.iconName && !moduleIconComponents[form.iconName] && (
+                    <label className="module-icon-option is-selected">
+                      <input type="radio" name="module-icon" value={form.iconName} checked readOnly />
+                      {(() => {
+                        const ModuleIcon = getModuleIcon(form.iconName);
+                        return <ModuleIcon aria-hidden="true" />;
+                      })()}
+                      <span>{form.iconName}</span>
+                    </label>
+                  )}
+                  {moduleIconOptions.map(({ name, Icon }) => (
+                    <label className={`module-icon-option${form.iconName === name ? " is-selected" : ""}`} key={name}>
+                      <input
+                        type="radio"
+                        name="module-icon"
+                        value={name}
+                        checked={form.iconName === name}
+                        onChange={() => setForm({ ...form, iconName: name })}
+                      />
+                      <Icon aria-hidden="true" />
+                      <span>{name}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <label className="checkbox-field">
                 <input
                   type="checkbox"

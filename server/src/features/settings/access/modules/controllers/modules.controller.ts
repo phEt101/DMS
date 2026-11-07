@@ -60,6 +60,10 @@ export const index: RequestHandler = async (_req, res) => {
   res.json({ data: await modules.findAll() });
 };
 
+export const iconIndex: RequestHandler = async (_req, res) => {
+  res.json({ data: await modules.findAllIcons() });
+};
+
 export const store: RequestHandler = async (req, res) => {
   const input = validate(req.body) as Required<PermissionModuleInput>;
   if (await modules.findDuplicate(input.name)) throw httpError(409, "Module name already exists");

@@ -18,6 +18,8 @@ import { getBadges } from "../features/doc/services/employee-requests.service";
 import type { Translations } from "../locales";
 import type { PageKey } from '../services/routes/pageTypes'
 import {FaFolderOpen,} from "react-icons/fa6";
+import { defaultModuleIconNames, getModuleIcon } from "../features/settings/access/modules/module-icons";
+import { listPermissionModuleIcons, permissionModulesChangedEvent } from "../features/settings/access/modules/services/modules.service";
 
 const icons = {
   dashboard: FaTableCellsLarge,
@@ -64,6 +66,11 @@ const sidebarModuleKeys = new Set<SidebarItem>([
   "settings-companies",
 ]);
 
+function SidebarModuleIcon({ moduleName, configuredIcons }: { moduleName: string; configuredIcons: Record<string, string> }) {
+  const iconName = configuredIcons[moduleName] ?? defaultModuleIconNames[moduleName];
+  const IconComponent = getModuleIcon(iconName);
+  return <IconComponent className="nav-icon" size={14} aria-hidden="true" />;
+}
 
 
 export default function Sidebar({
@@ -102,6 +109,26 @@ export default function Sidebar({
   const canOpenDocuments = Boolean(user && canViewModule(user, "documents"));
   const [pendingBadge, setPendingBadge] = useState(0);
   const [notificationsBadge, setNotificationsBadge] = useState(0);
+  const [configuredModuleIcons, setConfiguredModuleIcons] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let cancelled = false;
+    const loadModuleIcons = () => {
+      void listPermissionModuleIcons()
+        .then(({ data }) => {
+          if (cancelled) return;
+          setConfiguredModuleIcons(Object.fromEntries(data.flatMap(({ name, iconName }) => iconName ? [[name, iconName]] : [])));
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) console.error("Unable to load module icons", error);
+        });
+    };
+    loadModuleIcons();
+    window.addEventListener(permissionModulesChangedEvent, loadModuleIcons);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(permissionModulesChangedEvent, loadModuleIcons);
+    };
+  }, []);
   useEffect(() => {
     if (!canOpenDocuments) return;
     let cancelled = false;
@@ -274,18 +301,21 @@ export default function Sidebar({
                         className={`nav-item nav-button ${activeItem === 'projects' ? 'is-active' : ''}`}
                         onClick={() => onNavigate?.('projects')}
                       >
+                        <SidebarModuleIcon moduleName="projects" configuredIcons={configuredModuleIcons} />
                         <span>PM</span>
                       </button>}
                       {user && (user.role.name.toLowerCase() === "admin" || user.departmentModules.includes("projects_cm")) && <button
                         className={`nav-item nav-button ${activeItem === 'projects-cm' ? 'is-active' : ''}`}
                         onClick={() => onNavigate?.('projects-cm')}
                       >
+                        <SidebarModuleIcon moduleName="projects_cm" configuredIcons={configuredModuleIcons} />
                         <span>CM</span>
                       </button>}
                       {user && (user.role.name.toLowerCase() === "admin" || user.departmentModules.includes("survey")) && <button
                         className={`nav-item nav-button ${activeItem === 'survey' ? 'is-active' : ''}`}
                         onClick={() => onNavigate?.('survey')}
                       >
+                        <SidebarModuleIcon moduleName="survey" configuredIcons={configuredModuleIcons} />
                         <span>Survey</span>
                       </button>}
                     </div>
@@ -298,16 +328,17 @@ if (item.key === "documents") {
   const documentItems: Array<{
     key: PageKey;
     label: string;
+    moduleName: string;
   }> = [
-    { key: "documents-all", label: documentNavTranslations.all },
-    { key: "documents-pending", label: documentNavTranslations.pending },
-    { key: "documents-ledger", label: documentNavTranslations.ledger },
-    { key: "report", label: documentNavTranslations.report },
-    { key: "documents-employees", label: documentNavTranslations.employees },
-    { key: "documents-policy", label: documentNavTranslations.policy },
-    { key: "documents-flow-rules", label: documentNavTranslations.flowRules },
-    { key: "documents-notifications", label: documentNavTranslations.notifications },
-    { key: "documents-payslips", label: documentNavTranslations.payslips },
+    { key: "documents-all", label: documentNavTranslations.all, moduleName: "documents" },
+    { key: "documents-pending", label: documentNavTranslations.pending, moduleName: "documents_pending" },
+    { key: "documents-ledger", label: documentNavTranslations.ledger, moduleName: "documents_ledger" },
+    { key: "report", label: documentNavTranslations.report, moduleName: "report" },
+    { key: "documents-employees", label: documentNavTranslations.employees, moduleName: "documents_employees" },
+    { key: "documents-policy", label: documentNavTranslations.policy, moduleName: "documents_policy" },
+    { key: "documents-flow-rules", label: documentNavTranslations.flowRules, moduleName: "documents_flow_rules" },
+    { key: "documents-notifications", label: documentNavTranslations.notifications, moduleName: "documents_notifications" },
+    { key: "documents-payslips", label: documentNavTranslations.payslips, moduleName: "documents_payslips" },
   ];
   const documentModuleByPage: Partial<Record<PageKey, string>> = {
     "documents-all": "documents", "documents-pending": "documents_pending", "documents-ledger": "documents_ledger",
@@ -350,7 +381,7 @@ if (item.key === "documents") {
 
       {documentsOpen && (!collapsed || collapsedFlyout === "documents") && (
         <div className="subnav" style={flyoutStyle}>
-          {visibleDocumentItems.map(({ key, label }) => (
+          {visibleDocumentItems.map(({ key, label, moduleName }) => (
             <button
               type="button"
               key={key}
@@ -359,6 +390,7 @@ if (item.key === "documents") {
               }`}
               onClick={() => onNavigate?.(key)}
             >
+              <SidebarModuleIcon moduleName={moduleName} configuredIcons={configuredModuleIcons} />
               <span>{label}</span>
               {key === "documents-pending" && pendingBadge > 0 && <b className="item-count">{pendingBadge}</b>}
               {key === "documents-notifications" && notificationsBadge > 0 && <b className="item-count">{notificationsBadge}</b>}
