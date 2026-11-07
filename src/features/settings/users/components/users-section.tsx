@@ -49,6 +49,7 @@ function initials(name: string) {
 export function UsersSection({ translations }: { translations: Translations }) {
   const settingsTranslations = translations.features.settingsUser;
   const { user: authenticatedUser, refreshUser } = useAuth();
+  const isAdmin = authenticatedUser?.role.name.trim().toLowerCase() === "admin";
   const canCreate = Boolean(authenticatedUser && hasPermission(authenticatedUser, "สร้างผู้ใช้งาน"));
   const canEdit = Boolean(authenticatedUser && hasPermission(authenticatedUser, "แก้ไขผู้ใช้งาน"));
   const canDelete = Boolean(authenticatedUser && hasPermission(authenticatedUser, "ลบผู้ใช้งาน"));
@@ -285,6 +286,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
           onPickAvatar={setAvatarFile}
           authenticatedUserId={authenticatedUser?.id}
           canEdit={canEdit}
+          canEditEmail={isAdmin || editing?.role.trim().toLowerCase() !== "admin"}
         />
       )}
     </div>
@@ -407,6 +409,7 @@ function UserFormModal({
   onPickAvatar,
   authenticatedUserId,
   canEdit,
+  canEditEmail,
 }: {
   editing: User | null;
   form: UserInput;
@@ -422,6 +425,7 @@ function UserFormModal({
   onPickAvatar: (file: File | null) => void;
   authenticatedUserId?: number;
   canEdit: boolean;
+  canEditEmail: boolean;
 }) {
   const settingsTranslations = translations.features.settingsUser;
   const [avatarPreview, setAvatarPreview] = useState<string | null>(editing?.avatarUrl ?? null);
@@ -507,6 +511,7 @@ function UserFormModal({
             <input
               required
               type="email"
+              readOnly={!canEditEmail}
               value={form.email}
               onChange={(event) =>
                 onChange({ ...form, email: event.target.value })

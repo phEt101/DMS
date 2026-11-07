@@ -225,6 +225,14 @@ export const patch: RequestHandler = async (req, res) => {
     input.name = `${input.firstName ?? current.firstName} ${input.lastName ?? current.lastName}`.trim();
     if (input.name.length > 150) throw httpError(400, "Full name is too long");
   }
+  if (
+    req.user?.role.name.trim().toLowerCase() !== "admin" &&
+    current.role.trim().toLowerCase() === "admin" &&
+    input.email !== undefined &&
+    input.email !== normalizeEmail(current.email)
+  ) {
+    throw httpError(403, "ไม่มีสิทธิ์แก้ไขอีเมลของ admin");
+  }
   const changes = collectChanges(current, input);
   if (input.email) await ensureUniqueEmail(input.email, id);
   if (input.password) {

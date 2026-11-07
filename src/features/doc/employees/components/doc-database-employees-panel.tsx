@@ -54,15 +54,17 @@ const roleStyle = (role: string) => {
 }
 const dayText = (value: number | null | undefined) => value === null || value === undefined ? '–' : String(value)
 const nameInitials = (name: string) => name.split(/\s+/).filter(Boolean).map((word) => word[0]).slice(0, 2).join('').toUpperCase()
+const isAdminRole = (role: string) => role.trim().toLowerCase() === 'admin'
 
 export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursPerDay, title, subtitle, companyId, companyName, loading, error, query, onQuery, onUpdated, onCreated, copy: c }: Props) {
   const { showToast } = useToast()
   const { user: authenticatedUser, refreshUser } = useAuth()
+  const isAdmin = isAdminRole(authenticatedUser?.role.name ?? '')
   // สิทธิ์แก้ไขพนักงาน: admin / สิทธิ์ "สร้าง-แก้ไขผู้ใช้งาน" / แผนกเข้าถึงโมดูล users หรือ documents_employees
   // (ตรงกับ requireDepartmentModule("users") ของ backend — HR Div. ที่เห็นโมดูล "พนักงาน" ในหน้าจัดการแผนกจะแก้ไขได้)
   const canEditEmployees = Boolean(
     authenticatedUser && (
-      authenticatedUser.role.name.trim().toLowerCase() === 'admin' ||
+      isAdmin ||
       hasPermission(authenticatedUser, 'สร้างผู้ใช้งาน') ||
       hasPermission(authenticatedUser, 'แก้ไขผู้ใช้งาน') ||
       authenticatedUser.departmentModules.includes('users') ||
@@ -77,6 +79,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
   const [saveError, setSaveError] = useState('')
   const [roles, setRoles] = useState<Role[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
+  const assignableRoles = roles.filter((role) => isAdmin || !isAdminRole(role.name))
   const [createOpen, setCreateOpen] = useState(false)
   const [newDraft, setNewDraft] = useState<NewDraft | null>(null)
   // รูปโปรไฟล์: เลือกไฟล์/ลบเป็นแค่ "ร่าง" — อัปโหลด/ลบจริงตอนกดบันทึกเท่านั้น
@@ -102,8 +105,8 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
     () =>
       Array.from(
         new Set(users.map((user) => user.role).filter(Boolean) as string[])
-      ).sort((a, b) => a.localeCompare(b)),
-    [users]
+      ).filter((role) => isAdmin || !isAdminRole(role)).sort((a, b) => a.localeCompare(b)),
+    [users, isAdmin]
   )
   const matches = useMemo(() => users.filter((user) => {
     if (query && !`${user.name} ${user.email} ${user.department ?? ''} ${user.role}`.toLocaleLowerCase('th').includes(query.toLocaleLowerCase('th'))) return false
@@ -124,7 +127,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
     setCreateOpen(true)
     try {
       const [roleResponse, departmentResponse] = await Promise.all([listRoles(), listDepartments()])
-      const activeRoles = roleResponse.data.filter((role) => Boolean(role.isActive))
+      const activeRoles = roleResponse.data.filter((role) => Boolean(role.isActive) && (isAdmin || !isAdminRole(role.name)))
       setRoles(activeRoles)
       setDepartments(departmentResponse.data.filter((department) => Boolean(department.isActive)))
       setNewDraft((current) => current ? { ...current, role: activeRoles.find((role) => role.name === 'user')?.name ?? activeRoles[0]?.name ?? current.role } : current)
@@ -152,7 +155,8 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
     setSaveError('')
     try {
       let updated = selected
-      const response = await updateUser(selected.id, draft)
+      const { role, ...draftWithoutRole } = draft
+      const response = await updateUser(selected.id, !isAdmin && isAdminRole(selected.role) ? draftWithoutRole : { ...draftWithoutRole, role })
       updated = response.data
       // รูปโปรไฟล์: อัปโหลด/ลบจริง "หลัง" บันทึกข้อมูลสำเร็จ (ลบก่อนแล้วค่อยอัปโหลด)
       if (avatarRemove) {
@@ -311,7 +315,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.lastName}</span><input className="dms-form-input" required value={newDraft.lastName} onChange={(event) => setNewDraft({ ...newDraft, lastName: event.target.value })}/></label>
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.email}</span><input className="dms-form-input" type="email" required value={newDraft.email} onChange={(event) => setNewDraft({ ...newDraft, email: event.target.value })}/></label>
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.phone}</span><input className="dms-form-input" value={newDraft.phone} onChange={(event) => setNewDraft({ ...newDraft, phone: event.target.value })}/></label>
-          <label className="dms-form-field"><span className="dms-form-label">{c.employees.role}</span><select className="dms-form-input" value={newDraft.role} onChange={(event) => setNewDraft({ ...newDraft, role: event.target.value })}>{roles.map((role) => <option key={role.id} value={role.name}>{role.name}</option>)}</select></label>
+          <label className="dms-form-field"><span className="dms-form-label">{c.employees.role}</span><select className="dms-form-input" value={newDraft.role} onChange={(event) => setNewDraft({ ...newDraft, role: event.target.value })}>{assignableRoles.map((role) => <option key={role.id} value={role.name}>{role.name}</option>)}</select></label>
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.departmentLabel}</span><select className="dms-form-input" value={newDraft.department} onChange={(event) => setNewDraft({ ...newDraft, department: event.target.value })}><option value="">{c.employees.noDepartment}</option>{departments.filter((department) => department.companyId === companyId).map((department) => <option key={department.id} value={department.name}>{department.name}</option>)}</select></label>
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.password}</span><input className="dms-form-input" type="password" minLength={8} required value={newDraft.password} onChange={(event) => setNewDraft({ ...newDraft, password: event.target.value })}/></label>
         </div>
@@ -335,9 +339,9 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
         <div className="documents-employee-form-grid">
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.firstName}</span><input className="dms-form-input" required value={draft.firstName} onChange={(event) => setDraft({ ...draft, firstName: event.target.value })}/></label>
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.lastName}</span><input className="dms-form-input" required value={draft.lastName} onChange={(event) => setDraft({ ...draft, lastName: event.target.value })}/></label>
-          <label className="dms-form-field"><span className="dms-form-label">{c.employees.email}</span><input className="dms-form-input" type="email" required value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })}/></label>
+          <label className="dms-form-field"><span className="dms-form-label">{c.employees.email}</span><input className="dms-form-input" type="email" required readOnly={!isAdmin && isAdminRole(selected.role)} value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })}/></label>
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.phone}</span><input className="dms-form-input" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })}/></label>
-          <label className="dms-form-field"><span className="dms-form-label">{c.employees.role}</span><select className="dms-form-input" value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value })}><option value={selected.role}>{selected.role}</option>{roles.filter((role) => role.name !== selected.role).map((role) => <option key={role.id} value={role.name}>{role.name}</option>)}</select></label>
+          {isAdmin || !isAdminRole(selected.role) ? <label className="dms-form-field"><span className="dms-form-label">{c.employees.role}</span><select className="dms-form-input" value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value })}><option value={selected.role}>{selected.role}</option>{assignableRoles.filter((role) => role.name !== selected.role).map((role) => <option key={role.id} value={role.name}>{role.name}</option>)}</select></label> : null}
         </div>
         <div className="documents-employee-form-grid"><Detail label={c.employees.company} value={companyName}/></div>
         <EmployeeProfileFields draft={draft} departments={departments} companyId={selected.companyId} copy={c} onChange={(change) => setDraft((current) => current ? { ...current, ...change } : current)}/>

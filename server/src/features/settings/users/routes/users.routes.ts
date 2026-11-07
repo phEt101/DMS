@@ -23,12 +23,26 @@ function requireEmployeeWrite(permissionName: string): RequestHandler {
   };
 }
 
+const requireAdminForAdminRole: RequestHandler = (req, _res, next) => {
+  const user = req.user;
+  if (!user) throw httpError(401, "Authentication required");
+  const requestedRole = req.body?.role;
+  if (
+    user.role.name.trim().toLowerCase() !== "admin" &&
+    typeof requestedRole === "string" &&
+    requestedRole.trim().toLowerCase() === "admin"
+  ) {
+    throw httpError(403, "ไม่มีสิทธิ์กำหนดบทบาท admin");
+  }
+  next();
+};
+
 export const usersRouter = Router();
 
 // ดูรายการ/รายละเอียด: แผนกที่เข้าถึงโมดูล users หรือ documents_employees (HR Div.)
 usersRouter.use(requireAnyDepartmentModule("users", "documents_employees"));
 usersRouter.get("/", asyncHandler(index));
 usersRouter.get("/:id", asyncHandler(show));
-usersRouter.post("/", requireEmployeeWrite("สร้างผู้ใช้งาน"), asyncHandler(store));
-usersRouter.patch("/:id", requireEmployeeWrite("แก้ไขผู้ใช้งาน"), asyncHandler(patch));
+usersRouter.post("/", requireEmployeeWrite("สร้างผู้ใช้งาน"), requireAdminForAdminRole, asyncHandler(store));
+usersRouter.patch("/:id", requireEmployeeWrite("แก้ไขผู้ใช้งาน"), requireAdminForAdminRole, asyncHandler(patch));
 usersRouter.delete("/:id", requireEmployeeWrite("ลบผู้ใช้งาน"), asyncHandler(destroy));
