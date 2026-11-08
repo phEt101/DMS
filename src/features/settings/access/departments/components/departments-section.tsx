@@ -13,6 +13,8 @@ import { useErrorToast } from "../../../../../components/toast-provider";
 import { useAuth } from "../../../../auth/hooks/use-auth";
 import { hasAnyPermission } from "../../../../auth/permissions";
 import { listPermissionModules, type PermissionModule } from "../../modules/services/modules.service";
+import { moduleLabels, permissionModuleGroupDefinitions } from "../../modules/module-groups";
+import { defaultModuleIconNames, getModuleIcon } from "../../modules/module-icons";
 import { listCompanies, type Company } from "../../companies/services/companies.service";
 
 const emptyForm: DepartmentInput = {
@@ -20,21 +22,6 @@ const emptyForm: DepartmentInput = {
   name: "",
   isActive: true,
   moduleIds: [],
-};
-
-const moduleGroups = [
-  { label: "ทั่วไป", keys: ["dashboard"] },
-  { label: "โครงการทั้งหมด", keys: ["projects", "projects_cm", "survey"] },
-  { label: "จัดการเอกสาร", keys: ["documents", "documents_pending", "documents_ledger", "report", "documents_employees", "documents_policy", "documents_flow_rules", "documents_notifications", "documents_payslips"] },
-  { label: "ตั้งค่า", keys: ["users", "roles", "departments", "permissions", "modules", "companies", "activity_logs"] },
-];
-
-const moduleLabels: Record<string, string> = {
-  dashboard: "แดชบอร์ด", projects: "PM", projects_cm: "CM", survey: "Survey",
-  documents: "รายการใบลา", documents_pending: "รออนุมัติ", documents_ledger: "สมุดบันทึกการลา",
-  report: "รายงานออกนอกสถานที่", documents_employees: "พนักงาน", documents_policy: "นโยบายการลา", documents_flow_rules: "กำหนดสิทธิ์ในการยื่นเอกสาร", documents_notifications: "แจ้งเตือน", documents_payslips: "สลิปเงินเดือน", users: "ผู้ใช้งาน", roles: "บทบาทและสิทธิ์",
-  departments: "จัดการแผนก", permissions: "สิทธิ์", modules: "โมดูล", companies: "บริษัท",
-  activity_logs: "บันทึกกิจกรรม",
 };
 
 export function DepartmentsSection({ translations }: { translations: Translations }) {
@@ -55,6 +42,8 @@ export function DepartmentsSection({ translations }: { translations: Translation
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [moduleSearch, setModuleSearch] = useState("");
+  const [showSelectedModules, setShowSelectedModules] = useState(false);
   useErrorToast(error);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -95,6 +84,8 @@ export function DepartmentsSection({ translations }: { translations: Translation
 
   function showForm(item?: Department) {
     setEditing(item ?? null);
+    setModuleSearch("");
+    setShowSelectedModules(false);
     setForm(
       item
         ? {
@@ -134,6 +125,31 @@ export function DepartmentsSection({ translations }: { translations: Translation
       setError(caught instanceof Error ? caught.message : settingsTranslations.deleteError);
     }
   }
+
+  const moduleGroups = permissionModuleGroupDefinitions.map((group) => ({
+    label: settingsTranslations[group.labelKey],
+    keys: [...group.keys],
+  }));
+  const knownModuleNames = new Set(moduleGroups.flatMap((group) => group.keys));
+  const ungroupedModules = modules.filter((module) => !knownModuleNames.has(module.name));
+  const pickerGroups: Array<{ label: string; keys: string[] }> = ungroupedModules.length
+    ? [...moduleGroups, { label: settingsTranslations.otherModules, keys: ungroupedModules.map((module) => module.name) }]
+    : moduleGroups;
+  const moduleQuery = moduleSearch.trim().toLocaleLowerCase();
+  const moduleLabel = (module: PermissionModule) =>
+    settingsTranslations.permissionModules[module.name as keyof typeof settingsTranslations.permissionModules] ?? moduleLabels[module.name] ?? module.name;
+  const filteredPickerGroups = pickerGroups.flatMap((group) => {
+    const allGroupModules = modules.filter((module) => group.keys.includes(module.name));
+    const groupMatches = moduleQuery && group.label.toLocaleLowerCase().includes(moduleQuery);
+    const visibleModules = allGroupModules.filter((module) => {
+      const matchesSearch = !moduleQuery || groupMatches ||
+        module.name.toLocaleLowerCase().includes(moduleQuery) ||
+        moduleLabel(module).toLocaleLowerCase().includes(moduleQuery);
+      return matchesSearch && (!showSelectedModules || form.moduleIds.includes(module.id));
+    });
+    return visibleModules.length ? [{ group, allGroupModules, visibleModules }] : [];
+  });
+  const selectedModuleCount = modules.filter((module) => form.moduleIds.includes(module.id)).length;
 
   return (
     <div className="management-panel">
@@ -294,24 +310,70 @@ export function DepartmentsSection({ translations }: { translations: Translation
               </label>
               <fieldset className="role-permission-picker department-module-picker">
                 <legend>เมนูที่แผนกมองเห็น</legend>
+                <div className="department-module-toolbar">
+                  <input
+                    className="department-module-search"
+                    type="search"
+                    aria-label={settingsTranslations.departmentModuleSearchPlaceholder}
+                    placeholder={settingsTranslations.departmentModuleSearchPlaceholder}
+                    value={moduleSearch}
+                    onChange={(event) => setModuleSearch(event.target.value)}
+                  />
+                  <label className="department-module-selected-filter">
+                    <input type="checkbox" checked={showSelectedModules} onChange={(event) => setShowSelectedModules(event.target.checked)} />
+                    {settingsTranslations.showSelectedModules}
+                  </label>
+                  <span>{settingsTranslations.selectedModules}: {selectedModuleCount}/{modules.length}</span>
+                </div>
                 <div className="role-permission-picker-grid">
-                  {moduleGroups.map((group) => {
-                    const groupModules = group.keys.map((key) => modules.find((module) => module.name === key)).filter((module): module is PermissionModule => Boolean(module));
-                    const selectedCount = groupModules.filter((module) => form.moduleIds.includes(module.id)).length;
+                  {filteredPickerGroups.map(({ group, allGroupModules, visibleModules }) => {
+                    const selectedCount = allGroupModules.filter((module) => form.moduleIds.includes(module.id)).length;
+                    const visibleSelectedCount = visibleModules.filter((module) => form.moduleIds.includes(module.id)).length;
+                    const visibleIds = visibleModules.map((module) => module.id);
                     return <section className="role-permission-picker-module" key={group.label}>
                       <div className="permission-picker-module-header">
-                        <h3>{group.label}</h3>
-                        <label className="permission-select-all"><input type="checkbox" checked={groupModules.length > 0 && selectedCount === groupModules.length} ref={(input) => { if (input) input.indeterminate = selectedCount > 0 && selectedCount < groupModules.length }} onChange={() => {
-                          const ids = groupModules.map((module) => module.id);
-                          setForm({ ...form, moduleIds: selectedCount === groupModules.length ? form.moduleIds.filter((id) => !ids.includes(id)) : [...new Set([...form.moduleIds, ...ids])] });
-                        }} /><span>เลือกทั้งหมดในกลุ่ม</span><small>{selectedCount}/{groupModules.length}</small></label>
+                        <div className="department-module-group-heading">
+                          <h3>{group.label}</h3>
+                          <small>{selectedCount}/{allGroupModules.length}</small>
+                        </div>
+                        <div className="department-module-actions">
+                          {!showSelectedModules && <label className="permission-select-all">
+                            <input
+                              type="checkbox"
+                              checked={visibleIds.length > 0 && visibleSelectedCount === visibleIds.length}
+                              ref={(input) => { if (input) input.indeterminate = visibleSelectedCount > 0 && visibleSelectedCount < visibleIds.length }}
+                              onChange={() => setForm((current) => ({
+                                ...current,
+                                moduleIds: visibleSelectedCount === visibleIds.length
+                                  ? current.moduleIds.filter((id) => !visibleIds.includes(id))
+                                  : [...new Set([...current.moduleIds, ...visibleIds])],
+                              }))}
+                            />
+                            <span>{moduleQuery ? settingsTranslations.selectAllMatchingModules : settingsTranslations.selectAllModuleGroup}</span>
+                          </label>}
+                        </div>
                       </div>
-                      {groupModules.map((module) => <label className="role-permission-option" key={module.id}>
-                        <input type="checkbox" checked={form.moduleIds.includes(module.id)} onChange={() => setForm({ ...form, moduleIds: form.moduleIds.includes(module.id) ? form.moduleIds.filter((id) => id !== module.id) : [...form.moduleIds, module.id] })} />
-                        <span>{moduleLabels[module.name] ?? module.name}</span>
-                      </label>)}
+                      {visibleModules.map((module) => {
+                        const ModuleIcon = getModuleIcon(module.iconName || defaultModuleIconNames[module.name]);
+                        return <label className="role-permission-option department-module-option" key={module.id}>
+                          <input
+                            type="checkbox"
+                            disabled={saving}
+                            checked={form.moduleIds.includes(module.id)}
+                            onChange={() => setForm((current) => ({
+                              ...current,
+                              moduleIds: current.moduleIds.includes(module.id)
+                                ? current.moduleIds.filter((id) => id !== module.id)
+                                : [...current.moduleIds, module.id],
+                            }))}
+                          />
+                          <ModuleIcon aria-hidden="true" />
+                          <span>{moduleLabel(module)}</span>
+                        </label>;
+                      })}
                     </section>;
                   })}
+                  {filteredPickerGroups.length === 0 && <p className="permission-search-empty">{settingsTranslations.noModules}</p>}
                 </div>
               </fieldset>
               <footer>

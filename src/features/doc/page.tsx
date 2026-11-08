@@ -20,6 +20,7 @@ import { translateServerErrorMessage } from '../../services/api'
 import { listUsers, type User } from '../settings/users/services/users.service'
 import { listDepartments } from '../settings/access/departments/services/departments.service'
 import { useAuth } from '../auth/hooks/use-auth'
+import { hasPermission } from '../auth/permissions'
 import {
   ApiError, approveRequest, cancelRequest, createRequest, getMySignature, getPolicy, getRequest,
   listNotifications, listPeople, listPolicyYears, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, toFormChecks, validateRequestDryRun,
@@ -172,6 +173,12 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   // โหมด DB: ตัดข้อความตัวอย่างของ mock ออก เพราะ id จริงจะชนกับ id ของตัวอย่าง
   const copy: any = useMemo(() => USE_DB ? { ...rawCopy, sampleDocuments: {}, sampleNotifications: {} } : rawCopy, [rawCopy])
   const { user } = useAuth()
+  const hasDocumentPermission = (permissionName: string) => Boolean(user && hasPermission(user, permissionName))
+  const canSubmitDocuments = hasDocumentPermission('ยื่นเอกสาร')
+  const canManagePolicy = hasDocumentPermission('จัดการนโยบายการลา')
+  const canManageFlow = hasDocumentPermission('กำหนดขั้นตอนการยื่นเอกสาร')
+  const canManageNotifications = hasDocumentPermission('จัดการการแจ้งเตือน')
+  const canExportLedger = hasDocumentPermission('ส่งออกสมุดบันทึกการลา')
   const { showToast } = useToast()
   const dateText = (value: string) => new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${value}T00:00:00`))
   const KIND_INFO = Object.fromEntries(Object.entries(KIND_INFO_DEFAULT).map(([key, info]) => [key, { ...info, title: copy.kinds[key as DocKind], description: copy.kindDescriptions[key as DocKind] }])) as typeof KIND_INFO_DEFAULT
@@ -717,6 +724,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
 
   // ---------- นโยบาย ----------
   const savePolicyDraft = async () => {
+    if (!canManagePolicy) return
     if (!policyDraft.yearStart || !policyDraft.yearEnd || policyDraft.yearEnd < policyDraft.yearStart) { showToast(copy.messages.policyInvalid, 'error'); return }
     if (!USE_DB) { setPolicy({ ...policyDraft }); showToast(copy.messages.policySaved, 'success'); return }
     try {
@@ -744,6 +752,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
 
   const markAllRead = () => {
     if (USE_DB) {
+      if (!canManageNotifications) return
       markNotificationsRead()
         .then(() => reloadNotifications())
         .then(() => { notifyDocChanged(); showToast(copy.notifications.readAll, 'success') })
@@ -755,14 +764,15 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   }
   return <section className="feature-page feature-page--wide documents-page">
     <p className={view === 'ledger' ? 'dms-kicker' : 'feature-kicker'}>{view === 'pending' ? copy.pendingTitle : copy.section}</p>
-    {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'flowRules' ? copy.flowRulesSubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
-    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} companyName={ledgerCompanyName} hoursPerDay={policy.hoursPerDay} policyYear={selectedLedgerPolicy?.year ?? ledgerPolicyYear} policyYearEnd={selectedLedgerPolicy?.yearEnd ?? policy.yearEnd} policyYears={availablePolicyYears} onPolicyYearChange={setLedgerPolicyYear} copy={copy} />}
+    {view === 'ledger' ? <div className="dms-title-row documents-ledger-title"><div className="dms-title-block"><h1>{pageTitle}</h1><div className="dms-subtitle">{copy.ledgerSubtitle}</div></div></div> : view !== 'employees' && <div className="documents-heading"><div><h1>{pageTitle}</h1><span>{view === 'pending' ? copy.pendingSubtitle : view === 'policy' ? copy.policySubtitle : view === 'flowRules' ? copy.flowRulesSubtitle : view === 'notifications' ? copy.notificationsSubtitle : copy.allSubtitle}</span></div>{view === 'all' && canSubmitDocuments && <button className="documents-primary" onClick={() => setFormOpen(true)}><FaPlus /> {copy.submitNew}</button>}</div>}
+    {view === 'ledger' && <LeaveLedger person={ledgerEmployee} people={availableLedgerEmployees} entries={ledgerRows.map((entry) => ({ ...entry, leaveType: entry.leaveType === 'emergency' ? 'vacation' : ['personal','sick','vacation','unpaid','other'].includes(String(entry.leaveType)) ? entry.leaveType as LedgerEntry['leaveType'] : 'other' }))} onPersonChange={setLedgerEmployeeId} companyName={ledgerCompanyName} hoursPerDay={policy.hoursPerDay} policyYear={selectedLedgerPolicy?.year ?? ledgerPolicyYear} policyYearEnd={selectedLedgerPolicy?.yearEnd ?? policy.yearEnd} policyYears={availablePolicyYears} onPolicyYearChange={setLedgerPolicyYear} canExport={canExportLedger} copy={copy} />}
 
     {view === 'employees' && <DocDatabaseEmployeesPanel users={dbEmployees} leaveBalances={dbPeople} hoursPerDay={policy.hoursPerDay} title={pageTitle} subtitle={copy.employeesSubtitle} companyId={user?.company?.id ?? 0} companyName={user?.company?.name ?? ''} loading={dbEmployeesLoading} error={dbEmployeesError} query={employeeQuery} onQuery={setEmployeeQuery} onUpdated={(updated) => { setDbEmployees((current) => current.map((employee) => employee.id === updated.id ? updated : employee)); notifyDocChanged() }} onCreated={(created) => { setDbEmployees((current) => [created, ...current]); notifyDocChanged() }} copy={copy} />}
 
     {view === 'flowRules' && <DocFlowRulesSettings
       copy={copy}
       showToast={showToast}
+      canManage={canManageFlow}
     />}
 
     {view === 'policy' && <DocLeavePolicySettings
@@ -770,21 +780,23 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       copy={copy}
       onChange={setPolicyDraft}
       onReset={resetPolicyAndMock}
+      canManage={canManagePolicy}
       onSave={() => { void savePolicyDraft() }}
     />}
 
     {view === 'notifications' && <DocNotificationsPanel
-      notifications={notifications} emailEnabled={emailEnabled} onEmailEnabled={setEmailEnabled} onReadAll={markAllRead}
+      notifications={notifications} emailEnabled={emailEnabled} onEmailEnabled={setEmailEnabled} onReadAll={markAllRead} canManage={canManageNotifications}
       copy={copy}
       tab={notificationTab} onTab={setNotificationTab}
       // คลิกแจ้งเตือน: ทำเครื่องหมายว่าอ่านแล้ว แล้วเปิด popup รายละเอียดเอกสารทันที
       onOpen={(notification) => {
         const docId = notification.documentId ?? null
-        if (USE_DB) void markNotificationsRead(notification.id)
-          .then(() => reloadNotifications())
-          .then(() => notifyDocChanged())
-          .catch((error) => showToast(errorText(error), 'error'))
-        else setNotifications(current => current.map(item => item.id === notification.id ? {...item,read:true} : item))
+        if (USE_DB) {
+          if (canManageNotifications) void markNotificationsRead(notification.id)
+            .then(() => reloadNotifications())
+            .then(() => notifyDocChanged())
+            .catch((error) => showToast(errorText(error), 'error'))
+        } else setNotifications(current => current.map(item => item.id === notification.id ? {...item,read:true} : item))
         if (docId !== null) setSelectedDocumentId(docId)
       }}
     />}

@@ -366,6 +366,7 @@
       "subtitle": "Choose which department or role submits to which approver, instead of the default flow hardcoded in the app",
       "hint": "If no rule matches the submitter, the system falls back to the default flow by role. Department rules take precedence over role rules.",
       "loading": "Loading flow rules...",
+      "permissionRequired": "You do not have permission to manage document routing.",
       "empty": "No flow rules yet — every document uses the default flow. Click “Add rule” to create one.",
       "scope": "Rule type",
       "scopeDepartment": "By department",

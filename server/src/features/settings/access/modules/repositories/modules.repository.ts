@@ -1,4 +1,5 @@
 import { db } from "../../../../../config/database.js";
+import { httpError } from "../../../../../middleware/errors.js";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 export interface PermissionModuleRow extends RowDataPacket {
   id: number;
@@ -21,8 +22,8 @@ export async function findAll() {
   return rows;
 }
 export async function findAllIcons() {
-  const [rows] = await db.query<Array<RowDataPacket & Pick<PermissionModuleRow, "name" | "iconName">>>(
-    `SELECT name, icon_name AS iconName FROM permission_modules WHERE deleted_at IS NULL ORDER BY sort_order, name`,
+  const [rows] = await db.query<Array<RowDataPacket & Pick<PermissionModuleRow, "name" | "iconName" | "sortOrder">>>(
+    `SELECT name, icon_name AS iconName, sort_order AS sortOrder FROM permission_modules WHERE deleted_at IS NULL ORDER BY sort_order, name`,
   );
   return rows;
 }
@@ -76,6 +77,33 @@ export async function update(id: string, input: PermissionModuleInput) {
       [...entries.map(([, value]) => value ?? null), id],
     );
   return findById(id);
+}
+export async function reorder(ids: number[]) {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.query<Array<RowDataPacket & { id: number }>>(
+      `SELECT id FROM permission_modules WHERE deleted_at IS NULL ORDER BY sort_order, name FOR UPDATE`,
+    );
+    const currentIds = rows.map((row) => Number(row.id));
+    const requestedIds = new Set(ids);
+    if (ids.length !== currentIds.length || requestedIds.size !== ids.length || currentIds.some((id) => !requestedIds.has(id))) {
+      throw httpError(409, "Module list changed; refresh and try again");
+    }
+    for (const [index, moduleId] of ids.entries()) {
+      await connection.execute(
+        `UPDATE permission_modules SET sort_order = ? WHERE id = ? AND deleted_at IS NULL`,
+        [(index + 1) * 10, moduleId],
+      );
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+  return findAll();
 }
 export async function softDelete(id: string) {
   const [result] = await db.execute<ResultSetHeader>(

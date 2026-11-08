@@ -64,6 +64,31 @@ export const iconIndex: RequestHandler = async (_req, res) => {
   res.json({ data: await modules.findAllIcons() });
 };
 
+export const reorder: RequestHandler = async (req, res) => {
+  const body: unknown = req.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw httpError(400, "Request body must be an object");
+  }
+  const rawIds = (body as Record<string, unknown>).moduleIds;
+  if (!Array.isArray(rawIds) || rawIds.some((value) => !Number.isSafeInteger(value) || Number(value) < 1)) {
+    throw httpError(400, "moduleIds must be an array of positive integers");
+  }
+  const moduleIds = rawIds as number[];
+  if (new Set(moduleIds).size !== moduleIds.length) {
+    throw httpError(400, "moduleIds must not contain duplicates");
+  }
+  const data = await modules.reorder(moduleIds);
+  await logActivity({
+    userId: req.user?.id,
+    module: "modules",
+    action: "updated",
+    entityType: "module",
+    details: { operation: "reordered", moduleIds },
+    ipAddress: req.ip,
+  });
+  res.json({ data });
+};
+
 export const store: RequestHandler = async (req, res) => {
   const input = validate(req.body) as Required<PermissionModuleInput>;
   if (await modules.findDuplicate(input.name)) throw httpError(409, "Module name already exists");

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import type { Language, Translations } from '../../../locales'
 import { translateServerErrorMessage } from '../../../services/api'
 import { useAuth } from '../../auth/hooks/use-auth'
+import { hasPermission } from '../../auth/permissions'
 import ManagePayslips from './components/manage-payslips'
 import MyPayslips from './components/my-payslips'
 import './payslips.css'
@@ -13,7 +14,8 @@ export default function PayslipsPage({ translations, language }: { translations:
   const { user } = useAuth()
   const locale = language === 'th' ? 'th-TH' : 'en-US'
   const canManage = Boolean(user && (
-    user.role.name.trim().toLowerCase() === 'admin' || String(user.department ?? '').trim().toLowerCase() === 'hr div.'
+    user.role.name.trim().toLowerCase() === 'admin'
+    || (String(user.department ?? '').trim().toLowerCase() === 'hr div.' && hasPermission(user, 'จัดการสลิปเงินเดือน'))
   ))
   const [tab, setTab] = useState<Tab>('mine')
 

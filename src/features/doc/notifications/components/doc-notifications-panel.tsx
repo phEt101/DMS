@@ -9,6 +9,7 @@ type Props = {
   emailEnabled: boolean
   onEmailEnabled: (enabled: boolean) => void
   onReadAll: () => void
+  canManage: boolean
   tab: 'app' | 'email'
   onTab: (tab: 'app' | 'email') => void
   onOpen: (notification: MockNotification) => void
@@ -42,7 +43,7 @@ const detectTone = (notification: MockNotification, c: any): Tone => {
 
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
 
-export default function DocNotificationsPanel({ notifications, emailEnabled, onEmailEnabled, onReadAll, tab, onTab, onOpen, copy: c }: Props) {
+export default function DocNotificationsPanel({ notifications, emailEnabled, onEmailEnabled, onReadAll, canManage, tab, onTab, onOpen, copy: c }: Props) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const isThai = String(c.dateLocale ?? '').startsWith('th')
   const text = {
@@ -102,9 +103,9 @@ export default function DocNotificationsPanel({ notifications, emailEnabled, onE
         <input type="checkbox" checked={emailEnabled} onChange={(event) => onEmailEnabled(event.target.checked)} />
         <span>{c.notifications.emailToggle}: <b className={emailEnabled ? 'is-on' : 'is-off'}>{emailEnabled ? c.notifications.emailOn : c.notifications.emailOff}</b></span>
       </label>
-      <button type="button" className="documents-readall" onClick={onReadAll} disabled={unreadCount === 0}>
+      {canManage && <button type="button" className="documents-readall" onClick={onReadAll} disabled={unreadCount === 0}>
         <FaCheckDouble /> {c.notifications.readAll}
-      </button>
+      </button>}
     </div>
 
     <div className="documents-notification-tabs" role="tablist">

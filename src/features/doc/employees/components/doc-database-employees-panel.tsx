@@ -60,17 +60,16 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
   const { showToast } = useToast()
   const { user: authenticatedUser, refreshUser } = useAuth()
   const isAdmin = isAdminRole(authenticatedUser?.role.name ?? '')
-  // สิทธิ์แก้ไขพนักงาน: admin / สิทธิ์ "สร้าง-แก้ไขผู้ใช้งาน" / แผนกเข้าถึงโมดูล users หรือ documents_employees
-  // (ตรงกับ requireDepartmentModule("users") ของ backend — HR Div. ที่เห็นโมดูล "พนักงาน" ในหน้าจัดการแผนกจะแก้ไขได้)
-  const canEditEmployees = Boolean(
-    authenticatedUser && (
-      isAdmin ||
-      hasPermission(authenticatedUser, 'สร้างผู้ใช้งาน') ||
-      hasPermission(authenticatedUser, 'แก้ไขผู้ใช้งาน') ||
-      authenticatedUser.departmentModules.includes('users') ||
-      authenticatedUser.departmentModules.includes('documents_employees')
-    ),
-  )
+  const canCreateEmployees = Boolean(authenticatedUser && (
+    isAdmin
+    || (authenticatedUser.departmentModules.includes('documents_employees') && hasPermission(authenticatedUser, 'เพิ่มข้อมูลพนักงาน'))
+    || (authenticatedUser.departmentModules.includes('users') && hasPermission(authenticatedUser, 'สร้างผู้ใช้งาน'))
+  ))
+  const canEditEmployees = Boolean(authenticatedUser && (
+    isAdmin
+    || (authenticatedUser.departmentModules.includes('documents_employees') && hasPermission(authenticatedUser, 'แก้ไขข้อมูลพนักงาน'))
+    || (authenticatedUser.departmentModules.includes('users') && hasPermission(authenticatedUser, 'แก้ไขผู้ใช้งาน'))
+  ))
   const [selected, setSelected] = useState<User | null>(null)
   const [editing, setEditing] = useState(false)
   // สิทธิ์แก้ไข = false → ซ่อนปุ่มแก้ไข/ฟอร์ม และล็อกการเปลี่ยนรูป (โหมดดูอย่างเดียว)
@@ -272,7 +271,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
   return <>
     <div className="documents-heading">
       <div><h1>{title}</h1><span>{subtitle}</span></div>
-      {canEditEmployees && <button type="button" className="documents-primary" onClick={() => void beginCreate()}><FaPlus /> {c.employees.add}</button>}
+      {canCreateEmployees && <button type="button" className="documents-primary" onClick={() => void beginCreate()}><FaPlus /> {c.employees.add}</button>}
     </div>
     <div className="documents-filter-wrap" ref={filterWrapRef}>
       <div className="documents-tools documents-filter-row">
@@ -309,7 +308,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
       <button type="button" className="modal-close" aria-label={c.detail.close} onClick={() => { setCreateOpen(false); setSaveError('') }}><FaXmark/></button>
       <form onSubmit={create}>
         {/* รูปโปรไฟล์อยู่อันดับแรกของฟอร์มเพิ่มพนักงาน (เหมือนฟอร์มแก้ไข) */}
-        <EmployeeAvatarField employee={null} copy={c} pendingFile={avatarFile} onPickFile={setAvatarFile} pendingRemove={false} onToggleRemove={() => {}} uploading={saving}/>
+        {canEditEmployees && <EmployeeAvatarField employee={null} copy={c} pendingFile={avatarFile} onPickFile={setAvatarFile} pendingRemove={false} onToggleRemove={() => {}} uploading={saving}/>}
         <div className="documents-employee-form-grid">
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.firstName}</span><input className="dms-form-input" required value={newDraft.firstName} onChange={(event) => setNewDraft({ ...newDraft, firstName: event.target.value })}/></label>
           <label className="dms-form-field"><span className="dms-form-label">{c.employees.lastName}</span><input className="dms-form-input" required value={newDraft.lastName} onChange={(event) => setNewDraft({ ...newDraft, lastName: event.target.value })}/></label>

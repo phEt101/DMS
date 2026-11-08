@@ -54,7 +54,15 @@ function writeSignatureFile(department: string | null | undefined, userName: str
 }
 
 // ใช้สิทธิ์เดิมของโมดูลเอกสาร + เพิ่ม 'จัดการนโยบายการลา' 1 รายการ (ต้อง seed ในตาราง permissions)
-const PERM = { submit: 'ยื่นเอกสาร', review: 'พิจารณาเอกสาร', policy: 'จัดการนโยบายการลา' }
+const PERM = {
+  submit: 'ยื่นเอกสาร',
+  review: 'พิจารณาเอกสาร',
+  policy: 'จัดการนโยบายการลา',
+  cancel: 'ยกเลิกเอกสาร',
+  flow: 'กำหนดขั้นตอนการยื่นเอกสาร',
+  notifications: 'จัดการการแจ้งเตือน',
+  report: 'ดูรายงานออกนอกสถานที่',
+}
 const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'outing']
 const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', outing: 'OUT' }
 const STATUSES = ['pending_mgr', 'pending_exec', 'pending_hr', 'approved', 'rejected', 'cancelled']
@@ -505,12 +513,12 @@ export async function show(req: Request, res: Response) {
     ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map((sig: any) => withAvatarUrls(camelize(sig))),
     flow: flowViewOf(row),
     canViewMedicalCertificate: canViewCertificate,
-    canApprove: notSelf && (
+    canApprove: has(req, PERM.review) && notSelf && (
       (row.status === 'pending_mgr' && (row.manager_user_id === me || isDeptMgr))
       || (row.status === 'pending_exec' && (isExec || isAdmin))
       || (row.status === 'pending_hr' && ((isHrMember && !isAdminFallback) || isAdminFallback))
     ),
-    canCancel: !notSelf && (
+    canCancel: has(req, PERM.cancel) && !notSelf && (
       row.status === 'pending_mgr'
       || row.status === 'pending_exec'
       || (row.status === 'pending_hr' && row.manager_user_id === null)
@@ -740,6 +748,7 @@ async function loadFlowRule(conn: any, companyId: number, user: any, kind: Kind)
 
 export async function flowRules(req: Request, res: Response) {
   needDocumentModule(req)
+  need(req, PERM.flow)
   const companyId = companyIdOf(req)
   const [rules] = await db.query<any[]>(
     `SELECT rule.id, rule.scope, rule.department_id, rule.role_id, rule.kind, rule.first_stage, rule.manager_user_id, rule.executive_user_id,
@@ -811,6 +820,7 @@ export async function flowRules(req: Request, res: Response) {
 
 export async function updateFlowRules(req: Request, res: Response) {
   needDocumentModule(req)
+  need(req, PERM.flow)
   const companyId = companyIdOf(req)
   const roleName = String(req.user!.role?.name ?? '').trim().toLocaleLowerCase()
   if (roleName !== 'admin' && !(await isHrDivisionMember(req.user!.id, companyId))) {
@@ -1114,6 +1124,7 @@ export async function medicalCertificate(req: Request, res: Response) {
 // ---------- อนุมัติ / ไม่อนุมัติ / ยกเลิก ----------
 async function decide(req: Request, res: Response, action: 'approve' | 'reject') {
   needDocumentModule(req)
+  need(req, PERM.review)
   const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id, isHr = has(req, PERM.review)
   const note = nz(req.body?.note)
   if (action === 'reject' && !note) throw httpError(400, 'กรุณาระบุเหตุผลที่ไม่อนุมัติ')
@@ -1244,6 +1255,7 @@ export const reject = (req: Request, res: Response) => decide(req, res, 'reject'
 
 export async function cancel(req: Request, res: Response) {
   needDocumentModule(req)
+  need(req, PERM.cancel)
   const id = idParam(req)
   const companyId = companyIdOf(req)
   const me = req.user!.id
@@ -1367,6 +1379,7 @@ export async function notifications(req: Request, res: Response) {
 
 export async function readNotifications(req: Request, res: Response) {
   needDocumentModule(req)
+  need(req, PERM.notifications)
   const id = req.body?.id === undefined ? null : Number(req.body.id)
   if (id !== null && (!Number.isSafeInteger(id) || id < 1)) throw httpError(400, 'Invalid notification id')
   await db.execute(
@@ -1381,19 +1394,20 @@ export async function badges(req: Request, res: Response) {
   needDocumentModule(req)
   const companyId = companyIdOf(req), me = req.user!.id
   const myRole = String(req.user!.role?.name ?? '')
-  const isExec = myRole === 'executive', isAdmin = myRole === 'admin'
-  const isHrBadge = has(req, PERM.review) && (await findHrUserIds(db as any, companyId)).includes(me)
-  const myDept = await myManagedDeptId(db as any, req)
+  const canReview = has(req, PERM.review)
+  const isExec = canReview && myRole === 'executive', isAdmin = canReview && myRole === 'admin'
+  const isHrBadge = canReview && (await findHrUserIds(db as any, companyId)).includes(me)
+  const myDept = canReview ? await myManagedDeptId(db as any, req) : null
   // รอนุมัติ: ตามขั้นตอนของแต่ละ role — manager ตาม snapshot หรือแผนกที่ดูแล, executive/admin ขั้น exec, HR Div. ขั้น HR (ไม่รวมเอกสารของตนเอง)
   // status คือขั้นปัจจุบันที่ compute จาก flow snapshot แล้ว จึงไม่ต้องอ่าน JSON ใน SQL
   // (ฐาน production ใช้ MySQL 5.6 ซึ่งไม่มี JSON_EXTRACT)
   const [pendingRows] = await db.query<any[]>(
     `SELECT COUNT(*) AS n FROM employee_requests r
       WHERE r.company_id = ? AND r.employee_user_id <> ?
-        AND ((r.status = 'pending_mgr' AND (r.manager_user_id = ? OR r.department_id = ?))
+        AND ((${canReview ? `r.status = 'pending_mgr' AND (r.manager_user_id = ? OR r.department_id = ?)` : '0 = 1'})
           ${isExec || isAdmin ? `OR r.status = 'pending_exec'` : ''}
           ${isHrBadge ? `OR r.status = 'pending_hr'` : ''})`,
-    [companyId, me, me, myDept ?? -1],
+    canReview ? [companyId, me, me, myDept ?? -1] : [companyId, me],
   )
   const [unreadRows] = await db.query<any[]>(
     `SELECT COUNT(*) AS n FROM employee_request_notifications n
@@ -1518,6 +1532,7 @@ export async function people(req: Request, res: Response) {
 
 export async function outingReport(req: Request, res: Response) {
   needDocumentModule(req)
+  need(req, PERM.report)
   const companyId = companyIdOf(req), me = req.user!.id
   const roleName = String(req.user!.role?.name ?? '').trim().toLowerCase()
   const departmentName = String(req.user!.department ?? '').trim().toLowerCase()

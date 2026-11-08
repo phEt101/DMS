@@ -5,6 +5,7 @@ import ConfirmDialog from '../../../components/confirm-dialog'
 import { useToast } from '../../../components/toast-provider'
 import type { Language, Translations } from '../../../locales'
 import { useAuth } from '../../auth/hooks/use-auth'
+import { hasPermission } from '../../auth/permissions'
 import { buildReportModel } from './components/model'
 import type { OutingReportRow } from './components/model'
 import { buildSheetHtml, sheetCss } from './components/sheet-html'
@@ -55,6 +56,7 @@ export default function ReportPage({ translations, language }: { translations: T
   const { showToast } = useToast()
   const isPrivileged = user?.role.name.trim().toLowerCase() === 'admin'
     || (user?.department ?? '').trim().toLowerCase() === 'hr div.'
+  const canViewReport = Boolean(user && hasPermission(user, 'ดูรายงานออกนอกสถานที่'))
 
   useEffect(() => {
     if (user && !employeeId) setEmployeeId(String(user.id))
@@ -182,12 +184,12 @@ export default function ReportPage({ translations, language }: { translations: T
           updateFilters({ from: nextFrom, to: nextTo, employeeId: filterUserId })
         }} required />
       </label>
-      <div className="outing-report-actions">
+      {canViewReport && <div className="outing-report-actions">
         <button type="button" className="is-excel" disabled={busy} onClick={() => setConfirmExport('excel')}>{copy.exportExcel}</button>
         <button type="button" className="is-word" disabled={busy} onClick={() => setConfirmExport('word')}>{copy.exportWord}</button>
         <button type="button" className="is-pdf" disabled={busy} onClick={() => setConfirmExport('pdf')}>{copy.exportPdf}</button>
         <button type="button" className="is-print" disabled={busy} onClick={() => window.print()}>{copy.print}</button>
-      </div>
+      </div>}
     </form>
     <p className="outing-report-hint">{copy.signatureHint}</p>
     {loading && <p className="outing-report-status" role="status">{copy.loading}</p>}
@@ -199,7 +201,7 @@ export default function ReportPage({ translations, language }: { translations: T
         <div className="outing-report-paper" key={index} dangerouslySetInnerHTML={{ __html: buildSheetHtml(model, page, index) }} />
       ))}
     </div>
-    <ConfirmDialog
+    {canViewReport && <ConfirmDialog
       open={confirmExport !== null}
       title={copy.exportConfirmTitle}
       description={confirmExport === 'pdf' ? copy.exportConfirmPdf : confirmExport === 'word' ? copy.exportConfirmWord : copy.exportConfirmExcel}
@@ -207,6 +209,6 @@ export default function ReportPage({ translations, language }: { translations: T
       cancelLabel={copy.cancel}
       onOpenChange={(open) => { if (!open) setConfirmExport(null) }}
       onConfirm={() => { void runExport() }}
-    />
+    />}
   </section>
 }

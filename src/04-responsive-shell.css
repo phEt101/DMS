@@ -187,6 +187,20 @@
   .users-toolbar .primary-button {
     width: 100%;
   }
+  .management-header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .management-header-actions button {
+    width: 100%;
+  }
+  .module-display-content {
+    padding: 12px 18px 18px;
+  }
+  .module-display-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
   .users-toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -326,6 +340,17 @@
   .role-permission-picker-grid,
   .role-module-grid {
     grid-template-columns: 1fr;
+  }
+  .permission-picker-toolbar,
+  .department-module-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .permission-picker-toolbar > .permission-select-all {
+    justify-content: flex-start;
+  }
+  .department-module-actions {
+    width: 100%;
+    justify-content: space-between;
   }
   .role-module-header {
     min-height: auto;

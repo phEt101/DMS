@@ -1,9 +1,10 @@
 import type { MockPolicy } from '../../document-types'
-type Props = { policyDraft: MockPolicy; onChange: (next: MockPolicy) => void; onReset: () => void; onSave: () => void; copy: any }
-export default function DocLeavePolicySettings({ policyDraft, onChange, onReset, onSave, copy: c }: Props) {
+type Props = { policyDraft: MockPolicy; onChange: (next: MockPolicy) => void; onReset: () => void; onSave: () => void; canManage: boolean; copy: any }
+export default function DocLeavePolicySettings({ policyDraft, onChange, onReset, onSave, canManage, copy: c }: Props) {
   const set = <K extends keyof MockPolicy>(key: K, value: MockPolicy[K]) => onChange({ ...policyDraft, [key]: value })
   return <section className="documents-policy-panel">
     <div className="documents-policy-intro"><div><h2>{c.policy.title}</h2><p>{c.policy.subtitle}</p><small>{c.policy.emergencyRule}</small></div></div>
+    <fieldset className="documents-policy-fields" disabled={!canManage}>
     <div className="documents-policy-grid">
       <label><span>{c.policy.year}</span><input type="number" min="0" value={policyDraft.year} onChange={e=>set('year',Number(e.target.value))}/></label>
       <label><span>{c.policy.expiry}</span><input value={policyDraft.expiry} onChange={e=>set('expiry',e.target.value)}/></label>
@@ -17,6 +18,7 @@ export default function DocLeavePolicySettings({ policyDraft, onChange, onReset,
       <label><span>{c.policy.otMax}</span><input type="number" min="0" step="0.5" value={policyDraft.otMax} onChange={e=>set('otMax',Number(e.target.value))}/></label>
       <label><span>{c.policy.fixDays}</span><input type="number" min="0" value={policyDraft.fixDays} onChange={e=>set('fixDays',Number(e.target.value))}/></label>
     </div>
-    <div className="documents-policy-actions"><button className="dms-back-btn" onClick={onReset}>{c.policy.reset}</button><button className="dms-create-btn" onClick={onSave}>{c.policy.save}</button></div>
+    </fieldset>
+    {canManage && <div className="documents-policy-actions"><button className="dms-back-btn" onClick={onReset}>{c.policy.reset}</button><button className="dms-create-btn" onClick={onSave}>{c.policy.save}</button></div>}
   </section>
 }

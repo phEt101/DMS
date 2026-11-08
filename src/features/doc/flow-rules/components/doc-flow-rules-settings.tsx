@@ -3,7 +3,7 @@ import { FaEye, FaPlus, FaXmark } from 'react-icons/fa6'
 import { getFlowRules, saveFlowRules, type ApiFlowRule, type ApiFlowRulesResponse } from '../../services/employee-requests.service'
 import { effectiveRecordStage, FlowRuleCard, type FlowRuleLike } from './FlowRuleCard'
 
-type Props = { copy: any; showToast: (message: string, type: 'success' | 'error') => void }
+type Props = { copy: any; showToast: (message: string, type: 'success' | 'error') => void; canManage: boolean }
 
 type DraftRule = FlowRuleLike & { key: string }
 
@@ -26,7 +26,7 @@ const toDraft = (rule: ApiFlowRule): DraftRule => ({
   visibleInRecords: true, isActive: rule.isActive,
 })
 
-export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
+export default function DocFlowRulesSettings({ copy: c, showToast, canManage }: Props) {
   const [options, setOptions] = useState<ApiFlowRulesResponse | null>(null)
   const [rules, setRules] = useState<DraftRule[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +35,11 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
   const [overviewOpen, setOverviewOpen] = useState(false)
 
   useEffect(() => {
+    if (!canManage) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     let cancelled = false
     getFlowRules()
       .then((data) => {
@@ -47,7 +52,7 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
         if (!cancelled) { setError(err instanceof Error ? err.message : String(err)); setLoading(false) }
       })
     return () => { cancelled = true }
-  }, [])
+  }, [canManage])
 
   const update = (key: string, patch: Partial<DraftRule>) =>
     setRules((current) => current.map((rule) => rule.key === key ? { ...rule, ...patch } : rule))
@@ -173,6 +178,8 @@ export default function DocFlowRulesSettings({ copy: c, showToast }: Props) {
     ? [{ id: null, name: c.flow.noDepartment as string, isHrDepartment: false },
        ...options.departments.filter((department) => ruleDepartments.includes(department.id))]
     : []
+
+  if (!canManage) return <p className="documents-empty">{c.flow.permissionRequired}</p>
 
   return <section className="documents-policy-panel documents-flow-panel">
     <div className="documents-policy-intro"><div>

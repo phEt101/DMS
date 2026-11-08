@@ -23,7 +23,8 @@ function companyIdOf(req: Request): number {
 function canManage(req: Request): boolean {
   const role = String(req.user?.role?.name ?? '').trim().toLowerCase()
   const department = String(req.user?.department ?? '').trim().toLowerCase()
-  return role === 'admin' || department === 'hr div.'
+  return role === 'admin'
+    || (department === 'hr div.' && req.user?.permissions.some((permission) => permission.name === 'จัดการสลิปเงินเดือน') === true)
 }
 
 function needManager(req: Request) {

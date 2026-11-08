@@ -15,6 +15,7 @@ import { listPermissionModules, type PermissionModule } from "../../modules/serv
 import { useErrorToast } from "../../../../../components/toast-provider";
 import { useAuth } from "../../../../auth/hooks/use-auth";
 import { hasAnyPermission } from "../../../../auth/permissions";
+import { defaultModuleIconNames, getModuleIcon } from "../../modules/module-icons";
 
 type PermissionModuleKey = string;
 
@@ -72,11 +73,13 @@ function PermissionSelectionToggle({
   selectedIds,
   label,
   onChange,
+  confirmMessage,
 }: {
   ids: number[];
   selectedIds: number[];
   label: string;
   onChange: (ids: number[]) => void;
+  confirmMessage?: string;
 }) {
   const selectedCount = ids.filter((id) => selectedIds.includes(id)).length;
   const allSelected = ids.length > 0 && selectedCount === ids.length;
@@ -90,15 +93,116 @@ function PermissionSelectionToggle({
         ref={(input) => {
           if (input) input.indeterminate = selectedCount > 0 && !allSelected;
         }}
-        onChange={() => onChange(
-          allSelected
-            ? selectedIds.filter((id) => !ids.includes(id))
-            : [...new Set([...selectedIds, ...ids])],
-        )}
+        onChange={() => {
+          if (!allSelected && confirmMessage && !window.confirm(confirmMessage)) return;
+          onChange(
+            allSelected
+              ? selectedIds.filter((id) => !ids.includes(id))
+              : [...new Set([...selectedIds, ...ids])],
+          );
+        }}
       />
       <span>{label}</span>
       <small>{selectedCount}/{ids.length}</small>
     </label>
+  );
+}
+
+function PermissionModuleSelector({
+  modules,
+  permissions,
+  permissionModules,
+  selectedIds,
+  settingsTranslations,
+  onTogglePermission,
+  onChangeSelection,
+}: {
+  modules: string[];
+  permissions: Array<Pick<Permission, "id" | "name" | "module" | "isActive">>;
+  permissionModules: PermissionModule[];
+  selectedIds: number[];
+  settingsTranslations: Translations["features"]["settingsUser"];
+  onTogglePermission: (permissionId: number) => void;
+  onChangeSelection: (permissionIds: number[]) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLocaleLowerCase();
+  const activePermissionIds = permissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id);
+  const filteredModules = modules.flatMap((module) => {
+    const label = permissionModuleLabel(module, settingsTranslations);
+    const moduleMatches = !query || label.toLocaleLowerCase().includes(query) || module.toLocaleLowerCase().includes(query);
+    const modulePermissions = permissions.filter((permission) => {
+      if (resolvePermissionModule(permission) !== module) return false;
+      return moduleMatches || permission.name.toLocaleLowerCase().includes(query);
+    });
+    return query && !moduleMatches && modulePermissions.length === 0
+      ? []
+      : [{ name: module, label, permissions: modulePermissions }];
+  });
+
+  return (
+    <>
+      <div className="permission-picker-toolbar">
+        <input
+          className="permission-search"
+          type="search"
+          aria-label={settingsTranslations.permissionSearchPlaceholder}
+          placeholder={settingsTranslations.permissionSearchPlaceholder}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <PermissionSelectionToggle
+          ids={activePermissionIds}
+          selectedIds={selectedIds}
+          label={settingsTranslations.selectAllPermissions}
+          confirmMessage={settingsTranslations.confirmSelectAllPermissions}
+          onChange={onChangeSelection}
+        />
+      </div>
+      {filteredModules.length === 0 ? (
+        <p className="permission-search-empty">{settingsTranslations.noPermissionMatches}</p>
+      ) : (
+        <div className="role-permission-picker-grid">
+          {filteredModules.map(({ name, label, permissions: modulePermissions }) => {
+            const activeIds = modulePermissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id);
+            const ModuleIcon = getModuleIcon(permissionModules.find((module) => module.name === name)?.iconName ?? defaultModuleIconNames[name]);
+            return (
+              <section className="role-permission-picker-module" key={name}>
+                <header className="permission-picker-module-header">
+                  <div className="permission-module-heading">
+                    <ModuleIcon aria-hidden="true" />
+                    <h3>{label}</h3>
+                  </div>
+                  <div className="permission-picker-module-actions">
+                    <PermissionSelectionToggle
+                      ids={activeIds}
+                      selectedIds={selectedIds}
+                      label={query ? settingsTranslations.selectAllMatchingPermissions : settingsTranslations.selectAllModule}
+                      onChange={onChangeSelection}
+                    />
+                  </div>
+                </header>
+                {modulePermissions.length === 0 ? (
+                  <p>{settingsTranslations.noPermissions}</p>
+                ) : (
+                  modulePermissions.map((permission) => (
+                    <label className="role-permission-option" key={permission.id}>
+                      <input
+                        type="checkbox"
+                        disabled={!Boolean(permission.isActive)}
+                        checked={selectedIds.includes(permission.id)}
+                        onChange={() => onTogglePermission(permission.id)}
+                      />
+                      <span>{permission.name}</span>
+                    </label>
+                  ))
+                )}
+              </section>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -453,55 +557,15 @@ export function RolesSection({ translations }: { translations: Translations }) {
               </label>
               <fieldset className="role-permission-picker">
                 <legend>{settingsTranslations.selectPermissions}</legend>
-                <PermissionSelectionToggle
-                  ids={permissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
+                <PermissionModuleSelector
+                  modules={displayedPermissionModules}
+                  permissions={permissions}
+                  permissionModules={permissionModules}
                   selectedIds={form.permissionIds}
-                  label={settingsTranslations.selectAllPermissions}
-                  onChange={(permissionIds) => setForm((current) => ({ ...current, permissionIds }))}
+                  settingsTranslations={settingsTranslations}
+                  onTogglePermission={togglePermission}
+                  onChangeSelection={(permissionIds) => setForm((current) => ({ ...current, permissionIds }))}
                 />
-                <div className="role-permission-picker-grid">
-                  {displayedPermissionModules.map((module) => {
-                    const modulePermissions = permissions.filter(
-                      (permission) =>
-                        resolvePermissionModule(permission) === module,
-                    );
-
-                    return (
-                      <section
-                        className="role-permission-picker-module"
-                        key={module}
-                      >
-                        <header className="permission-picker-module-header">
-                          <h3>{permissionModuleLabel(module, settingsTranslations)}</h3>
-                          <PermissionSelectionToggle
-                            ids={modulePermissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
-                            selectedIds={form.permissionIds}
-                            label={settingsTranslations.selectAllModule}
-                            onChange={(permissionIds) => setForm((current) => ({ ...current, permissionIds }))}
-                          />
-                        </header>
-                        {modulePermissions.length === 0 ? (
-                          <p>{settingsTranslations.noPermissions}</p>
-                        ) : (
-                          modulePermissions.map((permission) => (
-                            <label
-                              className="role-permission-option"
-                              key={permission.id}
-                            >
-                              <input
-                                type="checkbox"
-                                disabled={!Boolean(permission.isActive)}
-                                checked={form.permissionIds.includes(permission.id)}
-                                onChange={() => togglePermission(permission.id)}
-                              />
-                              <span>{permission.name}</span>
-                            </label>
-                          ))
-                        )}
-                      </section>
-                    );
-                  })}
-                </div>
               </fieldset>
               <footer>
                 <button
@@ -624,59 +688,15 @@ export function RolesSection({ translations }: { translations: Translations }) {
                 )}
                 <fieldset className="role-permission-picker">
                   <legend>{settingsTranslations.selectPermissions}</legend>
-                  <PermissionSelectionToggle
-                    ids={permissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
+                  <PermissionModuleSelector
+                    modules={displayedPermissionModules}
+                    permissions={permissions}
+                    permissionModules={permissionModules}
                     selectedIds={selectedPermissionIds}
-                    label={settingsTranslations.selectAllPermissions}
-                    onChange={setSelectedPermissionIds}
+                    settingsTranslations={settingsTranslations}
+                    onTogglePermission={toggleSelectedPermission}
+                    onChangeSelection={setSelectedPermissionIds}
                   />
-                  <div className="role-permission-picker-grid">
-                    {displayedPermissionModules.map((module) => {
-                      const modulePermissions = permissions.filter(
-                        (permission) =>
-                          resolvePermissionModule(permission) === module,
-                      );
-
-                      return (
-                        <section
-                          className="role-permission-picker-module"
-                          key={module}
-                        >
-                          <header className="permission-picker-module-header">
-                            <h3>{permissionModuleLabel(module, settingsTranslations)}</h3>
-                            <PermissionSelectionToggle
-                              ids={modulePermissions.filter((permission) => Boolean(permission.isActive)).map((permission) => permission.id)}
-                              selectedIds={selectedPermissionIds}
-                              label={settingsTranslations.selectAllModule}
-                              onChange={setSelectedPermissionIds}
-                            />
-                          </header>
-                          {modulePermissions.length === 0 ? (
-                            <p>{settingsTranslations.noPermissions}</p>
-                          ) : (
-                            modulePermissions.map((permission) => (
-                              <label
-                                className="role-permission-option"
-                                key={permission.id}
-                              >
-                                <input
-                                  type="checkbox"
-                                  disabled={!Boolean(permission.isActive)}
-                                  checked={selectedPermissionIds.includes(
-                                    permission.id,
-                                  )}
-                                  onChange={() =>
-                                    toggleSelectedPermission(permission.id)
-                                  }
-                                />
-                                <span>{permission.name}</span>
-                              </label>
-                            ))
-                          )}
-                        </section>
-                      );
-                    })}
-                  </div>
                 </fieldset>
                 <footer>
                   <button

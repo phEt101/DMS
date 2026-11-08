@@ -58,6 +58,8 @@ type SidebarItem =
   | "settings-companies"
   | "settings-activity";
 
+type ConfiguredModuleIcons = Record<string, { iconName: string | null; sortOrder: number }>;
+
 const sidebarModuleKeys = new Set<SidebarItem>([
   "settings-roles",
   "settings-departments",
@@ -66,8 +68,8 @@ const sidebarModuleKeys = new Set<SidebarItem>([
   "settings-companies",
 ]);
 
-function SidebarModuleIcon({ moduleName, configuredIcons }: { moduleName: string; configuredIcons: Record<string, string> }) {
-  const iconName = configuredIcons[moduleName] ?? defaultModuleIconNames[moduleName];
+function SidebarModuleIcon({ moduleName, configuredIcons }: { moduleName: string; configuredIcons: ConfiguredModuleIcons }) {
+  const iconName = configuredIcons[moduleName]?.iconName ?? defaultModuleIconNames[moduleName];
   const IconComponent = getModuleIcon(iconName);
   return <IconComponent className="nav-icon" size={14} aria-hidden="true" />;
 }
@@ -109,14 +111,14 @@ export default function Sidebar({
   const canOpenDocuments = Boolean(user && canViewModule(user, "documents"));
   const [pendingBadge, setPendingBadge] = useState(0);
   const [notificationsBadge, setNotificationsBadge] = useState(0);
-  const [configuredModuleIcons, setConfiguredModuleIcons] = useState<Record<string, string>>({});
+  const [configuredModuleIcons, setConfiguredModuleIcons] = useState<ConfiguredModuleIcons>({});
   useEffect(() => {
     let cancelled = false;
     const loadModuleIcons = () => {
       void listPermissionModuleIcons()
         .then(({ data }) => {
           if (cancelled) return;
-          setConfiguredModuleIcons(Object.fromEntries(data.flatMap(({ name, iconName }) => iconName ? [[name, iconName]] : [])));
+          setConfiguredModuleIcons(Object.fromEntries(data.map(({ name, iconName, sortOrder }) => [name, { iconName, sortOrder }])));
         })
         .catch((error: unknown) => {
           if (!cancelled) console.error("Unable to load module icons", error);
@@ -190,10 +192,10 @@ export default function Sidebar({
     }
   }, [activeItem, collapsed]);
 
-  const moduleItems: Array<{ key: SidebarItem; label: string; icon?: IconType }> = [];
-  if (user && canViewModule(user, "dashboard")) moduleItems.push({ key: "dashboard", label: sidebarTranslations.items.dashboard, icon: FaTableCellsLarge });
-  if (user && canViewModule(user, "projects")) moduleItems.push({ key: "projects", label: sidebarTranslations.items.projects, icon: FaFileLines });
-  if (user && canViewModule(user, "documents")) moduleItems.push({ key: "documents", label: sidebarTranslations.items.documents, icon: FaFolderOpen });
+  const moduleItems: Array<{ key: SidebarItem; label: string; icon?: IconType; moduleName: string }> = [];
+  if (user && canViewModule(user, "dashboard")) moduleItems.push({ key: "dashboard", label: sidebarTranslations.items.dashboard, icon: FaTableCellsLarge, moduleName: "dashboard" });
+  if (user && canViewModule(user, "projects")) moduleItems.push({ key: "projects", label: sidebarTranslations.items.projects, icon: FaFileLines, moduleName: "projects" });
+  if (user && canViewModule(user, "documents")) moduleItems.push({ key: "documents", label: sidebarTranslations.items.documents, icon: FaFolderOpen, moduleName: "documents" });
   const settingsModules: Array<[string, SidebarItem, IconType]> = [
     ["users", "settings-user", FaUser], ["roles", "settings-roles", FaShieldHalved],
     ["departments", "settings-departments", FaBuilding], ["permissions", "settings-permissions", FaKey],
@@ -203,19 +205,20 @@ export default function Sidebar({
   for (const [module, key, icon] of settingsModules) {
     if (!user || !canViewModule(user, module)) continue;
     const localizedLabel = sidebarTranslations.items?.[module as keyof typeof sidebarTranslations.items] ?? sidebarTranslations[module as keyof typeof sidebarTranslations];
-    moduleItems.push({ key, label: typeof localizedLabel === "string" ? localizedLabel : module, icon });
+    moduleItems.push({ key, label: typeof localizedLabel === "string" ? localizedLabel : module, icon, moduleName: module });
   }
 
   const mainItems = moduleItems.filter((item) =>
     ["dashboard", "projects", "documents"].includes(item.key),
   );
-  const accessItems = moduleItems.filter((item) => sidebarModuleKeys.has(item.key));
-  const companiesIndex = accessItems.findIndex((item) => item.key === "settings-companies");
-  const modulesIndex = accessItems.findIndex((item) => item.key === "settings-modules");
-  if (companiesIndex !== -1 && modulesIndex !== -1 && companiesIndex !== modulesIndex + 1) {
-    const [companiesItem] = accessItems.splice(companiesIndex, 1);
-    accessItems.splice(accessItems.findIndex((item) => item.key === "settings-modules") + 1, 0, companiesItem);
-  }
+  const accessItems = moduleItems
+    .filter((item) => sidebarModuleKeys.has(item.key))
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => (
+      (configuredModuleIcons[left.item.moduleName]?.sortOrder ?? left.index) -
+      (configuredModuleIcons[right.item.moduleName]?.sortOrder ?? right.index)
+    ) || left.index - right.index)
+    .map(({ item }) => item);
   const isHrDepartment = user?.department?.trim().toLowerCase() === "hr div.";
   const canViewUsers = Boolean(
     user &&
@@ -283,6 +286,37 @@ export default function Sidebar({
             if (item.key === 'projects') {
               return (
                 <div className="nav-group" key={item.key}>
+                  {(() => {
+                    const admin = user?.role.name.trim().toLowerCase() === "admin";
+                    const projectItems: Array<{ key: PageKey; label: string; moduleName: string; visible: boolean }> = [
+                      {
+                        key: "projects",
+                        label: "PM",
+                        moduleName: "projects",
+                        visible: Boolean(user && canViewModule(user, "projects") && (admin || user.departmentModules.includes("projects"))),
+                      },
+                      {
+                        key: "projects-cm",
+                        label: "CM",
+                        moduleName: "projects_cm",
+                        visible: Boolean(user && (admin || user.departmentModules.includes("projects_cm"))),
+                      },
+                      {
+                        key: "survey",
+                        label: "Survey",
+                        moduleName: "survey",
+                        visible: Boolean(user && (admin || user.departmentModules.includes("survey"))),
+                      },
+                    ];
+                    const visibleProjectItems = projectItems
+                      .filter((projectItem) => projectItem.visible)
+                      .map((projectItem, index) => ({ projectItem, index }))
+                      .sort((left, right) => (
+                        (configuredModuleIcons[left.projectItem.moduleName]?.sortOrder ?? left.index) -
+                        (configuredModuleIcons[right.projectItem.moduleName]?.sortOrder ?? right.index)
+                      ) || left.index - right.index)
+                      .map(({ projectItem }) => projectItem);
+                    return <>
                   <button
                     ref={projectsToggleRef}
                     className={`nav-item nav-button projects-toggle ${['projects', 'projects-cm', 'survey'].includes(activeItem) ? 'has-active-child' : ''}`}
@@ -297,29 +331,18 @@ export default function Sidebar({
                   {projectsOpen && (!collapsed || collapsedFlyout === "projects") && (
                     <div className="subnav" style={flyoutStyle}>
                       <strong className="subnav-title">{item.label}</strong>
-                      {canViewModule(user!, "projects") && user && (user.role.name.toLowerCase() === "admin" || user.departmentModules.includes("projects")) && <button
-                        className={`nav-item nav-button ${activeItem === 'projects' ? 'is-active' : ''}`}
-                        onClick={() => onNavigate?.('projects')}
+                      {visibleProjectItems.map(({ key, label, moduleName }) => <button
+                        key={key}
+                        className={`nav-item nav-button ${activeItem === key ? 'is-active' : ''}`}
+                        onClick={() => onNavigate?.(key)}
                       >
-                        <SidebarModuleIcon moduleName="projects" configuredIcons={configuredModuleIcons} />
-                        <span>PM</span>
-                      </button>}
-                      {user && (user.role.name.toLowerCase() === "admin" || user.departmentModules.includes("projects_cm")) && <button
-                        className={`nav-item nav-button ${activeItem === 'projects-cm' ? 'is-active' : ''}`}
-                        onClick={() => onNavigate?.('projects-cm')}
-                      >
-                        <SidebarModuleIcon moduleName="projects_cm" configuredIcons={configuredModuleIcons} />
-                        <span>CM</span>
-                      </button>}
-                      {user && (user.role.name.toLowerCase() === "admin" || user.departmentModules.includes("survey")) && <button
-                        className={`nav-item nav-button ${activeItem === 'survey' ? 'is-active' : ''}`}
-                        onClick={() => onNavigate?.('survey')}
-                      >
-                        <SidebarModuleIcon moduleName="survey" configuredIcons={configuredModuleIcons} />
-                        <span>Survey</span>
-                      </button>}
+                        <SidebarModuleIcon moduleName={moduleName} configuredIcons={configuredModuleIcons} />
+                        <span>{label}</span>
+                      </button>)}
                     </div>
                   )}
+                    </>;
+                  })()}
                 </div>
               );
             }
@@ -346,9 +369,16 @@ if (item.key === "documents") {
     "documents-notifications": "documents_notifications",
     "documents-payslips": "documents_payslips",
   };
-  const visibleDocumentItems = documentItems.filter((documentItem) => user && (
-    user.role.name.trim().toLowerCase() === "admin" || user.departmentModules.includes(documentModuleByPage[documentItem.key] ?? "")
-  ));
+  const visibleDocumentItems = documentItems
+    .filter((documentItem) => user && (
+      user.role.name.trim().toLowerCase() === "admin" || user.departmentModules.includes(documentModuleByPage[documentItem.key] ?? "")
+    ))
+    .map((documentItem, index) => ({ documentItem, index }))
+    .sort((left, right) => (
+      (configuredModuleIcons[left.documentItem.moduleName]?.sortOrder ?? left.index) -
+      (configuredModuleIcons[right.documentItem.moduleName]?.sortOrder ?? right.index)
+    ) || left.index - right.index)
+    .map(({ documentItem }) => documentItem);
 
   return (
     <div

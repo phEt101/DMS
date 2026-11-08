@@ -1,4 +1,5 @@
-import { type SyntheticEvent, useCallback, useEffect, useState } from "react";
+import { type DragEvent, type SyntheticEvent, useCallback, useEffect, useState } from "react";
+import { FaGripVertical } from "react-icons/fa6";
 import type { Translations } from "../../../../../locales";
 import { PaginationFooter } from "../../../../../components/pagination-footer";
 import { useErrorToast } from "../../../../../components/toast-provider";
@@ -8,10 +9,12 @@ import {
   createPermissionModule,
   deletePermissionModule,
   listPermissionModules,
+  reorderPermissionModules,
   updatePermissionModule,
   type PermissionModule,
   type PermissionModuleInput,
 } from "../services/modules.service";
+import { moduleLabels, permissionModuleGroupDefinitions } from "../module-groups";
 import { getModuleIcon, moduleIconComponents, moduleIconOptions } from "../module-icons";
 
 const emptyForm: PermissionModuleInput = {
@@ -38,8 +41,13 @@ export function ModulesSection({ translations }: { translations: Translations })
   const [statusFilter, setStatusFilter] = useState("all");
   useErrorToast(error);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(50);
+  const [displayOrderOpen, setDisplayOrderOpen] = useState(false);
+  const [displaySearch, setDisplaySearch] = useState("");
+  const [draggedModuleId, setDraggedModuleId] = useState<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ moduleId: number; position: "before" | "after" } | null>(null);
   const normalizedSearch = search.trim().toLocaleLowerCase();
+  const modulePositions = new Map(modules.map((module, index) => [module.id, index + 1]));
   const filteredModules = modules.filter((module) => {
     const displayName = settingsTranslations.permissionModules[module.name as keyof typeof settingsTranslations.permissionModules] ?? module.name;
     const matchesSearch = !normalizedSearch || module.name.toLocaleLowerCase().includes(normalizedSearch) || displayName.toLocaleLowerCase().includes(normalizedSearch);
@@ -48,6 +56,31 @@ export function ModulesSection({ translations }: { translations: Translations })
   });
   const totalPages = Math.max(Math.ceil(filteredModules.length / pageSize), 1);
   const visibleModules = filteredModules.slice((page - 1) * pageSize, page * pageSize);
+  const moduleDisplayName = (module: PermissionModule) =>
+    settingsTranslations.permissionModules[module.name as keyof typeof settingsTranslations.permissionModules] ?? moduleLabels[module.name] ?? module.name;
+  const knownModuleNames = new Set(permissionModuleGroupDefinitions.flatMap((group) => group.keys));
+  const ungroupedModules = modules.filter((module) => !knownModuleNames.has(module.name));
+  const displayGroups: Array<{ label: string; keys: readonly string[] }> = [
+    ...permissionModuleGroupDefinitions.map((group) => ({
+      label: settingsTranslations[group.labelKey],
+      keys: group.keys,
+    })),
+    ...(ungroupedModules.length
+      ? [{ label: settingsTranslations.otherModules, keys: ungroupedModules.map((module) => module.name) }]
+      : []),
+  ];
+  const normalizedDisplaySearch = displaySearch.trim().toLocaleLowerCase();
+  const visibleDisplayGroups = displayGroups.flatMap((group) => {
+    const groupModules = modules.filter((module) => group.keys.includes(module.name));
+    const matchingModules = groupModules.filter((module) => {
+      const name = moduleDisplayName(module).toLocaleLowerCase();
+      return !normalizedDisplaySearch ||
+        name.includes(normalizedDisplaySearch) ||
+        module.name.toLocaleLowerCase().includes(normalizedDisplaySearch);
+    });
+    return matchingModules.length ? [{ group, modules: matchingModules }] : [];
+  });
+  const visibleDisplayModuleCount = visibleDisplayGroups.reduce((count, group) => count + group.modules.length, 0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,7 +116,10 @@ export function ModulesSection({ translations }: { translations: Translations })
             sortOrder: module.sortOrder,
             isActive: Boolean(module.isActive),
           }
-        : emptyForm,
+        : {
+            ...emptyForm,
+            sortOrder: modules.reduce((highest, candidate) => Math.max(highest, candidate.sortOrder), 0) + 10,
+          },
     );
     setError("");
     setOpen(true);
@@ -94,9 +130,68 @@ export function ModulesSection({ translations }: { translations: Translations })
     setSaving(true);
     setError("");
     try {
-      if (editing) await updatePermissionModule(editing.id, form);
+      if (editing) {
+        await updatePermissionModule(editing.id, {
+          name: form.name,
+          iconName: form.iconName,
+          isActive: form.isActive,
+        });
+      }
       else await createPermissionModule(form);
       setOpen(false);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function getDropPosition(event: DragEvent<HTMLElement>): "before" | "after" {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
+  }
+
+  function handleModuleDragStart(event: DragEvent<HTMLElement>, moduleId: number) {
+    if (!canEdit || loading || saving) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(moduleId));
+    setDraggedModuleId(moduleId);
+  }
+
+  function handleModuleDragOver(event: DragEvent<HTMLElement>, moduleId: number) {
+    if (!canEdit || draggedModuleId === null || draggedModuleId === moduleId || saving) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const position = getDropPosition(event);
+    setDropTarget((current) => current?.moduleId === moduleId && current.position === position
+      ? current
+      : { moduleId, position });
+  }
+
+  async function handleModuleDrop(event: DragEvent<HTMLElement>, targetModuleId: number) {
+    event.preventDefault();
+    const sourceModuleId = Number(event.dataTransfer.getData("text/plain")) || draggedModuleId;
+    const position = getDropPosition(event);
+    setDraggedModuleId(null);
+    setDropTarget(null);
+    if (sourceModuleId === null || sourceModuleId === targetModuleId || !canEdit || saving) return;
+    const sourceIndex = modules.findIndex((module) => module.id === sourceModuleId);
+    if (sourceIndex < 0) return;
+    const nextOrder = [...modules];
+    const [module] = nextOrder.splice(sourceIndex, 1);
+    if (!module) return;
+    const targetIndex = nextOrder.findIndex((candidate) => candidate.id === targetModuleId);
+    if (targetIndex < 0) return;
+    nextOrder.splice(targetIndex + (position === "after" ? 1 : 0), 0, module);
+    if (nextOrder.every((candidate, index) => candidate.id === modules[index]?.id)) return;
+    setSaving(true);
+    setError("");
+    try {
+      await reorderPermissionModules(nextOrder.map((candidate) => candidate.id));
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
@@ -121,14 +216,28 @@ export function ModulesSection({ translations }: { translations: Translations })
         <div>
           <h1>{settingsTranslations.moduleManagement}</h1>
           <p>{settingsTranslations.moduleHelp}</p>
+          {canEdit && <p className="module-order-help">{settingsTranslations.moduleOrderHelp}</p>}
         </div>
-        {canCreate && <button
-          className="primary-button"
-          type="button"
-          onClick={() => showForm()}
-        >
-          {settingsTranslations.addModule}
-        </button>}
+        {(canCreate || canEdit) && <div className="management-header-actions">
+          {canEdit && <button
+            className="secondary-button"
+            type="button"
+            disabled={loading || saving}
+            onClick={() => {
+              setDisplaySearch("");
+              setDisplayOrderOpen(true);
+            }}
+          >
+            {settingsTranslations.manageModuleDisplay}
+          </button>}
+          {canCreate && <button
+            className="primary-button"
+            type="button"
+            onClick={() => showForm()}
+          >
+            {settingsTranslations.addModule}
+          </button>}
+        </div>}
       </header>
       <div className="users-toolbar">
         <input
@@ -172,12 +281,19 @@ export function ModulesSection({ translations }: { translations: Translations })
             ) : (
               visibleModules.map((module) => {
                 const ModuleIcon = getModuleIcon(module.iconName);
-                return <tr key={module.id}>
-                  <td data-label={settingsTranslations.name}>
+                const moduleName = moduleDisplayName(module);
+                return <tr
+                  key={module.id}
+                >
+                  <td
+                    data-label={settingsTranslations.name}
+                  >
                     <ModuleIcon className="module-list-icon" aria-hidden="true" />
-                    <strong>{settingsTranslations.permissionModules[module.name as keyof typeof settingsTranslations.permissionModules] ?? module.name}</strong>
+                    <strong>{moduleName}</strong>
                   </td>
-                  <td data-label={settingsTranslations.sortOrder}>{module.sortOrder}</td>
+                  <td data-label={settingsTranslations.sortOrder}>
+                    {modulePositions.get(module.id) ?? 0}
+                  </td>
                   <td data-label={settingsTranslations.permissionsCount}>
                     {module.permissionCount}
                   </td>
@@ -255,21 +371,6 @@ export function ModulesSection({ translations }: { translations: Translations })
                     }
                   />
                 </label>
-                <label>
-                  {settingsTranslations.sortOrder}
-                  <input
-                    required
-                    min={0}
-                    type="number"
-                    value={form.sortOrder}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        sortOrder: Number(event.target.value),
-                      })
-                    }
-                  />
-                </label>
               </div>
               <fieldset className="module-icon-picker">
                 <legend>{settingsTranslations.iconName}</legend>
@@ -326,6 +427,96 @@ export function ModulesSection({ translations }: { translations: Translations })
                 </button>
               </footer>
             </form>
+          </section>
+        </div>
+      )}
+      {displayOrderOpen && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setDisplayOrderOpen(false);
+          }}
+        >
+          <section className="user-modal department-modal module-display-modal" role="dialog" aria-modal="true">
+            <header>
+              <div>
+                <h2>{settingsTranslations.manageModuleDisplay}</h2>
+                <p className="module-display-subtitle">{settingsTranslations.moduleDisplayOverviewHelp}</p>
+              </div>
+              <button
+                className="modal-close"
+                type="button"
+                aria-label={settingsTranslations.closeModuleDisplay}
+                onClick={() => setDisplayOrderOpen(false)}
+              >
+                ×
+              </button>
+            </header>
+            <div className="module-display-content">
+              <div className="module-display-toolbar">
+                <input
+                  type="search"
+                  aria-label={settingsTranslations.moduleSearchPlaceholder}
+                  placeholder={settingsTranslations.moduleSearchPlaceholder}
+                  value={displaySearch}
+                  onChange={(event) => setDisplaySearch(event.target.value)}
+                />
+                <span>{visibleDisplayModuleCount}/{modules.length} {settingsTranslations.module}</span>
+              </div>
+              <div className="role-permission-picker-grid module-display-grid">
+                {visibleDisplayGroups.map(({ group, modules: groupModules }) => (
+                  <section className="role-permission-picker-module" key={group.label}>
+                    <div className="permission-picker-module-header module-display-group-header">
+                      <h3>{group.label}</h3>
+                      <small>{groupModules.length}</small>
+                    </div>
+                    {groupModules.map((module) => {
+                      const ModuleIcon = getModuleIcon(module.iconName);
+                      return <div
+                        key={module.id}
+                        className={`module-display-row ${
+                          draggedModuleId === module.id
+                            ? "module-row-dragging"
+                            : dropTarget?.moduleId === module.id
+                              ? `module-row-drop-${dropTarget.position}`
+                              : ""
+                        }`}
+                        onDragOver={(event) => handleModuleDragOver(event, module.id)}
+                        onDrop={(event) => void handleModuleDrop(event, module.id)}
+                      >
+                        <div className="module-display-option">
+                          <div
+                            className="module-display-drag-handle"
+                            draggable={canEdit && !loading && !saving}
+                            title={settingsTranslations.dragMenuToReorder}
+                            onDragStart={(event) => handleModuleDragStart(event, module.id)}
+                            onDragEnd={() => {
+                              setDraggedModuleId(null);
+                              setDropTarget(null);
+                            }}
+                          >
+                            <FaGripVertical className="module-display-grip" aria-hidden="true" />
+                            <ModuleIcon aria-hidden="true" />
+                            <span>{moduleDisplayName(module)}</span>
+                          </div>
+                          <span className="module-display-order">{modulePositions.get(module.id) ?? 0}</span>
+                          <span className={`status-pill ${module.isActive ? "is-active" : ""}`}>
+                            {module.isActive ? settingsTranslations.active : settingsTranslations.inactive}
+                          </span>
+                        </div>
+                      </div>;
+                    })}
+                  </section>
+                ))}
+                {visibleDisplayGroups.length === 0 && <p className="permission-search-empty">{settingsTranslations.noModules}</p>}
+              </div>
+              <footer className="module-display-footer">
+                <button className="secondary-button" type="button" onClick={() => setDisplayOrderOpen(false)}>
+                  {settingsTranslations.closeModuleDisplay}
+                </button>
+              </footer>
+            </div>
           </section>
         </div>
       )}

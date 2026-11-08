@@ -5,6 +5,13 @@
   background: #fff;
 }
 
+.documents-policy-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 .documents-policy-intro {
   display: flex;
   align-items: flex-start;

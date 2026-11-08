@@ -35,7 +35,7 @@ export interface LedgerEntry {
 
 const categories = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
 const formatDate = (value?: string, locale = 'th-TH') => value ? new Intl.DateTimeFormat(locale, { day:'numeric', month:'short', year:'2-digit' }).format(new Date(`${value}T00:00:00`)) : ''
-export function LeaveLedger({ person, people, entries, onPersonChange, companyName, hoursPerDay = 8, policyYear, policyYearEnd, policyYears, onPolicyYearChange, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; companyName?: string; hoursPerDay?: number; policyYear: number; policyYearEnd: string; policyYears: Array<{ year: number; yearStart: string; yearEnd: string }>; onPolicyYearChange: (year: number) => void; copy: any }) {
+export function LeaveLedger({ person, people, entries, onPersonChange, companyName, hoursPerDay = 8, policyYear, policyYearEnd, policyYears, onPolicyYearChange, canExport, copy: c }: { person: LedgerPerson; people: LedgerPerson[]; entries: LedgerEntry[]; onPersonChange: (id: string) => void; companyName?: string; hoursPerDay?: number; policyYear: number; policyYearEnd: string; policyYears: Array<{ year: number; yearStart: string; yearEnd: string }>; onPolicyYearChange: (year: number) => void; canExport: boolean; copy: any }) {
   const labels: Record<(typeof categories)[number], string> = { personal:c.ledger.personal, sick:c.ledger.sick, vacation:c.ledger.vacation, unpaid:c.leaveTypes.unpaid, other:c.leaveTypes.other }
   const locale = c.dateLocale
   const displayYear = (year: number) => new Intl.DateTimeFormat(locale, { year: 'numeric' }).format(new Date(year, 0, 1))
@@ -102,12 +102,12 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
           {policyYears.map((item) => <option key={item.year} value={item.year}>{policyLabel(item)}</option>)}
         </select>
       </label>}
-      <div className="leave-export-group">
+      {canExport && <div className="leave-export-group">
         <button type="button" className="leave-export-btn is-excel" disabled={exporting} onClick={() => setConfirmExport('excel')}>{c.ledger.exportExcel}</button>
         <button type="button" className="leave-export-btn is-word" disabled={exporting} onClick={() => setConfirmExport('word')}>{c.ledger.word}</button>
         <button type="button" className="leave-export-btn is-pdf" disabled={exporting} onClick={() => setConfirmExport('pdf')}>{c.ledger.pdf}</button>
         <button type="button" className="leave-export-btn is-print" disabled={exporting} onClick={() => window.print()}>{c.ledger.print}</button>
-      </div>
+      </div>}
     </div>
     <div className="leave-sheet-scroll"><article className="leave-sheet">
       <h2>{companyName || c.ledger.companyName}</h2>
@@ -146,7 +146,7 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
         <strong className="leave-expiry">{c.ledger.expiryNote} {formatExpiryDate(policyYearEnd)}</strong>
       </div>
     </article></div>
-    <ConfirmDialog
+    {canExport && <ConfirmDialog
       open={confirmExport !== null}
       title={c.ledger.exportConfirmTitle}
       description={confirmDescription}
@@ -154,6 +154,6 @@ export function LeaveLedger({ person, people, entries, onPersonChange, companyNa
       cancelLabel={c.messages.cancel}
       onOpenChange={(open) => { if (!open) setConfirmExport(null) }}
       onConfirm={() => { void runExport() }}
-    />
+    />}
   </div>
 }

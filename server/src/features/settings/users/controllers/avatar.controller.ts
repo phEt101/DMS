@@ -67,12 +67,15 @@ async function currentAvatarPath(id: number | string): Promise<string | null> {
   return rows[0]?.avatar_path ?? null;
 }
 
-// ตรวจสิทธิ์เปลี่ยนรูป: ตัวเอง / admin / มีสิทธิ์ "แก้ไขผู้ใช้งาน" / แผนกเข้าถึงโมดูล users หรือ documents_employees
+// ตรวจสิทธิ์เปลี่ยนรูป: ตัวเอง / admin / สิทธิ์แก้ไขของโมดูลที่เปิดให้ผู้ใช้
 function canManageAvatar(user: { id?: number; role?: { name?: string }; permissions?: Array<{ name: string }>; departmentModules?: string[] }, id: string): boolean {
   if (user?.id !== undefined && String(user.id) === id) return true;
   if (user?.role?.name?.trim().toLowerCase() === "admin") return true;
-  if (user?.permissions?.some((permission) => permission.name === "แก้ไขผู้ใช้งาน")) return true;
-  return user?.departmentModules?.some((moduleName) => moduleName === "users" || moduleName === "documents_employees") ?? false;
+  const hasPermission = (name: string) => user?.permissions?.some((permission) => permission.name === name) ?? false;
+  return Boolean(
+    (user?.departmentModules?.includes("documents_employees") && hasPermission("แก้ไขข้อมูลพนักงาน"))
+    || (user?.departmentModules?.includes("users") && hasPermission("แก้ไขผู้ใช้งาน")),
+  );
 }
 
 // อัปโหลด/เปลี่ยนรูปโปรไฟล์ของผู้ใช้ (multipart/form-data field: avatar)

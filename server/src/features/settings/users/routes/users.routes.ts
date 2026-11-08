@@ -9,16 +9,15 @@ import {
   store,
 } from "../controllers/users.controller.js";
 
-// เขียนข้อมูลพนักงาน (สร้าง/แก้ไข/ลบ):
-//  - แผนกที่เข้าถึงโมดูล "users" → ต้องมีสิทธิ์เฉพาะ (สร้าง/แก้ไข/ลบผู้ใช้งาน) ด้วย
-//  - แผนกที่เข้าถึงโมดูล "documents_employees" (เช่น HR Div. จากหน้าจัดการแผนก) → จัดการพนักงานผ่านหน้าจอพนักงานได้เลย
-function requireEmployeeWrite(permissionName: string): RequestHandler {
+// เขียนข้อมูลพนักงาน: หน้าจอ users ใช้สิทธิ์เดิม ส่วนหน้าจอเอกสารใช้สิทธิ์แยกตามการกระทำ
+function requireEmployeeWrite(permissionName: string, documentPermissionName = permissionName): RequestHandler {
   return (req, _res, next) => {
     const user = req.user;
     if (!user) throw httpError(401, "Authentication required");
     if (user.role.name.trim().toLowerCase() === "admin") return next();
-    if (user.departmentModules.includes("documents_employees")) return next();
-    if (user.departmentModules.includes("users") && user.permissions.some((permission) => permission.name === permissionName)) return next();
+    const hasPermission = (name: string) => user.permissions.some((permission) => permission.name === name);
+    if (user.departmentModules.includes("documents_employees") && hasPermission(documentPermissionName)) return next();
+    if (user.departmentModules.includes("users") && hasPermission(permissionName)) return next();
     throw httpError(403, "ไม่มีสิทธิ์ดำเนินการนี้");
   };
 }
@@ -43,6 +42,6 @@ export const usersRouter = Router();
 usersRouter.use(requireAnyDepartmentModule("users", "documents_employees"));
 usersRouter.get("/", asyncHandler(index));
 usersRouter.get("/:id", asyncHandler(show));
-usersRouter.post("/", requireEmployeeWrite("สร้างผู้ใช้งาน"), requireAdminForAdminRole, asyncHandler(store));
-usersRouter.patch("/:id", requireEmployeeWrite("แก้ไขผู้ใช้งาน"), requireAdminForAdminRole, asyncHandler(patch));
+usersRouter.post("/", requireEmployeeWrite("สร้างผู้ใช้งาน", "เพิ่มข้อมูลพนักงาน"), requireAdminForAdminRole, asyncHandler(store));
+usersRouter.patch("/:id", requireEmployeeWrite("แก้ไขผู้ใช้งาน", "แก้ไขข้อมูลพนักงาน"), requireAdminForAdminRole, asyncHandler(patch));
 usersRouter.delete("/:id", requireEmployeeWrite("ลบผู้ใช้งาน"), asyncHandler(destroy));
