@@ -1,6 +1,6 @@
 import { Fragment, useRef, type FormEvent } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
-import { addDays, format, getDay, isAfter, isBefore, parseISO, startOfDay } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, getDay, isBefore, parseISO, startOfDay } from 'date-fns'
 import { enUS, th } from 'date-fns/locale'
 import type { IconType } from 'react-icons'
 import type { DocKind, FormValues } from '../../document-types'
@@ -18,6 +18,11 @@ const EXTRA_GAP = 0
 function addCalendarDaysAfter(date: string, days: number) {
   return addDays(parseISO(date), days)
 }
+const SPECIAL_LEAVE_HINTS: Record<string, string> = {
+  ordain: 'ordinationHint',
+  compassionate_employee_family: 'compassionateEmployeeFamilyHint',
+  compassionate_spouse_parent: 'compassionateSpouseParentHint',
+}
 // TODO: เปิดขั้นพัฒนาเมื่อพร้อมใช้งาน — ot: ขอทำงานล่วงเวลา (OT), timefix: ขอแก้ไขเวลาเข้า–ออกงาน
 const HIDDEN_KINDS: DocKind[] = ['ot', 'timefix']
 type Field = { key: string; label: string; type: 'text' | 'date' | 'time' | 'number' | 'textarea' | 'select' | 'checkbox'; options?: Record<string, string>; step?: number; wide?: boolean; hint?: string }
@@ -32,9 +37,10 @@ const CHECK_FIELD: Record<string, string> = {
   otDate: 'date', pastDate: 'date', fixLimit: 'date',
   taskRequired: 'task', placeRequired: 'place', planRequired: 'plan',
   outTimeRequired: 'outTime', timeRequired: 'inTime', companyRequired: 'company', addressRequired: 'address',
-  workDetailsRequired: 'workDetails', phoneInvalid: 'phone', certificateRequired: 'cert',
+  projectRequired: 'project', customerNameRequired: 'customerName', phoneRequired: 'phone',
+  workDetailsRequired: 'workDetails', phoneInvalid: 'phone', specialLeaveLimit: 'from', certificateRequired: 'cert',
 }
-type Props = { open: boolean; selectedKind: DocKind | ''; kindInfo: Record<DocKind, { title: string; description: string; icon: IconType }>; fields: Record<DocKind, Field[]>; values: FormValues; checks: Check[]; validating: boolean; today: string; leadPersonal: number; leadVacation: number; fixDays: number; language: 'th' | 'en'; role: string; medicalCertificateFile: File | null; certificateRequired: boolean; onMedicalCertificateFile: (file: File | null) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; onClearKind: () => void; onPickKind: (kind: DocKind) => void; onChange: (key: string, value: string | boolean) => void; copy: any; translations: any }
+type Props = { open: boolean; selectedKind: DocKind | ''; kindInfo: Record<DocKind, { title: string; description: string; icon: IconType }>; fields: Record<DocKind, Field[]>; values: FormValues; checks: Check[]; validating: boolean; today: string; leadPersonal: number; leadVacation: number; fixDays: number; ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number; compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number; language: 'th' | 'en'; role: string; medicalCertificateFile: File | null; certificateRequired: boolean; onMedicalCertificateFile: (file: File | null) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; onClearKind: () => void; onPickKind: (kind: DocKind) => void; onChange: (key: string, value: string | boolean) => void; copy: any; translations: any }
 
 export default function DocNewDocumentModal(p: Props) {
   const formRef = useRef<HTMLFormElement>(null)
@@ -75,14 +81,22 @@ export default function DocNewDocumentModal(p: Props) {
     <h2 className="dms-modal-title">{p.selectedKind ? p.kindInfo[p.selectedKind].title : p.copy.submission.title}</h2><p className="dms-modal-subtitle">{p.selectedKind ? p.copy.submission.instructions : p.copy.submission.intro}</p><button type="button" className="modal-close" aria-label={p.copy.detail.close} onClick={p.onClose}>×</button>
     <div className="dms-create-doc-body documents-submission-body">{!p.selectedKind ? <div className="documents-kind-grid">{(Object.keys(p.kindInfo) as DocKind[]).filter(kind => !HIDDEN_KINDS.includes(kind)).map(kind => { const info = p.kindInfo[kind]; const Icon = info.icon; const merged = kind === 'outing'; return <button type="button" key={kind} onClick={() => p.onPickKind(kind)}><span className="documents-icon"><Icon /></span><span><b>{info.title}</b><small>{merged ? p.copy.submission.offsiteDescription : info.description}</small></span></button> })}</div> : <>
       <button type="button" className="dms-back-btn documents-form-back" onClick={p.onClearKind}>{p.copy.submission.changeKind}</button>
+      {p.selectedKind === 'leave' && SPECIAL_LEAVE_HINTS[String(p.values.leaveType)] && <p className="documents-policy-note">
+        {String(p.copy.submission[SPECIAL_LEAVE_HINTS[String(p.values.leaveType)]]).replace('{max}', String(p.values.leaveType === 'ordain' ? p.ordainMaxDays : p.values.leaveType === 'compassionate_employee_family' ? p.compassionateEmployeeMaxDays : p.compassionateSpouseParentMaxDays)).replace('{paid}', String(p.values.leaveType === 'compassionate_employee_family' ? p.compassionateEmployeePaidDays : p.compassionateSpouseParentPaidDays))}
+        {p.values.from && p.values.to && String(p.values.to) >= String(p.values.from)
+          ? ` ${p.language === 'th' ? `เลือกแล้ว ${differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} วัน` : `${differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} days selected`}`
+          : ''}
+      </p>}
       {p.selectedKind === 'timefix' && p.fixDays > 0 && <p className="documents-policy-note">{p.copy.policy?.fixDaysNote?.replace('{days}', String(p.fixDays)) ?? (p.language === 'th' ? `นโยบายการลา: แก้ไขเวลาย้อนหลังได้ไม่เกิน ${p.fixDays} วัน` : `Leave policy: time corrections are allowed up to ${p.fixDays} days back`)}</p>}
       <div className="documents-form-fields">{p.fields[p.selectedKind].map(field => {
         const value = p.values[field.key] ?? (field.type === 'checkbox' ? false : '')
         const emergency = p.selectedKind === 'leave' && p.values.leaveType === 'emergency'
         const hourly = emergency && p.values.byHour === true
+        const calendarLeave = p.selectedKind === 'leave' && Boolean(SPECIAL_LEAVE_HINTS[String(p.values.leaveType)])
         if (field.key === 'byHour' && (!emergency || p.values.hours)) return null
         if (field.key === 'cert') return null
         if (field.key === 'days') return null
+        if (field.key === 'hours' && calendarLeave) return null
         if (p.selectedKind === 'leave' && ['start', 'end'].includes(field.key) && !hourly) return null
 
         const hint = field.hint
@@ -105,18 +119,19 @@ export default function DocNewDocumentModal(p: Props) {
                 ? fromDate
                 : undefined
 
-        // ไฮไลในปฏิทิน: ช่อง "วันที่ลา" (from) และ "ถึงวันที่" (to) ของใบลา
-        // - แดง = วันหลังวันนี้ ที่นโยบายยังไม่ให้เลือก (ก่อนวันแรกที่เลือกได้)
+        // ไฮไลต์วันติดกันตามนโยบายเฉพาะวันลาพักร้อน โดยเริ่มนับจากวันนี้
+        // - แดง = ตั้งแต่วันนี้จนถึงก่อนวันแรกที่นโยบายอนุญาตให้เลือก
         // - เทา = เสาร์-อาทิตย์
         const isLeaveDateField = isLeave && (field.key === 'from' || field.key === 'to')
+        const isVacationDateField = vacation && (field.key === 'from' || field.key === 'to')
         const dayClassName = field.type === 'date' ? (date: Date) => {
           const d = startOfDay(date)
           const dow = getDay(d)
-          const inBlocked = Boolean(isLeaveDateField && policyMin && isAfter(d, todayStart) && isBefore(d, policyMin))
+          const inBlocked = Boolean(isVacationDateField && policyMin && !isBefore(d, todayStart) && isBefore(d, policyMin))
           if (inBlocked && policyMin) {
-            // ช่วงห้ามเลือก (หลังวันนี้ → ก่อนวันแรกที่เลือกได้) ไฮไลเป็นแถบเดียวต่อกัน รวมเสาร์-อาทิตย์
+            // ช่วงห้ามเลือก (ตั้งแต่วันนี้ → ก่อนวันแรกที่เลือกได้) ไฮไลเป็นแถบเดียวต่อกัน รวมเสาร์-อาทิตย์
             // ปลายซ้าย/ขวาของแถบ: วันแรก/วันสุดท้ายของช่วง หรือต้น/ท้ายสัปดาห์ (อา./ส.) ให้มนเป็นแถบต่อสัปดาห์
-            const isFirst = !isAfter(addDays(d, -1), todayStart)
+            const isFirst = isBefore(addDays(d, -1), todayStart)
             const isLast = !isBefore(addDays(d, 1), policyMin)
             return [
               'documents-day-blocked',
@@ -128,16 +143,19 @@ export default function DocNewDocumentModal(p: Props) {
           return isLeaveDateField && (dow === 0 || dow === 6) ? 'documents-day-weekend' : ''
         } : undefined
 
+        const required = p.selectedKind === 'outing'
+          ? ['from', 'to', 'outTime', 'company', 'project', 'customerName', 'phone', 'workDetails'].includes(field.key)
+          : field.type !== 'checkbox'
+
         return <Fragment key={field.key}>{p.selectedKind === 'outing' && field.key === 'project' && <DocOutingLocationField values={p.values} onChange={p.onChange} translations={p.translations} />}<label className={`dms-form-field dms-submission-field ${field.wide ? 'dms-form-field--full' : ''} ${field.type === 'checkbox' ? 'is-checkbox' : ''}`} data-field={field.key}><span className="dms-form-label">
           {field.label}
-          {field.type !== 'checkbox' &&
-            !(p.selectedKind === 'outing' && field.key === 'remark') && (
+          {required && (
               <span className="dms-form-required" aria-hidden="true">
                 *
               </span>
             )}
         </span>
-          {field.type === 'textarea' ? <textarea className="dms-form-input dms-form-textarea" rows={3} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} /> : field.type === 'select' ? <select className="dms-form-input" value={String(value)} onChange={e => p.onChange(field.key, e.target.value)}>{Object.entries(field.options ?? {}).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : field.type === 'checkbox' ? <input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e => p.onChange(field.key, e.target.checked)} /> : field.type === 'date' ? <DatePicker className="dms-form-input" selected={String(value) ? parseISO(String(value)) : null} onChange={(date: Date | null) => p.onChange(field.key, date ? format(date, 'yyyy-MM-dd') : '')} dateFormat={p.language === 'th' ? 'd MMM yyyy' : 'MMM d, yyyy'} locale={p.language} minDate={minDate} dayClassName={dayClassName} openToDate={(vacation || personal) && field.key === 'from' && !value ? minDate : undefined} strictParsing placeholderText={p.copy.submission.hintDate} /> : <input className="dms-form-input" type={field.type} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' && field.key === 'hours' && p.selectedKind === 'leave' ? 0.5 : field.step} readOnly={field.key === 'hours' && p.selectedKind === 'ot' || field.key === 'days' && (p.selectedKind === 'leave' && hourly || p.selectedKind === 'ot')} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} />}{hint && <small className="dms-form-hint">{hint}</small>}</label></Fragment>
+          {field.type === 'textarea' ? <textarea className="dms-form-input dms-form-textarea" rows={3} required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} /> : field.type === 'select' ? <select className="dms-form-input" required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)}>{Object.entries(field.options ?? {}).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : field.type === 'checkbox' ? <input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e => p.onChange(field.key, e.target.checked)} /> : field.type === 'date' ? <DatePicker className="dms-form-input" required={required} selected={String(value) ? parseISO(String(value)) : null} onChange={(date: Date | null) => p.onChange(field.key, date ? format(date, 'yyyy-MM-dd') : '')} dateFormat={p.language === 'th' ? 'd MMM yyyy' : 'MMM d, yyyy'} locale={p.language} minDate={minDate} dayClassName={dayClassName} openToDate={(vacation || personal) && field.key === 'from' && !value ? minDate : undefined} strictParsing placeholderText={p.copy.submission.hintDate} /> : <input className="dms-form-input" type={field.type} required={required} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' && field.key === 'hours' && p.selectedKind === 'leave' ? 0.5 : field.step} readOnly={field.key === 'hours' && p.selectedKind === 'ot' || field.key === 'days' && (p.selectedKind === 'leave' && hourly || p.selectedKind === 'ot')} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} />}{hint && <small className="dms-form-hint">{hint}</small>}</label></Fragment>
       })}</div>
       {p.selectedKind === 'leave' && p.values.leaveType === 'sick' && <label className="dms-form-field dms-submission-field dms-form-field--full" data-field="cert">
         <span className="dms-form-label">{p.copy.submission.medicalCertificateLabel}{p.certificateRequired ? ' *' : ''}</span>

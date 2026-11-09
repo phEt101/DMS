@@ -1,4 +1,4 @@
-import type { MockDocument, FormValues, SignatureStage } from '../../document-types'
+import type { MockDocument, FormValues, MockPolicy, SignatureStage } from '../../document-types'
 import { medicalCertificateUrl } from '../../services/employee-requests.service'
 import { FaPenNib } from 'react-icons/fa6'
 import { useState } from 'react'
@@ -6,6 +6,7 @@ import { avatarSrc } from '../../../../services/avatar'
 
 type Props = {
   document: MockDocument
+  policy: MockPolicy
   detailValues: FormValues
   kindTitle: string
   statusLabel: string
@@ -56,7 +57,7 @@ type FlowSnap = { stages: FlowKey[]; recordAfterStage: string | null } | null
 const STAGE_OF: Record<FlowKey, SignatureStage> = { manager: 'ผู้จัดการแผนก', executive: 'ผู้ประกอบการ', hr: 'HR' }
 const ALL_STAGES = ['ผู้ยื่น', 'ผู้จัดการแผนก', 'ผู้ประกอบการ', 'HR'] as SignatureStage[]
 
-export default function DocAllDocumentsDetail({ document: doc, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, canViewMedicalCertificate, onClose, onSign, onReject, onCancel, copy: c }: Props) {
+export default function DocAllDocumentsDetail({ document: doc, policy, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, canViewMedicalCertificate, onClose, onSign, onReject, onCancel, copy: c }: Props) {
   const leaveNames: Record<string, string> = c.leaveTypes
   const statusStyle = doc.status === 'approved' ? 'is-done' : doc.status === 'rejected' ? 'is-cancelled' : 'is-submitted'
   const outingAddress = [detailValues.address, detailValues.subdistrict, detailValues.district, detailValues.province, detailValues.postalCode, detailValues.country].map((value) => String(value ?? '').trim()).filter(Boolean).join(' ')
@@ -109,6 +110,15 @@ export default function DocAllDocumentsDetail({ document: doc, detailValues, kin
           <DetailField label={c.fieldLabels.from} value={doc.from ? dateText(doc.from) : ''} />
           <DetailField label={c.fieldLabels.to} value={doc.to ? dateText(doc.to) : ''} />
           <DetailField label={c.fieldLabels.days} value={doc.days ? `${doc.days} ${c.ledger.day}` : ''} />
+          {['compassionate_employee_family', 'compassionate_spouse_parent'].includes(String(detailValues.leaveType ?? doc.leaveType ?? '')) && doc.days !== null && doc.days !== undefined && (() => {
+            const paidLimit = detailValues.leaveType === 'compassionate_spouse_parent' ? policy.compassionateSpouseParentPaidDays : policy.compassionateEmployeePaidDays
+            const paid = Math.min(Math.max(0, doc.days), paidLimit)
+            const unpaid = Math.max(0, doc.days - paid)
+            const breakdown = String(c.fieldLabels.paidDayBreakdown)
+              .replace('{paid}', String(paid))
+              .replace('{unpaid}', String(unpaid))
+            return <DetailField label={c.fieldLabels.paidDays} value={breakdown} />
+          })()}
           <DetailField label={c.fieldLabels.start} value={String(detailValues.start ?? '')} />
           <DetailField label={c.fieldLabels.end} value={String(detailValues.end ?? '')} />
           <DetailField label={c.fieldLabels.hours} value={String(detailValues.hours ?? '')} />

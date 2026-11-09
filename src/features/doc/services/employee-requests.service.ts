@@ -41,7 +41,13 @@ export type ApiSignature = { stage: 'submitter' | 'manager' | 'executive' | 'hr'
 export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean; flow?: { stages: Array<'manager' | 'executive' | 'hr'>; recordAfterStage: string | null } | null }
 export type ApiCheck = { ok: boolean; key: string; params?: Record<string, string | number> }
 export type ApiNotification = ApiListRow & { notificationId: number; event: string; isRead: boolean; createdAt: string }
-export type ApiPolicy = { id: number; year: number; yearStart: string; yearEnd: string; expiryDate: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number; certDays: number; otMax: number; fixDays: number }
+export type ApiPolicy = {
+  id: number; year: number; yearStart: string; yearEnd: string; expiryDate: string
+  leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number
+  certDays: number; otMax: number; fixDays: number; emergencyMaxDays: number
+  ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number
+  compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number
+}
 export type ApiPolicyYear = Pick<ApiPolicy, 'year' | 'yearStart' | 'yearEnd'>
 export type ApiPerson = { id: number; name: string; email: string; isActive: boolean; avatarUrl: string | null; departmentName: string | null; employeeCode: string | null; sick: number; personal: number; vacation: number; other: number; sickUsed: number | null; sickPending: number | null; personalUsed: number | null; personalPending: number | null; vacationUsed: number | null; vacationPending: number | null; startDate: string | null; appointedDate: string | null; emailNotificationsEnabled: boolean | null }
 

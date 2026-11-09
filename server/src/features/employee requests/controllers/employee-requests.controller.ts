@@ -198,9 +198,17 @@ const policyRow = (r: any): Policy & { expiryDate: string } => ({
   leadPersonal: Number(r.lead_days_personal), leadVacation: Number(r.lead_workdays_vacation),
   hoursPerDay: Number(r.hours_per_day), hourStep: Number(r.hour_step), certDays: Number(r.certificate_days),
   otMax: Number(r.ot_max_hours), fixDays: Number(r.timefix_max_days_back),
+  emergencyMaxDays: Number(r.emergency_max_days),
+  ordainMaxDays: Number(r.ordain_max_days),
+  compassionateEmployeeMaxDays: Number(r.compassionate_employee_max_days),
+  compassionateEmployeePaidDays: Number(r.compassionate_employee_paid_days),
+  compassionateSpouseParentMaxDays: Number(r.compassionate_spouse_parent_max_days),
+  compassionateSpouseParentPaidDays: Number(r.compassionate_spouse_parent_paid_days),
 })
 const POLICY_SELECT = `SELECT id, policy_year, DATE_FORMAT(year_start,'%Y-%m-%d') AS year_start, DATE_FORMAT(year_end,'%Y-%m-%d') AS year_end,
-  lead_days_personal, lead_workdays_vacation, hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back FROM leave_policies`
+  lead_days_personal, lead_workdays_vacation, hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back,
+  emergency_max_days, ordain_max_days, compassionate_employee_max_days, compassionate_employee_paid_days,
+  compassionate_spouse_parent_max_days, compassionate_spouse_parent_paid_days FROM leave_policies`
 
 async function loadPolicy(companyId: number, today: string) {
   const [rows] = await db.query<any[]>(
@@ -240,14 +248,28 @@ export async function updatePolicy(req: Request, res: Response) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(yearStart) || !/^\d{4}-\d{2}-\d{2}$/.test(yearEnd) || yearEnd < yearStart) throw httpError(400, 'ช่วงปีการลาไม่ถูกต้อง')
   const fields = {
     leadPersonal: num(b.leadPersonal), leadVacation: num(b.leadVacation), hoursPerDay: num(b.hoursPerDay), hourStep: num(b.hourStep),
-    certDays: num(b.certDays), otMax: num(b.otMax), fixDays: num(b.fixDays),
+    certDays: num(b.certDays), otMax: num(b.otMax), fixDays: num(b.fixDays), emergencyMaxDays: num(b.emergencyMaxDays),
+    ordainMaxDays: num(b.ordainMaxDays), compassionateEmployeeMaxDays: num(b.compassionateEmployeeMaxDays),
+    compassionateEmployeePaidDays: num(b.compassionateEmployeePaidDays),
+    compassionateSpouseParentMaxDays: num(b.compassionateSpouseParentMaxDays),
+    compassionateSpouseParentPaidDays: num(b.compassionateSpouseParentPaidDays),
   }
   if (Object.values(fields).some((value) => value === null || value < 0)) throw httpError(400, 'ค่านโยบายไม่ถูกต้อง')
+  if (fields.emergencyMaxDays! > 999.99) throw httpError(400, 'จำนวนวันลาพักร้อนฉุกเฉินสูงสุดต้องไม่เกิน 999.99 วัน')
+  const specialDayFields = [
+    fields.ordainMaxDays, fields.compassionateEmployeeMaxDays, fields.compassionateEmployeePaidDays,
+    fields.compassionateSpouseParentMaxDays, fields.compassionateSpouseParentPaidDays,
+  ]
+  if (specialDayFields.some((value) => value === null || !Number.isInteger(value) || value > 999)) throw httpError(400, 'จำนวนวันลาเฉพาะประเภทต้องเป็นจำนวนเต็มตั้งแต่ 0 ถึง 999 วัน')
+  if (fields.compassionateEmployeePaidDays! > fields.compassionateEmployeeMaxDays!) throw httpError(400, 'วันลาได้รับค่าจ้างต้องไม่เกินเพดานลาเมตตาจิตครอบครัวพนักงาน')
+  if (fields.compassionateSpouseParentPaidDays! > fields.compassionateSpouseParentMaxDays!) throw httpError(400, 'วันลาได้รับค่าจ้างต้องไม่เกินเพดานลาเมตตาจิตบิดามารดาคู่สมรส')
   if (fields.hoursPerDay! <= 0 || fields.hourStep! <= 0) throw httpError(400, 'ชั่วโมงต่อวันและหน่วยการลาต้องมากกว่า 0')
   const [previousRows] = await db.query<any[]>(
     `SELECT id, DATE_FORMAT(year_start, '%Y-%m-%d') AS year_start, DATE_FORMAT(year_end, '%Y-%m-%d') AS year_end,
        lead_days_personal, lead_workdays_vacation,
-       hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back
+       hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back, emergency_max_days,
+       ordain_max_days, compassionate_employee_max_days, compassionate_employee_paid_days,
+       compassionate_spouse_parent_max_days, compassionate_spouse_parent_paid_days
      FROM leave_policies WHERE company_id = ? AND policy_year = ? LIMIT 1`, [companyId, year],
   )
   const previous = previousRows[0]
@@ -261,17 +283,32 @@ export async function updatePolicy(req: Request, res: Response) {
     { field: 'certDays', from: previous ? Number(previous.certificate_days) : null, to: fields.certDays },
     { field: 'otMax', from: previous ? Number(previous.ot_max_hours) : null, to: fields.otMax },
     { field: 'fixDays', from: previous ? Number(previous.timefix_max_days_back) : null, to: fields.fixDays },
+    { field: 'emergencyMaxDays', from: previous ? Number(previous.emergency_max_days) : null, to: fields.emergencyMaxDays },
+    { field: 'ordainMaxDays', from: previous ? Number(previous.ordain_max_days) : null, to: fields.ordainMaxDays },
+    { field: 'compassionateEmployeeMaxDays', from: previous ? Number(previous.compassionate_employee_max_days) : null, to: fields.compassionateEmployeeMaxDays },
+    { field: 'compassionateEmployeePaidDays', from: previous ? Number(previous.compassionate_employee_paid_days) : null, to: fields.compassionateEmployeePaidDays },
+    { field: 'compassionateSpouseParentMaxDays', from: previous ? Number(previous.compassionate_spouse_parent_max_days) : null, to: fields.compassionateSpouseParentMaxDays },
+    { field: 'compassionateSpouseParentPaidDays', from: previous ? Number(previous.compassionate_spouse_parent_paid_days) : null, to: fields.compassionateSpouseParentPaidDays },
   ].filter((change) => change.from !== change.to)
   await db.execute(
     `INSERT INTO leave_policies (company_id, policy_year, year_start, year_end, lead_days_personal, lead_workdays_vacation,
-       hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back, emergency_max_days,
+       ordain_max_days, compassionate_employee_max_days, compassionate_employee_paid_days,
+       compassionate_spouse_parent_max_days, compassionate_spouse_parent_paid_days, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE year_start = VALUES(year_start), year_end = VALUES(year_end),
        lead_days_personal = VALUES(lead_days_personal), lead_workdays_vacation = VALUES(lead_workdays_vacation),
        hours_per_day = VALUES(hours_per_day), hour_step = VALUES(hour_step), certificate_days = VALUES(certificate_days),
-       ot_max_hours = VALUES(ot_max_hours), timefix_max_days_back = VALUES(timefix_max_days_back), updated_by = VALUES(updated_by)`,
+       ot_max_hours = VALUES(ot_max_hours), timefix_max_days_back = VALUES(timefix_max_days_back),
+       emergency_max_days = VALUES(emergency_max_days), ordain_max_days = VALUES(ordain_max_days),
+       compassionate_employee_max_days = VALUES(compassionate_employee_max_days),
+       compassionate_employee_paid_days = VALUES(compassionate_employee_paid_days),
+       compassionate_spouse_parent_max_days = VALUES(compassionate_spouse_parent_max_days),
+       compassionate_spouse_parent_paid_days = VALUES(compassionate_spouse_parent_paid_days), updated_by = VALUES(updated_by)`,
     [companyId, year, yearStart, yearEnd, fields.leadPersonal, fields.leadVacation, fields.hoursPerDay, fields.hourStep,
-      fields.certDays, fields.otMax, fields.fixDays, req.user!.id],
+      fields.certDays, fields.otMax, fields.fixDays, fields.emergencyMaxDays, fields.ordainMaxDays,
+      fields.compassionateEmployeeMaxDays, fields.compassionateEmployeePaidDays, fields.compassionateSpouseParentMaxDays,
+      fields.compassionateSpouseParentPaidDays, req.user!.id],
   )
   const [rows] = await db.query<any[]>(`${POLICY_SELECT} WHERE company_id = ? AND policy_year = ? LIMIT 1`, [companyId, year])
   if (policyChanges.length > 0) {
@@ -912,7 +949,7 @@ function headerFields(kind: Kind, v: Values) {
 async function buildContext(kind: Kind, v: Values, user: any, policy: Policy, today: string): Promise<ValidationContext> {
   const ctx: ValidationContext = {
     policy, today, entitlement: { sick: Number(user.sick), personal: Number(user.personal), vacation: Number(user.vacation) },
-    usedByBucket: {}, hasOverlap: false,
+    usedByBucket: {}, usedEmergency: 0, hasOverlap: false,
   }
   if (kind !== 'leave') return ctx
   const [typeRows] = await db.query<any[]>(`SELECT id, code, balance_bucket, allow_by_hour FROM leave_types WHERE code = ? AND is_active = 1 LIMIT 1`, [String(v.leaveType ?? '')])
@@ -923,6 +960,14 @@ async function buildContext(kind: Kind, v: Values, user: any, policy: Policy, to
       WHERE employee_user_id = ? AND start_date BETWEEN ? AND ? GROUP BY balance_bucket`, [user.id, policy.yearStart, policy.yearEnd],
   )
   for (const row of usage) ctx.usedByBucket[row.balance_bucket] = Number(row.used)
+  const [emergencyUsage] = await db.query<any[]>(
+    `SELECT COALESCE(SUM(used_reserved), 0) AS used
+       FROM v_leave_usage
+      WHERE employee_user_id = ? AND leave_type_code = 'emergency'
+        AND start_date BETWEEN ? AND ?`,
+    [user.id, policy.yearStart, policy.yearEnd],
+  )
+  ctx.usedEmergency = Number(emergencyUsage[0]?.used ?? 0)
   const from = String(v.from ?? ''), to = String(v.to ?? '')
   if (from && to && to >= from) {
     const [overlap] = await db.query<any[]>(

@@ -4,7 +4,9 @@ export type Values = Record<string, string | boolean>
 export type Policy = {
   id: number; year: number; yearStart: string; yearEnd: string
   leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number
-  certDays: number; otMax: number; fixDays: number
+  certDays: number; otMax: number; fixDays: number; emergencyMaxDays: number
+  ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number
+  compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number
 }
 export type LeaveTypeRow = { id: number; code: string; balanceBucket: 'sick' | 'personal' | 'vacation' | 'other' | 'none'; allowByHour: boolean }
 
@@ -14,6 +16,7 @@ export type ValidationContext = {
   leaveType?: LeaveTypeRow
   entitlement: { sick: number; personal: number; vacation: number }
   usedByBucket: Record<string, number> // รวมใบที่รออนุมัติ + อนุมัติแล้ว ภายในปีนโยบาย
+  usedEmergency: number // ลาพักร้อนฉุกเฉินที่อนุมัติหรือรออนุมัติแล้วในปีนโยบาย
   hasOverlap: boolean
 }
 
@@ -23,6 +26,7 @@ export type Check = { ok: boolean; key: string; params?: Record<string, string |
 const utc = (iso: string) => new Date(`${iso}T00:00:00Z`)
 const dow = (iso: string) => utc(iso).getUTCDay()
 export const diffDays = (a: string, b: string) => Math.round((utc(b).getTime() - utc(a).getTime()) / 86400000)
+const calendarDaysInclusive = (from: string, to: string) => from && to && to >= from ? diffDays(from, to) + 1 : 0
 export const weekdaysBetween = (from: string, to: string) => {
   if (!from || !to || to < from) return 0
   let count = 0
@@ -52,10 +56,19 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
 
   if (kind === 'leave') {
     const type = v('leaveType'), from = v('from'), to = v('to')
+    const calendarLimit = type === 'ordain' ? p.ordainMaxDays
+      : type === 'compassionate_employee_family' ? p.compassionateEmployeeMaxDays
+        : type === 'compassionate_spouse_parent' ? p.compassionateSpouseParentMaxDays
+          : null
     const isHour = Boolean(ctx.leaveType?.allowByHour) && (values.byHour === true || (!values.byHour && Number(values.hours ?? '') > 0))
     let qty = Number(v('days'))
     add(Boolean(from && to && to >= from), 'dateRange')
-    if (isHour) {
+    if (calendarLimit !== null) {
+      qty = calendarDaysInclusive(from, to)
+      values.days = String(qty || '')
+      values.hours = ''
+      values.byHour = false
+    } else if (isHour) {
       const start = minutes(v('start')), end = minutes(v('end')), hours = (end - start) / 60
       const typedHours = Number(v('hours'))
       if (start >= 0 && end > start) {
@@ -75,6 +88,9 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
     } else {
       values.byHour = false
       add(qty > 0, 'daysPositive')
+    }
+    if (calendarLimit !== null && from && to && to >= from) {
+      add(qty <= calendarLimit, 'specialLeaveLimit', { max: calendarLimit })
     }
     add(Boolean(v('reason')), type === 'emergency' ? 'emergencyReason' : 'leaveReason')
     if (from && to && to >= from) add(!ctx.hasOverlap, 'overlap')
@@ -97,8 +113,10 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
       add(qty <= left, 'leaveBalance', { type, remaining: Math.max(0, left), requested: qty || 0, hoursPerDay, isHour: isHour ? 1 : 0 })
     }
     if (type === 'emergency') {
+      const emergencyRemaining = Math.max(0, p.emergencyMaxDays - ctx.usedEmergency)
       add(remaining('personal') <= 0, 'usePersonalFirst', { days: Math.max(0, remaining('personal')), hoursPerDay, isHour: isHour ? 1 : 0 })
       add(qty <= remaining('vacation'), 'vacationBalance', { days: remaining('vacation'), hoursPerDay, isHour: isHour ? 1 : 0 })
+      add(qty <= emergencyRemaining, 'emergencyLimit', { days: emergencyRemaining, limit: p.emergencyMaxDays })
     }
     if (type === 'sick' && from && to && to >= from) {
       const span = diffDays(from, to) + 1
@@ -133,8 +151,11 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
     add(minutes(v('outTime')) >= 0, 'outTimeRequired')
     add(!v('backTime') || minutes(v('backTime')) > minutes(v('outTime')), 'backAfterOut')
     add(Boolean(v('company')), 'companyRequired')
+    add(Boolean(v('project')), 'projectRequired')
+    add(Boolean(v('customerName')), 'customerNameRequired')
     add(Boolean(v('address')), 'addressRequired')
     add(Boolean(v('workDetails')), 'workDetailsRequired')
+    add(Boolean(v('phone')), 'phoneRequired')
     add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8), 'phoneInvalid')
   }
 

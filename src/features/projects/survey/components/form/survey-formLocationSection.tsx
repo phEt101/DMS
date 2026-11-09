@@ -11,6 +11,7 @@ export default function LocationSection({
   sectionTitle,
   mapHeight,
   className,
+  requiredAddress = false,
 }: {
   locationValue: any
   updateLocation: (patch: Record<string, any>) => void
@@ -20,6 +21,7 @@ export default function LocationSection({
   sectionTitle?: string
   mapHeight?: number
   className?: string
+  requiredAddress?: boolean
 }) {
   const t = translations?.features?.survey ?? {}
   const { tempPos, confirmLocation } = picker
@@ -57,9 +59,9 @@ export default function LocationSection({
 
       {/* editable address fields */}
       <div style={{ marginTop: 12 }}>
-        <label className="dms-form-field">
-          <span className="dms-form-label">{t.form?.field?.address ?? 'Address'}</span>
-          <input className="dms-form-input" placeholder={t.form?.placeholder?.address ?? 'Address'} value={locationValue?.address ?? ''} onChange={(e) => updateLocation({ address: e.target.value })} />
+        <label className="dms-form-field" data-field="address">
+          <span className="dms-form-label">{t.form?.field?.address ?? 'Address'}{requiredAddress && <span className="dms-form-required" aria-hidden="true"> *</span>}</span>
+          <input className="dms-form-input" required={requiredAddress} placeholder={t.form?.placeholder?.address ?? 'Address'} value={locationValue?.address ?? ''} onChange={(e) => updateLocation({ address: e.target.value })} />
         </label>
 
         {/* Order: province -> district -> subdistrict -> postal code */}

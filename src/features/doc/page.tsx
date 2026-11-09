@@ -33,7 +33,12 @@ const USE_DB = true
 
 type View = 'all' | 'pending' | 'ledger' | 'employees' | 'policy' | 'flowRules' | 'notifications'
 type FormCheck = { ok: boolean; message: string; key?: string }
-const INITIAL_POLICY: MockPolicy = { year:2026, expiry:'25 พฤศจิกายน 2026', yearStart:'2025-11-26', yearEnd:'2026-11-25', leadPersonal:1, leadVacation:15, hoursPerDay:8, hourStep:1, certDays:3, otMax:4, fixDays:7 }
+const INITIAL_POLICY: MockPolicy = {
+  year:2026, expiry:'25 พฤศจิกายน 2026', yearStart:'2025-11-26', yearEnd:'2026-11-25',
+  leadPersonal:1, leadVacation:15, hoursPerDay:8, hourStep:1, certDays:3, otMax:4, fixDays:7, emergencyMaxDays:3,
+  ordainMaxDays:30, compassionateEmployeeMaxDays:6, compassionateEmployeePaidDays:4,
+  compassionateSpouseParentMaxDays:3, compassionateSpouseParentPaidDays:2,
+}
 
 const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; icon: typeof FaFileLines; group: 'leave' | 'ot' | 'other' }> = {
   leave: { title: 'ใบลา', description: 'ลาป่วย ลากิจ พักร้อน ลาคลอด และอื่น ๆ', icon: FaCalendarDays, group: 'leave' },
@@ -57,6 +62,14 @@ const daysBetween = (from: string, to: string) => {
   while (date <= end) { if (date.getDay() !== 0 && date.getDay() !== 6) count += 1; date.setDate(date.getDate() + 1) }
   return count
 }
+const calendarDaysBetween = (from: string, to: string) => {
+  if (!from || !to || to < from) return 0
+  return Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86400000) + 1
+}
+const calendarLeaveMax = (type: string, policy: MockPolicy) => type === 'ordain' ? policy.ordainMaxDays
+  : type === 'compassionate_employee_family' ? policy.compassionateEmployeeMaxDays
+    : type === 'compassionate_spouse_parent' ? policy.compassionateSpouseParentMaxDays
+      : null
 const todayInBangkok = () => {
   const parts = new Intl.DateTimeFormat('en', {
     timeZone: 'Asia/Bangkok',
@@ -81,7 +94,16 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     const type = v('leaveType'), from = v('from'), to = v('to'), isHour = type === 'emergency' && values.byHour === true
     let qty = Number(v('days'))
     add(Boolean(from && to && to >= from), msg('dateRange'))
-    if (isHour) {
+    const specialLeaveLimit = calendarLeaveMax(type, policy)
+    if (specialLeaveLimit !== null) {
+      qty = calendarDaysBetween(from, to)
+      values.days = String(qty || '')
+      values.hours = ''
+      values.byHour = false
+      if (from && to && to >= from) {
+        add(qty <= specialLeaveLimit, msg('specialLeaveLimit', { max: specialLeaveLimit }), 'specialLeaveLimit')
+      }
+    } else if (isHour) {
       const start = timeMinutes(v('start')), end = timeMinutes(v('end')), hours = (end - start) / 60
       if (start >= 0 && end > start) {
         // มีเวลาเริ่ม/สิ้นสุด → คำนวณจากช่วงเวลา (ไม่จำกัดชั่วโมงต่อวัน)
@@ -116,8 +138,20 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     if (type === 'emergency') {
       const personalRemaining = employee.personal - approvedUsage('personal')
       const vacationRemaining = employee.vacation - approvedUsage('vacation') - approvedUsage('emergency')
+      const emergencyUsed = docs
+        .filter((doc) => {
+          const date = doc.from ?? doc.date
+          return doc.kind === 'leave'
+            && doc.leaveType === 'emergency'
+            && doc.status !== 'rejected'
+            && doc.status !== 'cancelled'
+            && date >= policy.yearStart
+            && date <= policy.yearEnd
+        })
+        .reduce((sum, doc) => sum + (doc.days ?? 0), 0)
       add(personalRemaining <= 0, msg('usePersonalFirst', { days: Math.max(0, personalRemaining) }))
       add(qty <= vacationRemaining, msg('vacationBalance', { days: vacationRemaining }))
+      add(qty <= Math.max(0, policy.emergencyMaxDays - emergencyUsed), msg('emergencyLimit', { days: Math.max(0, policy.emergencyMaxDays - emergencyUsed), limit: policy.emergencyMaxDays }))
     }
     if (type === 'sick' && from && to && to >= from) {
       const a = new Date(`${from}T00:00:00`), b = new Date(`${to}T00:00:00`)
@@ -133,7 +167,7 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     values.hours = hours > 0 ? String(Math.round(hours*2)/2) : ''
   }
   if (kind === 'timefix') { add(Boolean(v('date') && v('date') < todayIso), msg('pastDate')); const ago = v('date') ? (today.getTime()-new Date(`${v('date')}T00:00:00`).getTime())/86400000 : Infinity; add(ago <= policy.fixDays, msg('fixLimit', { days: policy.fixDays })); add(Boolean(v('inTime') || v('outTime')), msg('timeRequired')); add(Boolean(v('reason')), msg('detailsRequired')) }
-  if (kind === 'outing') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), msg('dateRange')); const outingAgo = v('from') ? (today.getTime()-new Date(`${v('from')}T00:00:00`).getTime())/86400000 : Infinity; add((Boolean(v('from')) && v('from') >= todayIso) || outingAgo <= policy.fixDays, msg('outingRange', { days: policy.fixDays })); add(timeMinutes(v('outTime')) >= 0, msg('outTimeRequired')); add(!v('backTime') || timeMinutes(v('backTime')) > timeMinutes(v('outTime')), msg('backAfterOut')); add(Boolean(v('company')), msg('companyRequired')); add(Boolean(v('address')), msg('addressRequired')); add(Boolean(v('workDetails')), msg('workDetailsRequired')); add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8),  msg('phoneInvalid')) }
+  if (kind === 'outing') { add(Boolean(v('from') && v('to') && v('to') >= v('from')), msg('dateRange')); const outingAgo = v('from') ? (today.getTime()-new Date(`${v('from')}T00:00:00`).getTime())/86400000 : Infinity; add((Boolean(v('from')) && v('from') >= todayIso) || outingAgo <= policy.fixDays, msg('outingRange', { days: policy.fixDays })); add(timeMinutes(v('outTime')) >= 0, msg('outTimeRequired')); add(!v('backTime') || timeMinutes(v('backTime')) > timeMinutes(v('outTime')), msg('backAfterOut')); add(Boolean(v('company')), msg('companyRequired')); add(Boolean(v('project')), msg('projectRequired')); add(Boolean(v('customerName')), msg('customerNameRequired')); add(Boolean(v('address')), msg('addressRequired')); add(Boolean(v('workDetails')), msg('workDetailsRequired')); add(Boolean(v('phone')), msg('phoneRequired')); add(!v('phone') || (/^[0-9+()\s-]{8,50}$/.test(v('phone')) && v('phone').replace(/\D/g, '').length >= 8), msg('phoneInvalid')) }
   return checks
 }
 
@@ -260,7 +294,58 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const currentSubmitter = mockRole === 'พนักงาน' ? employees[0] : mockRole === 'ผู้จัดการแผนก' ? employees[1] : employees[3]
   const currentSubmitterName = USE_DB ? ((user as unknown as { name?: string } | null)?.name ?? '') : currentSubmitter.name
   const canCancel = mockRole === 'พนักงาน'
-  const formChecks = USE_DB ? serverChecks : selectedKind ? validateSubmission(selectedKind, { ...formValues }, documents, currentSubmitter, policy, copy) : []
+  const baseFormChecks = USE_DB ? serverChecks : selectedKind ? validateSubmission(selectedKind, { ...formValues }, documents, currentSubmitter, policy, copy) : []
+  const outingRequiredFields: Array<[string, string]> = [
+    ['from', 'validRange'],
+    ['to', 'validRange'],
+    ['outTime', 'outTimeRequired'],
+    ['company', 'companyRequired'],
+    ['project', 'projectRequired'],
+    ['customerName', 'customerNameRequired'],
+    ['address', 'addressRequired'],
+    ['workDetails', 'workDetailsRequired'],
+    ['phone', 'phoneRequired'],
+  ]
+  const outingRequiredChecks: FormCheck[] = selectedKind === 'outing'
+    ? outingRequiredFields.map(([field, key]) => ({
+      ok: Boolean(String(formValues[field] ?? '').trim()),
+      message: String(copy.validation[key] ?? key),
+      key,
+    }))
+    : []
+  const outingPhone = String(formValues.phone ?? '').trim()
+  const outingPhoneCheck: FormCheck[] = selectedKind === 'outing' && outingPhone
+    ? [{
+      ok: /^[0-9+()\s-]{8,50}$/.test(outingPhone) && outingPhone.replace(/\D/g, '').length >= 8,
+      message: String(copy.validation.phoneInvalid ?? 'phoneInvalid'),
+      key: 'phoneInvalid',
+    }]
+    : []
+  const outingCheckKeys = [...outingRequiredFields.map(([, key]) => key), 'phoneInvalid']
+  const emergencyServerCheck = selectedKind === 'leave' && formValues.leaveType === 'emergency'
+    ? baseFormChecks.find((check) => check.key === 'emergencyLimit')
+    : undefined
+  const emergencyDays = Number(formValues.days)
+    || (Number(formValues.hours) > 0 ? Number(formValues.hours) / policy.hoursPerDay : 0)
+  const emergencyLimitCheck: FormCheck[] = selectedKind === 'leave' && formValues.leaveType === 'emergency'
+    ? [{
+      ok: emergencyDays <= policy.emergencyMaxDays && emergencyServerCheck?.ok !== false,
+      message: emergencyServerCheck?.message
+        ?? String(copy.validation.emergencyLimit ?? '')
+          .replace('{days}', String(policy.emergencyMaxDays))
+          .replace('{limit}', String(policy.emergencyMaxDays)),
+      key: 'emergencyLimit',
+    }]
+    : []
+  const formChecks = [
+    ...baseFormChecks.filter((check) => (
+      !(selectedKind === 'outing' && outingCheckKeys.includes(check.key ?? ''))
+      && !(selectedKind === 'leave' && formValues.leaveType === 'emergency' && check.key === 'emergencyLimit')
+    )),
+    ...outingRequiredChecks,
+    ...outingPhoneCheck,
+    ...emergencyLimitCheck,
+  ]
   const certificateRequired = formChecks.some((check) => !check.ok && check.key === 'certificateRequired')
   // โหมด DB: ผู้ยื่นเซ็นตอนส่งเอกสารแล้ว จึงไม่มีขั้น "เซ็นภายหลัง"
   const canSignAsSubmitter = (doc: MockDocument) => !USE_DB && mockRole === 'พนักงาน' && doc.employee === 'สมชาย ใจดี' && doc.status.startsWith('pending') && !doc.signatures?.['ผู้ยื่น']
@@ -518,7 +603,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     event.preventDefault()
     if (!selectedKind) return
     if (USE_DB) {
-      if (validatingForm || serverChecks.length === 0 || serverChecks.some((check) => !check.ok)) return
+      if (validatingForm || serverChecks.length === 0 || formChecks.some((check) => !check.ok)) return
     } else {
       const submitter = mockRole === 'พนักงาน' ? employees[0] : mockRole === 'ผู้จัดการแผนก' ? employees[1] : employees[3]
       const checks = validateSubmission(selectedKind, { ...formValues }, documents, submitter, policy, copy)
@@ -540,10 +625,23 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         if (next.from && !next.to) next.to = next.from
         if (next.to && !next.from) next.from = next.to
         if (key === 'from' && next.from && next.to && String(next.to) < String(next.from)) next.to = next.from
-        // เลือกวัน → แสดงชั่วโมงอัตโนมัติ (1 วันทำงาน = hoursPerDay ชม.) เหมือนของเดิมที่แสดงเป็นวัน
-        next.days = String(daysBetween(String(next.from ?? ''), String(next.to ?? '')) || '')
+        const isCalendarLeave = selectedKind === 'leave' && calendarLeaveMax(String(next.leaveType ?? '')) !== null
+        next.days = String((isCalendarLeave
+          ? calendarDaysBetween(String(next.from ?? ''), String(next.to ?? ''))
+          : daysBetween(String(next.from ?? ''), String(next.to ?? ''))) || '')
         const autoDays = Number(next.days) || 0
-        next.hours = autoDays > 0 ? String(autoDays * policy.hoursPerDay) : ''
+        next.hours = isCalendarLeave ? '' : autoDays > 0 ? String(autoDays * policy.hoursPerDay) : ''
+      }
+      if (selectedKind === 'leave' && key === 'leaveType') {
+        const specialLeave = calendarLeaveMax(String(value)) !== null
+        if (next.from && next.to) {
+          const dateDays = specialLeave
+            ? calendarDaysBetween(String(next.from), String(next.to))
+            : daysBetween(String(next.from), String(next.to))
+          next.days = String(dateDays || '')
+        }
+        next.byHour = false
+        if (specialLeave) next.hours = ''
       }
       if (selectedKind === 'leave' && next.leaveType === 'emergency' && next.byHour === true) {
         next.to = next.from ?? ''
@@ -733,7 +831,20 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         leadPersonal: policyDraft.leadPersonal, leadVacation: policyDraft.leadVacation,
         hoursPerDay: policyDraft.hoursPerDay, hourStep: policyDraft.hourStep,
         certDays: policyDraft.certDays, otMax: policyDraft.otMax, fixDays: policyDraft.fixDays,
+        emergencyMaxDays: policyDraft.emergencyMaxDays,
+        ordainMaxDays: policyDraft.ordainMaxDays,
+        compassionateEmployeeMaxDays: policyDraft.compassionateEmployeeMaxDays,
+        compassionateEmployeePaidDays: policyDraft.compassionateEmployeePaidDays,
+        compassionateSpouseParentMaxDays: policyDraft.compassionateSpouseParentMaxDays,
+        compassionateSpouseParentPaidDays: policyDraft.compassionateSpouseParentPaidDays,
       })
+      if ([
+        'emergencyMaxDays', 'ordainMaxDays', 'compassionateEmployeeMaxDays', 'compassionateEmployeePaidDays',
+        'compassionateSpouseParentMaxDays', 'compassionateSpouseParentPaidDays',
+      ].some((key) => Number(saved[key as keyof typeof saved]) !== Number(policyDraft[key as keyof MockPolicy]))) {
+        showToast(copy.policy.policySaveError, 'error')
+        return
+      }
       const next: MockPolicy = { ...INITIAL_POLICY, ...saved, expiry: saved.expiryDate }
       setPolicy(next); setPolicyDraft(next)
       setLedgerPolicyYears((current) => [
@@ -839,6 +950,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
 
     {selectedDocument && <DocAllDocumentsDetail
       document={selectedDocument}
+      policy={policy}
       detailValues={detailValues}
       kindTitle={KIND_INFO[selectedDocument.kind].title}
       statusLabel={STATUS_INFO[selectedDocument.status]?.label ?? selectedDocument.status}
@@ -877,7 +989,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><label className="documents-signature-upload"><span>{copy.signature.upload}</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { void attachSignature(event.target.files?.[0]); event.currentTarget.value = '' }} /><small>{signatureProcessing ? copy.signature.processing : copy.signature.uploadHelp}</small></label><div className={`documents-signature-preview${signatureImage ? '' : ' is-empty'}`}>{signatureImage ? <img src={signatureImage} alt={copy.signature.preview} /> : <span>{copy.signature.noImage}</span>}</div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button type="button" onClick={clearSignature} disabled={!signatureImage || signatureProcessing}>{copy.signature.remove}</button><button type="button" className="documents-primary" onClick={() => void confirmSignature()} disabled={signatureProcessing}>{signatureProcessing ? copy.signature.processing : signatureImage ? copy.signature.confirmOrSend : copy.signature.confirmWithoutSign}</button></div></section></div>}
 
     <DocNewDocumentModal
-      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} leadPersonal={policy.leadPersonal} leadVacation={policy.leadVacation} fixDays={policy.fixDays} language={language} role={mockRole} copy={copy} translations={translations}
+      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} leadPersonal={policy.leadPersonal} leadVacation={policy.leadVacation} fixDays={policy.fixDays} ordainMaxDays={policy.ordainMaxDays} compassionateEmployeeMaxDays={policy.compassionateEmployeeMaxDays} compassionateEmployeePaidDays={policy.compassionateEmployeePaidDays} compassionateSpouseParentMaxDays={policy.compassionateSpouseParentMaxDays} compassionateSpouseParentPaidDays={policy.compassionateSpouseParentPaidDays} language={language} role={mockRole} copy={copy} translations={translations}
       onSubmit={submitMock}
       onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}
       onClearKind={() => { setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}

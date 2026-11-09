@@ -57,5 +57,6 @@ export default function DocOutingLocationField({ values, onChange, translations 
     sectionTitle={translations.features.documentManagement.fieldLabels.outingLocation}
     mapHeight={260}
     className="outing-location-section"
+    requiredAddress
   />
 }
