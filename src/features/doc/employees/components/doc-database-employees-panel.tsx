@@ -91,8 +91,10 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
   // filter แบบหน้าจัดการเอกสาร: ปุ่ม Filter เปิดแผ่นกรองแผนก/บทบาท (apply/reset)
   const [departmentFilter, setDepartmentFilter] = useState('all')
   const [roleFilter, setRoleFilter] = useState('all')
+  const [employeeStatusFilter, setEmployeeStatusFilter] = useState<'active' | 'inactive' | 'all'>('active')
   const [draftDepartment, setDraftDepartment] = useState('all')
   const [draftRole, setDraftRole] = useState('all')
+  const [draftEmployeeStatus, setDraftEmployeeStatus] = useState<'active' | 'inactive' | 'all'>('active')
   const departmentOptions = useMemo(
     () =>
       Array.from(
@@ -111,8 +113,10 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
     if (query && !`${user.name} ${user.email} ${user.department ?? ''} ${user.role}`.toLocaleLowerCase('th').includes(query.toLocaleLowerCase('th'))) return false
     if (departmentFilter !== 'all' && (user.department ?? '') !== departmentFilter) return false
     if (roleFilter !== 'all' && user.role !== roleFilter) return false
+    if (employeeStatusFilter === 'active' && !Boolean(user.isActive)) return false
+    if (employeeStatusFilter === 'inactive' && Boolean(user.isActive)) return false
     return true
-  }), [users, query, departmentFilter, roleFilter])
+  }), [users, query, departmentFilter, roleFilter, employeeStatusFilter])
 
   const openDetails = (user: User) => { setSelected(user); setEditing(false); setSaveError(''); setAvatarFile(null); setAvatarRemove(false) }
   const close = () => { setSelected(null); setEditing(false); setDraft(null); setSaveError(''); setAvatarFile(null); setAvatarRemove(false) }
@@ -233,9 +237,9 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
   }, [filterOpen])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const activeCount = (departmentFilter !== 'all' ? 1 : 0) + (roleFilter !== 'all' ? 1 : 0)
-  const applyFilters = () => { setDepartmentFilter(draftDepartment); setRoleFilter(draftRole); setPage(1) }
-  const resetFilters = () => { setDraftDepartment('all'); setDraftRole('all'); setDepartmentFilter('all'); setRoleFilter('all'); setPage(1) }
+  const activeCount = (departmentFilter !== 'all' ? 1 : 0) + (roleFilter !== 'all' ? 1 : 0) + (employeeStatusFilter !== 'active' ? 1 : 0)
+  const applyFilters = () => { setDepartmentFilter(draftDepartment); setRoleFilter(draftRole); setEmployeeStatusFilter(draftEmployeeStatus); setPage(1) }
+  const resetFilters = () => { setDraftDepartment('all'); setDraftRole('all'); setDraftEmployeeStatus('active'); setDepartmentFilter('all'); setRoleFilter('all'); setEmployeeStatusFilter('active'); setPage(1) }
   const empTotal = matches.length
   const empTotalPages = Math.max(Math.ceil(empTotal / pageSize), 1)
   const pageSafe = Math.max(1, Math.min(page, empTotalPages))
@@ -277,7 +281,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
       <div className="documents-tools documents-filter-row">
         <label className="documents-search"><FaMagnifyingGlass /><input value={query} onChange={(event) => { onQuery(event.target.value); setPage(1) }} placeholder={c.employees.search} aria-label={c.employees.searchLabel} /></label>
         <div className="documents-filter-tools">
-          <button type="button" className={`documents-filter-trigger ${activeCount ? 'is-active' : ''}`} aria-expanded={filterOpen} aria-controls="documents-filter-panel" onClick={() => { setFilterOpen(!filterOpen); setDraftDepartment(departmentFilter); setDraftRole(roleFilter) }}><FaFilter/> {c.filters.filter}{activeCount > 0 && ` (${activeCount})`}</button>
+          <button type="button" className={`documents-filter-trigger ${activeCount ? 'is-active' : ''}`} aria-expanded={filterOpen} aria-controls="documents-filter-panel" onClick={() => { setFilterOpen(!filterOpen); setDraftDepartment(departmentFilter); setDraftRole(roleFilter); setDraftEmployeeStatus(employeeStatusFilter) }}><FaFilter/> {c.filters.filter}{activeCount > 0 && ` (${activeCount})`}</button>
           <div className="documents-view-toggle">
             <button aria-label={c.filters.cardView} aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')}><FaTableCellsLarge /></button>
             <button aria-label={c.filters.listView} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}><FaList /></button>
@@ -288,6 +292,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
       {filterOpen && <form id="documents-filter-panel" className="documents-filter-panel" onSubmit={(event) => { event.preventDefault(); applyFilters() }}>
         <label className="documents-filter-field"><span>{c.employees.departmentLabel}</span><select value={draftDepartment} onChange={(event) => setDraftDepartment(event.target.value)}><option value="all">{c.employees.allDepartments}</option>{departmentOptions.map((department) => <option key={department} value={department}>{department}</option>)}</select></label>
         <label className="documents-filter-field"><span>{c.employees.role}</span><select value={draftRole} onChange={(event) => setDraftRole(event.target.value)}><option value="all">{c.employees.allRoles}</option>{roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}</select></label>
+        <label className="documents-filter-field"><span>{c.employees.statusFilter}</span><select value={draftEmployeeStatus} onChange={(event) => setDraftEmployeeStatus(event.target.value as typeof draftEmployeeStatus)}><option value="active">{c.employees.active}</option><option value="inactive">{c.employees.inactive}</option><option value="all">{c.employees.allStatuses}</option></select></label>
         <div className="documents-filter-actions"><button type="button" className="documents-filter-reset" onClick={resetFilters}>{c.filters.clear}</button><button type="submit" className="documents-filter-apply">{c.filters.apply}</button></div>
       </form>}
     </div>
@@ -299,7 +304,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
         <div className="documents-employee-meta">{roleBadge(employee)}{employee.department && <> · {employee.department}</>}{employee.email && <><br/>{employee.email}</>}</div>
         {leaveChips(employee)}
       </button>)}</div>
-      : <div className="dms-project-table-wrap"><table className="dms-project-table"><thead><tr><th>{c.employees.name}</th><th>{c.employees.systemRole}</th><th>{c.employees.departmentLabel}</th><th>{c.employees.email}</th><th>{c.employees.entitlements}</th><th>{c.employees.active}</th></tr></thead><tbody>{pagedUsers.map((employee) => <tr key={employee.id} tabIndex={0} onClick={() => openDetails(employee)} onKeyDown={(event) => activateCard(event, employee)}><td>{employee.name}</td><td>{roleBadge(employee)}</td><td>{employee.department ?? ''}</td><td>{employee.email}</td><td>{leaveChips(employee)}</td><td>{statusBadge(employee)}</td></tr>)}</tbody></table></div>}
+      : <div className="dms-project-table-wrap"><table className="dms-project-table"><thead><tr><th>{c.employees.avatar}</th><th>{c.employees.name}</th><th>{c.employees.systemRole}</th><th>{c.employees.departmentLabel}</th><th>{c.employees.email}</th><th>{c.employees.entitlements}</th><th>{c.employees.active}</th></tr></thead><tbody>{pagedUsers.map((employee) => <tr key={employee.id} tabIndex={0} onClick={() => openDetails(employee)} onKeyDown={(event) => activateCard(event, employee)}><td className="documents-employee-avatar-cell"><EmployeeAvatar employee={employee} onZoom={zoom}/></td><td>{employee.name}</td><td>{roleBadge(employee)}</td><td>{employee.department ?? ''}</td><td>{employee.email}</td><td>{leaveChips(employee)}</td><td>{statusBadge(employee)}</td></tr>)}</tbody></table></div>}
     {empTotal > 0 && <PaginationFooter page={pageSafe} pageSize={pageSize} total={empTotal} labels={{ previous: c.filters.previous, next: c.filters.next, page: c.filters.page, perPage: c.filters.perPage }} onPageChange={(p: number) => setPage(Math.max(1, Math.min(p, empTotalPages)))} onPageSizeChange={(s: number) => { setPageSize(s); setPage(1) }} />}
 
     {createOpen && newDraft && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setCreateOpen(false); setSaveError('') } }}><section className="dms-modal dms-create-doc-modal documents-employee-modal" role="dialog" aria-modal="true" aria-labelledby="employee-create-title">
@@ -320,7 +325,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
         </div>
         <div className="documents-employee-form-grid"><Detail label={c.employees.company} value={companyName}/></div>
         <EmployeeProfileFields draft={newDraft} copy={c} onChange={(change) => setNewDraft((current) => current ? { ...current, ...change } : current)}/>
-        <label className="documents-employee-email-toggle"><input type="checkbox" checked={newDraft.isActive} onChange={(event) => setNewDraft({ ...newDraft, isActive: event.target.checked })}/>{c.employees.active}</label>
+        <EmployeeStatusToggle active={newDraft.isActive} copy={c} onChange={(isActive) => setNewDraft({ ...newDraft, isActive })}/>
         {saveError && <p className="documents-employee-error" role="alert">{saveError}</p>}
         <div className="documents-employee-form-actions"><button className="dms-create-btn" type="submit" disabled={saving}>{saving ? c.employees.saving : c.employees.save}</button><button className="documents-employee-toggle" type="button" onClick={() => { setCreateOpen(false); setSaveError('') }}>{c.employees.cancel}</button></div>
       </form>
@@ -344,7 +349,7 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
         </div>
         <div className="documents-employee-form-grid"><Detail label={c.employees.company} value={companyName}/></div>
         <EmployeeProfileFields draft={draft} departments={departments} companyId={selected.companyId} copy={c} onChange={(change) => setDraft((current) => current ? { ...current, ...change } : current)}/>
-        <label className="documents-employee-email-toggle"><input type="checkbox" checked={draft.isActive} onChange={(event) => setDraft({ ...draft, isActive: event.target.checked })}/>{c.employees.active}</label>
+        <EmployeeStatusToggle active={draft.isActive} copy={c} onChange={(isActive) => setDraft({ ...draft, isActive })}/>
         {saveError && <p className="documents-employee-error" role="alert">{saveError}</p>}
         <div className="documents-employee-form-actions"><button className="dms-create-btn" type="submit" disabled={saving}>{saving ? c.employees.saving : c.employees.save}</button><button className="documents-employee-toggle" type="button" onClick={() => setEditing(false)}>{c.employees.cancel}</button></div>
       </form> : <>
@@ -361,7 +366,6 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
         <div className="documents-employee-form-grid documents-employee-entitlements">
           <Detail label={c.leaveTypes.sick} value={selected.sickLeaveDays ?? ''}/><Detail label={c.leaveTypes.personal} value={selected.personalLeaveDays ?? ''}/>
           <Detail label={c.leaveTypes.vacation} value={selected.vacationLeaveDays ?? ''}/><Detail label={c.employees.leaveOther} value={selected.otherLeaveDays ?? ''}/>
-          <Detail label={c.employees.emailNotify} value={selected.emailNotificationsEnabled === null ? '' : selected.emailNotificationsEnabled ? c.employees.active : c.employees.inactive}/>
         </div>
         {saveError && <p className="documents-employee-error" role="alert">{saveError}</p>}
         {canEditEmployees && <div className="documents-employee-form-actions"><button className="dms-create-btn" type="button" onClick={beginEdit}>{c.employees.edit}</button></div>}
@@ -377,6 +381,18 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
 
 function Detail({ label, value }: { label: string; value?: string | number }) {
   return <div className="dms-form-field"><span className="dms-form-label">{label}</span><div className="documents-readonly-value">{value === undefined || value === null || value === '' ? '' : String(value)}</div></div>
+}
+
+function EmployeeStatusToggle({ active, copy: c, onChange }: {
+  active: boolean
+  copy: Translations['features']['documentManagement']
+  onChange: (active: boolean) => void
+}) {
+  return <label className="documents-employee-status-toggle">
+    <input type="checkbox" role="switch" aria-label={c.employees.statusFilter} checked={active} onChange={(event) => onChange(event.target.checked)}/>
+    <span aria-hidden="true"/>
+    <strong>{active ? c.employees.active : c.employees.inactive}</strong>
+  </label>
 }
 
 function EmployeeProfileFields({ draft, copy: c, onChange, departments, companyId }: {
@@ -400,7 +416,6 @@ function EmployeeProfileFields({ draft, copy: c, onChange, departments, companyI
       <NumberField label={c.leaveTypes.vacation} value={draft.vacationLeaveDays} onChange={(value) => onChange({ vacationLeaveDays: value })}/>
       <NumberField label={c.employees.leaveOther} value={draft.otherLeaveDays} onChange={(value) => onChange({ otherLeaveDays: value })}/>
     </div>
-    <label className="documents-employee-email-toggle"><input type="checkbox" checked={draft.emailNotificationsEnabled} onChange={(event) => onChange({ emailNotificationsEnabled: event.target.checked })}/>{c.employees.emailNotify}</label>
   </>
 }
 

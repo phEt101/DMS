@@ -255,6 +255,8 @@
       "count": "คน",
       "allDepartments": "ทุกแผนก",
       "allRoles": "ทุกบทบาท",
+      "statusFilter": "สถานะการใช้งาน",
+      "allStatuses": "ทั้ง 2 แบบ",
       "systemRole": "บทบาทในระบบ",
       "loading": "กำลังโหลดรายชื่อพนักงาน...",
       "loadError": "โหลดรายชื่อพนักงานไม่สำเร็จ",

@@ -23,6 +23,15 @@
   margin-top: 14px;
 }
 
+.documents-employee-avatar-cell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.documents-employee-avatar-cell .documents-employee-avatar {
+  margin: 0;
+}
+
 .emp-leave {
   display: inline-flex;
   align-items: center;

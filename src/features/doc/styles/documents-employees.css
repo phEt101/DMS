@@ -304,6 +304,62 @@
   accent-color: #5847df;
 }
 
+.documents-employee-status-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 24px;
+  color: #35405d;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.documents-employee-status-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.documents-employee-status-toggle > span {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex: none;
+  border-radius: 999px;
+  background: #cbd2dd;
+  transition: background 0.18s ease;
+}
+
+.documents-employee-status-toggle > span::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(24, 32, 51, 0.24);
+  transition: transform 0.18s ease;
+}
+
+.documents-employee-status-toggle input:checked + span {
+  background: #31a779;
+}
+
+.documents-employee-status-toggle input:checked + span::after {
+  transform: translateX(20px);
+}
+
+.documents-employee-status-toggle input:focus-visible + span {
+  outline: 3px solid rgba(88, 71, 223, 0.2);
+  outline-offset: 2px;
+}
+
 .documents-employee-error {
   margin: 0 24px 12px;
   color: #b42318;

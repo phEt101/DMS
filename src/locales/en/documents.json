@@ -297,6 +297,8 @@
       "count": "employees",
       "allDepartments": "All departments",
       "allRoles": "All roles",
+      "statusFilter": "Account status",
+      "allStatuses": "Both statuses",
       "systemRole": "System role",
       "loading": "Loading employees...",
       "loadError": "Could not load employees",
