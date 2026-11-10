@@ -63,6 +63,21 @@ function mapApiNotifications(rows: Awaited<ReturnType<typeof listNotifications>>
   }));
 }
 
+function formatNotificationDate(value: string, language: "th" | "en"): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat(language === "th" ? "th-TH" : "en-GB", {
+    timeZone: "Asia/Bangkok",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+}
+
 function TopbarIcon({ children }: { children: ReactNode }) {
   return (
     <svg
@@ -267,7 +282,7 @@ export default function Topbar({
           </button>
           {notificationsOpen && <section className="topbar-notifications" id="topbar-notifications-panel" aria-label={topbarTranslations.notifications}>
             <header><strong>{isThai ? "การแจ้งเตือน" : "Notifications"}</strong><button type="button" onClick={markAllNotificationsRead}>{isThai ? "อ่านทั้งหมด" : "Mark all read"}</button></header>
-            <div className="topbar-notification-list">{notifications.length === 0 ? <p className="topbar-notification-empty">{isThai ? "ไม่มีการแจ้งเตือน" : "No notifications"}</p> : notifications.map((notification) => <button type="button" key={notification.id} className={`topbar-notification ${notification.read ? "" : "is-unread"}`} onClick={() => openNotificationsPage(notification)}><span className="topbar-notification-mark" aria-hidden="true" /><span className="topbar-notification-copy"><strong>{notification.title}</strong><small>{notification.body}</small><time>{notification.date}</time></span></button>)}</div>
+            <div className="topbar-notification-list">{notifications.length === 0 ? <p className="topbar-notification-empty">{isThai ? "ไม่มีการแจ้งเตือน" : "No notifications"}</p> : notifications.map((notification) => <button type="button" key={notification.id} className={`topbar-notification ${notification.read ? "" : "is-unread"}`} onClick={() => openNotificationsPage(notification)}><span className="topbar-notification-mark" aria-hidden="true" /><span className="topbar-notification-copy"><strong>{notification.title}</strong><small>{notification.body}</small><time>{formatNotificationDate(notification.date, language)}</time></span></button>)}</div>
             <button type="button" className="topbar-notifications-all" onClick={() => openNotificationsPage()}>{isThai ? "ดูการแจ้งเตือนทั้งหมด" : "View all notifications"}</button>
           </section>}
         </div>

@@ -537,7 +537,7 @@ export async function show(req: Request, res: Response) {
        LEFT JOIN users signer ON signer.id = signature.signer_user_id
       WHERE signature.request_id = ? ORDER BY signature.signed_at, signature.id`, [id],
   )
-  const notSelf = row.employee_user_id !== me
+  const isOwner = Number(row.employee_user_id) === me
   const isExec = detailIsExec, isAdmin = detailIsAdmin
   // ขั้น HR: ใครใน HR Div. อนุมัติก็ได้ (ยกเว้นผู้ยื่น) — ถ้าไม่มี HR คนอื่น admin fallback
   const otherHrIds = await findHrUserIds(db as any, companyId, row.employee_user_id)
@@ -550,15 +550,20 @@ export async function show(req: Request, res: Response) {
     ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map((sig: any) => withAvatarUrls(camelize(sig))),
     flow: flowViewOf(row),
     canViewMedicalCertificate: canViewCertificate,
-    canApprove: has(req, PERM.review) && notSelf && (
+    canApprove: has(req, PERM.review) && !isOwner && (
       (row.status === 'pending_mgr' && (row.manager_user_id === me || isDeptMgr))
       || (row.status === 'pending_exec' && (isExec || isAdmin))
       || (row.status === 'pending_hr' && ((isHrMember && !isAdminFallback) || isAdminFallback))
     ),
-    canCancel: has(req, PERM.cancel) && !notSelf && (
-      row.status === 'pending_mgr'
-      || row.status === 'pending_exec'
-      || (row.status === 'pending_hr' && row.manager_user_id === null)
+    canCancel: has(req, PERM.cancel) && (
+      (isOwner && (
+        row.status === 'pending_mgr'
+        || row.status === 'pending_exec'
+        || (row.status === 'pending_hr' && row.manager_user_id === null)
+      ))
+      || (myDept !== null && Number(row.department_id) === myDept
+        && ['pending_mgr', 'pending_exec', 'pending_hr'].includes(row.status))
+      || (isHrMember && ['pending_hr', 'approved'].includes(row.status))
     ),
   })
 }
@@ -1304,6 +1309,9 @@ export async function cancel(req: Request, res: Response) {
   const id = idParam(req)
   const companyId = companyIdOf(req)
   const me = req.user!.id
+  const roleName = String(req.user!.role?.name ?? '').trim().toLowerCase()
+  const isHr = await isHrDivisionMember(me, companyId)
+  const managedDepartmentId = await myManagedDeptId(db as any, req)
   // ดึง path ไฟล์ใบรับรองแพทย์ไว้ก่อน (เผื่อย้ายไฟล์หลังยกเลิกสำเร็จ)
   const [certRows] = await db.query<any[]>(
     `SELECT certificate.storage_path FROM employee_request_medical_certificates certificate
@@ -1313,11 +1321,30 @@ export async function cancel(req: Request, res: Response) {
   )
   // ผู้รับแจ้งเตือน: ผู้อนุมัติที่กำลังรอเอกสารอยู่ (จะได้รู้ว่าถูกยกเลิกไปแล้ว ไม่ต้องพิจารณา)
   const [beforeRows] = await db.query<any[]>(
-    `SELECT status, manager_user_id, department_id, employee_user_id FROM employee_requests WHERE id = ? AND company_id = ? LIMIT 1`, [id, companyId],
+    `SELECT status, manager_user_id, department_id, employee_user_id
+       FROM employee_requests WHERE id = ? AND company_id = ? LIMIT 1`, [id, companyId],
   )
   const before = beforeRows[0]
+  if (!before) throw httpError(404, 'Request not found')
+  const isOwner = Number(before.employee_user_id) === me
+  const isPending = ['pending_mgr', 'pending_exec', 'pending_hr'].includes(before.status)
+  const ownerCanCancel = isOwner && (
+    before.status === 'pending_mgr'
+    || before.status === 'pending_exec'
+    || (before.status === 'pending_hr' && before.manager_user_id === null)
+  )
+  const managerCanCancel = roleName === 'manager'
+    && managedDepartmentId !== null
+    && Number(before.department_id) === managedDepartmentId
+    && isPending
+  const hrCanCancel = isHr && ['pending_hr', 'approved'].includes(before.status)
+  if (!ownerCanCancel && !managerCanCancel && !hrCanCancel) {
+    throw httpError(409, 'ไม่มีสิทธิ์ยกเลิกเอกสารนี้ หรือเอกสารอยู่ในสถานะที่ยกเลิกไม่ได้')
+  }
+
   const cancelRecipients: number[] = []
-  if (before && before.status !== 'cancelled' && before.employee_user_id !== me) {
+  if (!isOwner) cancelRecipients.push(Number(before.employee_user_id))
+  if (!isOwner && isPending) {
     if (before.status === 'pending_mgr' && before.manager_user_id) cancelRecipients.push(Number(before.manager_user_id))
     else if (before.status === 'pending_exec') cancelRecipients.push(...await findExecUserIds(db as any, companyId))
     else if (before.status === 'pending_hr') cancelRecipients.push(...(await findHrUserIds(db as any, companyId, before.employee_user_id)).length
@@ -1326,12 +1353,11 @@ export async function cancel(req: Request, res: Response) {
   }
   const [result] = await db.execute<any>(
     `UPDATE employee_requests SET status = 'cancelled', decided_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND company_id = ? AND employee_user_id = ?
-        AND (status = 'pending_mgr' OR status = 'pending_exec' OR (status = 'pending_hr' AND manager_user_id IS NULL))`,
-    [id, companyId, me],
+      WHERE id = ? AND company_id = ? AND status = ?`,
+    [id, companyId, before.status],
   )
-  if (!result.affectedRows) throw httpError(409, 'ไม่สามารถยกเลิกเอกสารนี้ได้')
-  await notify(db as any, cancelRecipients, id, 'cancelled')
+  if (!result.affectedRows) throw httpError(409, 'เอกสารมีการเปลี่ยนสถานะแล้ว กรุณารีเฟรชก่อนยกเลิก')
+  await notify(db as any, cancelRecipients.filter((userId) => userId !== me), id, 'cancelled')
   // ยกเลิกแล้ว → ย้ายไฟล์ใบรับรองแพทย์ไปโฟลเดอร์พัก เก็บไว้อีก 30 วันก่อนลบจริง
   let disposalPaths: string[] = []
   let movedStoredNames: string[] = []
