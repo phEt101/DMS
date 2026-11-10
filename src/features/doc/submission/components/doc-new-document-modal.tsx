@@ -27,6 +27,25 @@ const SPECIAL_LEAVE_HINTS: Record<string, string> = {
 const HIDDEN_KINDS: DocKind[] = ['ot', 'timefix']
 type Field = { key: string; label: string; type: 'text' | 'date' | 'time' | 'number' | 'textarea' | 'select' | 'checkbox'; options?: Record<string, string>; step?: number; wide?: boolean; hint?: string }
 type Check = { ok: boolean; message: string; key?: string }
+const TIME_HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'))
+const TIME_MINUTES = Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, '0'))
+
+function TimeField({ value, required, language, onChange }: { value: string; required: boolean; language: 'th' | 'en'; onChange: (value: string) => void }) {
+  const [hour, minute] = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value)?.slice(1) ?? ['', '']
+
+  return <div className="documents-time-picker">
+    <select className="dms-form-input" aria-label={language === 'th' ? 'ชั่วโมง' : 'Hour'} required={required} value={hour} onChange={event => onChange(event.target.value ? `${event.target.value}:${minute || '00'}` : '')}>
+      <option value="">HH</option>
+      {TIME_HOURS.map(option => <option key={option} value={option}>{option}</option>)}
+    </select>
+    <span aria-hidden="true">:</span>
+    <select className="dms-form-input" aria-label={language === 'th' ? 'นาที' : 'Minute'} required={required} disabled={!hour} value={minute} onChange={event => onChange(event.target.value ? `${hour}:${event.target.value}` : '')}>
+      <option value="">MM</option>
+      {TIME_MINUTES.map(option => <option key={option} value={option}>{option}</option>)}
+    </select>
+  </div>
+}
+
 // คำอธิบายใต้ช่องกรอก (fieldHints / kindFieldHints) ย้ายไปอยู่ใน th.json / en.json แล้ว
 // map ผลตรวจ (validation key จาก server/mock) → ช่องกรอกที่เกี่ยวข้อง
 const CHECK_FIELD: Record<string, string> = {
@@ -155,7 +174,7 @@ export default function DocNewDocumentModal(p: Props) {
               </span>
             )}
         </span>
-          {field.type === 'textarea' ? <textarea className="dms-form-input dms-form-textarea" rows={3} required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} /> : field.type === 'select' ? <select className="dms-form-input" required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)}>{Object.entries(field.options ?? {}).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : field.type === 'checkbox' ? <input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e => p.onChange(field.key, e.target.checked)} /> : field.type === 'date' ? <DatePicker className="dms-form-input" required={required} selected={String(value) ? parseISO(String(value)) : null} onChange={(date: Date | null) => p.onChange(field.key, date ? format(date, 'yyyy-MM-dd') : '')} dateFormat={p.language === 'th' ? 'd MMM yyyy' : 'MMM d, yyyy'} locale={p.language} minDate={minDate} dayClassName={dayClassName} openToDate={(vacation || personal) && field.key === 'from' && !value ? minDate : undefined} strictParsing placeholderText={p.copy.submission.hintDate} /> : <input className="dms-form-input" type={field.type} required={required} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' && field.key === 'hours' && p.selectedKind === 'leave' ? 0.5 : field.step} readOnly={field.key === 'hours' && p.selectedKind === 'ot' || field.key === 'days' && (p.selectedKind === 'leave' && hourly || p.selectedKind === 'ot')} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} />}{hint && <small className="dms-form-hint">{hint}</small>}</label></Fragment>
+          {field.type === 'textarea' ? <textarea className="dms-form-input dms-form-textarea" rows={3} required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} /> : field.type === 'select' ? <select className="dms-form-input" required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)}>{Object.entries(field.options ?? {}).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : field.type === 'checkbox' ? <input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e => p.onChange(field.key, e.target.checked)} /> : field.type === 'date' ? <DatePicker className="dms-form-input" required={required} selected={String(value) ? parseISO(String(value)) : null} onChange={(date: Date | null) => p.onChange(field.key, date ? format(date, 'yyyy-MM-dd') : '')} dateFormat={p.language === 'th' ? 'd MMM yyyy' : 'MMM d, yyyy'} locale={p.language} minDate={minDate} dayClassName={dayClassName} openToDate={(vacation || personal) && field.key === 'from' && !value ? minDate : undefined} strictParsing placeholderText={p.copy.submission.hintDate} /> : field.type === 'time' ? <TimeField value={String(value)} required={required} language={p.language} onChange={value => p.onChange(field.key, value)} /> : <input className="dms-form-input" type={field.type} required={required} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' && field.key === 'hours' && p.selectedKind === 'leave' ? 0.5 : field.step} readOnly={field.key === 'hours' && p.selectedKind === 'ot' || field.key === 'days' && (p.selectedKind === 'leave' && hourly || p.selectedKind === 'ot')} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} />}{hint && <small className="dms-form-hint">{hint}</small>}</label></Fragment>
       })}</div>
       {p.selectedKind === 'leave' && p.values.leaveType === 'sick' && <label className="dms-form-field dms-submission-field dms-form-field--full" data-field="cert">
         <span className="dms-form-label">{p.copy.submission.medicalCertificateLabel}{p.certificateRequired ? ' *' : ''}</span>

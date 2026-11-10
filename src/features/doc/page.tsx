@@ -80,6 +80,12 @@ const todayInBangkok = () => {
   const part = (type: Intl.DateTimeFormatPart['type']) => parts.find((item) => item.type === type)?.value ?? ''
   return `${part('year')}-${part('month')}-${part('day')}`
 }
+const currentTimeInBangkok = (offsetMinutes = 0) => new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Bangkok',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+}).format(new Date(Date.now() + offsetMinutes * 60_000))
 const timeMinutes = (value: string) => { const [hour, minute] = value.split(':').map(Number); return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : -1 }
 
 // ใช้เฉพาะโหมด mock (USE_DB = false) — โหมด DB ใช้ผลตรวจจาก server (/validate)
@@ -625,7 +631,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         if (next.from && !next.to) next.to = next.from
         if (next.to && !next.from) next.from = next.to
         if (key === 'from' && next.from && next.to && String(next.to) < String(next.from)) next.to = next.from
-        const isCalendarLeave = selectedKind === 'leave' && calendarLeaveMax(String(next.leaveType ?? '')) !== null
+        const isCalendarLeave = selectedKind === 'leave' && calendarLeaveMax(String(next.leaveType ?? ''), policy) !== null
         next.days = String((isCalendarLeave
           ? calendarDaysBetween(String(next.from ?? ''), String(next.to ?? ''))
           : daysBetween(String(next.from ?? ''), String(next.to ?? ''))) || '')
@@ -633,7 +639,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         next.hours = isCalendarLeave ? '' : autoDays > 0 ? String(autoDays * policy.hoursPerDay) : ''
       }
       if (selectedKind === 'leave' && key === 'leaveType') {
-        const specialLeave = calendarLeaveMax(String(value)) !== null
+        const specialLeave = calendarLeaveMax(String(value), policy) !== null
         if (next.from && next.to) {
           const dateDays = specialLeave
             ? calendarDaysBetween(String(next.from), String(next.to))
@@ -996,9 +1002,15 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       onPickKind={(kind) => {
         setSelectedKind(kind)
         setMedicalCertificateFile(null)
-        setFormValues((current) => kind === 'outing' && selectedKind === 'outing'
-          ? current
-          : Object.fromEntries(FORM_FIELDS[kind].map((field) => [field.key, field.type === 'select' ? Object.keys(field.options ?? {})[0] : field.type === 'checkbox' ? false : ''])))
+        setFormValues((current) => {
+          if (kind === 'outing' && selectedKind === 'outing') return current
+          const values = Object.fromEntries(FORM_FIELDS[kind].map((field) => [field.key, field.type === 'select' ? Object.keys(field.options ?? {})[0] : field.type === 'checkbox' ? false : '']))
+          if (kind === 'outing') {
+            values.outTime = currentTimeInBangkok()
+            values.backTime = currentTimeInBangkok(60)
+          }
+          return values
+        })
       }}
       onChange={updateFormValue}
       medicalCertificateFile={medicalCertificateFile}

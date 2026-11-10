@@ -179,6 +179,17 @@
   min-width: 0;
 }
 
+.documents-time-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 180px;
+}
+
+.documents-time-picker .dms-form-input {
+  flex: 1;
+}
+
 .dms-submission-field .react-datepicker-wrapper,
 .dms-submission-field .react-datepicker__input-container {
   display: block;
