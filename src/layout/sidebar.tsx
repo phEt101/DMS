@@ -20,7 +20,7 @@ import type { PageKey } from '../services/routes/pageTypes'
 import {FaFolderOpen,} from "react-icons/fa6";
 import { defaultModuleIconNames, getModuleIcon } from "../features/settings/access/modules/module-icons";
 import { listPermissionModuleIcons, permissionModulesChangedEvent } from "../features/settings/access/modules/services/modules.service";
-import { getUnreadAnnouncementCount } from "../features/announcements/services/announcements.service";
+import { getUnreadAnnouncementCount } from "../features/doc/announcements/services/announcements.service";
 
 const icons = {
   dashboard: FaTableCellsLarge,

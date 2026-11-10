@@ -50,6 +50,37 @@
   font-size: 14px;
 }
 
+.announcement-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.announcement-archive-link {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 1px solid #dfe6f0;
+  border-radius: 11px;
+  color: #52647e;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+
+.announcement-archive-link:hover,
+.announcement-archive-link.is-active {
+  border-color: #b8c9ec;
+  color: #244c9c;
+  background: #edf3ff;
+}
+
 .announcement-primary-button,
 .announcement-secondary-button,
 .announcement-publish-button {
@@ -628,6 +659,26 @@
 
 .announcement-archive-button:hover {
   color: #bc5260;
+}
+
+.announcement-permanent-delete-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid #f1d0d2;
+  border-radius: 8px;
+  color: #b33f4a;
+  background: #fff5f5;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.announcement-permanent-delete-button:hover {
+  border-color: #eab5b9;
+  background: #ffebec;
 }
 
 .announcement-state,
@@ -1316,7 +1367,8 @@
   .announcements-page-root { padding: 8px; }
   .announcements-page { padding: 16px; border-radius: 16px; }
   .announcement-heading { align-items: stretch; flex-direction: column; gap: 14px; }
-  .announcement-heading > .announcement-primary-button { width: 100%; }
+  .announcement-heading-actions { width: 100%; }
+  .announcement-heading-actions > button { flex: 1; }
   .announcement-hero { min-height: 0; padding: 24px 20px; }
   .announcement-hero-art { top: 22px; right: 6px; width: 130px; height: 130px; transform: none; }
   .announcement-hero-bell { width: 65px; height: 65px; border-radius: 20px; font-size: 27px; }

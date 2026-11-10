@@ -1,9 +1,9 @@
-import { apiUrl } from '../../../services/api'
+import { apiUrl } from '../../../../services/api'
 
 const BASE = '/announcements'
 
 export type AnnouncementCategory = 'general' | 'policy' | 'annual' | 'monthly'
-export type AnnouncementStatus = 'draft' | 'published'
+export type AnnouncementStatus = 'draft' | 'published' | 'archived'
 export type AnnouncementAttachment = {
   id: number
   fileName: string
@@ -42,8 +42,8 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return json as T
 }
 
-export function listAnnouncements() {
-  return call<AnnouncementList>('/')
+export function listAnnouncements(includeArchived = false) {
+  return call<AnnouncementList>(includeArchived ? '/?archived=1' : '/')
 }
 
 export function getUnreadAnnouncementCount() {
@@ -84,6 +84,10 @@ export function publishAnnouncement(id: number) {
 
 export function archiveAnnouncement(id: number) {
   return call<void>(`/${id}`, { method: 'DELETE' })
+}
+
+export function permanentlyDeleteAnnouncement(id: number) {
+  return call<{ data: { cleanupFailures: number } }>(`/${id}/permanent`, { method: 'DELETE' })
 }
 
 export function markAnnouncementRead(id: number) {

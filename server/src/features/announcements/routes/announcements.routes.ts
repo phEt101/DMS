@@ -15,4 +15,5 @@ announcementsRouter.post('/read-all', asyncHandler(controller.readAllNotificatio
 announcementsRouter.post('/:id/read', asyncHandler(controller.markRead))
 announcementsRouter.post('/:id/publish', asyncHandler(controller.publish))
 announcementsRouter.get('/:id/files/:fileId', asyncHandler(controller.file))
+announcementsRouter.delete('/:id/permanent', asyncHandler(controller.permanentlyDelete))
 announcementsRouter.delete('/:id', asyncHandler(controller.archive))

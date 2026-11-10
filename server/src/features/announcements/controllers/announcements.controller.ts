@@ -19,9 +19,8 @@ function companyIdOf(req: Request): number {
 
 function canManage(req: Request): boolean {
   const role = String(req.user?.role?.name ?? '').trim().toLowerCase()
-  const department = String(req.user?.department ?? '').trim().toLowerCase()
   return role === 'admin'
-    || (department === 'hr div.' && req.user?.permissions.some((permission) => permission.name === 'จัดการประกาศ') === true)
+    || req.user?.permissions.some((permission) => permission.name === 'จัดการประกาศ') === true
 }
 
 function needManager(req: Request) {
@@ -68,6 +67,8 @@ export const index: RequestHandler = async (req, res) => {
   if (!req.user) throw httpError(401, 'Authentication required')
   const companyId = companyIdOf(req)
   const manager = canManage(req)
+  const archivedOnly = req.query.archived === '1'
+  if (archivedOnly && !manager) throw httpError(403, 'ไม่มีสิทธิ์ดูประกาศในคลัง')
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT a.id, a.title, a.summary, a.content, a.category, a.status,
             a.expires_at AS expiresAt, a.published_at AS publishedAt, a.created_at AS createdAt,
@@ -77,7 +78,7 @@ export const index: RequestHandler = async (req, res) => {
             (SELECT COUNT(*) FROM announcement_reads ar WHERE ar.announcement_id = a.id) AS readCount
        FROM announcements a
        JOIN users u ON u.id = a.author_id
-      WHERE a.company_id = ? AND a.status <> 'archived'
+      WHERE a.company_id = ? AND a.status ${archivedOnly ? '=' : '<>'} 'archived'
         AND (? = 1 OR a.status = 'published')
       ORDER BY COALESCE(a.published_at, a.created_at) DESC, a.id DESC
       LIMIT 200`,
@@ -123,7 +124,7 @@ export const index: RequestHandler = async (req, res) => {
     summary: row.summary === null ? null : String(row.summary),
     content: String(row.content),
     category: row.category as Category,
-    status: String(row.status) as 'draft' | 'published',
+    status: String(row.status) as 'draft' | 'published' | 'archived',
     expiresAt: row.expiresAt,
     publishedAt: row.publishedAt,
     createdAt: row.createdAt,
@@ -277,6 +278,50 @@ export const archive: RequestHandler = async (req, res) => {
   res.status(204).end()
 }
 
+export const permanentlyDelete: RequestHandler = async (req, res) => {
+  if (!req.user) throw httpError(401, 'Authentication required')
+  needManager(req)
+  const id = parseId(req.params.id)
+  const connection = await db.getConnection()
+  let storedNames: string[] = []
+
+  try {
+    await connection.beginTransaction()
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT attachment.stored_name AS storedName
+         FROM announcements announcement
+         LEFT JOIN announcement_attachments attachment ON attachment.announcement_id = announcement.id
+        WHERE announcement.id = ? AND announcement.company_id = ? AND announcement.status = 'archived'
+        FOR UPDATE`,
+      [id, companyIdOf(req)],
+    )
+    if (rows.length === 0) throw httpError(404, 'ไม่พบประกาศในคลัง')
+    storedNames = rows.flatMap((row) => row.storedName ? [String(row.storedName)] : [])
+    await connection.execute<ResultSetHeader>(
+      `DELETE FROM announcements
+        WHERE id = ? AND company_id = ? AND status = 'archived'`,
+      [id, companyIdOf(req)],
+    )
+    await connection.commit()
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
+
+  let cleanupFailures = 0
+  for (const storedName of storedNames) {
+    try {
+      await rm(resolveStoredPath(storedName), { force: true })
+    } catch (error) {
+      cleanupFailures += 1
+      console.error(`Unable to remove archived announcement file ${storedName}`, error)
+    }
+  }
+  res.json({ data: { cleanupFailures } })
+}
+
 export const markRead: RequestHandler = async (req, res) => {
   if (!req.user) throw httpError(401, 'Authentication required')
   const id = parseId(req.params.id)
@@ -303,8 +348,8 @@ export const file: RequestHandler = async (req, res) => {
        FROM announcement_attachments attachment
        JOIN announcements announcement ON announcement.id = attachment.announcement_id
       WHERE announcement.id = ? AND attachment.id = ? AND announcement.company_id = ?
-        AND announcement.status <> 'archived'`,
-    [id, fileId, companyIdOf(req)],
+         AND (announcement.status <> 'archived' OR ? = 1)`,
+    [id, fileId, companyIdOf(req), canManage(req) ? 1 : 0],
   )
   const row = rows[0]
   if (!row || (row.status !== 'published' && !canManage(req))) throw httpError(404, 'ไม่พบไฟล์แนบ')

@@ -3,21 +3,28 @@ import { createPortal } from 'react-dom'
 import {
   FaBullhorn, FaCalendarDays, FaCheck, FaClock, FaDownload,
   FaEye, FaFileArrowUp, FaFileLines, FaMagnifyingGlass, FaPaperclip,
-  FaPlus, FaRegBell, FaShieldHalved, FaXmark,
+  FaBoxArchive, FaPlus, FaRegBell, FaShieldHalved, FaTrashCan, FaXmark,
 } from 'react-icons/fa6'
-import { useToast } from '../../components/toast-provider'
-import { useAuth } from '../auth/hooks/use-auth'
-import { hasPermission } from '../auth/permissions'
-import type { Language, Translations } from '../../locales'
+import ConfirmDialog from '../../../components/confirm-dialog'
+import { useToast } from '../../../components/toast-provider'
+import { useAuth } from '../../auth/hooks/use-auth'
+import { hasPermission } from '../../auth/permissions'
+import type { Language, Translations } from '../../../locales'
 import {
   announcementFileUrl, archiveAnnouncement, createAnnouncement, listAnnouncements,
-  markAnnouncementRead, publishAnnouncement, type Announcement, type AnnouncementCategory,
+  markAnnouncementRead, permanentlyDeleteAnnouncement, publishAnnouncement, type Announcement, type AnnouncementCategory,
   type AnnouncementAttachment,
 } from './services/announcements.service'
 import './announcements.css'
 
 type Props = { translations: Translations; language: Language }
-type Filter = 'all' | AnnouncementCategory | 'drafts'
+type Filter = 'all' | AnnouncementCategory | 'drafts' | 'archived'
+type ConfirmationRequest = {
+  description: string
+  confirmLabel: string
+  variant: 'default' | 'danger'
+  onConfirm: () => Promise<void>
+}
 
 const CATEGORY_KEYS: AnnouncementCategory[] = ['general', 'policy', 'annual', 'monthly']
 const MAX_FILES = 8
@@ -37,29 +44,34 @@ export default function AnnouncementsPage({ translations, language }: Props) {
   const { user } = useAuth()
   const { showToast } = useToast()
   const isAdmin = user?.role.name.trim().toLowerCase() === 'admin'
-  const canManage = Boolean(isAdmin || (
-    user?.department?.trim().toLowerCase() === 'hr div.' && user && hasPermission(user, 'จัดการประกาศ')
-  ))
+  const canManage = Boolean(isAdmin || (user && hasPermission(user, 'จัดการประกาศ')))
   const locale = language === 'th' ? 'th-TH' : 'en-US'
   const [items, setItems] = useState<Announcement[]>([])
+  const [archivedItems, setArchivedItems] = useState<Announcement[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadingArchived, setLoadingArchived] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [selected, setSelected] = useState<Announcement | null>(null)
   const [composing, setComposing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null)
+  const [confirming, setConfirming] = useState(false)
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (includeArchived = false) => {
+    if (includeArchived) setLoadingArchived(true)
+    else setLoading(true)
     try {
-      const result = await listAnnouncements()
-      setItems(result.data)
+      const result = await listAnnouncements(includeArchived)
+      if (includeArchived) setArchivedItems(result.data)
+      else setItems(result.data)
       setUnreadCount(result.unreadCount)
     } catch (error) {
       showToast(error instanceof Error ? error.message : copy.errors.load, 'error')
     } finally {
-      setLoading(false)
+      if (includeArchived) setLoadingArchived(false)
+      else setLoading(false)
     }
   }
 
@@ -82,14 +94,16 @@ export default function AnnouncementsPage({ translations, language }: Props) {
     return () => window.removeEventListener('dms:open-announcement', openRequested)
   }, [items])
 
+  const sourceItems = filter === 'archived' ? archivedItems : items
   const visibleItems = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase()
-    return items.filter((item) => {
+    return sourceItems.filter((item) => {
       if (filter === 'drafts' && item.status !== 'draft') return false
-      if (filter !== 'all' && filter !== 'drafts' && item.category !== filter) return false
+      if (filter === 'archived' && item.status !== 'archived') return false
+      if (filter !== 'all' && filter !== 'drafts' && filter !== 'archived' && item.category !== filter) return false
       return !keyword || [item.title, item.summary ?? '', item.content].some((value) => value.toLocaleLowerCase().includes(keyword))
     })
-  }, [items, search, filter])
+  }, [sourceItems, search, filter])
 
   const publishedItems = items.filter((item) => item.status === 'published')
   const draftCount = items.filter((item) => item.status === 'draft').length
@@ -123,52 +137,117 @@ export default function AnnouncementsPage({ translations, language }: Props) {
       showToast(copy.errors.fileSize, 'error')
       return
     }
-    setSaving(true)
-    try {
-      await createAnnouncement({
-        title: String(data.get('title') ?? '').trim(),
-        summary: String(data.get('summary') ?? '').trim(),
-        content: String(data.get('content') ?? '').trim(),
-        category: String(data.get('category') ?? 'general') as AnnouncementCategory,
-        expiresAt: String(data.get('expiresAt') ?? ''),
-        publishImmediately: data.get('publishImmediately') === 'on',
-        files,
+    const publishImmediately = data.get('publishImmediately') === 'on'
+    const title = String(data.get('title') ?? '').trim()
+    const save = async () => {
+      setSaving(true)
+      try {
+        await createAnnouncement({
+          title,
+          summary: String(data.get('summary') ?? '').trim(),
+          content: String(data.get('content') ?? '').trim(),
+          category: String(data.get('category') ?? 'general') as AnnouncementCategory,
+          expiresAt: String(data.get('expiresAt') ?? ''),
+          publishImmediately,
+          files,
+        })
+        showToast(publishImmediately ? copy.messages.published : copy.messages.draftSaved, 'success')
+        setComposing(false)
+        await load()
+        window.dispatchEvent(new Event('dms:announcement-data-changed'))
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : copy.errors.save, 'error')
+      } finally {
+        setSaving(false)
+      }
+    }
+    if (publishImmediately) {
+      setConfirmation({
+        description: copy.createPublishConfirm.replace('{title}', title),
+        confirmLabel: copy.publish,
+        variant: 'default',
+        onConfirm: save,
       })
-      showToast(data.get('publishImmediately') === 'on' ? copy.messages.published : copy.messages.draftSaved, 'success')
-      setComposing(false)
-      await load()
-      window.dispatchEvent(new Event('dms:announcement-data-changed'))
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : copy.errors.save, 'error')
+      return
+    }
+    await save()
+  }
+
+  const onPublish = (item: Announcement) => {
+    setConfirmation({
+      description: copy.publishConfirm.replace('{title}', item.title),
+      confirmLabel: copy.publish,
+      variant: 'default',
+      onConfirm: async () => {
+        try {
+          await publishAnnouncement(item.id)
+          showToast(copy.messages.published, 'success')
+          await load()
+          setSelected((current) => current?.id === item.id ? { ...current, status: 'published', publishedAt: new Date().toISOString() } : current)
+          window.dispatchEvent(new Event('dms:announcement-data-changed'))
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : copy.errors.publish, 'error')
+        }
+      },
+    })
+  }
+
+  const onArchive = (item: Announcement) => {
+    setConfirmation({
+      description: copy.archiveConfirm,
+      confirmLabel: copy.archive,
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await archiveAnnouncement(item.id)
+          setItems((current) => current.filter((entry) => entry.id !== item.id))
+          if (item.status === 'published' && !item.isRead) setUnreadCount((count) => Math.max(0, count - 1))
+          if (selected?.id === item.id) setSelected(null)
+          showToast(copy.messages.archived, 'success')
+          window.dispatchEvent(new Event('dms:announcement-data-changed'))
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : copy.errors.archive, 'error')
+        }
+      },
+    })
+  }
+
+  const onPermanentlyDelete = (item: Announcement) => {
+    setConfirmation({
+      description: copy.permanentDeleteConfirm,
+      confirmLabel: copy.permanentlyDelete,
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const result = await permanentlyDeleteAnnouncement(item.id)
+          setArchivedItems((current) => current.filter((entry) => entry.id !== item.id))
+          if (selected?.id === item.id) setSelected(null)
+          if (result.data.cleanupFailures > 0) {
+            showToast(copy.messages.permanentlyDeletedWithCleanupError, 'error')
+          } else {
+            showToast(copy.messages.permanentlyDeleted, 'success')
+          }
+        } catch (error) {
+          showToast(error instanceof Error ? error.message : copy.errors.permanentlyDelete, 'error')
+        }
+      },
+    })
+  }
+
+  const runConfirmation = async () => {
+    if (!confirmation || confirming) return
+    setConfirming(true)
+    try {
+      await confirmation.onConfirm()
     } finally {
-      setSaving(false)
+      setConfirming(false)
+      setConfirmation(null)
     }
   }
 
-  const onPublish = async (item: Announcement) => {
-    try {
-      await publishAnnouncement(item.id)
-      showToast(copy.messages.published, 'success')
-      await load()
-      setSelected((current) => current?.id === item.id ? { ...current, status: 'published', publishedAt: new Date().toISOString() } : current)
-      window.dispatchEvent(new Event('dms:announcement-data-changed'))
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : copy.errors.publish, 'error')
-    }
-  }
-
-  const onArchive = async (item: Announcement) => {
-    if (!window.confirm(copy.archiveConfirm)) return
-    try {
-      await archiveAnnouncement(item.id)
-      setItems((current) => current.filter((entry) => entry.id !== item.id))
-      if (item.status === 'published' && !item.isRead) setUnreadCount((count) => Math.max(0, count - 1))
-      if (selected?.id === item.id) setSelected(null)
-      showToast(copy.messages.archived, 'success')
-      window.dispatchEvent(new Event('dms:announcement-data-changed'))
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : copy.errors.archive, 'error')
-    }
+  const openArchive = () => {
+    setFilter('archived')
+    void load(true)
   }
 
   const feature = visibleItems.find((item) => item.status === 'published')
@@ -185,9 +264,17 @@ export default function AnnouncementsPage({ translations, language }: Props) {
             </div>
           </div>
         </div>
-        {canManage && <button className="announcement-primary-button" type="button" onClick={() => setComposing(true)}>
-          <FaPlus aria-hidden="true" /> {copy.create}
-        </button>}
+        {canManage && <div className="announcement-heading-actions">
+          <button
+            className={`announcement-archive-link${filter === 'archived' ? ' is-active' : ''}`}
+            type="button"
+            aria-pressed={filter === 'archived'}
+            onClick={openArchive}
+          ><FaBoxArchive aria-hidden="true" /> {copy.filters.archived}</button>
+          <button className="announcement-primary-button" type="button" onClick={() => setComposing(true)}>
+            <FaPlus aria-hidden="true" /> {copy.create}
+          </button>
+        </div>}
       </div>
 
       <section className="announcement-hero">
@@ -224,6 +311,9 @@ export default function AnnouncementsPage({ translations, language }: Props) {
           {canManage && <button type="button" role="tab" aria-selected={filter === 'drafts'} onClick={() => setFilter('drafts')}>
             {copy.filters.drafts}{draftCount > 0 && <span className="announcement-filter-count">{draftCount}</span>}
           </button>}
+          {canManage && <button type="button" role="tab" aria-selected={filter === 'archived'} onClick={openArchive}>
+            {copy.filters.archived}{archivedItems.length > 0 && <span className="announcement-filter-count">{archivedItems.length}</span>}
+          </button>}
         </div>
         <label className="announcement-search">
           <FaMagnifyingGlass aria-hidden="true" />
@@ -231,14 +321,14 @@ export default function AnnouncementsPage({ translations, language }: Props) {
         </label>
       </div>
 
-      {loading
+      {(filter === 'archived' ? loadingArchived : loading)
         ? <div className="announcement-state"><span className="announcement-spinner" />{copy.loading}</div>
         : visibleItems.length === 0
           ? <div className="announcement-empty">
               <span className="announcement-empty-icon"><FaBullhorn /></span>
-              <h2>{search ? copy.empty.searchTitle : filter === 'drafts' ? copy.empty.draftsTitle : copy.empty.title}</h2>
-              <p>{search ? copy.empty.searchDescription : filter === 'drafts' ? copy.empty.draftsDescription : copy.empty.description}</p>
-              {canManage && !search && filter !== 'drafts' && <button type="button" className="announcement-empty-action" onClick={() => setComposing(true)}>
+              <h2>{search ? copy.empty.searchTitle : filter === 'drafts' ? copy.empty.draftsTitle : filter === 'archived' ? copy.empty.archivedTitle : copy.empty.title}</h2>
+              <p>{search ? copy.empty.searchDescription : filter === 'drafts' ? copy.empty.draftsDescription : filter === 'archived' ? copy.empty.archivedDescription : copy.empty.description}</p>
+              {canManage && !search && filter !== 'drafts' && filter !== 'archived' && <button type="button" className="announcement-empty-action" onClick={() => setComposing(true)}>
                 <FaPlus /> {copy.createFirst}
               </button>}
             </div>
@@ -253,6 +343,7 @@ export default function AnnouncementsPage({ translations, language }: Props) {
                 onOpen={() => void openAnnouncement(item)}
                 onPublish={() => void onPublish(item)}
                 onArchive={() => void onArchive(item)}
+                onDelete={() => void onPermanentlyDelete(item)}
                 styleDelay={Math.min(index, 8) * 45}
               />)}
             </div>}
@@ -267,12 +358,24 @@ export default function AnnouncementsPage({ translations, language }: Props) {
       onClose={() => setSelected(null)}
       onPublish={() => void onPublish(selected)}
       onArchive={() => void onArchive(selected)}
+      onDelete={() => void onPermanentlyDelete(selected)}
     />}
+    <ConfirmDialog
+      open={confirmation !== null}
+      title={copy.confirmationTitle}
+      description={confirmation?.description}
+      confirmLabel={confirmation?.confirmLabel ?? copy.confirm}
+      cancelLabel={copy.cancel}
+      loading={confirming}
+      variant={confirmation?.variant}
+      onOpenChange={(open) => { if (!open && !confirming) setConfirmation(null) }}
+      onConfirm={() => void runConfirmation()}
+    />
   </div>
 }
 
 function AnnouncementCard({
-  item, copy, dateLabel, isFeatured, canManage, onOpen, onPublish, onArchive, styleDelay,
+  item, copy, dateLabel, isFeatured, canManage, onOpen, onPublish, onArchive, onDelete, styleDelay,
 }: {
   item: Announcement
   copy: any
@@ -282,6 +385,7 @@ function AnnouncementCard({
   onOpen: () => void
   onPublish: () => void
   onArchive: () => void
+  onDelete: () => void
   styleDelay: number
 }) {
   const categoryLabel = copy.categories[item.category]
@@ -297,7 +401,9 @@ function AnnouncementCard({
         {item.category === 'policy' ? <FaShieldHalved /> : item.category === 'annual' || item.category === 'monthly' ? <FaCalendarDays /> : <FaBullhorn />}
         {categoryLabel}
       </span>
-      {item.status === 'draft'
+      {item.status === 'archived'
+        ? <span className="announcement-status is-draft">{copy.archived}</span>
+        : item.status === 'draft'
         ? <span className="announcement-status is-draft"><FaClock /> {copy.draft}</span>
         : !item.isRead && <span className="announcement-status is-new"><span /> {copy.new}</span>}
     </div>
@@ -318,7 +424,9 @@ function AnnouncementCard({
       {item.files.length > 0 && <span className="announcement-attachment-count"><FaPaperclip /> {item.files.length}</span>}
       {canManage && <div className="announcement-card-actions">
         {item.status === 'draft' && <button type="button" className="announcement-publish-button" onClick={onPublish}><FaCheck /> {copy.publish}</button>}
-        <button type="button" className="announcement-archive-button" onClick={onArchive}>{copy.archive}</button>
+        {item.status === 'archived'
+          ? <button type="button" className="announcement-permanent-delete-button" onClick={onDelete}><FaTrashCan /> {copy.permanentlyDelete}</button>
+          : <button type="button" className="announcement-archive-button" onClick={onArchive}>{copy.archive}</button>}
       </div>}
     </div>
   </article>
@@ -406,7 +514,7 @@ function ComposeDialog({ copy, saving, onClose, onSubmit }: {
   </div>, document.body)
 }
 
-function AnnouncementDialog({ item, copy, canManage, dateLabel, onClose, onPublish, onArchive }: {
+function AnnouncementDialog({ item, copy, canManage, dateLabel, onClose, onPublish, onArchive, onDelete }: {
   item: Announcement
   copy: any
   canManage: boolean
@@ -414,6 +522,7 @@ function AnnouncementDialog({ item, copy, canManage, dateLabel, onClose, onPubli
   onClose: () => void
   onPublish: () => void
   onArchive: () => void
+  onDelete: () => void
 }) {
   return createPortal(<div className="announcement-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="announcement-dialog announcement-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="announcement-detail-title">
@@ -439,7 +548,9 @@ function AnnouncementDialog({ item, copy, canManage, dateLabel, onClose, onPubli
         </section>}
       </div>
       {canManage && <footer className="announcement-dialog-footer announcement-detail-footer">
-        <button type="button" className="announcement-archive-button" onClick={onArchive}>{copy.archive}</button>
+        {item.status === 'archived'
+          ? <button type="button" className="announcement-permanent-delete-button" onClick={onDelete}><FaTrashCan /> {copy.permanentlyDelete}</button>
+          : <button type="button" className="announcement-archive-button" onClick={onArchive}>{copy.archive}</button>}
         <span />
         {item.status === 'draft' && <button type="button" className="announcement-primary-button" onClick={onPublish}><FaCheck /> {copy.publish}</button>}
         <button type="button" className="announcement-secondary-button" onClick={onClose}>{copy.close}</button>

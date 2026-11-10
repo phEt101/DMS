@@ -15,7 +15,8 @@
     "filters": {
       "label": "Filter announcements",
       "all": "All",
-      "drafts": "Drafts"
+      "drafts": "Drafts",
+      "archived": "Archive"
     },
     "categories": {
       "general": "News",
@@ -31,7 +32,9 @@
       "searchTitle": "No matching announcements",
       "searchDescription": "Try another search term or choose a different category.",
       "draftsTitle": "No drafts",
-      "draftsDescription": "Announcements saved but not published will appear here."
+      "draftsDescription": "Announcements saved but not published will appear here.",
+      "archivedTitle": "No archived announcements",
+      "archivedDescription": "Announcements moved to the archive will appear here."
     },
     "createFirst": "Create the first announcement",
     "draft": "Draft",
@@ -43,8 +46,15 @@
     "validUntil": "Valid until {date}",
     "postedBy": "Posted by",
     "publish": "Publish",
+    "confirm": "Confirm",
+    "confirmationTitle": "Confirm action",
+    "publishConfirm": "Publish “{title}” so employees can see it?",
+    "createPublishConfirm": "Save and publish “{title}” for employees to see now?",
     "archive": "Archive",
     "archiveConfirm": "Archive this announcement? Employees will no longer see it.",
+    "archived": "Archived",
+    "permanentlyDelete": "Delete permanently",
+    "permanentDeleteConfirm": "Permanently delete this announcement and all its attachments? This cannot be undone.",
     "close": "Close",
     "cancel": "Cancel",
     "saving": "Saving...",
@@ -76,7 +86,9 @@
     "messages": {
       "published": "Announcement published",
       "draftSaved": "Draft saved",
-      "archived": "Announcement archived"
+      "archived": "Announcement archived",
+      "permanentlyDeleted": "Announcement and attachments permanently deleted",
+      "permanentlyDeletedWithCleanupError": "Announcement deleted, but some attachments could not be removed. Contact an administrator."
     },
     "errors": {
       "load": "Unable to load announcements",
@@ -85,7 +97,8 @@
       "fileSize": "Each file must be 10 MB or smaller",
       "save": "Unable to save the announcement",
       "publish": "Unable to publish the announcement",
-      "archive": "Unable to archive the announcement"
+      "archive": "Unable to archive the announcement",
+      "permanentlyDelete": "Unable to permanently delete the announcement"
     },
     "removeFile": "Remove {name}"
   },

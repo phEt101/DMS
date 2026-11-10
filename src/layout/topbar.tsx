@@ -10,7 +10,7 @@ import {
   markAllAnnouncementNotificationsRead,
   markAnnouncementRead,
   type AnnouncementCategory,
-} from "../features/announcements/services/announcements.service";
+} from "../features/doc/announcements/services/announcements.service";
 import { avatarSrc } from "../services/avatar";
 
 type TopbarNotification = {

@@ -10,7 +10,7 @@ import SettingsActivityPage from '../../features/settings/activity/page'
 import type { Language, Translations } from '../../locales'
 import DocumentPage from '../../features/doc/page'
 import PayslipsPage from '../../features/doc/payslips/page'
-import AnnouncementsPage from '../../features/announcements/page'
+import AnnouncementsPage from '../../features/doc/announcements/page'
 import type { PageKey } from './pageTypes'
 
 export function buildPages(translations: Translations, language: Language, onNavigate?: (page: PageKey) => void) {
