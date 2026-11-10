@@ -20,6 +20,7 @@ import type { PageKey } from '../services/routes/pageTypes'
 import {FaFolderOpen,} from "react-icons/fa6";
 import { defaultModuleIconNames, getModuleIcon } from "../features/settings/access/modules/module-icons";
 import { listPermissionModuleIcons, permissionModulesChangedEvent } from "../features/settings/access/modules/services/modules.service";
+import { getUnreadAnnouncementCount } from "../features/announcements/services/announcements.service";
 
 const icons = {
   dashboard: FaTableCellsLarge,
@@ -49,6 +50,7 @@ type SidebarItem =
   | "documents-flow-rules"
   | "documents-notifications"
   | "documents-payslips"
+  | "announcements"
   | "report"
   | "settings-user"
   | "settings-roles"
@@ -109,8 +111,10 @@ export default function Sidebar({
 
   // badge: เอกสารรอตนเซ็นอนุมัติ + แจ้งเตือนยังไม่อ่าน
   const canOpenDocuments = Boolean(user && canViewModule(user, "documents"));
+  const canOpenAnnouncements = Boolean(user && canViewModule(user, "announcements"));
   const [pendingBadge, setPendingBadge] = useState(0);
   const [notificationsBadge, setNotificationsBadge] = useState(0);
+  const [announcementsBadge, setAnnouncementsBadge] = useState(0);
   const [configuredModuleIcons, setConfiguredModuleIcons] = useState<ConfiguredModuleIcons>({});
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +151,26 @@ export default function Sidebar({
     window.addEventListener('dms:doc-data-changed', refresh)
     return () => { cancelled = true; window.removeEventListener('dms:doc-data-changed', refresh) }
   }, [canOpenDocuments, activeItem]);
+  useEffect(() => {
+    if (!canOpenAnnouncements) {
+      setAnnouncementsBadge(0);
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      getUnreadAnnouncementCount()
+        .then(({ data }) => { if (!cancelled) setAnnouncementsBadge(data) })
+        .catch((error: unknown) => {
+          if (!cancelled) console.error("Unable to load announcement badge", error);
+        });
+    };
+    load();
+    window.addEventListener('dms:announcement-data-changed', load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('dms:announcement-data-changed', load);
+    };
+  }, [canOpenAnnouncements, activeItem]);
   const docBadge = pendingBadge + notificationsBadge;
 
   const toggleSidebarGroup = (
@@ -177,14 +201,14 @@ export default function Sidebar({
     previousActiveItem.current = activeItem;
     const group = ["projects", "projects-cm", "survey"].includes(activeItem)
       ? "projects"
-      : activeItem.startsWith("documents") || activeItem === "report"
+      : activeItem.startsWith("documents") || activeItem === "report" || activeItem === "announcements"
         ? "documents"
         : activeItem.startsWith("settings-")
           ? "settings"
           : null;
     setProjectsOpen(group === "projects");
     setDocumentsOpen(group === "documents");
-    setSettingsOpen(group === "settings");
+    setSettingsOpen(group === "settings" || activeItem === "announcements");
     setCollapsedFlyout(group);
     if (group && collapsed) {
       const anchor = group === "projects" ? projectsToggleRef.current : group === "documents" ? documentsToggleRef.current : settingsToggleRef.current;
@@ -362,12 +386,14 @@ if (item.key === "documents") {
     { key: "documents-flow-rules", label: documentNavTranslations.flowRules, moduleName: "documents_flow_rules" },
     { key: "documents-notifications", label: documentNavTranslations.notifications, moduleName: "documents_notifications" },
     { key: "documents-payslips", label: documentNavTranslations.payslips, moduleName: "documents_payslips" },
+    { key: "announcements", label: sidebarTranslations.items.announcements, moduleName: "announcements" },
   ];
   const documentModuleByPage: Partial<Record<PageKey, string>> = {
     "documents-all": "documents", "documents-pending": "documents_pending", "documents-ledger": "documents_ledger",
     report: "report", "documents-employees": "documents_employees", "documents-policy": "documents_policy", "documents-flow-rules": "documents_flow_rules",
     "documents-notifications": "documents_notifications",
     "documents-payslips": "documents_payslips",
+    announcements: "announcements",
   };
   const visibleDocumentItems = documentItems
     .filter((documentItem) => user && (
@@ -389,7 +415,7 @@ if (item.key === "documents") {
         type="button"
         ref={documentsToggleRef}
         className={`nav-item nav-button documents-toggle ${
-          activeItem.startsWith("documents") || activeItem === "report"
+          activeItem.startsWith("documents") || activeItem === "report" || activeItem === "announcements"
             ? "has-active-child"
             : ""
         }`}
@@ -424,6 +450,7 @@ if (item.key === "documents") {
               <span>{label}</span>
               {key === "documents-pending" && pendingBadge > 0 && <b className="item-count">{pendingBadge}</b>}
               {key === "documents-notifications" && notificationsBadge > 0 && <b className="item-count">{notificationsBadge}</b>}
+              {key === "announcements" && announcementsBadge > 0 && <b className="item-count">{announcementsBadge}</b>}
             </button>
           ))}
         </div>

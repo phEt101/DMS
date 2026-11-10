@@ -5,11 +5,27 @@ import type { Translations } from "../locales";
 import type { AuthUser } from "../features/auth/types/auth.types";
 import type { PageKey } from "../services/routes/pageTypes";
 import { getBadges, listNotifications, markNotificationsRead } from "../features/doc/services/employee-requests.service";
+import {
+  listAnnouncementNotifications,
+  markAllAnnouncementNotificationsRead,
+  markAnnouncementRead,
+  type AnnouncementCategory,
+} from "../features/announcements/services/announcements.service";
 import { avatarSrc } from "../services/avatar";
 
-// โหมด DB: แจ้งเตือนจริงจาก /employee-requests/notifications (เหมือนหน้าจอการแจ้งเตือน)
-type TopbarNotification = { id: number; notificationId: number; documentId: number; title: string; body: string; date: string; read: boolean };
+type TopbarNotification = {
+  id: string
+  notificationId?: number
+  documentId?: number
+  announcementId?: number
+  mockId?: number
+  title: string
+  body: string
+  date: string
+  read: boolean
+}
 const OPEN_DOCUMENT_KEY = "dms-open-doc";
+const OPEN_ANNOUNCEMENT_KEY = "dms-open-announcement";
 
 // เสียงแจ้งเตือน (สร้างด้วย Web Audio API — ไม่ต้องมีไฟล์เสียง)
 let notificationSoundCtx: AudioContext | null = null;
@@ -53,7 +69,7 @@ function readTopbarNotifications(): MockTopbarNotification[] {
 // แปลงแจ้งเตือนจาก API ให้เป็นรูปแบบที่ topbar ใช้ (เหมือนหน้าจอการแจ้งเตือน)
 function mapApiNotifications(rows: Awaited<ReturnType<typeof listNotifications>>): TopbarNotification[] {
   return rows.map((row) => ({
-    id: row.notificationId,
+    id: `document-${row.notificationId}`,
     notificationId: row.notificationId,
     documentId: row.id,
     title: `${row.employeeName} · ${row.requestNo}`,
@@ -65,17 +81,27 @@ function mapApiNotifications(rows: Awaited<ReturnType<typeof listNotifications>>
 
 function formatNotificationDate(value: string, language: "th" | "en"): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (!value || Number.isNaN(date.getTime())) return value;
 
   return new Intl.DateTimeFormat(language === "th" ? "th-TH" : "en-GB", {
     timeZone: "Asia/Bangkok",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
+    dateStyle: "medium",
+    timeStyle: "short",
   }).format(date);
+}
+
+function mapAnnouncementNotifications(
+  rows: Awaited<ReturnType<typeof listAnnouncementNotifications>>,
+  labels: Record<AnnouncementCategory, string>,
+): TopbarNotification[] {
+  return rows.data.map((row) => ({
+    id: `announcement-${row.id}`,
+    announcementId: row.id,
+    title: row.title,
+    body: row.summary || labels[row.category],
+    date: row.publishedAt ?? "",
+    read: row.isRead,
+  }));
 }
 
 function TopbarIcon({ children }: { children: ReactNode }) {
@@ -133,7 +159,6 @@ export default function Topbar({
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("") || "U";
-
   useEffect(() => {
     if (!profileOpen) return;
 
@@ -162,18 +187,43 @@ export default function Topbar({
 
   // โหลดแจ้งเตือนจริงจาก DB (ตอนเปิด dropdown และ poll ทุก 30 วินาที)
   const prevUnreadRef = useRef<number | null>(null);
-  const loadDbNotifications = () => {
-    listNotifications().then((rows) => setDbNotifications(mapApiNotifications(rows))).catch(() => {});
-    getBadges().then((badges) => {
-      setDbBadge(badges.unreadNotifications);
+  const loadDbNotifications = async () => {
+    const [documentsResult, announcementsResult, badgesResult] = await Promise.allSettled([
+      listNotifications(),
+      listAnnouncementNotifications(),
+      getBadges(),
+    ])
+    const documents = documentsResult.status === "fulfilled" ? mapApiNotifications(documentsResult.value) : []
+    const announcementRows = announcementsResult.status === "fulfilled"
+      ? mapAnnouncementNotifications(
+          announcementsResult.value,
+          translations.features.announcements.categories,
+        )
+      : []
+
+    if (documentsResult.status === "fulfilled" || announcementsResult.status === "fulfilled") {
+      setDbNotifications([...documents, ...announcementRows].sort((left, right) => (
+        new Date(right.date).getTime() - new Date(left.date).getTime()
+      )))
+    }
+
+    const documentUnread = badgesResult.status === "fulfilled"
+      ? badgesResult.value.unreadNotifications
+      : documents.filter((notification) => !notification.read).length
+    const announcementUnread = announcementsResult.status === "fulfilled"
+      ? announcementsResult.value.unreadCount
+      : announcementRows.filter((notification) => !notification.read).length
+    if (documentsResult.status === "fulfilled" || badgesResult.status === "fulfilled" || announcementsResult.status === "fulfilled") {
+      const totalUnread = documentUnread + announcementUnread
+      setDbBadge(totalUnread)
       // เสียงแจ้งเตือน: ดังเฉพาะเมื่อจำนวนที่ยังไม่อ่านเพิ่มขึ้น (ข้ามครั้งแรกหลังโหลดหน้า)
-      const prev = prevUnreadRef.current;
-      if (prev !== null && badges.unreadNotifications > prev) {
-        playNotificationSound();
-        setBellPing(true);
+      const prev = prevUnreadRef.current
+      if (prev !== null && totalUnread > prev) {
+        playNotificationSound()
+        setBellPing(true)
       }
-      prevUnreadRef.current = badges.unreadNotifications;
-    }).catch(() => {});
+      prevUnreadRef.current = totalUnread
+    }
   };
   // Badge + dropdown แจ้งเตือน + โปรไฟล์ (Topbar): รีเฟรชเมื่อ "มีการกระทำ" เท่านั้น (ไม่ poll ตามเวลา)
   // - dms:doc-data-changed : ยื่น/อนุมัติ/ปฏิเสธ/ยกเลิก/อ่านแจ้งเตือน ฯลฯ → badge + dropdown + bell อัปเดตทันที
@@ -182,17 +232,20 @@ export default function Topbar({
   useEffect(() => {
     const refresh = () => { loadDbNotifications() }
     const onVisible = () => { if (!document.hidden) refresh() }
+    refresh()
     window.addEventListener('dms:doc-data-changed', refresh)
+    window.addEventListener('dms:announcement-data-changed', refresh)
     window.addEventListener('dms:user-updated', refresh)
     window.addEventListener('focus', onVisible)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       window.removeEventListener('dms:doc-data-changed', refresh)
+      window.removeEventListener('dms:announcement-data-changed', refresh)
       window.removeEventListener('dms:user-updated', refresh)
       window.removeEventListener('focus', onVisible)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, []);
+  }, [language]);
   useEffect(() => { if (notificationsOpen) { setBellPing(false); loadDbNotifications(); } }, [notificationsOpen]);
 
   // การแจ้งเตือนบน Topbar: เมื่อมี event (เอกสารใหม่/อ่านแจ้งเตือน/แก้โปรไฟล์)
@@ -215,17 +268,37 @@ export default function Topbar({
     };
   }, [notificationsOpen]);
 
-  const notifications: TopbarNotification[] = dbNotifications ?? mockNotifications.map((notification) => ({ ...notification, notificationId: notification.id, documentId: notification.id }));
-  const unreadCount = dbNotifications ? notifications.filter((notification) => !notification.read).length : (dbBadge || mockNotifications.filter((notification) => !notification.read).length);
+  const notifications: TopbarNotification[] = dbNotifications ?? mockNotifications.map((notification) => ({
+    ...notification,
+    id: `mock-${notification.id}`,
+    mockId: notification.id,
+  }));
+  const unreadCount = dbNotifications !== null ? dbBadge : (dbBadge || mockNotifications.filter((notification) => !notification.read).length);
   const markAllNotificationsRead = () => {
-    if (dbNotifications) { void markNotificationsRead().then(loadDbNotifications).catch(() => {}); return; }
+    if (dbNotifications !== null) {
+      const pending: Promise<unknown>[] = [markNotificationsRead(), markAllAnnouncementNotificationsRead()]
+      void Promise.allSettled(pending).then(() => loadDbNotifications())
+      return
+    }
     setMockNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
   };
-  // คลิกแจ้งเตือน: อ่านแล้ว → เปิดหน้าเอกสาร (ส่ง document id ผ่าน sessionStorage ให้ DocumentPage เปิด popup รายละเอียดเลย)
+  // คลิกแจ้งเตือน: อ่านแล้ว → เปิดหน้ารายละเอียดเอกสารหรือประกาศที่เกี่ยวข้อง
   const openNotificationsPage = (notification?: TopbarNotification) => {
+    let targetPage: PageKey = "documents-notifications"
     if (notification) {
-      if (dbNotifications) void markNotificationsRead(notification.notificationId).then(loadDbNotifications).catch(() => {});
-      else setMockNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, read: true } : item));
+      if (notification.announcementId) {
+        targetPage = "announcements"
+        sessionStorage.setItem(OPEN_ANNOUNCEMENT_KEY, String(notification.announcementId))
+        window.dispatchEvent(new Event("dms:open-announcement"))
+        void markAnnouncementRead(notification.announcementId).then(() => {
+          loadDbNotifications()
+          window.dispatchEvent(new Event("dms:announcement-data-changed"))
+        }).catch(() => {});
+      } else if (notification.notificationId !== undefined) {
+        void markNotificationsRead(notification.notificationId).then(loadDbNotifications).catch(() => {});
+      } else if (notification.mockId !== undefined) {
+        setMockNotifications((current) => current.map((item) => item.id === notification.mockId ? { ...item, read: true } : item));
+      }
       if (notification.documentId) {
         sessionStorage.setItem(OPEN_DOCUMENT_KEY, String(notification.documentId));
         // ถ้าอยู่หน้าเอกสารอยู่แล้ว component ไม่ re-mount → ยิง event ให้เปิดรายละเอียดทันที
@@ -233,7 +306,7 @@ export default function Topbar({
       }
     }
     setNotificationsOpen(false);
-    onNavigate?.("documents-notifications");
+    onNavigate?.(targetPage);
   };
 
   const handleLogout = async () => {

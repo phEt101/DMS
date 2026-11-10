@@ -10,6 +10,7 @@ import SettingsActivityPage from '../../features/settings/activity/page'
 import type { Language, Translations } from '../../locales'
 import DocumentPage from '../../features/doc/page'
 import PayslipsPage from '../../features/doc/payslips/page'
+import AnnouncementsPage from '../../features/announcements/page'
 import type { PageKey } from './pageTypes'
 
 export function buildPages(translations: Translations, language: Language, onNavigate?: (page: PageKey) => void) {
@@ -35,6 +36,7 @@ export function buildPages(translations: Translations, language: Language, onNav
     'documents-policy': <DocumentPage translations={translations} language={language} view="policy" />,
     'documents-flow-rules': <DocumentPage translations={translations} language={language} view="flowRules" />,
     'documents-notifications': <DocumentPage translations={translations} language={language} view="notifications" />,
-    'documents-payslips': <PayslipsPage translations={translations} language={language} />
+    'documents-payslips': <PayslipsPage translations={translations} language={language} />,
+    announcements: <AnnouncementsPage translations={translations} language={language} />
   }
 }

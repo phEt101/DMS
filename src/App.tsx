@@ -32,7 +32,8 @@ const pathByPage: Record<PageKey, string> = {
   'documents-policy': '/documents/policy',
   'documents-flow-rules': '/documents/flow-rules',
   'documents-notifications': '/documents/notifications',
-  'documents-payslips': '/documents/payslips'
+  'documents-payslips': '/documents/payslips',
+  announcements: '/documents/announcements'
 }
 
 const moduleByPage: Record<PageKey, string> = {
@@ -57,7 +58,8 @@ const moduleByPage: Record<PageKey, string> = {
   'documents-policy': 'documents_policy',
   'documents-flow-rules': 'documents_flow_rules',
   'documents-notifications': 'documents_notifications',
-  'documents-payslips': 'documents_payslips'
+  'documents-payslips': 'documents_payslips',
+  announcements: 'announcements'
 }
 
 const pageOrder = Object.keys(pathByPage) as PageKey[]
@@ -72,6 +74,7 @@ function firstAccessiblePage(user: AuthUser): PageKey | null {
 
 function pageFromPath(pathname: string): PageKey {
   const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+  if (normalized === '/announcements') return 'announcements'
   if (/^\/projects\/cm\/[A-Za-z0-9_-]+$/.test(normalized)) return 'projects-cm'
   if (/^\/projects\/[A-Za-z0-9_-]{43}$/.test(normalized)) return 'projects'
   return (Object.entries(pathByPage).find(([, path]) => path === normalized)?.[0] as PageKey | undefined) ?? 'dashboard'

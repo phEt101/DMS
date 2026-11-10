@@ -192,6 +192,14 @@ file. SQL and TypeScript seeders belong in `server/database/seeders`, while deve
 factories belong in `server/database/factories`. The API is mounted under `/boswell-api/v1`, with `GET /boswell-api/v1/health` available for
 a database health check.
 
+The announcements feature is available to every department. HR and admins can
+publish company-wide news, policy, annual, or monthly notices, attach images or
+documents, and save drafts; image previews appear directly in the announcement
+feed, while employees can read notices and open their attachments. New and unread
+announcements also appear in the topbar notification menu.
+Its migration creates the announcements, attachment, and read-receipt tables and
+grants the announcement module to departments.
+
 For production, build the frontend with `npm run build`, adjust the paths and
 hostname in `config/apache/boswell-dms.conf`, enable Apache's `proxy`,
 `proxy_http`, and `rewrite` modules, and run the API with a process supervisor.

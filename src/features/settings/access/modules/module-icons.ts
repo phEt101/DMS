@@ -1,5 +1,6 @@
 import {
   FaBell,
+  FaBullhorn,
   FaBook,
   FaBuilding,
   FaChartColumn,
@@ -22,6 +23,7 @@ import type { IconType } from 'react-icons'
 
 export const moduleIconComponents: Record<string, IconType> = {
   FaBell,
+  FaBullhorn,
   FaBook,
   FaBuilding,
   FaChartColumn,
@@ -57,6 +59,7 @@ export const defaultModuleIconNames: Record<string, string> = {
   documents_flow_rules: 'FaRoute',
   documents_notifications: 'FaBell',
   documents_payslips: 'FaMoneyCheckDollar',
+  announcements: 'FaBullhorn',
   users: 'FaUser',
   roles: 'FaShieldHalved',
   departments: 'FaBuilding',

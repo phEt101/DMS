@@ -1,0 +1,93 @@
+{
+  "announcements": {
+    "kicker": "INTERNAL COMMUNICATION",
+    "title": "Announcements",
+    "subtitle": "News, policies, and important updates for everyone",
+    "create": "Write announcement",
+    "heroEyebrow": "TEAM NEWSROOM",
+    "heroTitle": "Important updates, all in one place",
+    "heroDescription": "Stay up to date with HR announcements and open policy documents or attachments anytime.",
+    "stats": {
+      "published": "Published",
+      "unread": "Unread",
+      "drafts": "Drafts"
+    },
+    "filters": {
+      "label": "Filter announcements",
+      "all": "All",
+      "drafts": "Drafts"
+    },
+    "categories": {
+      "general": "News",
+      "policy": "Policy",
+      "annual": "Annual",
+      "monthly": "Monthly"
+    },
+    "search": "Search announcements...",
+    "loading": "Loading announcements",
+    "empty": {
+      "title": "No announcements yet",
+      "description": "When HR shares an update, it will appear here.",
+      "searchTitle": "No matching announcements",
+      "searchDescription": "Try another search term or choose a different category.",
+      "draftsTitle": "No drafts",
+      "draftsDescription": "Announcements saved but not published will appear here."
+    },
+    "createFirst": "Create the first announcement",
+    "draft": "Draft",
+    "new": "NEW",
+    "imageNumber": "image {number}",
+    "fileCount": "{count} attachments",
+    "noFiles": "No attachments",
+    "readCount": "{count} read",
+    "validUntil": "Valid until {date}",
+    "postedBy": "Posted by",
+    "publish": "Publish",
+    "archive": "Archive",
+    "archiveConfirm": "Archive this announcement? Employees will no longer see it.",
+    "close": "Close",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "download": "Open / download",
+    "attachmentsHeading": "Documents and attachments",
+    "fileTypes": {
+      "pdf": "PDF document",
+      "image": "Image",
+      "document": "Document"
+    },
+    "compose": {
+      "title": "Create an announcement",
+      "subtitle": "Share clear information so everyone stays on the same page.",
+      "headline": "Headline",
+      "headlinePlaceholder": "e.g. Leave policy update for 2026",
+      "category": "Category",
+      "expiresAt": "Display until (optional)",
+      "summary": "Summary",
+      "summaryPlaceholder": "Summarize the key point in one or two sentences",
+      "content": "Details",
+      "contentPlaceholder": "Write the announcement details...",
+      "attachments": "Images or documents",
+      "dropTitle": "Choose files to attach",
+      "dropDescription": "PDF, JPG, PNG, WEBP, Word, or Excel · Up to 10 MB each · 8 files max",
+      "publishNow": "Publish to all employees now",
+      "publishHint": "Turn this off to save the announcement as a draft.",
+      "save": "Save announcement"
+    },
+    "messages": {
+      "published": "Announcement published",
+      "draftSaved": "Draft saved",
+      "archived": "Announcement archived"
+    },
+    "errors": {
+      "load": "Unable to load announcements",
+      "read": "Unable to mark the announcement as read",
+      "fileCount": "You can attach up to 8 files",
+      "fileSize": "Each file must be 10 MB or smaller",
+      "save": "Unable to save the announcement",
+      "publish": "Unable to publish the announcement",
+      "archive": "Unable to archive the announcement"
+    },
+    "removeFile": "Remove {name}"
+  },
+  "sidebarLabel": "Announcements"
+}

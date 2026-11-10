@@ -20,6 +20,7 @@ import { postalCodesRouter } from "./postal-codes/routes/postal-codes.routes.js"
 import { surveysRouter } from "./projects/survey/routes/surveys.routes.js";
 import { employeeRequestsRouter } from "./employee requests/routes/employee-requests.routes.js";
 import { payslipsRouter } from "./payslips/routes/payslips.routes.js";
+import { announcementsRouter } from "./announcements/routes/announcements.routes.js";
 import { asyncHandler } from "../middleware/errors.js";
 import { requireAuth } from "./auth/middleware/require-auth.middleware.js";
 
@@ -48,6 +49,7 @@ apiRouter.use("/postal-codes", postalCodesRouter);
 apiRouter.use("/surveys", surveysRouter);
 apiRouter.use("/employee-requests", employeeRequestsRouter);
 apiRouter.use("/payslips", payslipsRouter);
+apiRouter.use("/announcements", announcementsRouter);
 apiRouter.use("/projects", projectsRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/users", avatarUserRouter);

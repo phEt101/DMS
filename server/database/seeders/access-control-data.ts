@@ -33,6 +33,7 @@ export const permissionModules: Array<readonly [string, string]> = [
   ['documents_flow_rules', 'FaRoute'],
   ['documents_notifications', 'FaBell'],
   ['documents_payslips', 'FaMoneyCheckDollar'],
+  ['announcements', 'FaBullhorn'],
   ['users', 'FaUser'],
   ['roles', 'FaShieldHalved'],
   ['departments', 'FaBuilding'],
