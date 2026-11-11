@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { FaDownload, FaEye, FaFilter, FaMagnifyingGlass, FaTrash, FaUpload, FaUser, FaXmark } from 'react-icons/fa6'
 import ConfirmDialog from '../../../../components/confirm-dialog'
+import { PaginationFooter } from '../../../../components/pagination-footer'
 import { useToast } from '../../../../components/toast-provider'
 import { avatarSrc } from '../../../../services/avatar'
 import {
@@ -11,7 +12,7 @@ import {
 import PayslipFilePreviewDialog from './payslip-file-preview-dialog'
 import { canPreviewPayslip, fill, formatFileSize, MAX_PAYSLIP_BYTES, type PayslipFilter, type PayslipsSharedProps } from './payslips.utils'
 
-export default function ManagePayslips({ copy, locale, periodLabel, errorText }: PayslipsSharedProps) {
+export default function ManagePayslips({ copy, paginationLabels, locale, periodLabel, errorText }: PayslipsSharedProps) {
   const { showToast } = useToast()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
@@ -19,6 +20,8 @@ export default function ManagePayslips({ copy, locale, periodLabel, errorText }:
   const [rows, setRows] = useState<ManagedPayslipRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [filter, setFilter] = useState<PayslipFilter>('all')
   const [department, setDepartment] = useState('all')
   const [employee, setEmployee] = useState('all')
@@ -78,6 +81,9 @@ export default function ManagePayslips({ copy, locale, periodLabel, errorText }:
       return !keyword || [row.name, row.email, row.department ?? ''].some((text) => text.toLowerCase().includes(keyword))
     })
   }, [rows, search, filter, department, employee])
+  const totalPages = Math.max(Math.ceil(visible.length / pageSize), 1)
+  const pageSafe = Math.max(1, Math.min(page, totalPages))
+  const pagedRows = visible.slice((pageSafe - 1) * pageSize, pageSafe * pageSize)
 
   const departmentOptions = useMemo(
     () => Array.from(new Set(rows.map((row) => row.department).filter((value): value is string => Boolean(value))).values()).sort((a, b) => a.localeCompare(b)),
@@ -147,15 +153,15 @@ export default function ManagePayslips({ copy, locale, periodLabel, errorText }:
 
       <div className="documents-filter-wrap" ref={filterWrapRef}>
         <div className="documents-tools payslips-toolbar">
-          <select value={month} onChange={(event) => setMonth(Number(event.target.value))} aria-label={copy.month}>
+          <select value={month} onChange={(event) => { setMonth(Number(event.target.value)); setPage(1) }} aria-label={copy.month}>
             {Array.from({ length: 12 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{monthName(value)}</option>)}
           </select>
-          <select value={year} onChange={(event) => setYear(Number(event.target.value))} aria-label={copy.year}>
+          <select value={year} onChange={(event) => { setYear(Number(event.target.value)); setPage(1) }} aria-label={copy.year}>
             {yearOptions.map((value) => <option key={value} value={value}>{yearName(value)}</option>)}
           </select>
           <label className="payslips-search">
             <FaMagnifyingGlass aria-hidden="true" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={copy.search} />
+            <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder={copy.search} />
           </label>
           <button type="button" className={`documents-filter-trigger ${activeFilterCount ? 'is-active' : ''}`} aria-expanded={filterOpen} onClick={() => {
             setDraftFilter(filter)
@@ -174,6 +180,7 @@ export default function ManagePayslips({ copy, locale, periodLabel, errorText }:
           setFilter(draftFilter)
           setDepartment(draftDepartment)
           setEmployee(draftEmployee)
+          setPage(1)
           setFilterOpen(false)
         }}>
           <label className="documents-filter-field"><span>{copy.colStatus}</span>
@@ -200,6 +207,7 @@ export default function ManagePayslips({ copy, locale, periodLabel, errorText }:
             <button type="button" className="documents-filter-reset" onClick={() => {
               setFilter('all'); setDepartment('all'); setEmployee('all')
               setDraftFilter('all'); setDraftDepartment('all'); setDraftEmployee('all')
+              setPage(1)
               setFilterOpen(false)
             }}>{copy.clearFilter}</button>
             <button type="submit" className="documents-filter-apply">{copy.applyFilter}</button>
@@ -233,7 +241,7 @@ export default function ManagePayslips({ copy, locale, periodLabel, errorText }:
             </tr>
           </thead>
           <tbody>
-            {visible.map((row) => {
+            {pagedRows.map((row) => {
               const state = row.payslipId === null ? 'notSent' : row.viewedAt ? 'viewed' : 'sent'
               const payslipId = row.payslipId
               const profileImage = avatarSrc(row.avatarUrl)
@@ -282,6 +290,14 @@ export default function ManagePayslips({ copy, locale, periodLabel, errorText }:
           </tbody>
         </table>
       </div>
+      {!loading && visible.length > 0 && <PaginationFooter
+        page={pageSafe}
+        pageSize={pageSize}
+        total={visible.length}
+        labels={paginationLabels}
+        onPageChange={(nextPage) => setPage(Math.max(1, Math.min(nextPage, totalPages)))}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+      />}
 
       {previewItem && <PayslipFilePreviewDialog
         url={payslipPreviewUrl(previewItem.id)}

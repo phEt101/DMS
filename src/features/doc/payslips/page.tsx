@@ -11,6 +11,13 @@ type Tab = 'mine' | 'manage'
 
 export default function PayslipsPage({ translations, language }: { translations: Translations; language: Language }) {
   const copy = (translations.features as any).payslips as Record<string, string>
+  const filters = (translations.features as any).documentManagement.filters
+  const paginationLabels = {
+    previous: filters.previous,
+    next: filters.next,
+    page: filters.page,
+    perPage: filters.perPage,
+  }
   const { user } = useAuth()
   const locale = language === 'th' ? 'th-TH' : 'en-US'
   const canManage = Boolean(user && (
@@ -24,7 +31,7 @@ export default function PayslipsPage({ translations, language }: { translations:
     [locale],
   )
   const errorText = (error: unknown) => translateServerErrorMessage(error, language) || copy.loadError
-  const sharedProps = { copy, locale, periodLabel, errorText }
+  const sharedProps = { copy, paginationLabels, locale, periodLabel, errorText }
 
   return (
     <section className="feature-page feature-page--wide documents-page payslips-page">

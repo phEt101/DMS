@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FaDownload, FaEye, FaFileLines, FaLock } from 'react-icons/fa6'
 import { useToast } from '../../../../components/toast-provider'
+import { PaginationFooter } from '../../../../components/pagination-footer'
 import { listMyPayslips, payslipFileUrl, payslipPreviewUrl, type MyPayslip } from '../services/payslips.service'
 import PayslipFilePreviewDialog from './payslip-file-preview-dialog'
 import { canPreviewPayslip, formatFileSize, type PayslipsSharedProps } from './payslips.utils'
 
-export default function MyPayslips({ copy, locale, periodLabel, errorText }: PayslipsSharedProps) {
+export default function MyPayslips({ copy, paginationLabels, locale, periodLabel, errorText }: PayslipsSharedProps) {
   const { showToast } = useToast()
   const [items, setItems] = useState<MyPayslip[] | null>(null)
   const [year, setYear] = useState<number | 'all'>('all')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [previewItem, setPreviewItem] = useState<MyPayslip | null>(null)
 
   const load = useCallback(() => {
@@ -18,12 +21,18 @@ export default function MyPayslips({ copy, locale, periodLabel, errorText }: Pay
 
   const years = useMemo(() => Array.from(new Set((items ?? []).map((item) => item.year))).sort((a, b) => b - a), [items])
   const visible = (items ?? []).filter((item) => year === 'all' || item.year === year)
+  const totalPages = Math.max(Math.ceil(visible.length / pageSize), 1)
+  const pageSafe = Math.max(1, Math.min(page, totalPages))
+  const pagedItems = visible.slice((pageSafe - 1) * pageSize, pageSafe * pageSize)
   const yearLabel = (value: number) => new Intl.DateTimeFormat(locale, { year: 'numeric' }).format(new Date(value, 0, 1))
 
   return (
     <>
       <div className="documents-tools">
-        <select value={year} onChange={(event) => setYear(event.target.value === 'all' ? 'all' : Number(event.target.value))} aria-label={copy.year}>
+        <select value={year} onChange={(event) => {
+          setYear(event.target.value === 'all' ? 'all' : Number(event.target.value))
+          setPage(1)
+        }} aria-label={copy.year}>
           <option value="all">{copy.allYears}</option>
           {years.map((value) => <option key={value} value={value}>{yearLabel(value)}</option>)}
         </select>
@@ -39,7 +48,7 @@ export default function MyPayslips({ copy, locale, periodLabel, errorText }: Pay
       )}
 
       <div className="payslips-grid">
-        {visible.map((item) => (
+        {pagedItems.map((item) => (
           <article key={item.id} className={`payslip-card${item.viewedAt ? '' : ' is-new'}`}>
             <div className="payslip-card-icon"><FaFileLines aria-hidden="true" /></div>
             <div className="payslip-card-body">
@@ -59,6 +68,14 @@ export default function MyPayslips({ copy, locale, periodLabel, errorText }: Pay
           </article>
         ))}
       </div>
+      {visible.length > 0 && <PaginationFooter
+        page={pageSafe}
+        pageSize={pageSize}
+        total={visible.length}
+        labels={paginationLabels}
+        onPageChange={(nextPage) => setPage(Math.max(1, Math.min(nextPage, totalPages)))}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+      />}
       {previewItem && <PayslipFilePreviewDialog
         url={payslipPreviewUrl(previewItem.id)}
         fileName={previewItem.fileName}

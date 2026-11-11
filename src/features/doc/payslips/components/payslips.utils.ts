@@ -1,5 +1,6 @@
 export type PayslipsSharedProps = {
   copy: Record<string, string>
+  paginationLabels: { previous: string; next: string; page: string; perPage: string }
   locale: string
   periodLabel: (year: number, month: number) => string
   errorText: (error: unknown) => string
