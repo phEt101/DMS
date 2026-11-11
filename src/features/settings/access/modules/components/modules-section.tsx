@@ -26,7 +26,7 @@ const emptyForm: PermissionModuleInput = {
 
 export function ModulesSection({ translations }: { translations: Translations }) {
   const settingsTranslations = translations.features.settingsUser;
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const canCreate = Boolean(user && hasPermission(user, "เพิ่มโมดูล"));
   const canEdit = Boolean(user && hasPermission(user, "แก้ไขโมดูล"));
   const canDelete = Boolean(user && hasPermission(user, "ลบโมดูล"));
@@ -140,6 +140,21 @@ export function ModulesSection({ translations }: { translations: Translations })
       else await createPermissionModule(form);
       setOpen(false);
       await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleModule(module: PermissionModule) {
+    if (!canEdit || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      const { data } = await updatePermissionModule(module.id, { isActive: !Boolean(module.isActive) });
+      setModules((current) => current.map((item) => item.id === module.id ? data : item));
+      await refreshUser();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
     } finally {
@@ -504,6 +519,18 @@ export function ModulesSection({ translations }: { translations: Translations })
                           <span className={`status-pill ${module.isActive ? "is-active" : ""}`}>
                             {module.isActive ? settingsTranslations.active : settingsTranslations.inactive}
                           </span>
+                          <button
+                            type="button"
+                            className={`module-display-toggle${module.isActive ? " is-active" : ""}`}
+                            role="switch"
+                            aria-checked={Boolean(module.isActive)}
+                            aria-label={`${moduleDisplayName(module)} — ${settingsTranslations.moduleDisplayToggle}`}
+                            title={module.isActive ? settingsTranslations.deactivateModule : settingsTranslations.activateModule}
+                            disabled={!canEdit || saving}
+                            onClick={() => void toggleModule(module)}
+                          >
+                            <span aria-hidden="true" />
+                          </button>
                         </div>
                       </div>;
                     })}

@@ -1166,6 +1166,41 @@
 .module-display-option .status-pill {
   font-size: 10px;
 }
+.module-display-toggle {
+  width: 34px;
+  height: 20px;
+  flex: 0 0 34px;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: #c9cfdb;
+  cursor: pointer;
+  transition: background-color 0.16s ease;
+}
+.module-display-toggle.is-active {
+  background: var(--accent);
+}
+.module-display-toggle > span {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(30, 36, 58, 0.2);
+  transition: transform 0.16s ease;
+}
+.module-display-toggle.is-active > span {
+  transform: translateX(14px);
+}
+.module-display-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.module-display-toggle:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 .module-display-footer {
   margin-top: 14px;
   padding-top: 12px;
