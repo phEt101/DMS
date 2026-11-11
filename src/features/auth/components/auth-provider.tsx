@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { AuthContext } from "../context/auth-context";
 import * as authService from "../services/authService";
+import { permissionModulesChangedEvent } from "../../settings/access/modules/services/modules.service";
 import type {
   AuthUser,
   LoginCredentials,
@@ -12,13 +13,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshUser = useCallback(async () => {
+  const refreshUser = useCallback(async (preserveUserOnError = false) => {
     try {
       const response = await authService.getCurrentUser()
       const u = response.data
-      setUser(u)
-    } catch {
-      setUser(null)
+      setUser((current) => current && JSON.stringify(current) === JSON.stringify(u) ? current : u)
+    } catch (error) {
+      const status = (error as Error & { status?: number }).status
+      if (!preserveUserOnError || status === 401) setUser(null)
+      else console.error("Unable to refresh current user", error)
     }
   }, [])
 
@@ -53,5 +56,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('dms:user-updated', refresh)
   }, [refreshUser])
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  useEffect(() => {
+    const refresh = () => { void refreshUser() }
+    window.addEventListener(permissionModulesChangedEvent, refresh)
+    return () => window.removeEventListener(permissionModulesChangedEvent, refresh)
+  }, [refreshUser])
+
+  useEffect(() => {
+    if (!user) return
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refreshUser(true)
+    }
+    const intervalId = window.setInterval(refreshWhenVisible, 5000)
+    document.addEventListener("visibilitychange", refreshWhenVisible)
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener("visibilitychange", refreshWhenVisible)
+    }
+  }, [refreshUser, user?.id])
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

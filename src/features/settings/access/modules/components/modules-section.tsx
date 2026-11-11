@@ -26,7 +26,7 @@ const emptyForm: PermissionModuleInput = {
 
 export function ModulesSection({ translations }: { translations: Translations }) {
   const settingsTranslations = translations.features.settingsUser;
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const canCreate = Boolean(user && hasPermission(user, "เพิ่มโมดูล"));
   const canEdit = Boolean(user && hasPermission(user, "แก้ไขโมดูล"));
   const canDelete = Boolean(user && hasPermission(user, "ลบโมดูล"));
@@ -154,7 +154,6 @@ export function ModulesSection({ translations }: { translations: Translations })
     try {
       const { data } = await updatePermissionModule(module.id, { isActive: !Boolean(module.isActive) });
       setModules((current) => current.map((item) => item.id === module.id ? data : item));
-      await refreshUser();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
     } finally {
