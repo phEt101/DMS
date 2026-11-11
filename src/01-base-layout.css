@@ -764,6 +764,12 @@ a {
 .profile-action:hover {
   background: #f5f7fb;
 }
+.profile-action > svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: #78839a;
+}
 .profile-logout {
   width: 100%;
   min-height: 43px;

@@ -1,4 +1,5 @@
 import AccountDialog from "../features/auth/components/account-dialog";
+import { FaLock, FaUserPen } from "react-icons/fa6";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Translations } from "../locales";
@@ -401,7 +402,7 @@ export default function Topbar({
                 onClick={() => { setProfileOpen(false); setAccountDialog("profile"); }}
                 role="menuitem"
               >
-                <span aria-hidden="true">✎</span>
+                <FaUserPen aria-hidden="true" />
                 {topbarTranslations.editProfile}
               </button>
               <button
@@ -410,7 +411,7 @@ export default function Topbar({
                 onClick={() => { setProfileOpen(false); setAccountDialog("password"); }}
                 role="menuitem"
               >
-                <span aria-hidden="true">🔑</span>
+                <FaLock aria-hidden="true" />
                 {topbarTranslations.changePassword}
               </button>
               <button

@@ -22,6 +22,7 @@ export const permissionModuleGroupDefinitions: Array<{
       "documents_flow_rules",
       "documents_notifications",
       "documents_payslips",
+      "announcements",
     ],
   },
   {
