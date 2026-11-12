@@ -13,6 +13,7 @@ import { PaginationFooter } from "../../../../../components/pagination-footer";
 import { useErrorToast } from "../../../../../components/toast-provider";
 import { useAuth } from "../../../../auth/hooks/use-auth";
 import { hasPermission } from "../../../../auth/permissions";
+import { ActiveStatusControl } from "../../../components/active-status-control";
 
 const emptyForm: PermissionInput = {
   name: "",
@@ -283,16 +284,13 @@ export function PermissionsSection({ translations }: { translations: Translation
                   </select>
                 </label>
               </div>
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(event) =>
-                    setForm({ ...form, isActive: event.target.checked })
-                  }
-                />
-                {settingsTranslations.active}
-              </label>
+              <ActiveStatusControl
+                active={form.isActive}
+                statusLabel={settingsTranslations.status}
+                activeLabel={settingsTranslations.active}
+                inactiveLabel={settingsTranslations.inactive}
+                onChange={(isActive) => setForm({ ...form, isActive })}
+              />
               <footer>
                 <button
                   className="secondary-button"

@@ -16,6 +16,7 @@ import {
 } from "../services/modules.service";
 import { moduleLabels, permissionModuleGroupDefinitions } from "../module-groups";
 import { getModuleIcon, moduleIconComponents, moduleIconOptions } from "../module-icons";
+import { ActiveStatusControl } from "../../../components/active-status-control";
 
 const emptyForm: PermissionModuleInput = {
   name: "",
@@ -414,16 +415,13 @@ export function ModulesSection({ translations }: { translations: Translations })
                   ))}
                 </div>
               </fieldset>
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(event) =>
-                    setForm({ ...form, isActive: event.target.checked })
-                  }
-                />
-                {settingsTranslations.active}
-              </label>
+              <ActiveStatusControl
+                active={form.isActive}
+                statusLabel={settingsTranslations.status}
+                activeLabel={settingsTranslations.active}
+                inactiveLabel={settingsTranslations.inactive}
+                onChange={(isActive) => setForm({ ...form, isActive })}
+              />
               <footer>
                 <button
                   className="secondary-button"

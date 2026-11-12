@@ -16,6 +16,7 @@ import { listPermissionModules, type PermissionModule } from "../../modules/serv
 import { moduleLabels, permissionModuleGroupDefinitions } from "../../modules/module-groups";
 import { defaultModuleIconNames, getModuleIcon } from "../../modules/module-icons";
 import { listCompanies, type Company } from "../../companies/services/companies.service";
+import { ActiveStatusControl } from "../../../components/active-status-control";
 
 const emptyForm: DepartmentInput = {
   companyId: 0,
@@ -298,16 +299,13 @@ export function DepartmentsSection({ translations }: { translations: Translation
                   }
                 />
               </label>
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(event) =>
-                    setForm({ ...form, isActive: event.target.checked })
-                  }
-                />
-                {settingsTranslations.active}
-              </label>
+              <ActiveStatusControl
+                active={form.isActive}
+                statusLabel={settingsTranslations.status}
+                activeLabel={settingsTranslations.active}
+                inactiveLabel={settingsTranslations.inactive}
+                onChange={(isActive) => setForm({ ...form, isActive })}
+              />
               <fieldset className="role-permission-picker department-module-picker">
                 <legend>เมนูที่แผนกมองเห็น</legend>
                 <div className="department-module-toolbar">

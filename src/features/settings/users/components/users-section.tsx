@@ -20,6 +20,7 @@ import { listCompanies, type Company } from "../../access/companies/services/com
 import { PaginationFooter } from "../../../../components/pagination-footer";
 import { useErrorToast } from "../../../../components/toast-provider";
 import { useAuth } from "../../../auth/hooks/use-auth";
+import { ActiveStatusControl } from "../../components/active-status-control";
 import { hasPermission } from "../../../auth/permissions";
 import { avatarSrc } from "../../../../services/avatar";
 
@@ -597,16 +598,13 @@ function UserFormModal({
               ))}
             </select>
           </label>
-          <label className="checkbox-field">
-            <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(event) =>
-                onChange({ ...form, isActive: event.target.checked })
-              }
-            />
-            {settingsTranslations.activeUser}
-          </label>
+          <ActiveStatusControl
+            active={form.isActive}
+            statusLabel={settingsTranslations.status}
+            activeLabel={settingsTranslations.active}
+            inactiveLabel={settingsTranslations.inactive}
+            onChange={(isActive) => onChange({ ...form, isActive })}
+          />
           <footer>
             <button
               className="secondary-button"

@@ -16,6 +16,7 @@ import { useErrorToast } from "../../../../../components/toast-provider";
 import { useAuth } from "../../../../auth/hooks/use-auth";
 import { hasAnyPermission } from "../../../../auth/permissions";
 import { defaultModuleIconNames, getModuleIcon } from "../../modules/module-icons";
+import { ActiveStatusControl } from "../../../components/active-status-control";
 
 type PermissionModuleKey = string;
 
@@ -203,37 +204,6 @@ function PermissionModuleSelector({
         </div>
       )}
     </>
-  );
-}
-
-function RoleStatusToggle({
-  active,
-  translations,
-  onChange,
-}: {
-  active: boolean;
-  translations: Translations;
-  onChange: (active: boolean) => void;
-}) {
-  const settingsTranslations = translations.features.settingsUser;
-  return (
-    <div className="role-status-setting">
-      <div>
-        <strong>{settingsTranslations.status}</strong>
-        <span className={`status-pill ${active ? "is-active" : ""}`}>
-          {active ? settingsTranslations.active : settingsTranslations.inactive}
-        </span>
-      </div>
-      <label className="role-status-switch">
-        <input
-          type="checkbox"
-          aria-label={settingsTranslations.status}
-          checked={active}
-          onChange={(event) => onChange(event.target.checked)}
-        />
-        <span aria-hidden="true" />
-      </label>
-    </div>
   );
 }
 
@@ -539,9 +509,11 @@ export function RolesSection({ translations }: { translations: Translations }) {
                     }
                   />
                 </label>
-                <RoleStatusToggle
+                <ActiveStatusControl
                   active={form.isActive}
-                  translations={translations}
+                  statusLabel={settingsTranslations.status}
+                  activeLabel={settingsTranslations.active}
+                  inactiveLabel={settingsTranslations.inactive}
                   onChange={(isActive) => setForm({ ...form, isActive })}
                 />
               </div>
@@ -625,7 +597,7 @@ export function RolesSection({ translations }: { translations: Translations }) {
 
             {permissionDialog === "view" ? (
               <div className="role-permission-dialog-content">
-                <div className="role-status-setting">
+                <div className="active-status-setting">
                   <div>
                     <strong>{settingsTranslations.status}</strong>
                     <span className={`status-pill ${selectedRole.isActive ? "is-active" : ""}`}>
@@ -680,9 +652,11 @@ export function RolesSection({ translations }: { translations: Translations }) {
                 }}
               >
                 {selectedRole.name.trim().toLowerCase() !== "admin" && (
-                  <RoleStatusToggle
+                  <ActiveStatusControl
                     active={selectedRoleActive}
-                    translations={translations}
+                    statusLabel={settingsTranslations.status}
+                    activeLabel={settingsTranslations.active}
+                    inactiveLabel={settingsTranslations.inactive}
                     onChange={setSelectedRoleActive}
                   />
                 )}

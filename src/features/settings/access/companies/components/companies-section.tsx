@@ -5,6 +5,7 @@ import { useErrorToast } from '../../../../../components/toast-provider'
 import { useAuth } from '../../../../auth/hooks/use-auth'
 import { hasAnyPermission } from '../../../../auth/permissions'
 import { createCompany, deleteCompany, listCompanies, updateCompany, type Company, type CompanyInput } from '../services/companies.service'
+import { ActiveStatusControl } from '../../../components/active-status-control'
 
 const blankForm: CompanyInput = { name: '', logoUrl: '', isActive: true }
 
@@ -94,7 +95,7 @@ export function CompaniesSection({ translations }: { translations: Translations 
         <label>{copy.company}<input required maxLength={150} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })}/></label>
         <label>{copy.companyLogo}<input type="url" maxLength={2048} placeholder="https://example.com/logo.png" value={form.logoUrl} onChange={(event) => setForm({ ...form, logoUrl: event.target.value })}/><small>{copy.companyLogoHelp}</small></label>
         {form.logoUrl && <img className="company-logo-preview company-logo-preview--large" src={form.logoUrl} alt={copy.companyLogo} />}
-        <label className="checkbox-field"><input type="checkbox" checked={form.isActive} onChange={(event) => setForm({ ...form, isActive: event.target.checked })}/>{copy.active}</label>
+        <ActiveStatusControl active={form.isActive} statusLabel={copy.status} activeLabel={copy.active} inactiveLabel={copy.inactive} onChange={(isActive) => setForm({ ...form, isActive })}/>
         <footer><button className="secondary-button" type="button" onClick={() => setOpen(false)}>{translations.common.actions.cancel}</button><button className="primary-button" disabled={saving} type="submit">{saving ? copy.saving : translations.common.actions.save}</button></footer>
       </form>
     </section></div>}

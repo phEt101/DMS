@@ -840,7 +840,7 @@
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   gap: 14px;
 }
-.role-status-setting {
+.active-status-setting {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -850,36 +850,36 @@
   border-radius: 12px;
   background: #f8fafc;
 }
-.role-form-fields .role-status-setting {
+.role-form-fields .active-status-setting {
   align-self: end;
   height: 40px;
   padding: 0 12px;
 }
-.role-status-setting > div {
+.active-status-setting > div {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.role-status-switch {
+.active-status-switch {
   position: relative;
   display: block !important;
   width: 44px;
   height: 24px;
   cursor: pointer;
 }
-.role-status-switch input {
+.active-status-switch input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
-.role-status-switch span {
+.active-status-switch span {
   position: absolute;
   inset: 0;
   border-radius: 999px;
   background: #cbd2dd;
   transition: background 0.18s ease;
 }
-.role-status-switch span::after {
+.active-status-switch span::after {
   content: "";
   position: absolute;
   top: 3px;
@@ -891,13 +891,13 @@
   box-shadow: 0 1px 4px rgba(24, 32, 51, 0.24);
   transition: transform 0.18s ease;
 }
-.role-status-switch input:checked + span {
+.active-status-switch input:checked + span {
   background: #31a779;
 }
-.role-status-switch input:checked + span::after {
+.active-status-switch input:checked + span::after {
   transform: translateX(20px);
 }
-.role-status-switch input:focus-visible + span {
+.active-status-switch input:focus-visible + span {
   outline: 3px solid rgba(88, 71, 223, 0.2);
   outline-offset: 2px;
 }
