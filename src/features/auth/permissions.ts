@@ -1,7 +1,9 @@
 import type { AuthUser } from "./types/auth.types";
 
 export function canViewModule(user: AuthUser, module: string): boolean {
-  if (user.role.name.trim().toLocaleLowerCase() === "admin") return true;
+  const isAdmin = user.role.name.trim().toLocaleLowerCase() === "admin";
+  if (isAdmin) return true;
+  if (module === "activity_logs") return false;
   if (module === "projects") return user.departmentModules.some((key) => ["projects", "projects_cm", "survey"].includes(key));
   if (module === "documents") return user.departmentModules.some((key) => key.startsWith("documents_") || key === "report");
   if (module === "reports") return user.departmentModules.includes("report");
@@ -13,7 +15,8 @@ export function canViewAllDocumentPages(user: AuthUser): boolean {
 }
 
 export function canViewDepartmentModule(user: AuthUser, module: string): boolean {
-  return user.role.name.trim().toLocaleLowerCase() === "admin" || user.departmentModules.includes(module);
+  return user.role.name.trim().toLocaleLowerCase() === "admin"
+    || (module !== "activity_logs" && user.departmentModules.includes(module));
 }
 
 export function hasPermission(user: AuthUser, permissionName: string): boolean {

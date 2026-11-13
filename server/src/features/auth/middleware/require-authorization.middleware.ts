@@ -24,6 +24,14 @@ export function requireDepartmentModule(moduleName: string): RequestHandler {
   return requireAnyDepartmentModule(moduleName)
 }
 
+export function requireAdminRole(): RequestHandler {
+  return (req, _res, next) => {
+    if (!req.user) throw httpError(401, 'Authentication required')
+    if (!isAdmin(req.user.role.name)) throw httpError(403, 'ไม่มีสิทธิ์เข้าถึงโมดูลนี้')
+    next()
+  }
+}
+
 export function requirePermission(permissionName: string): RequestHandler {
   return (req, _res, next) => {
     if (!req.user) throw httpError(401, 'Authentication required')

@@ -342,8 +342,17 @@
     grid-template-columns: 1fr;
   }
   .permission-picker-toolbar,
-  .department-module-toolbar {
+  .department-module-toolbar,
+  .department-bulk-department-toolbar {
     grid-template-columns: 1fr;
+  }
+  .department-bulk-department-list {
+    grid-template-columns: 1fr;
+  }
+  .department-bulk-action {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
   }
   .permission-picker-toolbar > .permission-select-all {
     justify-content: flex-start;

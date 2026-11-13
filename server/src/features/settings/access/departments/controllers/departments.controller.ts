@@ -30,6 +30,13 @@ function readModuleIds(value: unknown) {
   return [...new Set(value.map(Number))]
 }
 
+function readPositiveIds(value: unknown, field: string) {
+  if (!Array.isArray(value) || value.length === 0 || value.some((id) => !Number.isSafeInteger(id) || Number(id) < 1)) {
+    throw httpError(400, `${field} must contain positive integers`)
+  }
+  return [...new Set(value.map(Number))]
+}
+
 function validate(body: unknown, partial = false): DepartmentInput {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw httpError(400, 'Request body must be an object')
   const input = body as Record<string, unknown>
@@ -102,6 +109,36 @@ export const patch: RequestHandler = async (req, res) => {
       ipAddress: req.ip,
     })
   }
+  res.json({ data })
+}
+
+export const setModulesForDepartments: RequestHandler = async (req, res) => {
+  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+    throw httpError(400, 'Request body must be an object')
+  }
+  const input = req.body as Record<string, unknown>
+  const companyId = readCompanyId(input.companyId)
+  const departmentIds = readPositiveIds(input.departmentIds, 'departmentIds')
+  const moduleIds = readPositiveIds(input.moduleIds, 'moduleIds')
+  if (typeof input.enabled !== 'boolean') throw httpError(400, 'enabled must be a boolean')
+
+  const data = await departments.setModulesForDepartments(companyId, departmentIds, moduleIds, input.enabled)
+  await logActivity({
+    userId: req.user?.id,
+    module: 'departments',
+    action: 'bulk_module_access_updated',
+    entityType: 'department_module',
+    details: {
+      companyId: data.companyId,
+      companyName: data.companyName,
+      departmentNames: data.departmentNames,
+      moduleNames: data.moduleNames,
+      enabled: data.enabled,
+      departmentCount: data.departmentCount,
+      moduleCount: data.moduleCount,
+    },
+    ipAddress: req.ip,
+  })
   res.json({ data })
 }
 

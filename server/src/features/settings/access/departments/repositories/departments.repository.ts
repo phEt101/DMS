@@ -105,6 +105,85 @@ export async function update(id: string, input: DepartmentInput) {
   return findById(id)
 }
 
+export async function setModulesForDepartments(
+  companyId: number,
+  departmentIds: number[],
+  moduleIds: number[],
+  enabled: boolean,
+) {
+  const connection = await db.getConnection()
+  try {
+    await connection.beginTransaction()
+    const [companyRows] = await connection.execute<Array<RowDataPacket & { id: number; name: string }>>(
+      'SELECT id, name FROM companies WHERE id = ? AND deleted_at IS NULL LIMIT 1 FOR UPDATE',
+      [companyId],
+    )
+    const company = companyRows[0]
+    if (!company) throw httpError(404, 'Company not found')
+
+    const [moduleRows] = await connection.execute<Array<RowDataPacket & { id: number; name: string }>>(
+      `SELECT id, name FROM permission_modules
+        WHERE id IN (${moduleIds.map(() => '?').join(',')})
+          AND is_active = 1 AND deleted_at IS NULL FOR UPDATE`,
+      moduleIds,
+    )
+    if (moduleRows.length !== moduleIds.length) throw httpError(404, 'Permission module not found')
+    if (moduleRows.some((module) => module.name === 'activity_logs')) {
+      throw httpError(400, 'Activity logs are restricted to administrators')
+    }
+
+    const [departmentRows] = await connection.execute<Array<RowDataPacket & { id: number; name: string }>>(
+      `SELECT id, name FROM departments
+        WHERE company_id = ? AND id IN (${departmentIds.map(() => '?').join(',')})
+          AND deleted_at IS NULL FOR UPDATE`,
+      [companyId, ...departmentIds],
+    )
+    if (departmentRows.length !== departmentIds.length) {
+      throw httpError(404, 'One or more departments were not found in this company')
+    }
+
+    if (enabled) {
+      await connection.execute(
+        `INSERT IGNORE INTO department_modules (department_id, module_id)
+         SELECT departments.id, permission_modules.id
+           FROM departments CROSS JOIN permission_modules
+          WHERE departments.company_id = ?
+            AND departments.id IN (${departmentIds.map(() => '?').join(',')})
+            AND permission_modules.id IN (${moduleIds.map(() => '?').join(',')})
+            AND departments.deleted_at IS NULL
+            AND permission_modules.is_active = 1 AND permission_modules.deleted_at IS NULL`,
+        [companyId, ...departmentIds, ...moduleIds],
+      )
+    } else {
+      await connection.execute(
+        `DELETE department_modules
+           FROM department_modules
+           JOIN departments ON departments.id = department_modules.department_id
+          WHERE departments.company_id = ? AND departments.deleted_at IS NULL
+            AND departments.id IN (${departmentIds.map(() => '?').join(',')})
+            AND department_modules.module_id IN (${moduleIds.map(() => '?').join(',')})`,
+        [companyId, ...departmentIds, ...moduleIds],
+      )
+    }
+
+    await connection.commit()
+    return {
+      companyId,
+      companyName: company.name,
+      departmentCount: departmentRows.length,
+      departmentNames: departmentRows.map((department) => department.name),
+      moduleCount: moduleRows.length,
+      moduleNames: moduleRows.map((module) => module.name),
+      enabled,
+    }
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
+}
+
 export async function softDelete(id: string) {
   const [result] = await db.execute<ResultSetHeader>(
     `UPDATE departments SET is_active = 0, deleted_at = CURRENT_TIMESTAMP

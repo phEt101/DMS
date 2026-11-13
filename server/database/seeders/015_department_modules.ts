@@ -9,8 +9,8 @@ export async function up(connection: Connection) {
        CROSS JOIN permission_modules target
       WHERE u.department_id IS NOT NULL AND u.deleted_at IS NULL
         AND target.deleted_at IS NULL
-        AND ((r.name = 'executive' AND target.name IN ('dashboard','projects','projects_cm','survey','report','activity_logs','users'))
-          OR (r.name = 'manager' AND target.name IN ('dashboard','projects','projects_cm','survey','report','activity_logs'))
+        AND ((r.name = 'executive' AND target.name IN ('dashboard','projects','projects_cm','survey','report','users'))
+          OR (r.name = 'manager' AND target.name IN ('dashboard','projects','projects_cm','survey','report'))
           OR (r.name = 'user' AND target.name IN ('dashboard','projects','projects_cm')))`,
   )
   await connection.execute(

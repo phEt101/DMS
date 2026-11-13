@@ -5,6 +5,7 @@ import {
   deleteDepartment,
   listDepartments,
   updateDepartment,
+  updateCompanyDepartmentModules,
   type Department,
   type DepartmentInput,
 } from "../services/departments.service";
@@ -37,11 +38,20 @@ export function DepartmentsSection({ translations }: { translations: Translation
   const [editing, setEditing] = useState<Department | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
+  const [bulkAccessOpen, setBulkAccessOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
+  const [bulkCompanyId, setBulkCompanyId] = useState("");
+  const [bulkDepartmentIds, setBulkDepartmentIds] = useState<number[]>([]);
+  const [bulkDepartmentSearch, setBulkDepartmentSearch] = useState("");
+  const [bulkModuleIds, setBulkModuleIds] = useState<number[]>([]);
+  const [bulkModuleSearch, setBulkModuleSearch] = useState("");
+  const [bulkModuleVisible, setBulkModuleVisible] = useState(true);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkResult, setBulkResult] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [moduleSearch, setModuleSearch] = useState("");
   const [showSelectedModules, setShowSelectedModules] = useState(false);
@@ -79,6 +89,13 @@ export function DepartmentsSection({ translations }: { translations: Translation
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+  useEffect(() => {
+    if (bulkCompanyId || companies.length === 0) return;
+    const company = companies.find((item) => item.id === user?.company?.id)
+      ?? companies.find((item) => Boolean(item.isActive))
+      ?? companies[0];
+    if (company) setBulkCompanyId(String(company.id));
+  }, [bulkCompanyId, companies, user?.company?.id]);
   useEffect(() => {
     setPage(1);
   }, [search, companyFilter, statusFilter]);
@@ -127,6 +144,49 @@ export function DepartmentsSection({ translations }: { translations: Translation
     }
   }
 
+  async function applyBulkModuleAccess() {
+    const companyId = Number(bulkCompanyId);
+    const company = companies.find((item) => item.id === companyId);
+    const departmentIds = items
+      .filter((item) => item.companyId === companyId && bulkDepartmentIds.includes(item.id))
+      .map((item) => item.id);
+    const selectedModules = modules.filter((module) => bulkModuleIds.includes(module.id) && module.name !== "activity_logs");
+    const moduleIds = selectedModules.map((module) => module.id);
+    if (!company) return;
+    if (departmentIds.length === 0) {
+      setError(settingsTranslations.bulkAccessNoDepartments);
+      return;
+    }
+    if (moduleIds.length === 0) {
+      setError(settingsTranslations.bulkAccessNoModules);
+      return;
+    }
+
+    const action = bulkModuleVisible ? settingsTranslations.bulkAccessShow : settingsTranslations.bulkAccessHide;
+    const confirmation = settingsTranslations.bulkAccessConfirm
+      .replace("{action}", action)
+      .replace("{company}", company.name)
+      .replace("{departmentCount}", String(departmentIds.length))
+      .replace("{moduleCount}", String(moduleIds.length));
+    if (!window.confirm(confirmation)) return;
+
+    setBulkSaving(true);
+    setError("");
+    setBulkResult("");
+    try {
+      const { data } = await updateCompanyDepartmentModules({ companyId, departmentIds, moduleIds, enabled: bulkModuleVisible });
+      setBulkResult(settingsTranslations.bulkAccessSuccess
+        .replace("{company}", data.companyName)
+        .replace("{departmentCount}", String(data.departmentCount))
+        .replace("{moduleCount}", String(data.moduleCount)));
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : settingsTranslations.saveError);
+    } finally {
+      setBulkSaving(false);
+    }
+  }
+
   const moduleGroups = permissionModuleGroupDefinitions.map((group) => ({
     label: settingsTranslations[group.labelKey],
     keys: [...group.keys],
@@ -139,6 +199,27 @@ export function DepartmentsSection({ translations }: { translations: Translation
   const moduleQuery = moduleSearch.trim().toLocaleLowerCase();
   const moduleLabel = (module: PermissionModule) =>
     settingsTranslations.permissionModules[module.name as keyof typeof settingsTranslations.permissionModules] ?? moduleLabels[module.name] ?? module.name;
+  const bulkCompanyDepartments = items.filter((department) => department.companyId === Number(bulkCompanyId));
+  const departmentQuery = bulkDepartmentSearch.trim().toLocaleLowerCase();
+  const visibleBulkDepartments = bulkCompanyDepartments.filter((department) =>
+    !departmentQuery || department.name.toLocaleLowerCase().includes(departmentQuery),
+  );
+  const selectedBulkDepartmentCount = bulkCompanyDepartments.filter((department) => bulkDepartmentIds.includes(department.id)).length;
+  const areVisibleDepartmentsSelected = visibleBulkDepartments.length > 0
+    && visibleBulkDepartments.every((department) => bulkDepartmentIds.includes(department.id));
+  const eligibleBulkModules = modules.filter((module) => module.name !== "activity_logs");
+  const bulkModuleQuery = bulkModuleSearch.trim().toLocaleLowerCase();
+  const filteredBulkModuleGroups = pickerGroups.flatMap((group) => {
+    const groupModules = eligibleBulkModules.filter((module) => group.keys.includes(module.name));
+    const groupMatches = bulkModuleQuery && group.label.toLocaleLowerCase().includes(bulkModuleQuery);
+    const visibleModules = groupModules.filter((module) =>
+      !bulkModuleQuery || groupMatches ||
+      module.name.toLocaleLowerCase().includes(bulkModuleQuery) ||
+      moduleLabel(module).toLocaleLowerCase().includes(bulkModuleQuery),
+    );
+    return visibleModules.length ? [{ group, visibleModules }] : [];
+  });
+  const selectedBulkModuleCount = eligibleBulkModules.filter((module) => bulkModuleIds.includes(module.id)).length;
   const filteredPickerGroups = pickerGroups.flatMap((group) => {
     const allGroupModules = modules.filter((module) => group.keys.includes(module.name));
     const groupMatches = moduleQuery && group.label.toLocaleLowerCase().includes(moduleQuery);
@@ -159,13 +240,30 @@ export function DepartmentsSection({ translations }: { translations: Translation
           <h1>{settingsTranslations.departmentManagement}</h1>
           <p>{settingsTranslations.departmentHelp}</p>
         </div>
-        {canCreate && <button
-          className="primary-button"
-          type="button"
-          onClick={() => showForm()}
-        >
-          {settingsTranslations.addDepartment}
-        </button>}
+        {(canCreate || canEdit) && <div className="management-header-actions">
+          {canEdit && <button
+            className="secondary-button"
+            type="button"
+            onClick={() => {
+              setBulkResult("");
+              setBulkDepartmentIds([]);
+              setBulkModuleIds([]);
+              setBulkDepartmentSearch("");
+              setBulkModuleSearch("");
+              setBulkModuleVisible(true);
+              setBulkAccessOpen(true);
+            }}
+          >
+            {settingsTranslations.bulkAccessTitle}
+          </button>}
+          {canCreate && <button
+            className="primary-button"
+            type="button"
+            onClick={() => showForm()}
+          >
+            {settingsTranslations.addDepartment}
+          </button>}
+        </div>}
       </header>
       <div className="users-toolbar">
         <input
@@ -253,6 +351,222 @@ export function DepartmentsSection({ translations }: { translations: Translation
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
       />
+      {bulkAccessOpen && canEdit && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !bulkSaving) setBulkAccessOpen(false);
+          }}
+        >
+          <section className="user-modal department-modal module-display-modal department-bulk-modal" role="dialog" aria-modal="true" aria-labelledby="department-bulk-title">
+            <header>
+              <div>
+                <h2 id="department-bulk-title">{settingsTranslations.bulkAccessTitle}</h2>
+                <p className="module-display-subtitle">{settingsTranslations.bulkAccessHelp}</p>
+              </div>
+              <button
+                className="modal-close"
+                type="button"
+                aria-label={settingsTranslations.closeModuleDisplay}
+                disabled={bulkSaving}
+                onClick={() => setBulkAccessOpen(false)}
+              >
+                ×
+              </button>
+            </header>
+            <div className="module-display-content">
+              <div className="department-bulk-company">
+                <label>
+                  {settingsTranslations.bulkAccessCompany}
+                  <select value={bulkCompanyId} disabled={bulkSaving} onChange={(event) => {
+                    setBulkCompanyId(event.target.value);
+                    setBulkDepartmentIds([]);
+                    setBulkDepartmentSearch("");
+                    setBulkResult("");
+                  }}>
+                    <option value="">{settingsTranslations.bulkAccessSelectCompany}</option>
+                    {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+                  </select>
+                </label>
+              </div>
+              <section className="department-bulk-departments">
+                <div className="permission-picker-module-header module-display-group-header">
+                  <h3>{settingsTranslations.bulkAccessDepartments}</h3>
+                  <small>{settingsTranslations.bulkAccessDepartmentCount
+                    .replace("{selected}", String(selectedBulkDepartmentCount))
+                    .replace("{total}", String(bulkCompanyDepartments.length))}</small>
+                </div>
+                <div className="department-bulk-department-toolbar">
+                  <input
+                    type="search"
+                    aria-label={settingsTranslations.bulkAccessDepartmentSearch}
+                    placeholder={settingsTranslations.bulkAccessDepartmentSearch}
+                    value={bulkDepartmentSearch}
+                    disabled={bulkSaving}
+                    onChange={(event) => setBulkDepartmentSearch(event.target.value)}
+                  />
+                  <label className="permission-select-all">
+                    <input
+                      type="checkbox"
+                      checked={areVisibleDepartmentsSelected}
+                      ref={(input) => {
+                        if (input) {
+                          const selectedCount = visibleBulkDepartments.filter((department) => bulkDepartmentIds.includes(department.id)).length;
+                          input.indeterminate = selectedCount > 0 && selectedCount < visibleBulkDepartments.length;
+                        }
+                      }}
+                      disabled={bulkSaving || visibleBulkDepartments.length === 0}
+                      onChange={() => {
+                        const visibleIds = visibleBulkDepartments.map((department) => department.id);
+                        setBulkDepartmentIds((current) => areVisibleDepartmentsSelected
+                          ? current.filter((id) => !visibleIds.includes(id))
+                          : [...new Set([...current, ...visibleIds])]);
+                        setBulkResult("");
+                      }}
+                    />
+                    <span>{settingsTranslations.bulkAccessSelectAllDepartments}</span>
+                  </label>
+                </div>
+                <div className="department-bulk-department-list">
+                  {visibleBulkDepartments.map((department) => (
+                    <label className="department-bulk-department-option" key={department.id}>
+                      <input
+                        type="checkbox"
+                        checked={bulkDepartmentIds.includes(department.id)}
+                        disabled={bulkSaving}
+                        onChange={() => {
+                          setBulkDepartmentIds((current) => current.includes(department.id)
+                            ? current.filter((id) => id !== department.id)
+                            : [...current, department.id]);
+                          setBulkResult("");
+                        }}
+                      />
+                      <span>{department.name}</span>
+                    </label>
+                  ))}
+                  {visibleBulkDepartments.length === 0 && <p className="permission-search-empty">{settingsTranslations.noDepartments}</p>}
+                </div>
+              </section>
+              <fieldset className="department-bulk-action">
+                <legend>{settingsTranslations.bulkAccessAction}</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="department-bulk-action"
+                    checked={bulkModuleVisible}
+                    disabled={bulkSaving}
+                    onChange={() => {
+                      setBulkModuleVisible(true);
+                      setBulkResult("");
+                    }}
+                  />
+                  {settingsTranslations.bulkAccessShow}
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="department-bulk-action"
+                    checked={!bulkModuleVisible}
+                    disabled={bulkSaving}
+                    onChange={() => {
+                      setBulkModuleVisible(false);
+                      setBulkResult("");
+                    }}
+                  />
+                  {settingsTranslations.bulkAccessHide}
+                </label>
+              </fieldset>
+              <h3 className="department-bulk-module-title">{settingsTranslations.bulkAccessModule}</h3>
+              <div className="module-display-toolbar">
+                <input
+                  type="search"
+                  aria-label={settingsTranslations.bulkAccessModuleSearch}
+                  placeholder={settingsTranslations.bulkAccessModuleSearch}
+                  value={bulkModuleSearch}
+                  disabled={bulkSaving}
+                  onChange={(event) => setBulkModuleSearch(event.target.value)}
+                />
+                <span>{settingsTranslations.bulkAccessModuleCount
+                  .replace("{selected}", String(selectedBulkModuleCount))
+                  .replace("{total}", String(eligibleBulkModules.length))}</span>
+              </div>
+              <div className="role-permission-picker-grid module-display-grid">
+                {filteredBulkModuleGroups.map(({ group, visibleModules }) => {
+                  const visibleIds = visibleModules.map((module) => module.id);
+                  const selectedCount = visibleModules.filter((module) => bulkModuleIds.includes(module.id)).length;
+                  return <section className="role-permission-picker-module" key={group.label}>
+                    <div className="permission-picker-module-header module-display-group-header">
+                      <h3>{group.label}</h3>
+                      <label className="permission-select-all">
+                        <input
+                          type="checkbox"
+                          checked={visibleIds.length > 0 && selectedCount === visibleIds.length}
+                          ref={(input) => {
+                            if (input) input.indeterminate = selectedCount > 0 && selectedCount < visibleIds.length;
+                          }}
+                          disabled={bulkSaving}
+                          onChange={() => {
+                            setBulkModuleIds((current) => selectedCount === visibleIds.length
+                              ? current.filter((id) => !visibleIds.includes(id))
+                              : [...new Set([...current, ...visibleIds])]);
+                            setBulkResult("");
+                          }}
+                        />
+                        <span>{settingsTranslations.selectAllModuleGroup}</span>
+                      </label>
+                    </div>
+                    {visibleModules.map((module) => {
+                      const ModuleIcon = getModuleIcon(module.iconName || defaultModuleIconNames[module.name]);
+                      const enabledDepartmentCount = bulkCompanyDepartments.filter(
+                        (department) => bulkDepartmentIds.includes(department.id) && department.moduleIds.includes(module.id),
+                      ).length;
+                      return <div className="module-display-row" key={module.id}>
+                        <label className="department-bulk-module-option">
+                          <input
+                            type="checkbox"
+                            checked={bulkModuleIds.includes(module.id)}
+                            disabled={bulkSaving}
+                            onChange={() => {
+                              setBulkModuleIds((current) => current.includes(module.id)
+                                ? current.filter((id) => id !== module.id)
+                                : [...current, module.id]);
+                              setBulkResult("");
+                            }}
+                          />
+                          <ModuleIcon aria-hidden="true" />
+                          <span>{moduleLabel(module)}</span>
+                          <small>{module.sortOrder}</small>
+                          <span className={`status-pill${selectedBulkDepartmentCount > 0 && enabledDepartmentCount === selectedBulkDepartmentCount ? " is-active" : ""}`}>
+                            {settingsTranslations.bulkAccessCurrentVisibility
+                              .replace("{visible}", String(enabledDepartmentCount))
+                              .replace("{total}", String(selectedBulkDepartmentCount))}
+                          </span>
+                        </label>
+                      </div>;
+                    })}
+                  </section>;
+                })}
+                {filteredBulkModuleGroups.length === 0 && <p className="permission-search-empty">{settingsTranslations.noModules}</p>}
+              </div>
+              {bulkResult && <p className="department-bulk-result" role="status">{bulkResult}</p>}
+              <footer className="module-display-footer">
+                <button className="secondary-button" type="button" disabled={bulkSaving} onClick={() => setBulkAccessOpen(false)}>
+                  {translations.common.actions.cancel}
+                </button>
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={bulkSaving || !bulkCompanyId || bulkDepartmentIds.length === 0 || bulkModuleIds.length === 0}
+                  onClick={() => void applyBulkModuleAccess()}
+                >
+                  {bulkSaving ? settingsTranslations.saving : settingsTranslations.bulkAccessApply}
+                </button>
+              </footer>
+            </div>
+          </section>
+        </div>
+      )}
       {open && (
         <div
           className="modal-backdrop"

@@ -8,19 +8,17 @@ import type { Connection, RowDataPacket } from "mysql2/promise";
 const testDepartments = ["HR Div.", "Sales Div."] as const;
 
 // โมดูลที่แต่ละแผนกจะเห็น (กำหนดแบบเดียวกับหน้า Settings → Department management)
-// - HR Div.: Dashboard + เอกสารครบทุกหน้า (รวม Leave policy / Flow) + ผู้ใช้งาน + Activity log
-// - Sales Div.: Dashboard + เอกสาร (ยื่น/รอนุมัติ/สมุดบันทึก/รายชื่อพนักงาน/แจ้งเตือน) + Activity log
+// - HR Div.: Dashboard + เอกสารครบทุกหน้า (รวม Leave policy / Flow) + ผู้ใช้งาน
+// - Sales Div.: Dashboard + เอกสาร (ยื่น/รอนุมัติ/สมุดบันทึก/แจ้งเตือน)
 const departmentModuleNames: Record<string, string[]> = {
   "HR Div.": [
     "dashboard",
     "documents", "documents_pending", "documents_ledger", "documents_employees", "documents_policy","report","documents_flow_rules", "documents_notifications",
     "users",
-    "activity_logs",
   ],
   "Sales Div.": [
     "dashboard",
     "documents", "documents_ledger","report","documents_notifications",
-    "activity_logs",
   ],
 };
 

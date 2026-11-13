@@ -1032,6 +1032,135 @@
   align-items: center;
   gap: 10px;
 }
+.department-bulk-company {
+  max-width: 460px;
+  margin-bottom: 16px;
+}
+.department-bulk-company label {
+  display: grid;
+  gap: 6px;
+  color: #596277;
+  font-size: 12px;
+  font-weight: 600;
+}
+.department-bulk-company select {
+  min-height: 40px;
+}
+.department-bulk-departments {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #edf0f5;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+.department-bulk-department-toolbar {
+  margin: 10px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.department-bulk-department-toolbar > input {
+  min-width: 0;
+}
+.department-bulk-department-list {
+  max-height: 160px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  overflow: auto;
+}
+.user-modal .department-bulk-department-option {
+  min-width: 0;
+  min-height: 34px;
+  padding: 5px 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #596277;
+  font-size: 12px;
+  font-weight: 600;
+}
+.user-modal .department-bulk-department-option input,
+.user-modal .department-bulk-module-option input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.department-bulk-action {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #edf0f5;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+.department-bulk-action legend {
+  padding: 0 4px;
+  color: #596277;
+  font-size: 12px;
+  font-weight: 700;
+}
+.user-modal .department-bulk-action label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #596277;
+  font-size: 12px;
+  font-weight: 600;
+}
+.user-modal .department-bulk-action input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.department-bulk-module-title {
+  margin: 0 0 10px;
+  color: #3c4659;
+  font-size: 14px;
+}
+.user-modal .department-bulk-module-option {
+  min-width: 0;
+  min-height: 42px;
+  padding: 6px 2px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #596277;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.department-bulk-module-option > svg {
+  flex: 0 0 16px;
+  color: var(--accent);
+}
+.department-bulk-module-option > span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.department-bulk-module-option > small {
+  min-width: 26px;
+  color: #7a8497;
+  font-size: 11px;
+  text-align: center;
+}
+.department-bulk-module-option input {
+  flex: 0 0 16px;
+}
+.department-bulk-modal .department-bulk-result {
+  margin: 14px 0 0;
+  color: #25724b;
+  font-weight: 600;
+}
 .user-modal .department-module-selected-filter {
   display: flex;
   align-items: center;
