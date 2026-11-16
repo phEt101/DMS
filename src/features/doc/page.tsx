@@ -38,6 +38,8 @@ const INITIAL_POLICY: MockPolicy = {
   leadPersonal:1, leadVacation:15, hoursPerDay:8, hourStep:1, certDays:3, otMax:4, fixDays:7, emergencyMaxDays:3,
   ordainMaxDays:30, compassionateEmployeeMaxDays:6, compassionateEmployeePaidDays:4,
   compassionateSpouseParentMaxDays:3, compassionateSpouseParentPaidDays:2,
+  maternityMaxDays:120, childcareMaxDays:15, childcarePayPercent:50,
+  spouseChildbirthMaxDays:15, spouseChildbirthWindowDays:90,
 }
 
 const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; icon: typeof FaFileLines; group: 'leave' | 'ot' | 'other' }> = {
@@ -46,9 +48,9 @@ const KIND_INFO_DEFAULT: Record<DocKind, { title: string; description: string; i
   timefix: { title: 'ขอแก้ไขเวลาเข้า–ออกงาน', description: 'แจ้งลืมสแกนหรือแก้ไขเวลาเข้างาน', icon: FaFileLines, group: 'other' },
   outing: { title: 'ขอออกนอกสถานที่', description: 'ขออนุญาตออกไปปฏิบัติงานระหว่างวัน', icon: FaLocationDot, group: 'other' },
 }
-const LEAVE_TYPES_DEFAULT: Record<string, string> = { personal:'ลากิจ', sick:'ลาป่วย', vacation:'ลาพักร้อน', emergency:'ลาพักร้อนฉุกเฉิน', unpaid:'ลากิจไม่รับค่าจ้าง', maternity:'ลาคลอด', ordain:'ลาบวช', marriage:'ลาสมรส', other:'ลาอื่น ๆ' }
+const LEAVE_TYPES_DEFAULT: Record<string, string> = { personal:'ลากิจ', sick:'ลาป่วย', vacation:'ลาพักร้อน', emergency:'ลาพักร้อนฉุกเฉิน', unpaid:'ลากิจไม่รับค่าจ้าง', maternity:'ลาคลอด', childcare_after_maternity:'ลาต่อเนื่องเพื่อเลี้ยงดูบุตร', spouse_childbirth:'ลาช่วยเหลือคู่สมรสคลอดบุตร', ordain:'ลาบวช', marriage:'ลาสมรส', other:'ลาอื่น ๆ' }
 const FORM_FIELDS_DEFAULT: Record<DocKind, Array<{ key: string; label: string; type: 'text' | 'date' | 'time' | 'number' | 'textarea' | 'select' | 'checkbox'; options?: Record<string, string>; step?: number; wide?: boolean }>> = {
-  leave:[{key:'leaveType',label:'ประเภทการลา',type:'select',options:LEAVE_TYPES_DEFAULT,wide:true},{key:'byHour',label:'ลาเป็นชั่วโมง (ระบุจำนวนชั่วโมงได้เลย · 1 วัน = 8 ชม.)',type:'checkbox',wide:true},{key:'from',label:'วันที่ลา',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'start',label:'เวลาเริ่มลา',type:'time'},{key:'end',label:'เวลาสิ้นสุดลา',type:'time'},{key:'hours',label:'จำนวนชั่วโมงที่ลา (เลือกวัน = คำนวณอัตโนมัติ · แก้ไขได้ เช่น 1 = ลา 1 ชั่วโมง)',type:'number',step:.5,wide:true},{key:'reason',label:'เหตุผลการลา',type:'textarea',wide:true}],
+  leave:[{key:'leaveType',label:'ประเภทการลา',type:'select',options:LEAVE_TYPES_DEFAULT,wide:true},{key:'compassionateRelation',label:'กรณีลาเมตตาจิต',type:'select',options:{select_case:'— เลือกกรณี —',spouse:'คู่สมรส',child:'บุตร',employee_parent:'บิดาหรือมารดาของพนักงาน',spouse_parent:'บิดาหรือมารดาของคู่สมรส'},wide:true},{key:'childBirthDate',label:'วันคลอดบุตร',type:'date',wide:true},{key:'byHour',label:'ลาเป็นชั่วโมง (ระบุจำนวนชั่วโมงได้เลย · 1 วัน = 8 ชม.)',type:'checkbox',wide:true},{key:'from',label:'วันที่ลา',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'start',label:'เวลาเริ่มลา',type:'time'},{key:'end',label:'เวลาสิ้นสุดลา',type:'time'},{key:'hours',label:'จำนวนชั่วโมงที่ลา (เลือกวัน = คำนวณอัตโนมัติ · แก้ไขได้ เช่น 1 = ลา 1 ชั่วโมง)',type:'number',step:.5,wide:true},{key:'reason',label:'เหตุผลการลา',type:'textarea',wide:true}],
   ot:[{key:'dayType',label:'ประเภทวัน',type:'select',options:{weekday:'วันทำงานปกติ',weekend:'วันหยุดประจำสัปดาห์',holiday:'วันหยุดนักขัตฤกษ์'},wide:true},{key:'date',label:'วันที่ทำ OT',type:'date',wide:true},{key:'start',label:'เวลาเริ่ม',type:'time'},{key:'end',label:'เวลาสิ้นสุด',type:'time'},{key:'hours',label:'รวม (ชั่วโมง)',type:'number',step:.5,wide:true},{key:'task',label:'งาน / โครงการที่ทำ',type:'text',wide:true},{key:'reason',label:'เหตุผลที่ต้องทำ OT',type:'textarea',wide:true}],
   timefix:[{key:'date',label:'วันที่ต้องการแก้ไข',type:'date'},{key:'cause',label:'สาเหตุ',type:'select',options:{forgot:'ลืมสแกนนิ้ว',device:'เครื่องสแกนขัดข้อง',offsite:'ปฏิบัติงานนอกสถานที่',other:'อื่น ๆ'}},{key:'inTime',label:'เวลาเข้างานที่ถูกต้อง',type:'time'},{key:'outTime',label:'เวลาออกงานที่ถูกต้อง',type:'time'},{key:'reason',label:'รายละเอียด',type:'textarea',wide:true}],
   outing:[{key:'from',label:'ตั้งแต่วันที่',type:'date'},{key:'to',label:'ถึงวันที่',type:'date'},{key:'outTime',label:'เวลาออก',type:'time'},{key:'backTime',label:'เวลากลับโดยประมาณ',type:'time'},{key:'company',label:'บริษัท',type:'text',wide:true},{key:'project',label:'โครงการ',type:'text',wide:true},{key:'customerName',label:'ชื่อลูกค้า',type:'text'},{key:'customerPosition',label:'ตำแหน่ง',type:'text'},{key:'phone',label:'เบอร์โทร',type:'text',wide:true},{key:'workDetails',label:'รายละเอียดงาน',type:'textarea',wide:true},{key:'remark',label:'หมายเหตุ',type:'textarea',   wide:true}],
@@ -66,9 +68,12 @@ const calendarDaysBetween = (from: string, to: string) => {
   if (!from || !to || to < from) return 0
   return Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86400000) + 1
 }
-const calendarLeaveMax = (type: string, policy: MockPolicy) => type === 'ordain' ? policy.ordainMaxDays
-  : type === 'compassionate_employee_family' ? policy.compassionateEmployeeMaxDays
-    : type === 'compassionate_spouse_parent' ? policy.compassionateSpouseParentMaxDays
+const calendarLeaveMax = (type: string, policy: MockPolicy, relation = '') => type === 'ordain' ? policy.ordainMaxDays
+  : (type === 'compassionate_employee_family' && relation === 'spouse_parent') || type === 'compassionate_spouse_parent' ? policy.compassionateSpouseParentMaxDays
+    : type === 'compassionate_employee_family' ? policy.compassionateEmployeeMaxDays
+      : type === 'maternity' ? policy.maternityMaxDays
+        : type === 'childcare_after_maternity' ? policy.childcareMaxDays
+          : type === 'spouse_childbirth' ? policy.spouseChildbirthMaxDays
       : null
 const todayInBangkok = () => {
   const parts = new Intl.DateTimeFormat('en', {
@@ -97,10 +102,13 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
   const todayIso = todayInBangkok()
   const today = new Date(`${todayIso}T00:00:00`)
   if (kind === 'leave') {
-    const type = v('leaveType'), from = v('from'), to = v('to'), isHour = type === 'emergency' && values.byHour === true
+    const type = v('leaveType'), relation = v('compassionateRelation'), from = v('from'), to = v('to'), isHour = type === 'emergency' && values.byHour === true
     let qty = Number(v('days'))
     add(Boolean(from && to && to >= from), msg('dateRange'))
-    const specialLeaveLimit = calendarLeaveMax(type, policy)
+    if (type === 'compassionate_employee_family') {
+      add(['spouse', 'child', 'employee_parent', 'spouse_parent'].includes(relation), msg('compassionateRelationRequired'), 'compassionateRelationRequired')
+    }
+    const specialLeaveLimit = calendarLeaveMax(type, policy, relation)
     if (specialLeaveLimit !== null) {
       qty = calendarDaysBetween(from, to)
       values.days = String(qty || '')
@@ -108,6 +116,24 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
       values.byHour = false
       if (from && to && to >= from) {
         add(qty <= specialLeaveLimit, msg('specialLeaveLimit', { max: specialLeaveLimit }), 'specialLeaveLimit')
+      }
+      if (type === 'spouse_childbirth') {
+        const birthDate = v('childBirthDate')
+        const lastEligibleDate = birthDate
+          ? new Date(new Date(`${birthDate}T00:00:00Z`).getTime() + policy.spouseChildbirthWindowDays * 86400000).toISOString().slice(0, 10)
+          : ''
+        add(Boolean(birthDate && from >= birthDate && to <= lastEligibleDate), msg('specialLeaveWindow', { days: policy.spouseChildbirthWindowDays }), 'specialLeaveWindow')
+      }
+      if (type === 'childcare_after_maternity') {
+        const maternityEndDate = docs
+          .filter((doc) => doc.employee === employee.name && doc.kind === 'leave' && doc.leaveType === 'maternity' && doc.status === 'approved' && doc.to)
+          .map((doc) => doc.to!)
+          .sort()
+          .pop()
+        const expectedStart = maternityEndDate
+          ? new Date(new Date(`${maternityEndDate}T00:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10)
+          : ''
+        add(Boolean(expectedStart && from === expectedStart), msg('childcareMustFollowMaternity'), 'childcareMustFollowMaternity')
       }
     } else if (isHour) {
       const start = timeMinutes(v('start')), end = timeMinutes(v('end')), hours = (end - start) / 60
@@ -132,7 +158,7 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     const leadDays = startDate ? Math.floor((startDate.getTime() - today.getTime()) / 86400000) : 0
     // นับยื่นล่วงหน้าตามวันปฏิทินล้วน (รวมเสาร์-อาทิตย์) ให้ตรงกับปฏิทินหน้าฟอร์ม เช่น ลาพักร้อน 15 = เว้น 15 วันพอดี
     if (type === 'personal' || type === 'unpaid') add(leadDays >= policy.leadPersonal, msg('personalLead', { days: policy.leadPersonal }))
-    if (type === 'vacation') add(leadDays >= policy.leadVacation, msg('vacationLead', { days: policy.leadVacation }))
+    if (type === 'vacation') add(leadDays >= Math.max(0, policy.leadVacation - 1), msg('vacationLead', { days: policy.leadVacation }))
     if (type === 'emergency') add(Boolean(from && from >= todayIso), msg('emergencyFromToday'))
     if (['sick','personal','vacation','emergency'].includes(type) && from && to) add(from >= policy.yearStart && to <= policy.yearEnd, msg('withinYear', { year: policy.year, from: policy.yearStart, to: policy.yearEnd }))
     const approvedUsage = (leaveType: string) => docs.filter((doc) => doc.employee === employee.name && doc.kind === 'leave' && doc.leaveType === leaveType && doc.status !== 'rejected').reduce((sum, doc) => sum + (doc.days ?? 0), 0)
@@ -223,7 +249,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const dateText = (value: string) => new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'short', year: '2-digit' }).format(new Date(`${value}T00:00:00`))
   const KIND_INFO = Object.fromEntries(Object.entries(KIND_INFO_DEFAULT).map(([key, info]) => [key, { ...info, title: copy.kinds[key as DocKind], description: copy.kindDescriptions[key as DocKind] }])) as typeof KIND_INFO_DEFAULT
   const LEAVE_TYPES = copy.leaveTypes
-  const FORM_FIELDS = Object.fromEntries(Object.entries(FORM_FIELDS_DEFAULT).map(([kind, fields]) => [kind, fields.map((field) => ({ ...field, label: copy.fieldLabels[field.key as keyof typeof copy.fieldLabels] ?? field.label, ...(field.key === 'leaveType' ? { options: LEAVE_TYPES } : field.options ? { options: Object.fromEntries(Object.entries(field.options).map(([key]) => [key, copy.fieldOptions[key as keyof typeof copy.fieldOptions] ?? key])) } : {}) }))])) as typeof FORM_FIELDS_DEFAULT
+  const FORM_FIELDS = Object.fromEntries(Object.entries(FORM_FIELDS_DEFAULT).map(([kind, fields]) => [kind, fields.map((field) => ({ ...field, label: copy.fieldLabels[field.key as keyof typeof copy.fieldLabels] ?? field.label, ...(field.key === 'leaveType' ? { options: Object.fromEntries(Object.entries(LEAVE_TYPES).filter(([key]) => key !== 'compassionate_spouse_parent')) } : field.options ? { options: Object.fromEntries(Object.entries(field.options).map(([key, label]) => [key, copy.fieldOptions[key as keyof typeof copy.fieldOptions] ?? label])) } : {}) }))])) as typeof FORM_FIELDS_DEFAULT
   // cancelled: เอกสารถูกยกเลิก — คลิกแจ้งเตือนเข้ามายังต้องแสดงรายละเอียดได้ ไม่งั้น STATUS_INFO[status] เป็น undefined แล้วหน้าจอขาว
   const STATUS_INFO = { pending_mgr: { label: copy.statuses.pending_mgr, className: 'pending' }, pending_exec: { label: copy.statuses.pending_exec, className: 'pending' }, pending_hr: { label: copy.statuses.pending_hr, className: 'pending' }, approved: { label: copy.statuses.approved, className: 'approved' }, rejected: { label: copy.statuses.rejected, className: 'rejected' }, cancelled: { label: copy.statuses.cancelled, className: 'rejected' } }
 
@@ -270,6 +296,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const [selectedKind, setSelectedKind] = useState<DocKind | ''>('')
   const [formValues, setFormValues] = useState<FormValues>({})
   const [medicalCertificateFile, setMedicalCertificateFile] = useState<File | null>(null)
+  const [supportingDocumentFiles, setSupportingDocumentFiles] = useState<File[]>([])
   const [pendingSubmission, setPendingSubmission] = useState<{ kind: DocKind; values: FormValues } | null>(null)
   const [rejectTarget, setRejectTarget] = useState<MockDocument | null>(null)
   const [rejectSubmitting, setRejectSubmitting] = useState(false)
@@ -625,13 +652,16 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       setMedicalCertificateFile(null)
       setFormValues((current) => ({ ...current, cert: false }))
     }
+    if (key === 'leaveType' && value !== formValues.leaveType) setSupportingDocumentFiles([])
     setFormValues((current) => {
       const next = { ...current, [key]:value }
+      if (key === 'leaveType' && value !== 'compassionate_employee_family') delete next.compassionateRelation
+      if (key === 'leaveType' && value === 'compassionate_employee_family' && value !== current.leaveType) next.compassionateRelation = 'select_case'
       if ((selectedKind === 'leave' || selectedKind === 'outing') && (key === 'from' || key === 'to')) {
         if (next.from && !next.to) next.to = next.from
         if (next.to && !next.from) next.from = next.to
         if (key === 'from' && next.from && next.to && String(next.to) < String(next.from)) next.to = next.from
-        const isCalendarLeave = selectedKind === 'leave' && calendarLeaveMax(String(next.leaveType ?? ''), policy) !== null
+        const isCalendarLeave = selectedKind === 'leave' && calendarLeaveMax(String(next.leaveType ?? ''), policy, String(next.compassionateRelation ?? '')) !== null
         next.days = String((isCalendarLeave
           ? calendarDaysBetween(String(next.from ?? ''), String(next.to ?? ''))
           : daysBetween(String(next.from ?? ''), String(next.to ?? ''))) || '')
@@ -639,7 +669,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         next.hours = isCalendarLeave ? '' : autoDays > 0 ? String(autoDays * policy.hoursPerDay) : ''
       }
       if (selectedKind === 'leave' && key === 'leaveType') {
-        const specialLeave = calendarLeaveMax(String(value), policy) !== null
+        const specialLeave = calendarLeaveMax(String(value), policy, String(next.compassionateRelation ?? '')) !== null
         if (next.from && next.to) {
           const dateDays = specialLeave
             ? calendarDaysBetween(String(next.from), String(next.to))
@@ -686,6 +716,21 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     }
     setMedicalCertificateFile(file)
     setFormValues((current) => ({ ...current, cert: Boolean(file) }))
+  }
+
+  const updateSupportingDocumentFiles = (files: File[]) => {
+    if (files.length + supportingDocumentFiles.length > 5) {
+      showToast(copy.submission.supportingDocumentsTooMany, 'error')
+      return
+    }
+    if (files.some((file) => file.size > 10 * 1024 * 1024)) {
+      showToast(copy.submission.medicalCertificateTooLarge, 'error')
+      return
+    }
+    setSupportingDocumentFiles((current) => [...current, ...files])
+  }
+  const removeSupportingDocumentFile = (index: number) => {
+    setSupportingDocumentFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))
   }
 
   const cancelPendingSubmission = () => { setPendingSubmission(null); setFormOpen(true) }
@@ -781,9 +826,11 @@ export default function DocumentPage({ translations, view = 'all', language = 't
           await createRequest(
             { kind: pendingSubmission.kind, values: pendingSubmission.values, signature: image, rememberSignature },
             medicalCertificateFile ?? undefined,
+            supportingDocumentFiles,
           )
           setPendingSubmission(null); setSelectedKind(''); setFormValues({})
           setMedicalCertificateFile(null)
+          setSupportingDocumentFiles([])
           showToast(copy.messages.submittedToast, 'success')
         } else if (signingDocument) {
           const result = await approveRequest(signingDocument.id, { signature: image, rememberSignature })
@@ -812,6 +859,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       if (rememberSignature && image) setSavedSignature(image)
       setPendingSubmission(null); setSelectedKind(''); setFormValues({})
       setMedicalCertificateFile(null)
+      setSupportingDocumentFiles([])
       showToast(copy.messages.submittedToast, 'success')
       return
     }
@@ -843,10 +891,16 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         compassionateEmployeePaidDays: policyDraft.compassionateEmployeePaidDays,
         compassionateSpouseParentMaxDays: policyDraft.compassionateSpouseParentMaxDays,
         compassionateSpouseParentPaidDays: policyDraft.compassionateSpouseParentPaidDays,
+        maternityMaxDays: policyDraft.maternityMaxDays,
+        childcareMaxDays: policyDraft.childcareMaxDays,
+        childcarePayPercent: policyDraft.childcarePayPercent,
+        spouseChildbirthMaxDays: policyDraft.spouseChildbirthMaxDays,
+        spouseChildbirthWindowDays: policyDraft.spouseChildbirthWindowDays,
       })
       if ([
         'emergencyMaxDays', 'ordainMaxDays', 'compassionateEmployeeMaxDays', 'compassionateEmployeePaidDays',
-        'compassionateSpouseParentMaxDays', 'compassionateSpouseParentPaidDays',
+        'compassionateSpouseParentMaxDays', 'compassionateSpouseParentPaidDays', 'maternityMaxDays',
+        'childcareMaxDays', 'childcarePayPercent', 'spouseChildbirthMaxDays', 'spouseChildbirthWindowDays',
       ].some((key) => Number(saved[key as keyof typeof saved]) !== Number(policyDraft[key as keyof MockPolicy]))) {
         showToast(copy.policy.policySaveError, 'error')
         return
@@ -995,13 +1049,14 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     {(signingDocument || pendingSubmission) && <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) } }}><section className="documents-modal documents-signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><div className="documents-modal-head"><div><h2 id="signature-modal-title">{pendingSubmission ? copy.signature.submitter : signatureStage(signingDocument!) === 'ผู้ยื่น' ? copy.signature.submitter : `${copy.signature.approve} · ${signatureStage(signingDocument!) === 'HR' ? copy.detail.hr : copy.detail.manager}`}</h2><p>{pendingSubmission ? KIND_INFO[pendingSubmission.kind].title + ' · ' + currentSubmitterName : `${copy.sampleDocuments[String(signingDocument!.id)]?.title ?? signingDocument!.title} · ${signingDocument!.employee}`}</p></div><button aria-label={copy.detail.close} onClick={() => { if (pendingSubmission) cancelPendingSubmission(); else setSigningDocumentId(null) }}><FaXmark /></button></div><label className="documents-signature-upload"><span>{copy.signature.upload}</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { void attachSignature(event.target.files?.[0]); event.currentTarget.value = '' }} /><small>{signatureProcessing ? copy.signature.processing : copy.signature.uploadHelp}</small></label><div className={`documents-signature-preview${signatureImage ? '' : ' is-empty'}`}>{signatureImage ? <img src={signatureImage} alt={copy.signature.preview} /> : <span>{copy.signature.noImage}</span>}</div><label className="documents-remember-signature"><input type="checkbox" checked={rememberSignature} onChange={(event) => setRememberSignature(event.target.checked)} /> {copy.signature.remember}</label><div className="documents-signature-actions"><button type="button" onClick={clearSignature} disabled={!signatureImage || signatureProcessing}>{copy.signature.remove}</button><button type="button" className="documents-primary" onClick={() => void confirmSignature()} disabled={signatureProcessing}>{signatureProcessing ? copy.signature.processing : signatureImage ? copy.signature.confirmOrSend : copy.signature.confirmWithoutSign}</button></div></section></div>}
 
     <DocNewDocumentModal
-      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} leadPersonal={policy.leadPersonal} leadVacation={policy.leadVacation} fixDays={policy.fixDays} ordainMaxDays={policy.ordainMaxDays} compassionateEmployeeMaxDays={policy.compassionateEmployeeMaxDays} compassionateEmployeePaidDays={policy.compassionateEmployeePaidDays} compassionateSpouseParentMaxDays={policy.compassionateSpouseParentMaxDays} compassionateSpouseParentPaidDays={policy.compassionateSpouseParentPaidDays} language={language} role={mockRole} copy={copy} translations={translations}
+      open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} leadPersonal={policy.leadPersonal} leadVacation={policy.leadVacation} fixDays={policy.fixDays} ordainMaxDays={policy.ordainMaxDays} compassionateEmployeeMaxDays={policy.compassionateEmployeeMaxDays} compassionateEmployeePaidDays={policy.compassionateEmployeePaidDays} compassionateSpouseParentMaxDays={policy.compassionateSpouseParentMaxDays} compassionateSpouseParentPaidDays={policy.compassionateSpouseParentPaidDays} maternityMaxDays={policy.maternityMaxDays} childcareMaxDays={policy.childcareMaxDays} childcarePayPercent={policy.childcarePayPercent} spouseChildbirthMaxDays={policy.spouseChildbirthMaxDays} spouseChildbirthWindowDays={policy.spouseChildbirthWindowDays} language={language} role={mockRole} copy={copy} translations={translations}
       onSubmit={submitMock}
-      onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}
-      onClearKind={() => { setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null) }}
+      onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null); setSupportingDocumentFiles([]) }}
+      onClearKind={() => { setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null); setSupportingDocumentFiles([]) }}
       onPickKind={(kind) => {
         setSelectedKind(kind)
         setMedicalCertificateFile(null)
+        setSupportingDocumentFiles([])
         setFormValues((current) => {
           if (kind === 'outing' && selectedKind === 'outing') return current
           const values = Object.fromEntries(FORM_FIELDS[kind].map((field) => [field.key, field.type === 'select' ? Object.keys(field.options ?? {})[0] : field.type === 'checkbox' ? false : '']))
@@ -1014,8 +1069,11 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       }}
       onChange={updateFormValue}
       medicalCertificateFile={medicalCertificateFile}
+      supportingDocumentFiles={supportingDocumentFiles}
       certificateRequired={certificateRequired}
       onMedicalCertificateFile={updateMedicalCertificate}
+      onSupportingDocumentFiles={updateSupportingDocumentFiles}
+      onRemoveSupportingDocumentFile={removeSupportingDocumentFile}
     />
   </section>
 }

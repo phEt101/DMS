@@ -23,6 +23,11 @@ export default function DocLeavePolicySettings({ policyDraft, onChange, onReset,
       <label><span>{c.policy.compassionateEmployeePaidDays}</span><input type="number" min="0" max={policyDraft.compassionateEmployeeMaxDays} step="1" value={policyDraft.compassionateEmployeePaidDays} onChange={e=>set('compassionateEmployeePaidDays',Number(e.target.value))}/></label>
       <label><span>{c.policy.compassionateSpouseParentMaxDays}</span><input type="number" min="0" max="999" step="1" value={policyDraft.compassionateSpouseParentMaxDays} onChange={e=>set('compassionateSpouseParentMaxDays',Number(e.target.value))}/></label>
       <label><span>{c.policy.compassionateSpouseParentPaidDays}</span><input type="number" min="0" max={policyDraft.compassionateSpouseParentMaxDays} step="1" value={policyDraft.compassionateSpouseParentPaidDays} onChange={e=>set('compassionateSpouseParentPaidDays',Number(e.target.value))}/></label>
+      <label><span>{c.policy.maternityMaxDays}</span><input type="number" min="0" max="999" step="1" value={policyDraft.maternityMaxDays} onChange={e=>set('maternityMaxDays',Number(e.target.value))}/></label>
+      <label><span>{c.policy.childcareMaxDays}</span><input type="number" min="0" max="999" step="1" value={policyDraft.childcareMaxDays} onChange={e=>set('childcareMaxDays',Number(e.target.value))}/></label>
+      <label><span>{c.policy.childcarePayPercent}</span><input type="number" min="0" max="100" step="1" value={policyDraft.childcarePayPercent} onChange={e=>set('childcarePayPercent',Number(e.target.value))}/></label>
+      <label><span>{c.policy.spouseChildbirthMaxDays}</span><input type="number" min="0" max="999" step="1" value={policyDraft.spouseChildbirthMaxDays} onChange={e=>set('spouseChildbirthMaxDays',Number(e.target.value))}/></label>
+      <label><span>{c.policy.spouseChildbirthWindowDays}</span><input type="number" min="0" max="999" step="1" value={policyDraft.spouseChildbirthWindowDays} onChange={e=>set('spouseChildbirthWindowDays',Number(e.target.value))}/></label>
     </div>
     </fieldset>
     {canManage && <div className="documents-policy-actions"><button className="dms-back-btn" onClick={onReset}>{c.policy.reset}</button><button className="dms-create-btn" onClick={onSave}>{c.policy.save}</button></div>}

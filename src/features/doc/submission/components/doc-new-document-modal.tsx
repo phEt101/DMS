@@ -10,9 +10,7 @@ import 'react-datepicker/dist/react-datepicker.css'
 registerLocale('th', th)
 registerLocale('en', enUS)
 
-// ถ้านโยบายหมายถึง "เว้น N วัน" (วันแรกที่ลาได้ = วันนี้ + N + 1) ให้เปลี่ยนเป็น 1
-// ถ้าหมายถึง "วันแรกที่ลาได้ = วันนี้ + N" ให้เป็น 0 (ค่าเริ่มต้น)
-// ควรให้ตรงกับตรรกะ personalLead / vacationLead ฝั่ง server/mock
+// Keep any extra calendar gap aligned with personal/vacation validation.
 const EXTRA_GAP = 0
 
 function addCalendarDaysAfter(date: string, days: number) {
@@ -21,7 +19,9 @@ function addCalendarDaysAfter(date: string, days: number) {
 const SPECIAL_LEAVE_HINTS: Record<string, string> = {
   ordain: 'ordinationHint',
   compassionate_employee_family: 'compassionateEmployeeFamilyHint',
-  compassionate_spouse_parent: 'compassionateSpouseParentHint',
+  maternity: 'maternityHint',
+  childcare_after_maternity: 'childcareAfterMaternityHint',
+  spouse_childbirth: 'spouseChildbirthHint',
 }
 // TODO: เปิดขั้นพัฒนาเมื่อพร้อมใช้งาน — ot: ขอทำงานล่วงเวลา (OT), timefix: ขอแก้ไขเวลาเข้า–ออกงาน
 const HIDDEN_KINDS: DocKind[] = ['ot', 'timefix']
@@ -49,7 +49,8 @@ function TimeField({ value, required, language, onChange }: { value: string; req
 // คำอธิบายใต้ช่องกรอก (fieldHints / kindFieldHints) ย้ายไปอยู่ใน th.json / en.json แล้ว
 // map ผลตรวจ (validation key จาก server/mock) → ช่องกรอกที่เกี่ยวข้อง
 const CHECK_FIELD: Record<string, string> = {
-  dateRange: 'from', overlap: 'from', personalLead: 'from', vacationLead: 'from', emergencyFromToday: 'from', withinYear: 'from', todayOrFuture: 'from', validRange: 'from', outingRange: 'from',
+  dateRange: 'from', overlap: 'from', personalLead: 'from', vacationLead: 'from', emergencyFromToday: 'from', withinYear: 'from', todayOrFuture: 'from', validRange: 'from', outingRange: 'from', specialLeaveWindow: 'childBirthDate', childcareMustFollowMaternity: 'from',
+  compassionateRelationRequired: 'compassionateRelation',
   endAfterStart: 'end', emergencyHours: 'end', hourlyLeaveLimit: 'hours', otLimit: 'end', backAfterOut: 'backTime',
   daysPositive: 'days', leaveBalance: 'days', usePersonalFirst: 'days', vacationBalance: 'days',
   leaveReason: 'reason', emergencyReason: 'reason', otReason: 'reason', detailsRequired: 'reason', reasonRequired: 'reason',
@@ -59,7 +60,7 @@ const CHECK_FIELD: Record<string, string> = {
   projectRequired: 'project', customerNameRequired: 'customerName', phoneRequired: 'phone',
   workDetailsRequired: 'workDetails', phoneInvalid: 'phone', specialLeaveLimit: 'from', certificateRequired: 'cert',
 }
-type Props = { open: boolean; selectedKind: DocKind | ''; kindInfo: Record<DocKind, { title: string; description: string; icon: IconType }>; fields: Record<DocKind, Field[]>; values: FormValues; checks: Check[]; validating: boolean; today: string; leadPersonal: number; leadVacation: number; fixDays: number; ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number; compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number; language: 'th' | 'en'; role: string; medicalCertificateFile: File | null; certificateRequired: boolean; onMedicalCertificateFile: (file: File | null) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; onClearKind: () => void; onPickKind: (kind: DocKind) => void; onChange: (key: string, value: string | boolean) => void; copy: any; translations: any }
+type Props = { open: boolean; selectedKind: DocKind | ''; kindInfo: Record<DocKind, { title: string; description: string; icon: IconType }>; fields: Record<DocKind, Field[]>; values: FormValues; checks: Check[]; validating: boolean; today: string; leadPersonal: number; leadVacation: number; fixDays: number; ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number; compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number; maternityMaxDays: number; childcareMaxDays: number; childcarePayPercent: number; spouseChildbirthMaxDays: number; spouseChildbirthWindowDays: number; language: 'th' | 'en'; role: string; medicalCertificateFile: File | null; supportingDocumentFiles: File[]; certificateRequired: boolean; onMedicalCertificateFile: (file: File | null) => void; onSupportingDocumentFiles: (files: File[]) => void; onRemoveSupportingDocumentFile: (index: number) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; onClearKind: () => void; onPickKind: (kind: DocKind) => void; onChange: (key: string, value: string | boolean) => void; copy: any; translations: any }
 
 export default function DocNewDocumentModal(p: Props) {
   const formRef = useRef<HTMLFormElement>(null)
@@ -81,9 +82,9 @@ export default function DocNewDocumentModal(p: Props) {
   const personal = isLeave && ['personal', 'unpaid'].includes(String(p.values.leaveType))
 
   // วันแรกที่นโยบายอนุญาตให้ลา (undefined = ไม่มีข้อจำกัดล่วงหน้า เช่น ลาป่วย/ลาฉุกเฉิน)
-  // นับตามวันปฏิทินล้วน ๆ (รวมเสาร์-อาทิตย์) เช่น ลาพักร้อน 15 → เว้นแค่ 15 วันพอดี
+  // Vacation notice counts today as day 1, so a 15-day notice starts 14 days after today.
   const leaveMinDate = vacation
-    ? addCalendarDaysAfter(p.today, Math.max(0, p.leadVacation) + EXTRA_GAP)
+    ? addCalendarDaysAfter(p.today, Math.max(0, p.leadVacation - 1) + EXTRA_GAP)
     : personal
       ? addCalendarDaysAfter(p.today, Math.max(0, p.leadPersonal) + EXTRA_GAP)
       : undefined
@@ -95,13 +96,31 @@ export default function DocNewDocumentModal(p: Props) {
     : undefined
 
   const fromDate = String(p.values.from ?? '') ? parseISO(String(p.values.from)) : undefined
+  const leaveType = String(p.values.leaveType ?? '')
+  const documentRequirements = p.copy.submission.documentRequirements
+  const documentRequirement = leaveType === 'compassionate_employee_family'
+    ? documentRequirements?.[leaveType]?.[String(p.values.compassionateRelation ?? '')]
+    : documentRequirements?.[leaveType]
+  const requiresSupportingDocuments = Boolean(documentRequirements?.[leaveType])
+  const compassionateSpouseParent = p.values.compassionateRelation === 'spouse_parent'
+  const specialLeaveMaxDays = p.values.leaveType === 'compassionate_employee_family'
+    ? compassionateSpouseParent ? p.compassionateSpouseParentMaxDays : p.compassionateEmployeeMaxDays
+    : p.values.leaveType === 'ordain' ? p.ordainMaxDays
+      : p.values.leaveType === 'compassionate_spouse_parent' ? p.compassionateSpouseParentMaxDays
+        : p.values.leaveType === 'maternity' ? p.maternityMaxDays
+          : p.values.leaveType === 'childcare_after_maternity' ? p.childcareMaxDays : p.spouseChildbirthMaxDays
+  const specialLeavePaidDays = compassionateSpouseParent ? p.compassionateSpouseParentPaidDays : p.compassionateEmployeePaidDays
 
   return <div className="documents-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) p.onClose() }}><form ref={formRef} className="dms-modal dms-create-doc-modal documents-submission-modal" onSubmit={p.onSubmit}>
     <h2 className="dms-modal-title">{p.selectedKind ? p.kindInfo[p.selectedKind].title : p.copy.submission.title}</h2><p className="dms-modal-subtitle">{p.selectedKind ? p.copy.submission.instructions : p.copy.submission.intro}</p><button type="button" className="modal-close" aria-label={p.copy.detail.close} onClick={p.onClose}>×</button>
     <div className="dms-create-doc-body documents-submission-body">{!p.selectedKind ? <div className="documents-kind-grid">{(Object.keys(p.kindInfo) as DocKind[]).filter(kind => !HIDDEN_KINDS.includes(kind)).map(kind => { const info = p.kindInfo[kind]; const Icon = info.icon; const merged = kind === 'outing'; return <button type="button" key={kind} onClick={() => p.onPickKind(kind)}><span className="documents-icon"><Icon /></span><span><b>{info.title}</b><small>{merged ? p.copy.submission.offsiteDescription : info.description}</small></span></button> })}</div> : <>
       <button type="button" className="dms-back-btn documents-form-back" onClick={p.onClearKind}>{p.copy.submission.changeKind}</button>
       {p.selectedKind === 'leave' && SPECIAL_LEAVE_HINTS[String(p.values.leaveType)] && <p className="documents-policy-note">
-        {String(p.copy.submission[SPECIAL_LEAVE_HINTS[String(p.values.leaveType)]]).replace('{max}', String(p.values.leaveType === 'ordain' ? p.ordainMaxDays : p.values.leaveType === 'compassionate_employee_family' ? p.compassionateEmployeeMaxDays : p.compassionateSpouseParentMaxDays)).replace('{paid}', String(p.values.leaveType === 'compassionate_employee_family' ? p.compassionateEmployeePaidDays : p.compassionateSpouseParentPaidDays))}
+        {String(p.copy.submission[SPECIAL_LEAVE_HINTS[String(p.values.leaveType)]])
+          .replace('{max}', String(specialLeaveMaxDays))
+          .replace('{paid}', String(p.values.leaveType === 'compassionate_employee_family' ? specialLeavePaidDays : p.compassionateSpouseParentPaidDays))
+          .replace('{percent}', String(p.childcarePayPercent))
+          .replace('{window}', String(p.spouseChildbirthWindowDays))}
         {p.values.from && p.values.to && String(p.values.to) >= String(p.values.from)
           ? ` ${p.language === 'th' ? `เลือกแล้ว ${differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} วัน` : `${differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} days selected`}`
           : ''}
@@ -112,6 +131,8 @@ export default function DocNewDocumentModal(p: Props) {
         const emergency = p.selectedKind === 'leave' && p.values.leaveType === 'emergency'
         const hourly = emergency && p.values.byHour === true
         const calendarLeave = p.selectedKind === 'leave' && Boolean(SPECIAL_LEAVE_HINTS[String(p.values.leaveType)])
+        if (field.key === 'compassionateRelation' && p.values.leaveType !== 'compassionate_employee_family') return null
+        if (field.key === 'childBirthDate' && p.values.leaveType !== 'spouse_childbirth') return null
         if (field.key === 'byHour' && (!emergency || p.values.hours)) return null
         if (field.key === 'cert') return null
         if (field.key === 'days') return null
@@ -164,6 +185,10 @@ export default function DocNewDocumentModal(p: Props) {
 
         const required = p.selectedKind === 'outing'
           ? ['from', 'to', 'outTime', 'company', 'project', 'customerName', 'phone', 'workDetails'].includes(field.key)
+          : field.key === 'compassionateRelation'
+            ? p.values.leaveType === 'compassionate_employee_family'
+          : field.key === 'childBirthDate'
+            ? p.values.leaveType === 'spouse_childbirth'
           : field.type !== 'checkbox'
 
         return <Fragment key={field.key}>{p.selectedKind === 'outing' && field.key === 'project' && <DocOutingLocationField values={p.values} onChange={p.onChange} translations={p.translations} />}<label className={`dms-form-field dms-submission-field ${field.wide ? 'dms-form-field--full' : ''} ${field.type === 'checkbox' ? 'is-checkbox' : ''}`} data-field={field.key}><span className="dms-form-label">
@@ -174,13 +199,35 @@ export default function DocNewDocumentModal(p: Props) {
               </span>
             )}
         </span>
-          {field.type === 'textarea' ? <textarea className="dms-form-input dms-form-textarea" rows={3} required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} /> : field.type === 'select' ? <select className="dms-form-input" required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)}>{Object.entries(field.options ?? {}).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : field.type === 'checkbox' ? <input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e => p.onChange(field.key, e.target.checked)} /> : field.type === 'date' ? <DatePicker className="dms-form-input" required={required} selected={String(value) ? parseISO(String(value)) : null} onChange={(date: Date | null) => p.onChange(field.key, date ? format(date, 'yyyy-MM-dd') : '')} dateFormat={p.language === 'th' ? 'd MMM yyyy' : 'MMM d, yyyy'} locale={p.language} minDate={minDate} dayClassName={dayClassName} openToDate={(vacation || personal) && field.key === 'from' && !value ? minDate : undefined} strictParsing placeholderText={p.copy.submission.hintDate} /> : field.type === 'time' ? <TimeField value={String(value)} required={required} language={p.language} onChange={value => p.onChange(field.key, value)} /> : <input className="dms-form-input" type={field.type} required={required} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' && field.key === 'hours' && p.selectedKind === 'leave' ? 0.5 : field.step} readOnly={field.key === 'hours' && p.selectedKind === 'ot' || field.key === 'days' && (p.selectedKind === 'leave' && hourly || p.selectedKind === 'ot')} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} />}{hint && <small className="dms-form-hint">{hint}</small>}</label></Fragment>
+          {field.type === 'textarea' ? <textarea className="dms-form-input dms-form-textarea" rows={3} required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} /> : field.type === 'select' ? <select className="dms-form-input" required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)}>{Object.entries(field.options ?? {}).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : field.type === 'checkbox' ? <input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e => p.onChange(field.key, e.target.checked)} />           : field.type === 'date' ? <DatePicker className="dms-form-input" required={required} selected={String(value) ? parseISO(String(value)) : null} onChange={(date: Date | null) => p.onChange(field.key, date ? format(date, 'yyyy-MM-dd') : '')} dateFormat={p.language === 'th' ? 'd MMM yyyy' : 'MMM d, yyyy'} locale={p.language} filterDate={date => !minDate || !isBefore(startOfDay(date), startOfDay(minDate))} dayClassName={dayClassName} openToDate={(vacation || personal) && field.key === 'from' && !value ? minDate : undefined} strictParsing placeholderText={p.copy.submission.hintDate} /> : field.type === 'time' ? <TimeField value={String(value)} required={required} language={p.language} onChange={value => p.onChange(field.key, value)} /> : <input className="dms-form-input" type={field.type} required={required} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' && field.key === 'hours' && p.selectedKind === 'leave' ? 0.5 : field.step} readOnly={field.key === 'hours' && p.selectedKind === 'ot' || field.key === 'days' && (p.selectedKind === 'leave' && hourly || p.selectedKind === 'ot')} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} />}{hint && <small className="dms-form-hint">{hint}</small>}</label></Fragment>
       })}</div>
       {p.selectedKind === 'leave' && p.values.leaveType === 'sick' && <label className="dms-form-field dms-submission-field dms-form-field--full" data-field="cert">
         <span className="dms-form-label">{p.copy.submission.medicalCertificateLabel}{p.certificateRequired ? ' *' : ''}</span>
         <input className="dms-form-input" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required={p.certificateRequired && !p.medicalCertificateFile} onChange={event => p.onMedicalCertificateFile(event.target.files?.[0] ?? null)} />
         <small>{p.copy.submission.medicalCertificateHelp}</small>
         {p.medicalCertificateFile && <div className="documents-certificate-selected"><span>{p.medicalCertificateFile.name}</span><button type="button" className="dms-back-btn" onClick={() => p.onMedicalCertificateFile(null)}>{p.copy.submission.removeCertificate}</button></div>}
+      </label>}
+      {p.selectedKind === 'leave' && documentRequirement && <p className="documents-policy-note">{documentRequirement}</p>}
+      {p.selectedKind === 'leave' && requiresSupportingDocuments && <label className="dms-form-field dms-submission-field dms-form-field--full">
+        <span className="dms-form-label">{p.copy.submission.supportingDocumentsLabel} *</span>
+        <input
+          className="dms-form-input"
+          type="file"
+          multiple
+          accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+          required={p.supportingDocumentFiles.length === 0}
+          onChange={event => {
+            p.onSupportingDocumentFiles(Array.from(event.target.files ?? []))
+            event.target.value = ''
+          }}
+        />
+        <small>{p.copy.submission.supportingDocumentsHelp}</small>
+        {p.supportingDocumentFiles.map((file, index) => <div className="documents-certificate-selected" key={`${file.name}-${file.size}-${index}`}>
+          <span>{file.name}</span>
+          <button type="button" className="dms-back-btn" onClick={() => p.onRemoveSupportingDocumentFile(index)}>
+            {p.copy.submission.removeCertificate}
+          </button>
+        </div>)}
       </label>}
       <ul className="documents-validation-list" aria-live="polite" aria-busy={p.validating}>{p.validating && <li className="is-invalid">{p.copy.submission.validationChecking}</li>}{p.checks.map((check, index) => <li key={`${index}-${check.message}`} className={check.ok ? 'is-valid' : 'is-invalid'} onClick={() => { if (!check.ok) focusField(check.key) }} style={!check.ok ? { cursor: 'pointer' } : undefined} title={!check.ok ? p.copy.submission.clickToFix : undefined}><b>{check.ok ? '✓' : '!'}</b>{check.message}</li>)}</ul><p className="documents-submit-route">{p.copy.submission.afterSign} {isEmployee ? p.copy.submission.manager : p.copy.submission.hr}</p>
       <div className="documents-modal-actions documents-submission-actions"><button type="button" className="dms-back-btn" onClick={p.onClearKind}>{p.copy.submission.backToKinds}</button><button type="submit" className="dms-create-btn" disabled={p.validating || p.checks.some(check => !check.ok)}>{p.copy.submission.signAndSend}</button></div>

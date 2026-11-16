@@ -1,14 +1,16 @@
 export type DocKind = 'leave' | 'ot' | 'timefix' | 'outing'
 export type Status = 'pending_mgr' | 'pending_exec' | 'pending_hr' | 'approved' | 'rejected' | 'cancelled'
 export type MockSignature = { image: string; name: string; date: string; avatarUrl?: string | null }
+export type SupportingDocument = { id: number; originalName: string; mimeType: string; fileSize: number }
 export type SignatureStage = 'ผู้ยื่น' | 'ผู้จัดการแผนก' | 'ผู้ประกอบการ' | 'HR'
 export type FormValues = Record<string, string | boolean>
 export type MockDocument = {
   id: number; no: string; kind: DocKind; title: string; summary: string; employee: string; department: string; date: string; status: Status; note?: string;
-  leaveType?: 'personal' | 'sick' | 'vacation' | 'emergency' | 'unpaid' | 'maternity' | 'ordain' | 'marriage' | 'other';
+  leaveType?: 'personal' | 'sick' | 'vacation' | 'emergency' | 'unpaid' | 'maternity' | 'childcare_after_maternity' | 'spouse_childbirth' | 'ordain' | 'marriage' | 'other';
   from?: string; to?: string; days?: number; reason?: string; rejectedBy?: 'manager' | 'executive' | 'hr'; formData?: FormValues; signatures?: Partial<Record<SignatureStage, MockSignature>>
      mgrSignerName?: string; mgrSignedAt?: string; execSignerName?: string; execSignedAt?: string; hrSignerName?: string; hrSignedAt?: string
      employeeAvatarUrl?: string | null
+     supportingDocuments?: SupportingDocument[]
      medicalCertificateAvailable?: boolean
      flow?: { stages: Array<'manager' | 'executive' | 'hr'>; recordAfterStage: string | null } | null
   }
@@ -21,4 +23,6 @@ export type MockPolicy = {
   certDays: number; otMax: number; fixDays: number; emergencyMaxDays: number
   ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number
   compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number
+  maternityMaxDays: number; childcareMaxDays: number; childcarePayPercent: number
+  spouseChildbirthMaxDays: number; spouseChildbirthWindowDays: number
 }

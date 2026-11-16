@@ -1,13 +1,18 @@
 import { copyFileSync, existsSync, mkdirSync, rmSync, renameSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import multer from 'multer'
 import { httpError } from '../../../middleware/errors.js'
 
 export const medicalCertificateDirectory = path.resolve(process.cwd(), 'storage', 'medical-certificates')
+export const supportingDocumentsDirectory = path.resolve(process.cwd(), 'storage', 'leave-supporting-documents')
 // โฟลเดอร์พักไฟล์ของเอกสารที่ถูกยกเลิก/ไม่อนุมัติ ก่อนหมดอายุ 30 วันแล้วลบจริง
 export const medicalCertificateDisposalDirectory = path.resolve(medicalCertificateDirectory, 'ยกเลิก-ไม่อนุมัติ')
+export const supportingDocumentsDisposalDirectory = path.resolve(supportingDocumentsDirectory, 'ยกเลิก-ไม่อนุมัติ')
 mkdirSync(medicalCertificateDirectory, { recursive: true })
 mkdirSync(medicalCertificateDisposalDirectory, { recursive: true })
+mkdirSync(supportingDocumentsDirectory, { recursive: true })
+mkdirSync(supportingDocumentsDisposalDirectory, { recursive: true })
 
 // แปลงชื่อแผนก/ชื่อผู้ใช้เป็นชื่อโฟลเดอร์หรือไฟล์ที่ปลอดภัย (ตัดอักขระต้องห้ามและช่องว่างเกินออก)
 function sanitize(input: string | null | undefined): string {
@@ -41,15 +46,16 @@ const allowedTypes: Record<string, string> = {
 }
 
 // หาโฟลเดอร์ปลายทางจากแผนกของผู้ใช้ (ใช้ร่วมกันทั้ง destination และ filename)
-function resolveTargetDirectory(req: { user?: unknown }): string {
+function resolveTargetDirectory(req: { user?: unknown }, fieldName: string): string {
   const user = req.user as { department?: string | null } | undefined
-  return path.join(medicalCertificateDirectory, safeFolderName(user?.department ?? null))
+  const root = fieldName === 'supportingDocuments' ? supportingDocumentsDirectory : medicalCertificateDirectory
+  return path.join(root, safeFolderName(user?.department ?? null))
 }
 
 const storage = multer.diskStorage({
-  destination: (req, _file, callback) => {
+  destination: (req, file, callback) => {
     try {
-      const target = resolveTargetDirectory(req)
+      const target = resolveTargetDirectory(req, file.fieldname)
       mkdirSync(target, { recursive: true })
       callback(null, target)
     } catch (error) {
@@ -61,8 +67,12 @@ const storage = multer.diskStorage({
       const user = req.user as { name?: string } | undefined
       const extension = path.extname(file.originalname).toLowerCase()
       const base = safeFileName(user?.name)
+      if (file.fieldname === 'supportingDocuments') {
+        callback(null, `${base}_เอกสารประกอบ_${randomUUID()}${extension}`)
+        return
+      }
       const leaveDate = formatLeaveDate((req.body as Record<string, unknown> | undefined)?.leaveDate)
-      const targetDirectory = resolveTargetDirectory(req)
+      const targetDirectory = resolveTargetDirectory(req, file.fieldname)
 
       const baseName = `${base}_ใบรับรองแพทย์_${leaveDate}`
       let candidate = `${baseName}${extension}`
@@ -127,6 +137,38 @@ export function moveMedicalCertificateToDisposal(
   }
 }
 
+export function moveSupportingDocumentToDisposal(storagePath: string | null | undefined): { path: string; storedName: string } | null {
+  if (!storagePath) return null
+  const resolved = path.resolve(String(storagePath))
+  if (!insideDirectory(resolved, supportingDocumentsDirectory) || !existsSync(resolved)) return null
+  const dateTag = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const extension = path.extname(resolved)
+  const base = path.basename(resolved, extension)
+  try {
+    mkdirSync(supportingDocumentsDisposalDirectory, { recursive: true })
+    let storedName = `${base}_ยกเลิก${dateTag}${extension}`
+    let target = path.join(supportingDocumentsDisposalDirectory, storedName)
+    let counter = 2
+    while (existsSync(target)) {
+      storedName = `${base}_ยกเลิก${dateTag}_${counter}${extension}`
+      target = path.join(supportingDocumentsDisposalDirectory, storedName)
+      counter += 1
+    }
+    renameSync(resolved, target)
+    return { path: target, storedName }
+  } catch {
+    try {
+      const storedName = `${base}_ยกเลิก${dateTag}_${Date.now()}${extension}`
+      const fallback = path.join(supportingDocumentsDisposalDirectory, storedName)
+      copyFileSync(resolved, fallback)
+      rmSync(resolved, { force: true })
+      return { path: fallback, storedName }
+    } catch {
+      return null
+    }
+  }
+}
+
 // ลบไฟล์ใบรับรองแพทย์ที่หมดอายุการเก็บรักษาแล้ว (ไฟล์ต้องอยู่ในโฟลเดอร์พักเท่านั้น)
 export function deleteMedicalCertificateFile(storagePath: string | null | undefined): void {
   if (!storagePath) return
@@ -139,13 +181,26 @@ export function deleteMedicalCertificateFile(storagePath: string | null | undefi
   }
 }
 
+export function deleteSupportingDocumentFile(storagePath: string | null | undefined): void {
+  if (!storagePath) return
+  const resolved = path.resolve(String(storagePath))
+  if (!insideDirectory(resolved, supportingDocumentsDirectory)) return
+  try {
+    rmSync(resolved, { force: true })
+  } catch {
+    // ลบไม่สำเร็จจะลองอีกครั้งในรอบถัดไป
+  }
+}
+
 export const medicalCertificateUpload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 10 * 1024 * 1024, files: 6 },
   fileFilter: (_req, file, callback) => {
     const extension = path.extname(file.originalname).toLowerCase()
     if (allowedTypes[extension] !== file.mimetype) {
-      callback(httpError(400, 'ไฟล์ใบรับรองแพทย์ต้องเป็น PDF, JPG หรือ PNG'))
+      callback(httpError(400, file.fieldname === 'supportingDocuments'
+        ? 'เอกสารประกอบต้องเป็น PDF, JPG หรือ PNG'
+        : 'ไฟล์ใบรับรองแพทย์ต้องเป็น PDF, JPG หรือ PNG'))
       return
     }
     callback(null, true)

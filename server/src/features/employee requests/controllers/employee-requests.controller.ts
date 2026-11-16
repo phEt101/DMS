@@ -8,7 +8,11 @@ import { httpError } from '../../../middleware/errors.js'
 import { validateRequest, type Kind, type LeaveTypeRow, type Policy, type ValidationContext, type Values } from '../services/employee-requests.validation.js'
 import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
 import { avatarUrlOf } from '../../settings/users/middleware/avatar-upload.middleware.js'
-import { medicalCertificateDirectory, medicalCertificateDisposalDirectory, MEDICAL_CERTIFICATE_RETENTION_DAYS, moveMedicalCertificateToDisposal, deleteMedicalCertificateFile } from '../middleware/medical-certificate-upload.middleware.js'
+import {
+  medicalCertificateDirectory, medicalCertificateDisposalDirectory, supportingDocumentsDirectory,
+  MEDICAL_CERTIFICATE_RETENTION_DAYS, moveMedicalCertificateToDisposal, deleteMedicalCertificateFile,
+  moveSupportingDocumentToDisposal, deleteSupportingDocumentFile,
+} from '../middleware/medical-certificate-upload.middleware.js'
 
 // โฟลเดอร์เก็บสำเนาไฟล์ลายเซ็น (บันทึกไว้ข้างนอกข้างเดียวกับใบรับรองแพทย์)
 // เก็บแบบ "1 ไฟล์ต่อผู้ใช้" เหมือน avatars — เซ็นใหม่/เปลี่ยนลายเซ็น = เขียนทับไฟล์เดิม ไม่เก็บไฟล์ซ้ำ/ประวัติ
@@ -65,6 +69,9 @@ const PERM = {
 }
 const KINDS: Kind[] = ['leave', 'ot', 'timefix', 'outing']
 const PREFIX: Record<Kind, string> = { leave: 'LV', ot: 'OT', timefix: 'TF', outing: 'OUT' }
+const SUPPORTING_DOCUMENT_LEAVE_TYPES = new Set([
+  'compassionate_employee_family', 'compassionate_spouse_parent', 'childcare_after_maternity', 'spouse_childbirth',
+])
 const STATUSES = ['pending_mgr', 'pending_exec', 'pending_hr', 'approved', 'rejected', 'cancelled']
 const MAX_SIGNATURE_LENGTH = 200_000
 
@@ -204,11 +211,17 @@ const policyRow = (r: any): Policy & { expiryDate: string } => ({
   compassionateEmployeePaidDays: Number(r.compassionate_employee_paid_days),
   compassionateSpouseParentMaxDays: Number(r.compassionate_spouse_parent_max_days),
   compassionateSpouseParentPaidDays: Number(r.compassionate_spouse_parent_paid_days),
+  maternityMaxDays: Number(r.maternity_max_days),
+  childcareMaxDays: Number(r.childcare_max_days),
+  childcarePayPercent: Number(r.childcare_pay_percent),
+  spouseChildbirthMaxDays: Number(r.spouse_childbirth_max_days),
+  spouseChildbirthWindowDays: Number(r.spouse_childbirth_window_days),
 })
 const POLICY_SELECT = `SELECT id, policy_year, DATE_FORMAT(year_start,'%Y-%m-%d') AS year_start, DATE_FORMAT(year_end,'%Y-%m-%d') AS year_end,
   lead_days_personal, lead_workdays_vacation, hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back,
   emergency_max_days, ordain_max_days, compassionate_employee_max_days, compassionate_employee_paid_days,
-  compassionate_spouse_parent_max_days, compassionate_spouse_parent_paid_days FROM leave_policies`
+  compassionate_spouse_parent_max_days, compassionate_spouse_parent_paid_days,
+  maternity_max_days, childcare_max_days, childcare_pay_percent, spouse_childbirth_max_days, spouse_childbirth_window_days FROM leave_policies`
 
 async function loadPolicy(companyId: number, today: string) {
   const [rows] = await db.query<any[]>(
@@ -253,14 +266,19 @@ export async function updatePolicy(req: Request, res: Response) {
     compassionateEmployeePaidDays: num(b.compassionateEmployeePaidDays),
     compassionateSpouseParentMaxDays: num(b.compassionateSpouseParentMaxDays),
     compassionateSpouseParentPaidDays: num(b.compassionateSpouseParentPaidDays),
+    maternityMaxDays: num(b.maternityMaxDays), childcareMaxDays: num(b.childcareMaxDays),
+    childcarePayPercent: num(b.childcarePayPercent), spouseChildbirthMaxDays: num(b.spouseChildbirthMaxDays),
+    spouseChildbirthWindowDays: num(b.spouseChildbirthWindowDays),
   }
   if (Object.values(fields).some((value) => value === null || value < 0)) throw httpError(400, 'ค่านโยบายไม่ถูกต้อง')
   if (fields.emergencyMaxDays! > 999.99) throw httpError(400, 'จำนวนวันลาพักร้อนฉุกเฉินสูงสุดต้องไม่เกิน 999.99 วัน')
   const specialDayFields = [
     fields.ordainMaxDays, fields.compassionateEmployeeMaxDays, fields.compassionateEmployeePaidDays,
     fields.compassionateSpouseParentMaxDays, fields.compassionateSpouseParentPaidDays,
+    fields.maternityMaxDays, fields.childcareMaxDays, fields.spouseChildbirthMaxDays, fields.spouseChildbirthWindowDays,
   ]
   if (specialDayFields.some((value) => value === null || !Number.isInteger(value) || value > 999)) throw httpError(400, 'จำนวนวันลาเฉพาะประเภทต้องเป็นจำนวนเต็มตั้งแต่ 0 ถึง 999 วัน')
+  if (!Number.isInteger(fields.childcarePayPercent) || fields.childcarePayPercent! > 100) throw httpError(400, 'อัตราค่าจ้างระหว่างลาเลี้ยงดูบุตรต้องเป็นจำนวนเต็มตั้งแต่ 0 ถึง 100 เปอร์เซ็นต์')
   if (fields.compassionateEmployeePaidDays! > fields.compassionateEmployeeMaxDays!) throw httpError(400, 'วันลาได้รับค่าจ้างต้องไม่เกินเพดานลาเมตตาจิตครอบครัวพนักงาน')
   if (fields.compassionateSpouseParentPaidDays! > fields.compassionateSpouseParentMaxDays!) throw httpError(400, 'วันลาได้รับค่าจ้างต้องไม่เกินเพดานลาเมตตาจิตบิดามารดาคู่สมรส')
   if (fields.hoursPerDay! <= 0 || fields.hourStep! <= 0) throw httpError(400, 'ชั่วโมงต่อวันและหน่วยการลาต้องมากกว่า 0')
@@ -269,7 +287,8 @@ export async function updatePolicy(req: Request, res: Response) {
        lead_days_personal, lead_workdays_vacation,
        hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back, emergency_max_days,
        ordain_max_days, compassionate_employee_max_days, compassionate_employee_paid_days,
-       compassionate_spouse_parent_max_days, compassionate_spouse_parent_paid_days
+       compassionate_spouse_parent_max_days, compassionate_spouse_parent_paid_days,
+       maternity_max_days, childcare_max_days, childcare_pay_percent, spouse_childbirth_max_days, spouse_childbirth_window_days
      FROM leave_policies WHERE company_id = ? AND policy_year = ? LIMIT 1`, [companyId, year],
   )
   const previous = previousRows[0]
@@ -289,13 +308,19 @@ export async function updatePolicy(req: Request, res: Response) {
     { field: 'compassionateEmployeePaidDays', from: previous ? Number(previous.compassionate_employee_paid_days) : null, to: fields.compassionateEmployeePaidDays },
     { field: 'compassionateSpouseParentMaxDays', from: previous ? Number(previous.compassionate_spouse_parent_max_days) : null, to: fields.compassionateSpouseParentMaxDays },
     { field: 'compassionateSpouseParentPaidDays', from: previous ? Number(previous.compassionate_spouse_parent_paid_days) : null, to: fields.compassionateSpouseParentPaidDays },
+    { field: 'maternityMaxDays', from: previous ? Number(previous.maternity_max_days) : null, to: fields.maternityMaxDays },
+    { field: 'childcareMaxDays', from: previous ? Number(previous.childcare_max_days) : null, to: fields.childcareMaxDays },
+    { field: 'childcarePayPercent', from: previous ? Number(previous.childcare_pay_percent) : null, to: fields.childcarePayPercent },
+    { field: 'spouseChildbirthMaxDays', from: previous ? Number(previous.spouse_childbirth_max_days) : null, to: fields.spouseChildbirthMaxDays },
+    { field: 'spouseChildbirthWindowDays', from: previous ? Number(previous.spouse_childbirth_window_days) : null, to: fields.spouseChildbirthWindowDays },
   ].filter((change) => change.from !== change.to)
   await db.execute(
     `INSERT INTO leave_policies (company_id, policy_year, year_start, year_end, lead_days_personal, lead_workdays_vacation,
        hours_per_day, hour_step, certificate_days, ot_max_hours, timefix_max_days_back, emergency_max_days,
        ordain_max_days, compassionate_employee_max_days, compassionate_employee_paid_days,
-       compassionate_spouse_parent_max_days, compassionate_spouse_parent_paid_days, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       compassionate_spouse_parent_max_days, compassionate_spouse_parent_paid_days,
+       maternity_max_days, childcare_max_days, childcare_pay_percent, spouse_childbirth_max_days, spouse_childbirth_window_days, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE year_start = VALUES(year_start), year_end = VALUES(year_end),
        lead_days_personal = VALUES(lead_days_personal), lead_workdays_vacation = VALUES(lead_workdays_vacation),
        hours_per_day = VALUES(hours_per_day), hour_step = VALUES(hour_step), certificate_days = VALUES(certificate_days),
@@ -304,11 +329,15 @@ export async function updatePolicy(req: Request, res: Response) {
        compassionate_employee_max_days = VALUES(compassionate_employee_max_days),
        compassionate_employee_paid_days = VALUES(compassionate_employee_paid_days),
        compassionate_spouse_parent_max_days = VALUES(compassionate_spouse_parent_max_days),
-       compassionate_spouse_parent_paid_days = VALUES(compassionate_spouse_parent_paid_days), updated_by = VALUES(updated_by)`,
+       compassionate_spouse_parent_paid_days = VALUES(compassionate_spouse_parent_paid_days),
+       maternity_max_days = VALUES(maternity_max_days), childcare_max_days = VALUES(childcare_max_days),
+       childcare_pay_percent = VALUES(childcare_pay_percent), spouse_childbirth_max_days = VALUES(spouse_childbirth_max_days),
+       spouse_childbirth_window_days = VALUES(spouse_childbirth_window_days), updated_by = VALUES(updated_by)`,
     [companyId, year, yearStart, yearEnd, fields.leadPersonal, fields.leadVacation, fields.hoursPerDay, fields.hourStep,
       fields.certDays, fields.otMax, fields.fixDays, fields.emergencyMaxDays, fields.ordainMaxDays,
       fields.compassionateEmployeeMaxDays, fields.compassionateEmployeePaidDays, fields.compassionateSpouseParentMaxDays,
-      fields.compassionateSpouseParentPaidDays, req.user!.id],
+      fields.compassionateSpouseParentPaidDays, fields.maternityMaxDays, fields.childcareMaxDays, fields.childcarePayPercent,
+      fields.spouseChildbirthMaxDays, fields.spouseChildbirthWindowDays, req.user!.id],
   )
   const [rows] = await db.query<any[]>(`${POLICY_SELECT} WHERE company_id = ? AND policy_year = ? LIMIT 1`, [companyId, year])
   if (policyChanges.length > 0) {
@@ -458,7 +487,8 @@ export async function index(req: Request, res: Response) {
 
 const DETAIL_SQL: Record<Kind, string> = {
   leave: `SELECT lt.code AS leave_type, dl.by_hour, TIME_FORMAT(dl.start_time,'%H:%i') AS start_time, TIME_FORMAT(dl.end_time,'%H:%i') AS end_time,
-                 dl.hours, dl.has_medical_certificate
+                 dl.hours, dl.has_medical_certificate, DATE_FORMAT(dl.child_birth_date,'%Y-%m-%d') AS child_birth_date,
+                 dl.compassionate_relation
             FROM employee_request_leave_details dl JOIN leave_types lt ON lt.id = dl.leave_type_id WHERE dl.request_id = ?`,
   ot: `SELECT day_type, DATE_FORMAT(work_date,'%Y-%m-%d') AS date, TIME_FORMAT(start_time,'%H:%i') AS start_time,
               TIME_FORMAT(end_time,'%H:%i') AS end_time, hours, task FROM employee_request_ot_details WHERE request_id = ?`,
@@ -524,6 +554,19 @@ export async function show(req: Request, res: Response) {
   )
   const canViewCertificate = await canViewMedicalCertificate(me, Number(row.employee_user_id), companyId, detailRoleName)
   const hasCertificateFile = certificateRows.length > 0
+  const [supportingDocumentRows] = canViewCertificate
+    ? await db.query<any[]>(
+        `SELECT id, original_name, mime_type, file_size
+           FROM employee_request_supporting_documents
+          WHERE request_id = ? AND disposal_status = 'active' ORDER BY id`,
+        [id],
+      )
+    : [[]]
+  if (detail && row.kind === 'leave') {
+    detail.supportingDocuments = supportingDocumentRows.map((item) => ({
+      id: Number(item.id), originalName: item.original_name, mimeType: item.mime_type, fileSize: Number(item.file_size),
+    }))
+  }
   if (detail && row.kind === 'leave') {
     detail.byHour = Boolean(detail.byHour)
     detail.hasMedicalCertificate = canViewCertificate && hasCertificateFile
@@ -954,12 +997,24 @@ function headerFields(kind: Kind, v: Values) {
 async function buildContext(kind: Kind, v: Values, user: any, policy: Policy, today: string): Promise<ValidationContext> {
   const ctx: ValidationContext = {
     policy, today, entitlement: { sick: Number(user.sick), personal: Number(user.personal), vacation: Number(user.vacation) },
-    usedByBucket: {}, usedEmergency: 0, hasOverlap: false,
+    usedByBucket: {}, usedEmergency: 0, hasOverlap: false, maternityEndDate: null,
   }
   if (kind !== 'leave') return ctx
   const [typeRows] = await db.query<any[]>(`SELECT id, code, balance_bucket, allow_by_hour FROM leave_types WHERE code = ? AND is_active = 1 LIMIT 1`, [String(v.leaveType ?? '')])
   if (!typeRows[0]) throw httpError(400, 'ประเภทการลาไม่ถูกต้อง')
   ctx.leaveType = { id: typeRows[0].id, code: typeRows[0].code, balanceBucket: typeRows[0].balance_bucket, allowByHour: Boolean(typeRows[0].allow_by_hour) } satisfies LeaveTypeRow
+  if (ctx.leaveType.code === 'childcare_after_maternity') {
+    const [maternityRows] = await db.query<any[]>(
+      `SELECT DATE_FORMAT(MAX(r.end_date), '%Y-%m-%d') AS maternity_end_date
+         FROM employee_requests r
+         JOIN employee_request_leave_details dl ON dl.request_id = r.id
+         JOIN leave_types maternity_type ON maternity_type.id = dl.leave_type_id
+        WHERE r.employee_user_id = ? AND r.kind = 'leave' AND r.status = 'approved'
+          AND maternity_type.code = 'maternity'`,
+      [user.id],
+    )
+    ctx.maternityEndDate = maternityRows[0]?.maternity_end_date ?? null
+  }
   const [usage] = await db.query<any[]>(
     `SELECT balance_bucket, SUM(used_reserved) AS used FROM v_leave_usage
       WHERE employee_user_id = ? AND start_date BETWEEN ? AND ? GROUP BY balance_bucket`, [user.id, policy.yearStart, policy.yearEnd],
@@ -990,10 +1045,20 @@ const oneOf = (value: unknown, allowed: string[], message: string) => {
 }
 
 export async function store(req: Request, res: Response) {
-  const uploadedCertificate = req.file
-  const uploadedCertificateBytes = uploadedCertificate ? fs.readFileSync(uploadedCertificate.path) : Buffer.alloc(0)
+  const uploadedFiles = req.files as Record<string, NonNullable<typeof req.file>[]> | undefined
+  const uploadedCertificate = uploadedFiles?.medicalCertificate?.[0]
+  const uploadedSupportingDocuments = uploadedFiles?.supportingDocuments ?? []
+  let uploadedCertificateBytes = Buffer.alloc(0)
+  let uploadedSupportingDocumentBytes: Buffer[] = []
   let certificateCommitted = false
+  let supportingDocumentsCommitted = false
   try {
+  uploadedCertificateBytes = uploadedCertificate ? fs.readFileSync(uploadedCertificate.path) : Buffer.alloc(0)
+  uploadedSupportingDocumentBytes = uploadedSupportingDocuments.map((file) => fs.readFileSync(file.path))
+  const removeUploadedFiles = () => {
+    if (uploadedCertificate) fs.rmSync(uploadedCertificate.path, { force: true })
+    for (const file of uploadedSupportingDocuments) fs.rmSync(file.path, { force: true })
+  }
   need(req, PERM.submit)
   const companyId = companyIdOf(req), me = req.user!.id, today = todayBangkok()
   const kind = req.body?.kind as Kind
@@ -1006,6 +1071,13 @@ export async function store(req: Request, res: Response) {
   if (uploadedCertificate && (kind !== 'leave' || String((raw as Values).leaveType ?? '') !== 'sick')) {
     throw httpError(400, 'แนบใบรับรองแพทย์ได้เฉพาะคำขอลาป่วย')
   }
+  const leaveType = kind === 'leave' ? String((raw as Values).leaveType ?? '') : ''
+  if (uploadedSupportingDocuments.length && !SUPPORTING_DOCUMENT_LEAVE_TYPES.has(leaveType)) {
+    throw httpError(400, 'เอกสารประกอบใช้ได้เฉพาะประเภทลาที่กำหนด')
+  }
+  if (SUPPORTING_DOCUMENT_LEAVE_TYPES.has(leaveType) && uploadedSupportingDocuments.length === 0) {
+    throw httpError(400, 'กรุณาแนบเอกสารประกอบการลา')
+  }
   const valuesWithCertificate = { ...(raw as Values), cert: Boolean(uploadedCertificate) }
   if (uploadedCertificate) {
     const validFile = uploadedCertificate.mimetype === 'application/pdf'
@@ -1016,6 +1088,16 @@ export async function store(req: Request, res: Response) {
           && uploadedCertificateBytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
     if (!validFile) throw httpError(400, 'รูปแบบไฟล์ใบรับรองแพทย์ไม่ถูกต้อง')
     if (path.basename(uploadedCertificate.originalname).length > 255) throw httpError(400, 'ชื่อไฟล์ยาวเกินไป')
+  }
+  for (const [index, file] of uploadedSupportingDocuments.entries()) {
+    const bytes = uploadedSupportingDocumentBytes[index]!
+    const validFile = file.mimetype === 'application/pdf'
+      ? bytes.subarray(0, 5).toString('ascii') === '%PDF-'
+      : file.mimetype === 'image/png'
+        ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+        : file.mimetype === 'image/jpeg' && bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
+    if (!validFile) throw httpError(400, 'รูปแบบไฟล์เอกสารประกอบไม่ถูกต้อง')
+    if (path.basename(file.originalname.replace(/\\/g, '/')).length > 255) throw httpError(400, 'ชื่อไฟล์ยาวเกินไป')
   }
   // ยื่นเอกสาร: ลายเซ็นเป็น optional — กดยืนยันโดยไม่เซ็นก็ได้ (บันทึกเป็น NULL)
   const signature = checkSignature(req.body?.signature, false)
@@ -1036,7 +1118,7 @@ export async function store(req: Request, res: Response) {
   const { checks, values: v } = validateRequest(kind, valuesWithCertificate, ctx)
   const failed = checks.filter((check: { ok: any }) => !check.ok)
   if (failed.length) {
-    if (uploadedCertificate) fs.rmSync(uploadedCertificate.path, { force: true })
+    removeUploadedFiles()
     res.status(422).json({ message: 'ข้อมูลไม่ผ่านการตรวจสอบ', errors: failed.map((check) => ({ key: check.key, params: check.params })) })
     return
   }
@@ -1071,8 +1153,10 @@ export async function store(req: Request, res: Response) {
     const s = (key: string) => nz(v[key])
     if (kind === 'leave') {
       await conn.execute(
-        `INSERT INTO employee_request_leave_details (request_id, leave_type_id, by_hour, start_time, end_time, hours, has_medical_certificate) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, ctx.leaveType!.id, ctx.leaveType!.allowByHour && v.byHour === true ? 1 : 0, s('start'), s('end'), num(v.hours), Boolean(uploadedCertificate) ? 1 : 0],
+        `INSERT INTO employee_request_leave_details
+          (request_id, leave_type_id, by_hour, start_time, end_time, hours, has_medical_certificate, child_birth_date, compassionate_relation)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, ctx.leaveType!.id, ctx.leaveType!.allowByHour && v.byHour === true ? 1 : 0, s('start'), s('end'), num(v.hours), Boolean(uploadedCertificate) ? 1 : 0, s('childBirthDate'), s('compassionateRelation')],
       )
       if (uploadedCertificate) {
         const fileHash = createHash('sha256').update(uploadedCertificateBytes).digest('hex')
@@ -1082,6 +1166,15 @@ export async function store(req: Request, res: Response) {
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [id, path.basename(uploadedCertificate.filename), path.basename(uploadedCertificate.originalname),
             uploadedCertificate.mimetype, uploadedCertificate.size, fileHash, uploadedCertificate.path, me],
+        )
+      }
+      for (const [index, file] of uploadedSupportingDocuments.entries()) {
+        await conn.execute(
+          `INSERT INTO employee_request_supporting_documents
+            (request_id, stored_name, original_name, mime_type, file_size, file_hash, storage_path, uploaded_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, path.basename(file.filename), path.basename(file.originalname.replace(/\\/g, '/')),
+            file.mimetype, file.size, createHash('sha256').update(uploadedSupportingDocumentBytes[index]!).digest('hex'), file.path, me],
         )
       }
     } else if (kind === 'ot') {
@@ -1123,6 +1216,7 @@ export async function store(req: Request, res: Response) {
     await notify(conn, recipients, id, 'submitted')
     await conn.commit()
     certificateCommitted = Boolean(uploadedCertificate)
+    supportingDocumentsCommitted = uploadedSupportingDocuments.length > 0
     await logActivity({
       userId: me,
       module: 'documents',
@@ -1141,6 +1235,9 @@ export async function store(req: Request, res: Response) {
   }
   } catch (error) {
     if (uploadedCertificate && !certificateCommitted) fs.rmSync(uploadedCertificate.path, { force: true })
+    if (!supportingDocumentsCommitted) {
+      for (const file of uploadedSupportingDocuments) fs.rmSync(file.path, { force: true })
+    }
     throw error
   }
 }
@@ -1167,6 +1264,33 @@ export async function medicalCertificate(req: Request, res: Response) {
   }
   res.setHeader('Cache-Control', 'private, no-store')
   res.download(resolved, path.basename(certificate.original_name), (error) => {
+    if (error && !res.headersSent) res.status(500).end()
+  })
+}
+
+export async function supportingDocument(req: Request, res: Response) {
+  needDocumentModule(req)
+  const id = idParam(req), attachmentId = Number(req.params.attachmentId), companyId = companyIdOf(req), me = req.user!.id
+  if (!Number.isSafeInteger(attachmentId) || attachmentId < 1) throw httpError(400, 'Invalid attachment id')
+  const [rows] = await db.query<any[]>(
+    `SELECT request.employee_user_id, supporting.storage_path, supporting.original_name, supporting.mime_type
+       FROM employee_request_supporting_documents supporting
+       JOIN employee_requests request ON request.id = supporting.request_id
+      WHERE request.id = ? AND supporting.id = ? AND request.company_id = ?
+        AND supporting.disposal_status = 'active' LIMIT 1`,
+    [id, attachmentId, companyId],
+  )
+  const attachment = rows[0]
+  const roleName = String(req.user!.role?.name ?? '')
+  if (!attachment || !(await canViewMedicalCertificate(me, Number(attachment.employee_user_id), companyId, roleName))) {
+    throw httpError(404, 'ไม่พบเอกสารประกอบ')
+  }
+  const resolved = path.resolve(attachment.storage_path)
+  if (!resolved.startsWith(`${supportingDocumentsDirectory}${path.sep}`) || !fs.existsSync(resolved)) {
+    throw httpError(404, 'ไม่พบไฟล์เอกสารประกอบ')
+  }
+  res.setHeader('Cache-Control', 'private, no-store')
+  res.download(resolved, path.basename(attachment.original_name), (error) => {
     if (error && !res.headersSent) res.status(500).end()
   })
 }
@@ -1240,6 +1364,7 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
     await notify(conn, [row.employee_user_id], id, next === 'approved' ? 'approved' : next === 'pending_hr' ? 'forwarded_to_hr' : 'forwarded_to_exec')
     // ไม่อนุมัติ → ย้ายไฟล์ใบรับรองแพทย์ไปโฟลเดอร์พัก เก็บไว้อีก 30 วันก่อนลบจริง
     let certificatePaths: string[] = []
+    let supportingDocumentsToDispose: Array<{ id: number; storage_path: string }> = []
     if (action === 'reject') {
       const [certRows] = await conn.query<any[]>(
         `SELECT storage_path FROM employee_request_medical_certificates WHERE request_id = ? AND disposal_status = 'active'`, [id],
@@ -1254,6 +1379,22 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
         )
         await conn.execute(
           `UPDATE employee_request_leave_details SET has_medical_certificate = 0 WHERE request_id = ?`, [id],
+        )
+      }
+      const [supportingRows] = await conn.query<any[]>(
+        `SELECT id, storage_path FROM employee_request_supporting_documents
+          WHERE request_id = ? AND disposal_status = 'active'`,
+        [id],
+      )
+      supportingDocumentsToDispose = supportingRows.map((document) => ({
+        id: Number(document.id), storage_path: String(document.storage_path),
+      }))
+      if (supportingDocumentsToDispose.length) {
+        await conn.execute(
+          `UPDATE employee_request_supporting_documents
+             SET disposal_status = 'retained', disposal_at = DATE_ADD(NOW(), INTERVAL ? DAY), moved_at = NOW()
+           WHERE request_id = ? AND disposal_status = 'active'`,
+          [MEDICAL_CERTIFICATE_RETENTION_DAYS, id],
         )
       }
     }
@@ -1282,6 +1423,15 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
            SET storage_path = ?, stored_name = ? WHERE request_id = ?`,
         [disposalPaths[0]!, movedStoredNames[0]!, id],
       )
+    }
+    for (const document of supportingDocumentsToDispose) {
+      const moved = moveSupportingDocumentToDisposal(document.storage_path)
+      if (moved) {
+        await db.execute(
+          `UPDATE employee_request_supporting_documents SET storage_path = ?, stored_name = ? WHERE id = ?`,
+          [moved.path, moved.storedName, document.id],
+        )
+      }
     }
     await logActivity({
       userId: me,
@@ -1317,6 +1467,12 @@ export async function cancel(req: Request, res: Response) {
     `SELECT certificate.storage_path FROM employee_request_medical_certificates certificate
        JOIN employee_requests request ON request.id = certificate.request_id
       WHERE certificate.request_id = ? AND request.company_id = ? AND certificate.disposal_status = 'active'`,
+    [id, companyId],
+  )
+  const [supportingRows] = await db.query<any[]>(
+    `SELECT supporting.id, supporting.storage_path FROM employee_request_supporting_documents supporting
+       JOIN employee_requests request ON request.id = supporting.request_id
+      WHERE supporting.request_id = ? AND request.company_id = ? AND supporting.disposal_status = 'active'`,
     [id, companyId],
   )
   // ผู้รับแจ้งเตือน: ผู้อนุมัติที่กำลังรอเอกสารอยู่ (จะได้รู้ว่าถูกยกเลิกไปแล้ว ไม่ต้องพิจารณา)
@@ -1379,6 +1535,23 @@ export async function cancel(req: Request, res: Response) {
            SET storage_path = ?, stored_name = ? WHERE request_id = ?`,
         [disposalPaths[0]!, movedStoredNames[0]!, id],
       )
+    }
+  }
+  if (supportingRows.length) {
+    await db.execute(
+      `UPDATE employee_request_supporting_documents
+         SET disposal_status = 'retained', disposal_at = DATE_ADD(NOW(), INTERVAL ? DAY), moved_at = NOW()
+       WHERE request_id = ? AND disposal_status = 'active'`,
+      [MEDICAL_CERTIFICATE_RETENTION_DAYS, id],
+    )
+    for (const document of supportingRows) {
+      const moved = moveSupportingDocumentToDisposal(document.storage_path)
+      if (moved) {
+        await db.execute(
+          `UPDATE employee_request_supporting_documents SET storage_path = ?, stored_name = ? WHERE id = ?`,
+          [moved.path, moved.storedName, document.id],
+        )
+      }
     }
   }
   const [rows] = await db.query<any[]>(

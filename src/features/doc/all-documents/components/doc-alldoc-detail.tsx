@@ -1,5 +1,5 @@
 import type { MockDocument, FormValues, MockPolicy, SignatureStage } from '../../document-types'
-import { medicalCertificateUrl } from '../../services/employee-requests.service'
+import { medicalCertificateUrl, supportingDocumentUrl } from '../../services/employee-requests.service'
 import { FaPenNib } from 'react-icons/fa6'
 import { useState } from 'react'
 import { avatarSrc } from '../../../../services/avatar'
@@ -107,11 +107,17 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.request}</h3><div className="dms-pm-create-grid">
         {doc.kind === 'leave' && <>
           <DetailField label={c.fieldLabels.leaveType} value={leaveNames[String(detailValues.leaveType ?? doc.leaveType ?? '')] ?? String(detailValues.leaveType ?? doc.leaveType ?? '')} />
+          {['compassionate_employee_family', 'compassionate_spouse_parent'].includes(String(detailValues.leaveType ?? doc.leaveType ?? '')) && <DetailField label={c.fieldLabels.compassionateRelation} value={c.fieldOptions[String(detailValues.compassionateRelation)] ?? ''} />}
           <DetailField label={c.fieldLabels.from} value={doc.from ? dateText(doc.from) : ''} />
           <DetailField label={c.fieldLabels.to} value={doc.to ? dateText(doc.to) : ''} />
+          <DetailField label={c.fieldLabels.childBirthDate} value={detailValues.childBirthDate ? dateText(String(detailValues.childBirthDate)) : ''} />
           <DetailField label={c.fieldLabels.days} value={doc.days ? `${doc.days} ${c.ledger.day}` : ''} />
-          {['compassionate_employee_family', 'compassionate_spouse_parent'].includes(String(detailValues.leaveType ?? doc.leaveType ?? '')) && doc.days !== null && doc.days !== undefined && (() => {
-            const paidLimit = detailValues.leaveType === 'compassionate_spouse_parent' ? policy.compassionateSpouseParentPaidDays : policy.compassionateEmployeePaidDays
+          {['compassionate_employee_family', 'compassionate_spouse_parent', 'maternity', 'spouse_childbirth'].includes(String(detailValues.leaveType ?? doc.leaveType ?? '')) && doc.days !== null && doc.days !== undefined && (() => {
+            const leaveType = String(detailValues.leaveType ?? doc.leaveType ?? '')
+            const paidLimit = leaveType === 'compassionate_spouse_parent' || detailValues.compassionateRelation === 'spouse_parent' ? policy.compassionateSpouseParentPaidDays
+              : leaveType === 'maternity' ? policy.maternityMaxDays
+                : leaveType === 'spouse_childbirth' ? policy.spouseChildbirthMaxDays
+                  : policy.compassionateEmployeePaidDays
             const paid = Math.min(Math.max(0, doc.days), paidLimit)
             const unpaid = Math.max(0, doc.days - paid)
             const breakdown = String(c.fieldLabels.paidDayBreakdown)
@@ -119,6 +125,7 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
               .replace('{unpaid}', String(unpaid))
             return <DetailField label={c.fieldLabels.paidDays} value={breakdown} />
           })()}
+          {detailValues.leaveType === 'childcare_after_maternity' && <DetailField label={c.fieldLabels.payRate} value={`${policy.childcarePayPercent}%`} />}
           <DetailField label={c.fieldLabels.start} value={String(detailValues.start ?? '')} />
           <DetailField label={c.fieldLabels.end} value={String(detailValues.end ?? '')} />
           <DetailField label={c.fieldLabels.hours} value={String(detailValues.hours ?? '')} />
@@ -137,6 +144,15 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
               </div>
             )}
           </>}
+          {doc.supportingDocuments && doc.supportingDocuments.length > 0 && <div className="dms-form-field documents-supporting-documents">
+            <span className="dms-form-label">{c.fieldLabels.supportingDocuments}</span>
+            {doc.supportingDocuments.map((attachment) => <a
+              key={attachment.id}
+              className="dms-back-btn"
+              download
+              href={supportingDocumentUrl(doc.id, attachment.id)}
+            >{c.fieldLabels.downloadSupportingDocument} · {attachment.originalName}</a>)}
+          </div>}
           <DetailField label={c.fieldLabels.byHour} value={detailValues.byHour === true ? (c.leaveTypes.sick === 'Sick leave' ? 'Yes' : 'ใช่') : ''} />
         </>}
         {doc.kind === 'ot' && <><DetailField label={c.fieldLabels.dayType} value={c.fieldOptions[String(detailValues.dayType)] ?? ''} /><DetailField label={c.fieldLabels.date} value={detailValues.date ? dateText(String(detailValues.date)) : doc.from ? dateText(doc.from) : ''} /><DetailField label={c.fieldLabels.start} value={String(detailValues.start ?? '')} /><DetailField label={c.fieldLabels.end} value={String(detailValues.end ?? '')} /><DetailField label={c.fieldLabels.hours} value={detailValues.hours ? `${detailValues.hours} ${c.ledger.hour}` : ''} /><DetailField label={c.fieldLabels.task} value={String(detailValues.task ?? '')} full /><DetailField label={c.fieldLabels.reason} value={String(detailValues.reason ?? doc.reason ?? '')} full /></>}

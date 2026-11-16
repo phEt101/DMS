@@ -47,6 +47,8 @@ export type ApiPolicy = {
   certDays: number; otMax: number; fixDays: number; emergencyMaxDays: number
   ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number
   compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number
+  maternityMaxDays: number; childcareMaxDays: number; childcarePayPercent: number
+  spouseChildbirthMaxDays: number; spouseChildbirthWindowDays: number
 }
 export type ApiPolicyYear = Pick<ApiPolicy, 'year' | 'yearStart' | 'yearEnd'>
 export type ApiPerson = { id: number; name: string; email: string; isActive: boolean; avatarUrl: string | null; departmentName: string | null; employeeCode: string | null; sick: number; personal: number; vacation: number; other: number; sickUsed: number | null; sickPending: number | null; personalUsed: number | null; personalPending: number | null; vacationUsed: number | null; vacationPending: number | null; startDate: string | null; appointedDate: string | null; emailNotificationsEnabled: boolean | null }
@@ -58,21 +60,26 @@ export const listRequests = (params: { status?: string; kind?: string; awaiting?
   return call<ApiListRow[]>(`/${query.size ? `?${query}` : ''}`)
 }
 export const getRequest = (id: number) => call<ApiDetail>(`/${id}`)
-export const createRequest = (data: { kind: DocKind; values: FormValues; signature: string; rememberSignature: boolean }, medicalCertificate?: File) => {
+const apiValues = (values: FormValues): FormValues => values.leaveType === 'compassionate_employee_family'
+  ? { ...values, leaveType: values.compassionateRelation === 'spouse_parent' ? 'compassionate_spouse_parent' : 'compassionate_employee_family' }
+  : values
+export const createRequest = (data: { kind: DocKind; values: FormValues; signature: string; rememberSignature: boolean }, medicalCertificate?: File, supportingDocuments: File[] = []) => {
   const form = new FormData()
   form.set('kind', data.kind)
-  form.set('values', JSON.stringify(data.values))
+  form.set('values', JSON.stringify(apiValues(data.values)))
   form.set('signature', data.signature)
   form.set('rememberSignature', String(data.rememberSignature))
   if (medicalCertificate) form.set('medicalCertificate', medicalCertificate)
+  supportingDocuments.forEach((file) => form.append('supportingDocuments', file))
   return call<{ id: number; requestNo: string; status: Status }>('/', { method: 'POST', body: form })
 }
 export const medicalCertificateUrl = (id: number) => apiUrl(`${BASE}/${id}/medical-certificate`)
+export const supportingDocumentUrl = (id: number, attachmentId: number) => apiUrl(`${BASE}/${id}/supporting-documents/${attachmentId}`)
 export const approveRequest = (id: number, data: { signature?: string; rememberSignature?: boolean }) => call<{ id: number; status: Status }>(`/${id}/approve`, body(data))
 export const decideRequest = (id: number, action: 'approve' | 'reject', data: { signature: string; rememberSignature?: boolean; note?: string }) => call<{ id: number; status: Status }>(`/${id}/${action}`, body(data))
 export const rejectRequest = (id: number, note: string) => call<{ id: number; status: Status }>(`/${id}/reject`, body({ note }))
 export const cancelRequest = (id: number) => call<{ id: number; status: 'cancelled' }>(`/${id}/cancel`, { method: 'POST' })
-export const validateRequestDryRun = (kind: DocKind, values: FormValues) => call<{ checks: ApiCheck[] }>('/validate', body({ kind, values }))
+export const validateRequestDryRun = (kind: DocKind, values: FormValues) => call<{ checks: ApiCheck[] }>('/validate', body({ kind, values: apiValues(values) }))
 export const listNotifications = () => call<ApiNotification[]>('/notifications')
 export const markNotificationsRead = (id?: number) => call<void>('/notifications/read', body(id === undefined ? {} : { id }))
 export const getPolicy = () => call<ApiPolicy>('/policy')
@@ -170,7 +177,8 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
   const s = (v: unknown) => (v == null ? '' : String(v))
   const formData: FormValues = {
     leaveType: s(d.leaveType), byHour: Boolean(d.byHour), cert: Boolean(d.hasMedicalCertificate), hours: s(d.hours),
-    start: s(d.startTime), end: s(d.endTime),
+    start: s(d.startTime), end: s(d.endTime), childBirthDate: s(d.childBirthDate),
+    compassionateRelation: s(d.compassionateRelation),
     dayType: s(d.dayType), date: s(d.date), task: s(d.task),
     from: row.startDate ?? s(d.date), to: row.endDate ?? s(d.date),
     cause: s(d.cause), inTime: s(d.inTime), outTime: s(d.outTime), backTime: s(d.backTime),
@@ -187,7 +195,19 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
     // เก็บผู้ปฏิเสธไว้แสดงในขั้นตอนและรูปผู้เกี่ยวข้อง แม้ไม่มีภาพลายเซ็น
     if (displayedActions.includes(sig.action)) signatures[STAGE[sig.stage]] = { image: sig.signatureImage ?? '', name: sig.signerName, date: bangkokDate(sig.signedAt), avatarUrl: sig.signerAvatarUrl ?? null }
   }
-  return { ...base, formData, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures, flow: row.flow ?? null } as MockDocument
+  const supportingDocuments = Array.isArray(d.supportingDocuments)
+    ? d.supportingDocuments.flatMap((item) => {
+        if (typeof item !== 'object' || item === null) return []
+        const attachment = item as Record<string, unknown>
+        if (!Number.isSafeInteger(attachment.id) || typeof attachment.originalName !== 'string'
+          || typeof attachment.mimeType !== 'string' || !Number.isSafeInteger(attachment.fileSize)) return []
+        return [{
+          id: Number(attachment.id), originalName: attachment.originalName,
+          mimeType: attachment.mimeType, fileSize: Number(attachment.fileSize),
+        }]
+      })
+    : []
+  return { ...base, formData, supportingDocuments, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures, flow: row.flow ?? null } as MockDocument
 }
 
 // แปลงจำนวนวัน (ทศนิยม) เป็นข้อความอ่านง่าย ตามชั่วโมงทำงานต่อวันของบริษัท

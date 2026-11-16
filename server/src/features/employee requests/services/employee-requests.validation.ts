@@ -7,6 +7,8 @@ export type Policy = {
   certDays: number; otMax: number; fixDays: number; emergencyMaxDays: number
   ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number
   compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number
+  maternityMaxDays: number; childcareMaxDays: number; childcarePayPercent: number
+  spouseChildbirthMaxDays: number; spouseChildbirthWindowDays: number
 }
 export type LeaveTypeRow = { id: number; code: string; balanceBucket: 'sick' | 'personal' | 'vacation' | 'other' | 'none'; allowByHour: boolean }
 
@@ -18,6 +20,7 @@ export type ValidationContext = {
   usedByBucket: Record<string, number> // รวมใบที่รออนุมัติ + อนุมัติแล้ว ภายในปีนโยบาย
   usedEmergency: number // ลาพักร้อนฉุกเฉินที่อนุมัติหรือรออนุมัติแล้วในปีนโยบาย
   hasOverlap: boolean
+  maternityEndDate: string | null
 }
 
 // key ตรงกับ copy.validation[key] ในฟรอนต์ — ฟรอนต์แปลข้อความเอง
@@ -41,12 +44,17 @@ const minutes = (value: string) => {
   return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : -1
 }
 
-const DATE_KEYS = ['from', 'to', 'date']
+const DATE_KEYS = ['from', 'to', 'date', 'childBirthDate']
 const TIME_KEYS = ['start', 'end', 'inTime', 'outTime', 'backTime']
 
 export function validateRequest(kind: Kind, input: Values, ctx: ValidationContext): { checks: Check[]; values: Values } {
   const values: Values = { ...input }
   for (const key of DATE_KEYS) if (key in values && !/^\d{4}-\d{2}-\d{2}$/.test(String(values[key]))) values[key] = ''
+  if (values.childBirthDate) {
+    const birthDate = String(values.childBirthDate)
+    const parsedBirthDate = utc(birthDate)
+    if (!Number.isFinite(parsedBirthDate.getTime()) || parsedBirthDate.toISOString().slice(0, 10) !== birthDate) values.childBirthDate = ''
+  }
   for (const key of TIME_KEYS) if (key in values && !/^\d{2}:\d{2}$/.test(String(values[key]))) values[key] = ''
 
   const checks: Check[] = []
@@ -56,9 +64,17 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
 
   if (kind === 'leave') {
     const type = v('leaveType'), from = v('from'), to = v('to')
+    if (type === 'compassionate_employee_family') {
+      add(['spouse', 'child', 'employee_parent'].includes(v('compassionateRelation')), 'compassionateRelationRequired')
+    } else if (type === 'compassionate_spouse_parent') {
+      add(v('compassionateRelation') === 'spouse_parent', 'compassionateRelationRequired')
+    }
     const calendarLimit = type === 'ordain' ? p.ordainMaxDays
       : type === 'compassionate_employee_family' ? p.compassionateEmployeeMaxDays
         : type === 'compassionate_spouse_parent' ? p.compassionateSpouseParentMaxDays
+          : type === 'maternity' ? p.maternityMaxDays
+            : type === 'childcare_after_maternity' ? p.childcareMaxDays
+              : type === 'spouse_childbirth' ? p.spouseChildbirthMaxDays
           : null
     const isHour = Boolean(ctx.leaveType?.allowByHour) && (values.byHour === true || (!values.byHour && Number(values.hours ?? '') > 0))
     let qty = Number(v('days'))
@@ -92,13 +108,26 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
     if (calendarLimit !== null && from && to && to >= from) {
       add(qty <= calendarLimit, 'specialLeaveLimit', { max: calendarLimit })
     }
+    if (type === 'spouse_childbirth') {
+      const birthDate = v('childBirthDate')
+      const lastEligibleDate = birthDate
+        ? new Date(utc(birthDate).getTime() + p.spouseChildbirthWindowDays * 86400000).toISOString().slice(0, 10)
+        : ''
+      add(Boolean(birthDate && from && to && from >= birthDate && to <= lastEligibleDate), 'specialLeaveWindow', { days: p.spouseChildbirthWindowDays })
+    }
+    if (type === 'childcare_after_maternity') {
+      const expectedStart = ctx.maternityEndDate
+        ? new Date(utc(ctx.maternityEndDate).getTime() + 86400000).toISOString().slice(0, 10)
+        : ''
+      add(Boolean(expectedStart && from === expectedStart), 'childcareMustFollowMaternity')
+    }
     add(Boolean(v('reason')), type === 'emergency' ? 'emergencyReason' : 'leaveReason')
     if (from && to && to >= from) add(!ctx.hasOverlap, 'overlap')
 
     const leadDays = from ? diffDays(today, from) : 0
     // นับยื่นล่วงหน้าตามวันปฏิทินล้วน (รวมเสาร์-อาทิตย์) ให้ตรงกับปฏิทินหน้าฟอร์ม เช่น ลาพักร้อน 15 = เว้น 15 วันพอดี
     if (type === 'personal' || type === 'unpaid') add(leadDays >= p.leadPersonal, 'personalLead', { days: p.leadPersonal })
-    if (type === 'vacation') add(leadDays >= p.leadVacation, 'vacationLead', { days: p.leadVacation })
+    if (type === 'vacation') add(leadDays >= Math.max(0, p.leadVacation - 1), 'vacationLead', { days: p.leadVacation })
     if (type === 'emergency') add(Boolean(from && from >= today), 'emergencyFromToday')
     if (['sick', 'personal', 'vacation', 'emergency'].includes(type) && from && to) {
       add(from >= p.yearStart && to <= p.yearEnd, 'withinYear', { year: p.year, from: p.yearStart, to: p.yearEnd })

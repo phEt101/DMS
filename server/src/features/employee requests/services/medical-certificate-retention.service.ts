@@ -1,5 +1,7 @@
 import { db } from '../../../config/database.js'
-import { deleteMedicalCertificateFile, MEDICAL_CERTIFICATE_RETENTION_DAYS } from '../middleware/medical-certificate-upload.middleware.js'
+import {
+  deleteMedicalCertificateFile, deleteSupportingDocumentFile, MEDICAL_CERTIFICATE_RETENTION_DAYS,
+} from '../middleware/medical-certificate-upload.middleware.js'
 
 // ตรวจและลบไฟล์ใบรับรองแพทย์ที่พักในโฟลเดอร์ "ยกเลิก-ไม่อนุมัติ" ครบกำหนด 30 วันแล้ว
 export async function sweepExpiredMedicalCertificates(): Promise<void> {
@@ -14,8 +16,22 @@ export async function sweepExpiredMedicalCertificates(): Promise<void> {
       [row.request_id],
     )
   }
+  const [supportingDocuments] = await db.query<any[]>(
+    `SELECT id, storage_path FROM employee_request_supporting_documents
+      WHERE disposal_status = 'retained' AND disposal_at IS NOT NULL AND disposal_at <= NOW()`,
+  )
+  for (const document of supportingDocuments) {
+    await deleteSupportingDocumentFile(document.storage_path)
+    await db.execute(
+      `DELETE FROM employee_request_supporting_documents WHERE id = ? AND disposal_status = 'retained'`,
+      [document.id],
+    )
+  }
   if (rows.length) {
     console.log(`medical-certificate retention: disposed ${rows.length} file(s) (เก็บรักษา ${MEDICAL_CERTIFICATE_RETENTION_DAYS} วันครบกำหนด)`)
+  }
+  if (supportingDocuments.length) {
+    console.log(`leave supporting-document retention: disposed ${supportingDocuments.length} file(s)`)
   }
 }
 

@@ -23,9 +23,13 @@ employeeRequestsRouter.get('/summary', asyncHandler(controller.dashboardSummary)
 employeeRequestsRouter.post('/notifications/read', asyncHandler(controller.readNotifications))
 employeeRequestsRouter.post('/validate', asyncHandler(controller.validate))
 employeeRequestsRouter.get('/:id/medical-certificate', asyncHandler(controller.medicalCertificate))
+employeeRequestsRouter.get('/:id/supporting-documents/:attachmentId', asyncHandler(controller.supportingDocument))
 
 employeeRequestsRouter.get('/', asyncHandler(controller.index))
-employeeRequestsRouter.post('/', medicalCertificateUpload.single('medicalCertificate'), asyncHandler(controller.store))
+employeeRequestsRouter.post('/', medicalCertificateUpload.fields([
+  { name: 'medicalCertificate', maxCount: 1 },
+  { name: 'supportingDocuments', maxCount: 5 },
+]), asyncHandler(controller.store))
 employeeRequestsRouter.get('/:id', asyncHandler(controller.show))
 employeeRequestsRouter.post('/:id/approve', asyncHandler(controller.approve))
 employeeRequestsRouter.post('/:id/reject', asyncHandler(controller.reject))
