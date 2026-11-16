@@ -72,10 +72,18 @@ function updateAction(changes: ReturnType<typeof collectChanges>) {
   return changes[0]?.to ? 'activated' : 'deactivated'
 }
 
-export const index: RequestHandler = async (_req, res) => res.json({ data: await departments.findAll() })
+export const index: RequestHandler = async (req, res) => {
+  const adminCompanyId = req.user?.role.name.trim().toLowerCase() === 'admin'
+    ? req.user.company.id
+    : undefined
+  res.json({ data: await departments.findAll(adminCompanyId) })
+}
 
 export const store: RequestHandler = async (req, res) => {
   const input = validate(req.body) as Required<DepartmentInput>
+  if (req.user?.role.name.trim().toLowerCase() === 'admin' && input.companyId !== req.user.company.id) {
+    throw httpError(403, 'Select the company from the top bar before managing its departments')
+  }
   if (await departments.findDuplicate(input.companyId, input.name)) throw httpError(409, 'Department name already exists in this company')
   const data = await departments.create(input)
   await logActivity({
@@ -92,9 +100,13 @@ export const store: RequestHandler = async (req, res) => {
 
 export const patch: RequestHandler = async (req, res) => {
   const departmentId = id(req.params.id)
-  const current = await departments.findById(departmentId)
+  const isAdmin = req.user?.role.name.trim().toLowerCase() === 'admin'
+  const current = await departments.findById(departmentId, isAdmin ? req.user?.company.id : undefined)
   if (!current) throw httpError(404, 'Department not found')
   const input = validate(req.body, true)
+  if (isAdmin && input.companyId !== undefined && input.companyId !== req.user?.company.id) {
+    throw httpError(403, 'Select the company from the top bar before managing its departments')
+  }
   const changes = collectChanges(current, input)
   if (await departments.findDuplicate(input.companyId ?? current.companyId, input.name ?? current.name, departmentId)) throw httpError(409, 'Department name already exists in this company')
   const data = await departments.update(departmentId, input)
@@ -121,6 +133,9 @@ export const setModulesForDepartments: RequestHandler = async (req, res) => {
   const departmentIds = readPositiveIds(input.departmentIds, 'departmentIds')
   const moduleIds = readPositiveIds(input.moduleIds, 'moduleIds')
   if (typeof input.enabled !== 'boolean') throw httpError(400, 'enabled must be a boolean')
+  if (req.user?.role.name.trim().toLowerCase() === 'admin' && companyId !== req.user.company.id) {
+    throw httpError(403, 'Select the company from the top bar before managing its departments')
+  }
 
   const data = await departments.setModulesForDepartments(companyId, departmentIds, moduleIds, input.enabled)
   await logActivity({
@@ -144,7 +159,8 @@ export const setModulesForDepartments: RequestHandler = async (req, res) => {
 
 export const destroy: RequestHandler = async (req, res) => {
   const departmentId = id(req.params.id)
-  const current = await departments.findById(departmentId)
+  const isAdmin = req.user?.role.name.trim().toLowerCase() === 'admin'
+  const current = await departments.findById(departmentId, isAdmin ? req.user?.company.id : undefined)
   if (!current || !(await departments.softDelete(departmentId))) throw httpError(404, 'Department not found')
   await logActivity({
     userId: req.user?.id,

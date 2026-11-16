@@ -160,11 +160,12 @@ export const index: RequestHandler = async (req, res) => {
     if (!Number.isSafeInteger(parsed) || parsed < 1) throw httpError(400, "Invalid filter id");
     return parsed;
   };
+  const isAdmin = req.user?.role.name.trim().toLowerCase() === "admin";
   const result = await users.findAll({
     search: typeof req.query.search === "string" ? req.query.search.trim() : "",
     status,
     role: typeof req.query.role === "string" && req.query.role !== "all" ? req.query.role.trim() : "",
-    companyId: optionalId(req.query.companyId),
+    companyId: isAdmin ? req.user?.company.id : optionalId(req.query.companyId),
     departmentId: optionalId(req.query.departmentId),
     limit,
     offset: (page - 1) * limit,
@@ -183,11 +184,17 @@ export const index: RequestHandler = async (req, res) => {
 export const show: RequestHandler = async (req, res) => {
   const data = await users.findById(routeParam(req.params.id));
   if (!data) throw httpError(404, "User not found");
+  if (req.user?.role.name.trim().toLowerCase() === "admin" && data.companyId !== req.user.company.id) {
+    throw httpError(404, "User not found");
+  }
   res.json({ data });
 }
 
 export const store: RequestHandler = async (req, res) => {
   const input = validate(req.body);
+  if (req.user?.role.name.trim().toLowerCase() === "admin" && input.companyId !== req.user.company.id) {
+    throw httpError(403, "Select the company from the top bar before managing its users");
+  }
   if (`${input.firstName} ${input.lastName}`.trim().length > 150) throw httpError(400, "Full name is too long");
   await ensureUniqueEmail(input.email!);
   const data = await users.create({
@@ -220,7 +227,12 @@ export const patch: RequestHandler = async (req, res) => {
   const id = routeParam(req.params.id);
   const current = await users.findById(id);
   if (!current) throw httpError(404, "User not found");
+  const isAdmin = req.user?.role.name.trim().toLowerCase() === "admin";
+  if (isAdmin && current.companyId !== req.user?.company.id) throw httpError(404, "User not found");
   const input = validate(req.body, { partial: true });
+  if (isAdmin && input.companyId !== undefined && input.companyId !== req.user?.company.id) {
+    throw httpError(403, "Select the company from the top bar before managing its users");
+  }
   if (input.firstName !== undefined || input.lastName !== undefined) {
     input.name = `${input.firstName ?? current.firstName} ${input.lastName ?? current.lastName}`.trim();
     if (input.name.length > 150) throw httpError(400, "Full name is too long");
@@ -264,6 +276,9 @@ export const patch: RequestHandler = async (req, res) => {
 export const destroy: RequestHandler = async (req, res) => {
   const id = routeParam(req.params.id);
   const current = await users.findById(id);
+  if (req.user?.role.name.trim().toLowerCase() === "admin" && current?.companyId !== req.user.company.id) {
+    throw httpError(404, "User not found");
+  }
   if (!current || !(await users.softDelete(id)))
     throw httpError(404, "User not found");
   await logActivity({

@@ -30,7 +30,9 @@ async function attachModules(rows: DepartmentRow[]) {
   return rows.map((row) => ({ ...row, moduleIds: byDepartment.get(row.id) ?? [] }))
 }
 
-export async function findAll() {
+export async function findAll(companyId?: number) {
+  const companyFilter = companyId === undefined ? '' : ' AND departments.company_id = ?'
+  const values = companyId === undefined ? [] : [companyId]
   const [rows] = await db.query<DepartmentRow[]>(
     `SELECT departments.id, departments.company_id AS companyId, companies.name AS company, departments.name,
             departments.is_active AS isActive,
@@ -38,20 +40,23 @@ export async function findAll() {
      FROM departments
      INNER JOIN companies ON companies.id = departments.company_id
      LEFT JOIN users ON users.department_id = departments.id AND users.deleted_at IS NULL
-     WHERE departments.deleted_at IS NULL
+     WHERE departments.deleted_at IS NULL${companyFilter}
      GROUP BY departments.id, companies.name
      ORDER BY companies.name, departments.name`,
+    values,
   )
   return attachModules(rows)
 }
 
-export async function findById(id: string) {
+export async function findById(id: string, companyId?: number) {
+  const companyFilter = companyId === undefined ? '' : ' AND departments.company_id = ?'
+  const values = companyId === undefined ? [id] : [id, companyId]
   const [rows] = await db.query<DepartmentRow[]>(
     `SELECT departments.id, departments.company_id AS companyId, companies.name AS company,
             departments.name, departments.is_active AS isActive, 0 AS userCount
      FROM departments INNER JOIN companies ON companies.id = departments.company_id
-     WHERE departments.id = ? AND departments.deleted_at IS NULL LIMIT 1`,
-    [id],
+     WHERE departments.id = ? AND departments.deleted_at IS NULL${companyFilter} LIMIT 1`,
+    values,
   )
   return (await attachModules(rows))[0] ?? null
 }

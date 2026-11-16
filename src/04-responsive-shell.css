@@ -139,6 +139,16 @@
   .topbar-actions {
     gap: 1px;
   }
+  .company-picker-button {
+    gap: 6px;
+    padding: 4px 7px;
+  }
+  .company-picker-copy {
+    display: none;
+  }
+  .company-picker-chevron {
+    display: none;
+  }
   .language-switch,
   .profile-divider,
   .profile-copy,
@@ -425,3 +435,30 @@
    ========================================================= */
 
 /* Survey page: header stacks on small screens */
+/* ป้าย "ปิดใช้งาน" บนเมนู sidebar สำหรับโมดูลที่ถูกปิดในหน้าจัดการโมดูล */
+.nav-item.is-module-disabled {
+  opacity: 0.55;
+}
+.nav-item.is-module-disabled > span {
+  color: #7a8194;
+}
+.module-disabled-tag {
+  margin-left: auto;
+  margin-right: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fdecec;
+  color: #c0392b;
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.nav-item > .item-count + .module-disabled-tag,
+.subnav .module-disabled-tag {
+  margin-left: auto;
+}
+.is-collapsed .module-disabled-tag {
+  display: none;
+}

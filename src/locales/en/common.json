@@ -742,6 +742,8 @@
     "expand": "Expand sidebar",
     "close": "Close menu",
     "closeNav": "Close navigation",
+    "disabledShort": "Disabled",
+    "moduleDisabledHint": "This module is deactivated in module management",
     "brand": "Document management System",
     "items": {
       "dashboard": "Dashboard",
@@ -752,6 +754,11 @@
   },
   "topbar": {
     "notifications": "Notifications",
+    "manageCompany": "Manage company",
+    "companyLoadError": "Unable to load companies",
+    "companyUnavailable": "The selected company is unavailable. Switched back to your account company.",
+    "companySwitchError": "Unable to switch the managed company.",
+    "companySwitchNotApplied": "The API did not apply the selected company. Rebuild and restart the server, then try again.",
     "openNav": "Open navigation",
     "switchToEnglish": "Switch to English",
     "switchToThai": "Switch to Thai",

@@ -19,6 +19,7 @@ import type { Translations } from "../locales";
 import type { PageKey } from '../services/routes/pageTypes'
 import {FaFolderOpen,} from "react-icons/fa6";
 import { defaultModuleIconNames, getModuleIcon } from "../features/settings/access/modules/module-icons";
+import { permissionModuleGroupDefinitions } from "../features/settings/access/modules/module-groups";
 import { listPermissionModuleIcons, permissionModulesChangedEvent } from "../features/settings/access/modules/services/modules.service";
 import { getUnreadAnnouncementCount } from "../features/doc/announcements/services/announcements.service";
 
@@ -60,7 +61,7 @@ type SidebarItem =
   | "settings-companies"
   | "settings-activity";
 
-type ConfiguredModuleIcons = Record<string, { iconName: string | null; sortOrder: number }>;
+type ConfiguredModuleIcons = Record<string, { iconName: string | null; sortOrder: number; isActive?: boolean | number }>;
 
 const sidebarModuleKeys = new Set<SidebarItem>([
   "settings-roles",
@@ -74,6 +75,14 @@ function SidebarModuleIcon({ moduleName, configuredIcons }: { moduleName: string
   const iconName = configuredIcons[moduleName]?.iconName ?? defaultModuleIconNames[moduleName];
   const IconComponent = getModuleIcon(iconName);
   return <IconComponent className="nav-icon" size={14} aria-hidden="true" />;
+}
+
+// true เฉพาะเมื่อโมดูลนั้นมีอยู่จริงในหน้าจัดการโมดูล (module-groups) และถูกปิดใช้งานไว้
+// โมดูลที่ไม่มีข้อมูล (ไม่ใช่โมดูลจริง) ถือว่าปกติ — กันแสดงป้ายผิดบนเมนูที่ควบคุมไม่ได้
+const managedModuleNames = new Set(permissionModuleGroupDefinitions.flatMap((group) => group.keys));
+function isModuleDisabled(configuredIcons: ConfiguredModuleIcons, moduleName: string) {
+  // MySQL ส่ง isActive กลับมาเป็น 0/1 (number) — ใช้ falsy check ให้จับทั้ง false และ 0
+  return managedModuleNames.has(moduleName) && configuredIcons[moduleName]?.isActive !== undefined && !configuredIcons[moduleName].isActive;
 }
 
 
@@ -122,7 +131,7 @@ export default function Sidebar({
       void listPermissionModuleIcons()
         .then(({ data }) => {
           if (cancelled) return;
-          setConfiguredModuleIcons(Object.fromEntries(data.map(({ name, iconName, sortOrder }) => [name, { iconName, sortOrder }])));
+          setConfiguredModuleIcons(Object.fromEntries(data.map(({ name, iconName, sortOrder, isActive }) => [name, { iconName, sortOrder, isActive }])));
         })
         .catch((error: unknown) => {
           if (!cancelled) console.error("Unable to load module icons", error);
@@ -357,11 +366,13 @@ export default function Sidebar({
                       <strong className="subnav-title">{item.label}</strong>
                       {visibleProjectItems.map(({ key, label, moduleName }) => <button
                         key={key}
-                        className={`nav-item nav-button ${activeItem === key ? 'is-active' : ''}`}
+                        className={`nav-item nav-button ${activeItem === key ? 'is-active' : ''} ${isModuleDisabled(configuredModuleIcons, moduleName) ? 'is-module-disabled' : ''}`}
                         onClick={() => onNavigate?.(key)}
+                        title={isModuleDisabled(configuredModuleIcons, moduleName) ? sidebarTranslations.moduleDisabledHint : undefined}
                       >
                         <SidebarModuleIcon moduleName={moduleName} configuredIcons={configuredModuleIcons} />
                         <span>{label}</span>
+                        {isModuleDisabled(configuredModuleIcons, moduleName) && <em className="module-disabled-tag">{sidebarTranslations.disabledShort}</em>}
                       </button>)}
                     </div>
                   )}
@@ -443,11 +454,13 @@ if (item.key === "documents") {
               key={key}
               className={`nav-item nav-button ${
                 activeItem === key ? "is-active" : ""
-              }`}
+              } ${isModuleDisabled(configuredModuleIcons, moduleName) ? "is-module-disabled" : ""}`}
               onClick={() => onNavigate?.(key)}
+              title={isModuleDisabled(configuredModuleIcons, moduleName) ? sidebarTranslations.moduleDisabledHint : undefined}
             >
               <SidebarModuleIcon moduleName={moduleName} configuredIcons={configuredModuleIcons} />
               <span>{label}</span>
+              {isModuleDisabled(configuredModuleIcons, moduleName) && <em className="module-disabled-tag">{sidebarTranslations.disabledShort}</em>}
               {key === "documents-pending" && pendingBadge > 0 && <b className="item-count">{pendingBadge}</b>}
               {key === "documents-notifications" && notificationsBadge > 0 && <b className="item-count">{notificationsBadge}</b>}
               {key === "announcements" && announcementsBadge > 0 && <b className="item-count">{announcementsBadge}</b>}
@@ -508,16 +521,18 @@ if (item.key === "documents") {
                 </button>}
                 {accessItems.length > 0 && accessOpen && (
                   <div className="access-subnav">
-                    {accessItems.map(({ key, label, icon: IconComponent }) => (
+                    {accessItems.map(({ key, label, icon: IconComponent, moduleName }) => (
                       <button
                         key={key}
-                        className={"nav-item nav-button " + (activeItem === key ? "is-active" : "")}
+                        className={"nav-item nav-button " + (activeItem === key ? "is-active" : "") + (isModuleDisabled(configuredModuleIcons, moduleName) ? " is-module-disabled" : "")}
                         onClick={() => onNavigate?.(key)}
+                        title={isModuleDisabled(configuredModuleIcons, moduleName) ? sidebarTranslations.moduleDisabledHint : undefined}
                       >
                         {IconComponent && (
                           <IconComponent className="nav-icon" size={17} aria-hidden="true" />
                         )}
                         <span>{label}</span>
+                        {isModuleDisabled(configuredModuleIcons, moduleName) && <em className="module-disabled-tag">{sidebarTranslations.disabledShort}</em>}
                       </button>
                     ))}
                   </div>

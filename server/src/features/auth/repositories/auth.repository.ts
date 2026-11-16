@@ -45,6 +45,12 @@ export interface AuthSessionRow extends RowDataPacket {
   roleIsActive: boolean;
 }
 
+export interface ActiveCompanyRow extends RowDataPacket {
+  id: number;
+  name: string;
+  logoUrl: string | null;
+}
+
 export interface AuthPermissionRow extends RowDataPacket {
   id: number;
   name: string;
@@ -161,6 +167,17 @@ export async function findSessionByTokenHash(
     [tokenHash],
   );
 
+  return rows[0] ?? null;
+}
+
+export async function findActiveCompanyById(companyId: number): Promise<ActiveCompanyRow | null> {
+  const [rows] = await db.execute<ActiveCompanyRow[]>(
+    `SELECT id, name, logo_url AS logoUrl
+       FROM companies
+      WHERE id = ? AND is_active = 1 AND deleted_at IS NULL
+      LIMIT 1`,
+    [companyId],
+  );
   return rows[0] ?? null;
 }
 

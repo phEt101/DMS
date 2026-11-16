@@ -1,6 +1,21 @@
 // Derive API prefix. Default to path so Vite dev server proxy works.
 const RAW_API_PREFIX = import.meta.env.VITE_API_URL ?? '/boswell-api/v1'
 let API_PREFIX = RAW_API_PREFIX
+const MANAGEMENT_COMPANY_KEY = 'dms-management-company-id'
+
+export function getManagementCompanyId(): number | null {
+  if (typeof window === 'undefined') return null
+  const rawId = window.sessionStorage.getItem(MANAGEMENT_COMPANY_KEY)
+  if (!rawId) return null
+  const companyId = Number(rawId)
+  return Number.isSafeInteger(companyId) && companyId > 0 ? companyId : null
+}
+
+export function setManagementCompanyId(companyId: number | null): void {
+  if (typeof window === 'undefined') return
+  if (companyId === null) window.sessionStorage.removeItem(MANAGEMENT_COMPANY_KEY)
+  else window.sessionStorage.setItem(MANAGEMENT_COMPANY_KEY, String(companyId))
+}
 
 // In dev, developers sometimes set VITE_API_URL to the dev server origin (e.g. http://127.0.0.1:5137/boswell-api/v1)
 // If that happens and the origin matches the current page (same host/port), requests end up sent to Vite itself
@@ -39,6 +54,8 @@ export function translateServerErrorMessage(message: unknown, language: 'th' | '
 
 export async function request(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers)
+  const managementCompanyId = getManagementCompanyId()
+  if (managementCompanyId !== null) headers.set('X-Management-Company-Id', String(managementCompanyId))
   let body: any = options.body
 
   // If body is present and is not FormData, treat it as JSON and stringify it.

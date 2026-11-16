@@ -421,7 +421,6 @@
       "allCompanies": "ทุกบริษัท",
       "permissionManagement": "จัดการสิทธิ์",
       "permissionHelp": "กำหนดรายการสิทธิ์สำหรับนำไปผูกกับบทบาท",
-      "permissionSearchPlaceholder": "ค้นหาชื่อสิทธิ์",
       "moduleFilter": "กรองตามโมดูล",
       "allModules": "ทุกโมดูล",
       "accessManagement": "การเข้าถึง",
@@ -742,6 +741,8 @@
     "expand": "ขยายแถบด้านข้าง",
     "close": "ปิดเมนู",
     "closeNav": "ปิดการนำทาง",
+    "disabledShort": "ปิดใช้งาน",
+    "moduleDisabledHint": "โมดูลนี้ถูกปิดใช้งานในหน้าจัดการโมดูล",
     "brand": "ระบบจัดการเอกสาร",
     "items": {
       "dashboard": "แดชบอร์ด",
@@ -752,6 +753,11 @@
   },
   "topbar": {
     "notifications": "การแจ้งเตือน",
+    "manageCompany": "จัดการบริษัท",
+    "companyLoadError": "ไม่สามารถโหลดรายชื่อบริษัทได้",
+    "companyUnavailable": "บริษัทที่เลือกไม่พร้อมใช้งาน กลับไปใช้บริษัทบัญชี",
+    "companySwitchError": "ไม่สามารถเปลี่ยนบริษัทที่กำลังจัดการได้",
+    "companySwitchNotApplied": "API ยังไม่เปลี่ยนบริษัทที่เลือก กรุณา build และ restart server แล้วลองอีกครั้ง",
     "openNav": "เปิดการนำทาง",
     "switchToEnglish": "สลับเป็นภาษาอังกฤษ",
     "switchToThai": "สลับเป็นภาษาไทย",

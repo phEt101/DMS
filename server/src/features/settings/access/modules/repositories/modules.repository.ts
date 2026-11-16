@@ -22,8 +22,8 @@ export async function findAll() {
   return rows;
 }
 export async function findAllIcons() {
-  const [rows] = await db.query<Array<RowDataPacket & Pick<PermissionModuleRow, "name" | "iconName" | "sortOrder">>>(
-    `SELECT name, icon_name AS iconName, sort_order AS sortOrder FROM permission_modules WHERE deleted_at IS NULL ORDER BY sort_order, name`,
+  const [rows] = await db.query<Array<RowDataPacket & Pick<PermissionModuleRow, "name" | "iconName" | "sortOrder" | "isActive">>>(
+    `SELECT name, icon_name AS iconName, sort_order AS sortOrder, is_active AS isActive FROM permission_modules WHERE deleted_at IS NULL ORDER BY sort_order, name`,
   );
   return rows;
 }

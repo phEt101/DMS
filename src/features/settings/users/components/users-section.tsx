@@ -62,7 +62,9 @@ export function UsersSection({ translations }: { translations: Translations }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [companyFilter, setCompanyFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState(
+    isAdmin ? String(authenticatedUser?.company?.id ?? "all") : "all",
+  );
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -94,6 +96,11 @@ export function UsersSection({ translations }: { translations: Translations }) {
     void load();
   }, [load]);
   useEffect(() => {
+    if (isAdmin && authenticatedUser?.company?.id) {
+      setCompanyFilter(String(authenticatedUser.company.id));
+    }
+  }, [authenticatedUser?.company?.id, isAdmin]);
+  useEffect(() => {
     void Promise.all([listRoles(), listDepartments(), listCompanies()])
       .then(([rolesResponse, departmentsResponse, companiesResponse]) => {
         setRoles(rolesResponse.data);
@@ -115,7 +122,13 @@ export function UsersSection({ translations }: { translations: Translations }) {
   function openCreate() {
     setEditing(null);
     const defaultRole = roles.find((role) => Boolean(role.isActive))?.name ?? "";
-    setForm({ ...emptyForm(), role: defaultRole, companyId: companies.find((company) => Boolean(company.isActive))?.id ?? 0 });
+    setForm({
+      ...emptyForm(),
+      role: defaultRole,
+      companyId: isAdmin
+        ? authenticatedUser?.company?.id ?? 0
+        : companies.find((company) => Boolean(company.isActive))?.id ?? 0,
+    });
     setError("");
     setFormOpen(true);
   }
@@ -230,14 +243,14 @@ export function UsersSection({ translations }: { translations: Translations }) {
           <option value="all">{settingsTranslations.allRoles}</option>
           {roles.map((role) => <option key={role.id} value={role.name}>{role.name}</option>)}
         </select>
-        <select className="users-filter-company" aria-label={settingsTranslations.companyFilter} value={companyFilter} onChange={(event) => {
+        <select className="users-filter-company" aria-label={settingsTranslations.companyFilter} value={companyFilter} disabled={isAdmin} onChange={(event) => {
           const companyId = event.target.value;
           setCompanyFilter(companyId);
           if (departmentFilter !== "all" && !departments.some((department) => String(department.id) === departmentFilter && (companyId === "all" || String(department.companyId) === companyId))) setDepartmentFilter("all");
           setPage(1);
         }}>
-          <option value="all">{settingsTranslations.allCompanies}</option>
-          {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+          {!isAdmin && <option value="all">{settingsTranslations.allCompanies}</option>}
+          {companies.filter((company) => !isAdmin || company.id === authenticatedUser?.company?.id).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
         </select>
         <select className="users-filter-department" aria-label={settingsTranslations.departmentFilter} value={departmentFilter} onChange={(event) => { setDepartmentFilter(event.target.value); setPage(1); }}>
           <option value="all">{settingsTranslations.allDepartments}</option>
@@ -288,6 +301,7 @@ export function UsersSection({ translations }: { translations: Translations }) {
           authenticatedUserId={authenticatedUser?.id}
           canEdit={canEdit}
           canEditEmail={isAdmin || editing?.role.trim().toLowerCase() !== "admin"}
+          isAdmin={isAdmin}
         />
       )}
     </div>
@@ -411,6 +425,7 @@ function UserFormModal({
   authenticatedUserId,
   canEdit,
   canEditEmail,
+  isAdmin,
 }: {
   editing: User | null;
   form: UserInput;
@@ -427,6 +442,7 @@ function UserFormModal({
   authenticatedUserId?: number;
   canEdit: boolean;
   canEditEmail: boolean;
+  isAdmin: boolean;
 }) {
   const settingsTranslations = translations.features.settingsUser;
   const [avatarPreview, setAvatarPreview] = useState<string | null>(editing?.avatarUrl ?? null);
@@ -536,13 +552,13 @@ function UserFormModal({
           <div className="form-grid">
             <label>
               {settingsTranslations.company}
-              <select required value={form.companyId || ''} onChange={(event) => {
+              <select required disabled={isAdmin} value={form.companyId || ''} onChange={(event) => {
                 const companyId = Number(event.target.value);
                 const departmentBelongsToCompany = departments.some((department) => department.companyId === companyId && department.name === form.department);
                 onChange({ ...form, companyId, department: departmentBelongsToCompany ? form.department : "" });
               }}>
                 <option value="">—</option>
-                {companies.filter((company) => Boolean(company.isActive) || company.id === form.companyId).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+                {companies.filter((company) => (Boolean(company.isActive) || company.id === form.companyId) && (!isAdmin || company.id === form.companyId)).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
               </select>
             </label>
             <label>

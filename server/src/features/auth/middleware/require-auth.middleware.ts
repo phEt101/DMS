@@ -44,12 +44,26 @@ export const requireAuth: RequestHandler = async (
   );
   const departmentModules = await authRepository.findActiveModuleNamesByDepartmentId(session.departmentId);
 
+  const userCompany = { id: session.companyId, name: session.companyName, logoUrl: session.companyLogoUrl };
+  const managementCompanyHeader = req.get("X-Management-Company-Id");
+  if (session.roleName.trim().toLowerCase() === "admin" && managementCompanyHeader !== undefined) {
+    const managementCompanyId = Number(managementCompanyHeader);
+    if (Number.isSafeInteger(managementCompanyId) && managementCompanyId > 0) {
+      const managementCompany = await authRepository.findActiveCompanyById(managementCompanyId);
+      if (managementCompany) {
+        userCompany.id = managementCompany.id;
+        userCompany.name = managementCompany.name;
+        userCompany.logoUrl = managementCompany.logoUrl;
+      }
+    }
+  }
+
   req.user = {
     id: session.userId,
     email: session.email,
     name: session.name,
     avatarUrl: avatarUrlOf(session.avatarPath),
-    company: { id: session.companyId, name: session.companyName, logoUrl: session.companyLogoUrl },
+    company: userCompany,
     department: session.departmentName,
     departmentModules,
     role: {

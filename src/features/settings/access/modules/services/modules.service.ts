@@ -3,7 +3,7 @@ import { request } from '../../../../../services/api'
 export const permissionModulesChangedEvent = 'permission-modules-changed'
 
 export type PermissionModule = { id: number; name: string; iconName: string | null; isActive: boolean | number; sortOrder: number; permissionCount: number }
-export type PermissionModuleIcon = Pick<PermissionModule, 'name' | 'iconName' | 'sortOrder'>
+export type PermissionModuleIcon = Pick<PermissionModule, 'name' | 'iconName' | 'sortOrder' | 'isActive'>
 export type PermissionModuleInput = Pick<PermissionModule, 'name' | 'iconName' | 'sortOrder'> & { isActive: boolean }
 
 export function listPermissionModules() { return request("/permissions/modules") as Promise<{ data: PermissionModule[] }> }

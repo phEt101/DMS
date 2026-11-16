@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import type { Translations } from "../locales";
 import type { AuthUser } from "../features/auth/types/auth.types";
 import type { PageKey } from "../services/routes/pageTypes";
+import { getManagementCompanyId, setManagementCompanyId } from "../services/api";
+import { getCurrentUser } from "../features/auth/services/authService";
 import { getBadges, listNotifications, markNotificationsRead } from "../features/doc/services/employee-requests.service";
 import {
   listAnnouncementNotifications,
@@ -13,6 +15,8 @@ import {
   type AnnouncementCategory,
 } from "../features/doc/announcements/services/announcements.service";
 import { avatarSrc } from "../services/avatar";
+import { listCompanies, type Company } from "../features/settings/access/companies/services/companies.service";
+import { useErrorToast } from "../components/toast-provider";
 
 type TopbarNotification = {
   id: string
@@ -141,6 +145,7 @@ export default function Topbar({
   onLogout: () => Promise<void>;
 }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [accountDialog, setAccountDialog] = useState<"profile" | "password" | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -148,12 +153,18 @@ export default function Topbar({
   const [dbNotifications, setDbNotifications] = useState<TopbarNotification[] | null>(null);
   const [mockNotifications, setMockNotifications] = useState(readTopbarNotifications);
   const [dbBadge, setDbBadge] = useState(0);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyError, setCompanyError] = useState("");
+  const [companyPickerOpen, setCompanyPickerOpen] = useState(false);
+  const companyPickerRef = useRef<HTMLDivElement>(null);
   // เอฟเฟคกระดิ่ง: true เมื่อเพิ่งมีแจ้งเตือนใหม่ (กระดิ่งสั่น + วงแหวน ping) จนกว่าจะเปิด dropdown
   const [bellPing, setBellPing] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const isThai = language === "th";
+  const isAdmin = user.role.name.trim().toLowerCase() === "admin";
   const topbarTranslations = translations.topbar;
+  useErrorToast(companyError);
   const initials = user.name
     .split(/\s+/)
     .filter(Boolean)
@@ -181,6 +192,38 @@ export default function Topbar({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [profileOpen]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      try {
+        setManagementCompanyId(null);
+      } catch (error) {
+        setCompanyError(error instanceof Error ? error.message : topbarTranslations.companySwitchError);
+      }
+      setCompanies([]);
+      return;
+    }
+
+    let active = true;
+    void listCompanies()
+      .then(({ data }) => {
+        if (!active) return;
+        const activeCompanies = data.filter((company) => Boolean(company.isActive));
+        setCompanies(activeCompanies);
+        const storedCompanyId = getManagementCompanyId();
+        if (storedCompanyId !== null && !activeCompanies.some((company) => company.id === storedCompanyId)) {
+          setManagementCompanyId(null);
+          setCompanyError(topbarTranslations.companyUnavailable);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) setCompanyError(error instanceof Error ? error.message : topbarTranslations.companyLoadError);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAdmin, topbarTranslations.companyLoadError, topbarTranslations.companyUnavailable, topbarTranslations.companySwitchError]);
 
   useEffect(() => {
     try { localStorage.setItem(TOPBAR_NOTIFICATION_KEY, JSON.stringify(mockNotifications)); } catch { /* mock storage is optional */ }
@@ -249,6 +292,23 @@ export default function Topbar({
   }, [language]);
   useEffect(() => { if (notificationsOpen) { setBellPing(false); loadDbNotifications(); } }, [notificationsOpen]);
 
+  // ปิด dropdown เลือกบริษัทเมื่อคลิกนอกเมนูหรือกด Esc
+  useEffect(() => {
+    if (!companyPickerOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!companyPickerRef.current?.contains(event.target as Node)) setCompanyPickerOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCompanyPickerOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [companyPickerOpen]);
+
   // การแจ้งเตือนบน Topbar: เมื่อมี event (เอกสารใหม่/อ่านแจ้งเตือน/แก้โปรไฟล์)
   // → loadDbNotifications ด้านบนรีโหลดทั้ง badge และรายการใน dropdown (setDbNotifications)
   //   ทำให้ dropdown ที่เปิดค้างอยู่อัปเดตทันทีโดยไม่ต้องปิด-เปิดใหม่
@@ -313,12 +373,38 @@ export default function Topbar({
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
+      setManagementCompanyId(null);
       await onLogout();
       setProfileOpen(false);
     } catch (error) {
       console.error("Unable to sign out", error);
     } finally {
       setIsLoggingOut(false);
+    }
+  };
+
+  const selectManagementCompany = async (companyId: number) => {
+    if (companyId === user.company?.id) return;
+    setCompanyError("");
+    setIsSwitchingCompany(true);
+    try {
+      setManagementCompanyId(companyId);
+      const { data } = await getCurrentUser();
+      if (Number(data.company?.id) !== companyId) {
+        setManagementCompanyId(null);
+        setCompanyError(topbarTranslations.companySwitchNotApplied);
+        return;
+      }
+      window.location.reload();
+    } catch (error) {
+      try {
+        setManagementCompanyId(null);
+      } catch {
+        // Keep the original API error visible if session storage is unavailable.
+      }
+      setCompanyError(error instanceof Error ? error.message : topbarTranslations.companySwitchError);
+    } finally {
+      setIsSwitchingCompany(false);
     }
   };
 
@@ -340,6 +426,55 @@ export default function Topbar({
         </span>
       </div>
       <div className="topbar-actions">
+        {isAdmin && companies.length > 0 && <div className="company-picker" ref={companyPickerRef}>
+          <button
+            type="button"
+            className={`company-picker-button ${companyPickerOpen ? "is-open" : ""}`}
+            aria-label={topbarTranslations.manageCompany}
+            aria-haspopup="listbox"
+            aria-expanded={companyPickerOpen}
+            disabled={isSwitchingCompany}
+            onClick={() => setCompanyPickerOpen((open) => !open)}
+          >
+            <span className="company-picker-logo" aria-hidden="true">
+              {user.company?.logoUrl
+                ? <img src={user.company.logoUrl} alt="" />
+                : <span className="company-picker-logo-fallback">{user.company?.name?.[0]?.toUpperCase() ?? "C"}</span>}
+            </span>
+            <span className="company-picker-copy">
+              <small>{topbarTranslations.manageCompany}</small>
+              <strong>{isSwitchingCompany ? (isThai ? "กำลังสลับ..." : "Switching...") : user.company?.name}</strong>
+            </span>
+            <span className={`company-picker-chevron ${companyPickerOpen ? "is-open" : ""}`} aria-hidden="true">⌄</span>
+          </button>
+          {companyPickerOpen && (
+            <ul className="company-picker-menu" role="listbox" aria-label={topbarTranslations.manageCompany}>
+              {companies.map((company) => {
+                const selected = company.id === user.company?.id;
+                return (
+                  <li key={company.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      className={`company-picker-option ${selected ? "is-selected" : ""}`}
+                      disabled={isSwitchingCompany || selected}
+                      onClick={() => { setCompanyPickerOpen(false); void selectManagementCompany(company.id); }}
+                    >
+                      <span className="company-picker-logo" aria-hidden="true">
+                        {company.logoUrl
+                          ? <img src={company.logoUrl} alt="" />
+                          : <span className="company-picker-logo-fallback">{company.name[0]?.toUpperCase() ?? "C"}</span>}
+                      </span>
+                      <span className="company-picker-copy"><strong>{company.name}</strong></span>
+                      {selected && <span className="company-picker-check" aria-hidden="true">✓</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>}
         <div className="notification-menu" ref={notificationsRef}>
           <button
             type="button"

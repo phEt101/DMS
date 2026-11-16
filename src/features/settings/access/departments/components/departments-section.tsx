@@ -29,6 +29,7 @@ const emptyForm: DepartmentInput = {
 export function DepartmentsSection({ translations }: { translations: Translations }) {
   const settingsTranslations = translations.features.settingsUser;
   const { user } = useAuth();
+  const isAdmin = user?.role.name.trim().toLowerCase() === "admin";
   const canCreate = Boolean(user && hasAnyPermission(user, "เพิ่มแผนก", "จัดการแผนก"));
   const canEdit = Boolean(user && hasAnyPermission(user, "แก้ไขแผนก", "จัดการแผนก"));
   const canDelete = Boolean(user && hasAnyPermission(user, "ลบแผนก", "จัดการแผนก"));
@@ -43,7 +44,7 @@ export function DepartmentsSection({ translations }: { translations: Translation
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [companyFilter, setCompanyFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState(isAdmin ? String(user?.company?.id ?? "all") : "all");
   const [bulkCompanyId, setBulkCompanyId] = useState("");
   const [bulkDepartmentIds, setBulkDepartmentIds] = useState<number[]>([]);
   const [bulkDepartmentSearch, setBulkDepartmentSearch] = useState("");
@@ -86,6 +87,9 @@ export function DepartmentsSection({ translations }: { translations: Translation
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    if (isAdmin && user?.company?.id) setCompanyFilter(String(user.company.id));
+  }, [isAdmin, user?.company?.id]);
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
@@ -273,9 +277,9 @@ export function DepartmentsSection({ translations }: { translations: Translation
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
-        <select aria-label={settingsTranslations.companyFilter} value={companyFilter} onChange={(event) => setCompanyFilter(event.target.value)}>
-          <option value="all">{settingsTranslations.allCompanies}</option>
-          {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+        <select aria-label={settingsTranslations.companyFilter} value={companyFilter} disabled={isAdmin} onChange={(event) => setCompanyFilter(event.target.value)}>
+          {!isAdmin && <option value="all">{settingsTranslations.allCompanies}</option>}
+          {companies.filter((company) => !isAdmin || company.id === user?.company?.id).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
         </select>
         <select aria-label={settingsTranslations.statusFilter} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
           <option value="all">{settingsTranslations.allStatuses}</option>
@@ -386,7 +390,7 @@ export function DepartmentsSection({ translations }: { translations: Translation
                     setBulkResult("");
                   }}>
                     <option value="">{settingsTranslations.bulkAccessSelectCompany}</option>
-                    {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+                    {companies.filter((company) => !isAdmin || company.id === user?.company?.id).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
                   </select>
                 </label>
               </div>
@@ -597,9 +601,9 @@ export function DepartmentsSection({ translations }: { translations: Translation
             <form onSubmit={(event) => void submit(event)}>
               <label>
                 {settingsTranslations.company}
-                <select required value={form.companyId || ""} onChange={(event) => setForm({ ...form, companyId: Number(event.target.value) })}>
+                <select required disabled={isAdmin} value={form.companyId || ""} onChange={(event) => setForm({ ...form, companyId: Number(event.target.value) })}>
                   <option value="" disabled>{settingsTranslations.company}</option>
-                  {companies.filter((company) => Boolean(company.isActive) || company.id === form.companyId).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+                  {companies.filter((company) => (Boolean(company.isActive) || company.id === form.companyId) && (!isAdmin || company.id === user?.company?.id)).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
                 </select>
               </label>
               <label>
