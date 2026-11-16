@@ -221,7 +221,7 @@ export function DepartmentsSection({ translations }: { translations: Translation
       module.name.toLocaleLowerCase().includes(bulkModuleQuery) ||
       moduleLabel(module).toLocaleLowerCase().includes(bulkModuleQuery),
     );
-    return visibleModules.length ? [{ group, visibleModules }] : [];
+    return visibleModules.length ? [{ group, groupModules, visibleModules }] : [];
   });
   const selectedBulkModuleCount = eligibleBulkModules.filter((module) => bulkModuleIds.includes(module.id)).length;
   const filteredPickerGroups = pickerGroups.flatMap((group) => {
@@ -380,20 +380,6 @@ export function DepartmentsSection({ translations }: { translations: Translation
               </button>
             </header>
             <div className="module-display-content">
-              <div className="department-bulk-company">
-                <label>
-                  {settingsTranslations.bulkAccessCompany}
-                  <select value={bulkCompanyId} disabled={bulkSaving} onChange={(event) => {
-                    setBulkCompanyId(event.target.value);
-                    setBulkDepartmentIds([]);
-                    setBulkDepartmentSearch("");
-                    setBulkResult("");
-                  }}>
-                    <option value="">{settingsTranslations.bulkAccessSelectCompany}</option>
-                    {companies.filter((company) => !isAdmin || company.id === user?.company?.id).map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-                  </select>
-                </label>
-              </div>
               <section className="department-bulk-departments">
                 <div className="permission-picker-module-header module-display-group-header">
                   <h3>{settingsTranslations.bulkAccessDepartments}</h3>
@@ -496,7 +482,7 @@ export function DepartmentsSection({ translations }: { translations: Translation
                   .replace("{total}", String(eligibleBulkModules.length))}</span>
               </div>
               <div className="role-permission-picker-grid module-display-grid">
-                {filteredBulkModuleGroups.map(({ group, visibleModules }) => {
+                {filteredBulkModuleGroups.map(({ group, groupModules, visibleModules }) => {
                   const visibleIds = visibleModules.map((module) => module.id);
                   const selectedCount = visibleModules.filter((module) => bulkModuleIds.includes(module.id)).length;
                   return <section className="role-permission-picker-module" key={group.label}>
@@ -540,8 +526,8 @@ export function DepartmentsSection({ translations }: { translations: Translation
                           />
                           <ModuleIcon aria-hidden="true" />
                           <span>{moduleLabel(module)}</span>
-                          <small>{module.sortOrder}</small>
-                          <span className={`status-pill${selectedBulkDepartmentCount > 0 && enabledDepartmentCount === selectedBulkDepartmentCount ? " is-active" : ""}`}>
+                          <small className="module-display-order">{groupModules.indexOf(module) + 1}</small>
+                          <span className={`status-pill department-bulk-visibility${selectedBulkDepartmentCount > 0 && enabledDepartmentCount === selectedBulkDepartmentCount ? " is-active" : ""}`}>
                             {settingsTranslations.bulkAccessCurrentVisibility
                               .replace("{visible}", String(enabledDepartmentCount))
                               .replace("{total}", String(selectedBulkDepartmentCount))}

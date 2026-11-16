@@ -231,7 +231,6 @@ export function ModulesSection({ translations }: { translations: Translations })
         <div>
           <h1>{settingsTranslations.moduleManagement}</h1>
           <p>{settingsTranslations.moduleHelp}</p>
-          {canEdit && <p className="module-order-help">{settingsTranslations.moduleOrderHelp}</p>}
         </div>
         {(canCreate || canEdit) && <div className="management-header-actions">
           {canEdit && <button
