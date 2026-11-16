@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '127.0.0.1',
+    allowedHosts: ['.trycloudflare.com'],
     port: 5137,
     strictPort: true,
     proxy: {
