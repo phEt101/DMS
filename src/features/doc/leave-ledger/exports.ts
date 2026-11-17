@@ -1,6 +1,7 @@
 import type { LedgerEntry, LedgerPerson } from '../leave-ledger'
 import { downloadBlob } from '../report/components/assets'
 import { formatLeaveDayHour } from '../leave-duration'
+import { getLeaveUsage, type LeaveBalanceType } from './balances'
 
 const leaveTypes = ['personal', 'sick', 'vacation', 'unpaid', 'other'] as const
 
@@ -45,8 +46,8 @@ const rowsForExport = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay
       index + 1,
       formatDate(entry?.from, copy.dateLocale),
       formatDate(entry?.to, copy.dateLocale),
-      ...leaveTypes.map((type) => entry?.leaveType === type && entry.days !== null && entry.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay) : ''),
-      entry?.days !== null && entry?.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay) : '',
+      ...leaveTypes.map((type) => entry?.leaveType === type && entry.days !== null && entry.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute) : ''),
+      entry?.days !== null && entry?.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute) : '',
       entry ? copy.sampleDocuments[String(entry.id)]?.reason ?? entry.reason ?? '' : '',
       entry ? person.name : '',
       managerStatus,
@@ -57,13 +58,19 @@ const rowsForExport = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay
 }
 
 const balanceRows = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay: number, copy: any) => {
-  const used = (type: (typeof leaveTypes)[number]) => entries
-    .filter((entry) => entry.leaveType === type && entry.status === 'approved')
-    .reduce((total, entry) => total + (entry.days ?? 0), 0)
+  const balance = (type: LeaveBalanceType) => {
+    const usage = getLeaveUsage(entries, type)
+    return [
+      formatLeaveDayHour(person[type], hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute),
+      formatLeaveDayHour(usage.used, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute),
+      formatLeaveDayHour(usage.pending, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute),
+      formatLeaveDayHour(Math.max(0, person[type] - usage.used - usage.pending), hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute),
+    ]
+  }
   return [
-    [copy.ledger.sick, formatLeaveDayHour(person.sick, hoursPerDay), formatLeaveDayHour(used('sick'), hoursPerDay), formatLeaveDayHour(Math.max(0, person.sick - used('sick')), hoursPerDay), `${copy.ledger.day} / ${copy.ledger.hour}`],
-    [copy.ledger.personal, formatLeaveDayHour(person.personal, hoursPerDay), formatLeaveDayHour(used('personal'), hoursPerDay), formatLeaveDayHour(Math.max(0, person.personal - used('personal')), hoursPerDay), `${copy.ledger.day} / ${copy.ledger.hour}`],
-    [copy.ledger.vacation, formatLeaveDayHour(person.vacation, hoursPerDay), formatLeaveDayHour(used('vacation'), hoursPerDay), formatLeaveDayHour(Math.max(0, person.vacation - used('vacation')), hoursPerDay), `${copy.ledger.day} / ${copy.ledger.hour}`],
+    [copy.ledger.sick, ...balance('sick')],
+    [copy.ledger.personal, ...balance('personal')],
+    [copy.ledger.vacation, ...balance('vacation')],
   ]
 }
 
@@ -114,7 +121,7 @@ export async function exportLedgerXlsx(person: LedgerPerson, entries: LedgerEntr
 
   sheet.addRow([])
   sheet.addRow([copy.ledger.remaining])
-  sheet.addRow([copy.ledger.sick, copy.ledger.year, copy.ledger.used, copy.ledger.remaining, copy.ledger.day])
+  sheet.addRow([copy.ledger.sick, copy.ledger.year, copy.ledger.used, copy.ledger.pending, copy.ledger.remaining])
   balanceRows(person, entries, hoursPerDay, copy).forEach((row) => sheet.addRow(row))
   sheet.addRow([`${copy.ledger.expiryNote} ${new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${policyYearEnd}T00:00:00`))}`])
 
@@ -159,7 +166,7 @@ export async function exportLedgerDocx(person: LedgerPerson, entries: LedgerEntr
         new Table({
           width: { size: 45, type: WidthType.PERCENTAGE },
           rows: [
-            new TableRow({ tableHeader: true, children: [copy.ledger.sick, copy.ledger.year, copy.ledger.used, copy.ledger.remaining, copy.ledger.day].map((value) => cell(value, true)) }),
+            new TableRow({ tableHeader: true, children: [copy.ledger.sick, copy.ledger.year, copy.ledger.used, copy.ledger.pending, copy.ledger.remaining].map((value) => cell(value, true)) }),
             ...balances.map((row) => new TableRow({ children: row.map((value) => cell(value)) })),
           ],
         }),

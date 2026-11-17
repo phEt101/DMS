@@ -259,9 +259,9 @@ export default function DocDatabaseEmployeesPanel({ users, leaveBalances, hoursP
     const pending = leaveUsage?.[`${type}Pending`]
     if (total === null || total === undefined) return dayText(total)
     if (used === null || used === undefined || pending === null || pending === undefined) {
-      return formatLeaveDayHour(total, hoursPerDay)
+      return formatLeaveDayHour(total, hoursPerDay, c.ledger.day, c.ledger.hour, c.ledger.minute)
     }
-    const format = (days: number) => formatLeaveDayHour(days, hoursPerDay)
+    const format = (days: number) => formatLeaveDayHour(days, hoursPerDay, c.ledger.day, c.ledger.hour, c.ledger.minute)
     return `${format(Math.max(0, total - used - pending))}/${format(total)}`
   }
   const leaveChips = (employee: User) => <div className="emp-leaves">
