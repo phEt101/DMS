@@ -924,6 +924,47 @@ a {
   flex: 0 0 14px;
   color: #78839a;
 }
+/* ดูรูปโปรไฟล์ขนาดใหญ่จาก Topbar — รูปแบบเดียวกับ .documents-avatar-lightbox */
+.topbar-avatar-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: rgb(15 23 42 / 72%);
+  backdrop-filter: blur(4px);
+}
+.topbar-avatar-lightbox img {
+  width: min(360px, 76vw);
+  height: min(360px, 76vw);
+  border-radius: 24px;
+  object-fit: cover;
+  border: 4px solid #fff;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 35%);
+}
+.topbar-avatar-lightbox strong {
+  justify-self: center;
+  color: #fff;
+  font-size: 20px;
+}
+.topbar-avatar-lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 9px;
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
 .profile-logout {
   width: 100%;
   min-height: 43px;

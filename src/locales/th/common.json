@@ -765,6 +765,7 @@
     "logout": "ออกจากระบบ",
     "loggingOut": "กำลังออก...",
     "editProfile": "แก้ไขโปรไฟล์",
+    "viewPhoto": "ดูรูปโปรไฟล์",
     "changePassword": "เปลี่ยนรหัสผ่าน",
     "firstName": "ชื่อ",
     "lastName": "นามสกุล",

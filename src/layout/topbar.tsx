@@ -1,6 +1,7 @@
 import AccountDialog from "../features/auth/components/account-dialog";
-import { FaLock, FaUserPen } from "react-icons/fa6";
+import { FaImage, FaLock, FaUserPen, FaXmark } from "react-icons/fa6";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import type { Translations } from "../locales";
 import type { AuthUser } from "../features/auth/types/auth.types";
@@ -148,6 +149,7 @@ export default function Topbar({
   const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [accountDialog, setAccountDialog] = useState<"profile" | "password" | null>(null);
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   // โหมด DB: ใช้แจ้งเตือนจริงจาก API — ถ้าโหลดไม่ได้ fallback ไป mock เดิม
   const [dbNotifications, setDbNotifications] = useState<TopbarNotification[] | null>(null);
@@ -531,6 +533,17 @@ export default function Topbar({
                 <span>{user.email}</span>
                 <small>{user.role.name}</small>
               </div>
+              {avatarSrc(user.avatarUrl) && (
+                <button
+                  type="button"
+                  className="profile-action"
+                  onClick={() => { setProfileOpen(false); setPhotoPreviewOpen(true); }}
+                  role="menuitem"
+                >
+                  <FaImage aria-hidden="true" />
+                  {topbarTranslations.viewPhoto}
+                </button>
+              )}
               <button
                 type="button"
                 className="profile-action"
@@ -570,6 +583,29 @@ export default function Topbar({
           translations={topbarTranslations}
           onClose={() => setAccountDialog(null)}
         />
+      )}
+      {photoPreviewOpen && avatarSrc(user.avatarUrl) && createPortal(
+        <div
+          className="topbar-avatar-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={topbarTranslations.viewPhoto}
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setPhotoPreviewOpen(false); }}
+          onKeyDown={(event) => { if (event.key === "Escape") setPhotoPreviewOpen(false); }}
+        >
+          <button
+            type="button"
+            className="topbar-avatar-lightbox-close"
+            aria-label={topbarTranslations.close}
+            autoFocus
+            onClick={() => setPhotoPreviewOpen(false)}
+          >
+            <FaXmark aria-hidden="true" />
+          </button>
+          <img src={avatarSrc(user.avatarUrl)!} alt={user.name} />
+          <strong>{user.name}</strong>
+        </div>,
+        document.body,
       )}
     </header>
   );
