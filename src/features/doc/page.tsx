@@ -702,8 +702,10 @@ export default function DocumentPage({ translations, view = 'all', language = 't
           next.hours = duration > 0 ? String(Math.ceil(duration / policy.hourStep) * policy.hourStep) : ''
           next.days = duration > 0 ? String(Math.ceil(duration / policy.hourStep) * policy.hourStep / policy.hoursPerDay) : ''
         } else {
-          next.start = ''; next.end = ''; next.hours = ''
-          next.days = String(daysBetween(String(next.from ?? ''), String(next.to ?? '')) || '')
+          next.start = ''; next.end = ''
+          const fullDays = daysBetween(String(next.from ?? ''), String(next.to ?? ''))
+          next.days = String(fullDays || '')
+          next.hours = fullDays > 0 ? String(fullDays * policy.hoursPerDay) : ''
         }
       }
       if (selectedKind === 'ot' && (key === 'start' || key === 'end')) {

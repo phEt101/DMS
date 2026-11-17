@@ -27,6 +27,11 @@ export type ValidationContext = {
 export type Check = { ok: boolean; key: string; params?: Record<string, string | number> }
 
 const utc = (iso: string) => new Date(`${iso}T00:00:00Z`)
+const addCalendarDays = (iso: string, days: number) => {
+  const date = utc(iso)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
 const dow = (iso: string) => utc(iso).getUTCDay()
 export const diffDays = (a: string, b: string) => Math.round((utc(b).getTime() - utc(a).getTime()) / 86400000)
 const calendarDaysInclusive = (from: string, to: string) => from && to && to >= from ? diffDays(from, to) + 1 : 0
@@ -125,9 +130,12 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
     if (from && to && to >= from) add(!ctx.hasOverlap, 'overlap')
 
     const leadDays = from ? diffDays(today, from) : 0
-    // นับยื่นล่วงหน้าตามวันปฏิทินล้วน (รวมเสาร์-อาทิตย์) ให้ตรงกับปฏิทินหน้าฟอร์ม เช่น ลาพักร้อน 15 = เว้น 15 วันพอดี
+    // วันนี้นับเป็นวันแรก เหมือนวันขั้นต่ำที่ปฏิทินอนุญาตให้เลือก
     if (type === 'personal' || type === 'unpaid') add(leadDays >= p.leadPersonal, 'personalLead', { days: p.leadPersonal })
-    if (type === 'vacation') add(leadDays >= Math.max(0, p.leadVacation - 1), 'vacationLead', { days: p.leadVacation })
+    if (type === 'vacation') {
+      const earliestDate = addCalendarDays(today, Math.max(0, p.leadVacation - 1))
+      add(Boolean(from && from >= earliestDate), 'vacationLead', { days: p.leadVacation })
+    }
     if (type === 'emergency') add(Boolean(from && from >= today), 'emergencyFromToday')
     if (['sick', 'personal', 'vacation', 'emergency'].includes(type) && from && to) {
       add(from >= p.yearStart && to <= p.yearEnd, 'withinYear', { year: p.year, from: p.yearStart, to: p.yearEnd })
