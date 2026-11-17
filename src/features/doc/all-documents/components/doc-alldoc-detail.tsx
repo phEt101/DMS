@@ -3,6 +3,7 @@ import { medicalCertificateUrl, supportingDocumentUrl } from '../../services/emp
 import { FaPenNib } from 'react-icons/fa6'
 import { useState } from 'react'
 import { avatarSrc } from '../../../../services/avatar'
+import { formatLeaveDayHour } from '../../leave-duration'
 
 type Props = {
   document: MockDocument
@@ -60,6 +61,18 @@ const ALL_STAGES = ['ผู้ยื่น', 'ผู้จัดการแผ�
 export default function DocAllDocumentsDetail({ document: doc, policy, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, canViewMedicalCertificate, onClose, onSign, onReject, onCancel, copy: c }: Props) {
   const leaveNames: Record<string, string> = c.leaveTypes
   const statusStyle = doc.status === 'approved' ? 'is-done' : doc.status === 'rejected' ? 'is-cancelled' : 'is-submitted'
+  const submittedDateTime = doc.submittedAt
+    ? new Intl.DateTimeFormat(c.dateLocale, {
+        day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit',
+        hourCycle: 'h23', timeZone: 'Asia/Bangkok',
+      }).format(new Date(doc.submittedAt))
+    : dateText(doc.date)
+  const leaveDuration = doc.days !== null && doc.days !== undefined
+    ? formatLeaveDayHour(doc.days, policy.hoursPerDay, c.ledger.day, c.ledger.hour, c.ledger.minute)
+    : ''
+  const hoursDuration = Number(detailValues.hours) > 0
+    ? formatLeaveDayHour(Number(detailValues.hours) / policy.hoursPerDay, policy.hoursPerDay, c.ledger.day, c.ledger.hour, c.ledger.minute)
+    : ''
   const outingAddress = [detailValues.address, detailValues.subdistrict, detailValues.district, detailValues.province, detailValues.postalCode, detailValues.country].map((value) => String(value ?? '').trim()).filter(Boolean).join(' ')
   const outingCoordinates = [detailValues.latitude, detailValues.longitude].every((value) => value !== undefined && value !== '') ? `${detailValues.latitude}, ${detailValues.longitude}` : ''
   const [zoomAvatar, setZoomAvatar] = useState<{ src: string; name: string } | null>(null)
@@ -92,7 +105,7 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
   })()
 
   return <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="dms-modal dms-create-doc-modal documents-detail-modal" role="dialog" aria-modal="true" aria-labelledby="document-detail-title">
-    <h2 className="dms-modal-title">{c.detail.title}</h2><p className="dms-modal-subtitle">{doc.no} · {c.detail.submittedAt} {dateText(doc.date)}</p><button type="button" className="modal-close documents-detail-close" aria-label={c.detail.close} onClick={(event) => { event.stopPropagation(); onClose() }}>×</button>
+    <h2 className="dms-modal-title">{c.detail.title}</h2><p className="dms-modal-subtitle">{doc.no} · {c.detail.submittedAt} {submittedDateTime}</p><button type="button" className="modal-close documents-detail-close" aria-label={c.detail.close} onClick={(event) => { event.stopPropagation(); onClose() }}>×</button>
     <div className="dms-create-doc-body documents-detail-body">
       <div className="documents-detail-header"><div><span className={`dms-card-status ${statusStyle}`}>{statusLabel}</span><h2 id="document-detail-title">{doc.title}</h2></div></div>
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.submitterInfo}</h3>
@@ -111,7 +124,7 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
           <DetailField label={c.fieldLabels.from} value={doc.from ? dateText(doc.from) : ''} />
           <DetailField label={c.fieldLabels.to} value={doc.to ? dateText(doc.to) : ''} />
           <DetailField label={c.fieldLabels.childBirthDate} value={detailValues.childBirthDate ? dateText(String(detailValues.childBirthDate)) : ''} />
-          <DetailField label={c.fieldLabels.days} value={doc.days ? `${doc.days} ${c.ledger.day}` : ''} />
+          <DetailField label={c.fieldLabels.days} value={leaveDuration} />
           {['compassionate_employee_family', 'compassionate_spouse_parent', 'maternity', 'spouse_childbirth'].includes(String(detailValues.leaveType ?? doc.leaveType ?? '')) && doc.days !== null && doc.days !== undefined && (() => {
             const leaveType = String(detailValues.leaveType ?? doc.leaveType ?? '')
             const paidLimit = leaveType === 'compassionate_spouse_parent' || detailValues.compassionateRelation === 'spouse_parent' ? policy.compassionateSpouseParentPaidDays
@@ -128,7 +141,7 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
           {detailValues.leaveType === 'childcare_after_maternity' && <DetailField label={c.fieldLabels.payRate} value={`${policy.childcarePayPercent}%`} />}
           <DetailField label={c.fieldLabels.start} value={String(detailValues.start ?? '')} />
           <DetailField label={c.fieldLabels.end} value={String(detailValues.end ?? '')} />
-          <DetailField label={c.fieldLabels.hours} value={String(detailValues.hours ?? '')} />
+          <DetailField label={c.fieldLabels.hours} value={hoursDuration} />
           <DetailField label={c.fieldLabels.reason} value={doc.reason ?? ''} full />
           {detailValues.leaveType === 'sick' && canViewMedicalCertificate && <>
             <DetailField
@@ -170,7 +183,7 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
           ? sig ? `${sig.name} · ${c.detail.rejected} · ${dateText(sig.date)}` : c.detail.rejected
           : sig ? `${sig.name} · ${dateText(sig.date)}`
             : current ? c.detail.waiting
-              : stage === 'ผู้ยื่น' ? `${c.detail.submittedAt} ${dateText(doc.date)}`
+              : stage === 'ผู้ยื่น' ? `${c.detail.submittedAt} ${submittedDateTime}`
                 : c.detail.notStarted
         return <div className={`documents-workflow-step ${rejected ? 'is-rejected' : done ? 'is-done' : current ? 'is-current' : ''}`} key={stage}>
           <span>{rejected ? '!' : done ? '✓' : '•'}</span>

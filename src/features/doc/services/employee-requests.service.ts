@@ -151,7 +151,7 @@ export function mapListRow(row: ApiListRow, t: MapperText): MockDocument {
   return {
     id: row.id, no: row.requestNo, kind: row.kind, title, summary: [range, extra].filter(Boolean).join(' · '),
     medicalCertificateAvailable: row.medicalCertificateAvailable,
-    employee: row.employeeName, department: row.departmentName ?? '', date: bangkokDate(row.submittedAt),
+    employee: row.employeeName, department: row.departmentName ?? '', date: bangkokDate(row.submittedAt), submittedAt: row.submittedAt,
     employeeAvatarUrl: row.employeeAvatarUrl ?? undefined,
     status: row.status as Status, leaveType: (row.leaveType ?? undefined) as MockDocument['leaveType'],
     from: row.startDate ?? undefined, to: row.endDate ?? undefined, days: row.days ?? undefined,
