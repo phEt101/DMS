@@ -125,7 +125,7 @@
       "start": "Start time",
       "end": "End time",
       "days": "Workdays ",
-      "hours": "Total hours (calculated automatically)",
+      "hours": "Total hours (calculated automatically from the times entered) *",
       "paidDays": "Paid days",
       "paidDayBreakdown": "{paid} paid days · {unpaid} unpaid days",
       "payRate": "Pay rate during leave",

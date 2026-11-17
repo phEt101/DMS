@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS leave_policies (
   lead_days_personal SMALLINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'ลากิจ/ลากิจไม่รับค่าจ้าง: ล่วงหน้าอย่างน้อย (วัน)',
   lead_workdays_vacation SMALLINT UNSIGNED NOT NULL DEFAULT 15 COMMENT 'ลาพักร้อน: ล่วงหน้าอย่างน้อย (วันทำงาน)',
   hours_per_day DECIMAL(4,2) NOT NULL DEFAULT 8.00 COMMENT 'ชั่วโมงต่อ 1 วันทำงาน',
-  hour_step DECIMAL(4,2) NOT NULL DEFAULT 1.00 COMMENT 'หน่วยขั้นต่ำของการลาเป็นชั่วโมง',
+  hour_step DECIMAL(4,2) NOT NULL DEFAULT 0.50 COMMENT 'หน่วยขั้นต่ำของการลาเป็นชั่วโมง',
   certificate_days DECIMAL(4,1) NOT NULL DEFAULT 3.0 COMMENT 'ลาป่วยตั้งแต่กี่วันต้องแนบใบรับรองแพทย์',
   ot_max_hours DECIMAL(4,2) NOT NULL DEFAULT 4.00 COMMENT 'OT สูงสุดต่อใบ (ชั่วโมง)',
   timefix_max_days_back SMALLINT UNSIGNED NOT NULL DEFAULT 7 COMMENT 'ขอแก้เวลาย้อนหลังได้ไม่เกิน (วัน)',
