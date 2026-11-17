@@ -8,7 +8,6 @@ const leaveTypes = [
   ['unpaid', 'ลากิจไม่รับค่าจ้าง', 'Unpaid personal leave', 'none', false, 5],
   ['maternity', 'ลาคลอด', 'Maternity leave', 'none', false, 6],
   ['ordain', 'ลาบวช', 'Ordination leave', 'none', false, 7],
-  ['marriage', 'ลาสมรส', 'Marriage leave', 'none', false, 8],
   ['other', 'ลาอื่น ๆ', 'Other leave', 'other', false, 9],
   ['compassionate_employee_family', 'ลาเมตตาจิต (คู่สมรส บุตร หรือบิดามารดาของพนักงาน)', 'Compassionate leave (employee spouse, child, or parent)', 'none', false, 10],
   ['compassionate_spouse_parent', 'ลาเมตตาจิต (บิดามารดาของคู่สมรส)', 'Compassionate leave (parent of spouse)', 'none', false, 11],

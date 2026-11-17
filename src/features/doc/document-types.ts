@@ -6,7 +6,7 @@ export type SignatureStage = 'ผู้ยื่น' | 'ผู้จัดกา
 export type FormValues = Record<string, string | boolean>
 export type MockDocument = {
   id: number; no: string; kind: DocKind; title: string; summary: string; employee: string; department: string; date: string; status: Status; note?: string;
-  leaveType?: 'personal' | 'sick' | 'vacation' | 'emergency' | 'unpaid' | 'maternity' | 'childcare_after_maternity' | 'spouse_childbirth' | 'ordain' | 'marriage' | 'other';
+  leaveType?: 'personal' | 'sick' | 'vacation' | 'emergency' | 'unpaid' | 'maternity' | 'childcare_after_maternity' | 'spouse_childbirth' | 'ordain' | 'other';
   from?: string; to?: string; days?: number; reason?: string; rejectedBy?: 'manager' | 'executive' | 'hr'; formData?: FormValues; signatures?: Partial<Record<SignatureStage, MockSignature>>
      mgrSignerName?: string; mgrSignedAt?: string; execSignerName?: string; execSignedAt?: string; hrSignerName?: string; hrSignedAt?: string
      employeeAvatarUrl?: string | null
