@@ -23,8 +23,10 @@ import { useAuth } from '../auth/hooks/use-auth'
 import { hasPermission } from '../auth/permissions'
 import {
   ApiError, approveRequest, cancelRequest, createRequest, getMySignature, getPolicy, getRequest,
-  listNotifications, listPeople, listPolicyYears, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, toFormChecks, validateRequestDryRun,
+  listNotifications, listPeople, listPolicyYears, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, toFormChecks, updateLeaveDates, validateRequestDryRun,
+  type ApiEditLog,
 } from './services/employee-requests.service'
+import DocLeaveDatesEditModal from './all-documents/components/doc-leave-dates-edit-modal'
 import DocRejectModal from './all-documents/components/doc-reject-modal'
 
 // true = ใช้ข้อมูลจริงจาก /api/employee-requests (all, pending, ส่งเอกสาร, เซ็น/ไม่อนุมัติ, ยกเลิก, นโยบาย)
@@ -302,9 +304,11 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const [rejectSubmitting, setRejectSubmitting] = useState(false)
   const [cancelTargetId, setCancelTargetId] = useState<number | null>(null)
   const [cancelSubmitting, setCancelSubmitting] = useState(false)
+  const [leaveDatesEditOpen, setLeaveDatesEditOpen] = useState(false)
+  const [leaveDatesEditSubmitting, setLeaveDatesEditSubmitting] = useState(false)
   const [docsLoading, setDocsLoading] = useState(false)
   const [docsError, setDocsError] = useState('')
-  const [detail, setDetail] = useState<{ doc: MockDocument; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean } | null>(null)
+  const [detail, setDetail] = useState<{ doc: MockDocument; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean; canEditLeaveDates: boolean; editLogs: ApiEditLog[] } | null>(null)
   const [serverChecks, setServerChecks] = useState<FormCheck[]>([])
   const [validatingForm, setValidatingForm] = useState(false)
 
@@ -413,7 +417,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       void reload()
       if (selectedDocumentId !== null) {
         // รายละเอียดที่เปิดค้างไว้ก็อัปเดตตาม (สถานะเปลี่ยน เช่น ถูกอนุมัติแล้ว ต้องเห็นทันที)
-        getRequest(selectedDocumentId).then((row) => setDetail({ doc: mapDetail(row, mapperText), canApprove: row.canApprove, canCancel: row.canCancel, canViewMedicalCertificate: row.canViewMedicalCertificate })).catch(() => {})
+        getRequest(selectedDocumentId).then((row) => setDetail({ doc: mapDetail(row, mapperText), canApprove: row.canApprove, canCancel: row.canCancel, canViewMedicalCertificate: row.canViewMedicalCertificate, canEditLeaveDates: Boolean(row.canEditLeaveDates), editLogs: row.editLogs ?? [] })).catch(() => {})
       }
     }
     window.addEventListener('dms:doc-data-changed', refreshQuietly)
@@ -435,7 +439,9 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         id: row.notificationId,
         title: `${row.employeeName} · ${mapperText.kinds[row.kind] ?? row.requestNo}`,
         // แสดงสถานะเป็นข้อความที่อ่านได้ เช่น "ยกเลิกแล้ว" / "รอผู้จัดการแผนก" (ไม่แสดง enum ดิบ)
-        body: [row.reason ?? row.otTask ?? row.place ?? '', copy.statuses[row.status as keyof typeof copy.statuses] ?? row.status].filter(Boolean).join(' · '),
+        body: row.event === 'leave_dates_edited'
+          ? copy.notifications.leaveDatesEdited ?? 'HR แก้ไขวันลาของคุณแล้ว'
+          : [row.reason ?? row.otTask ?? row.place ?? '', copy.statuses[row.status as keyof typeof copy.statuses] ?? row.status].filter(Boolean).join(' · '),
         date: row.createdAt,
         read: row.isRead,
         documentId: row.id,
@@ -499,7 +505,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     if (selectedDocumentId === null) { setDetail(null); return }
     let cancelled = false
     getRequest(selectedDocumentId)
-      .then((row) => { if (!cancelled) setDetail({ doc: mapDetail(row, mapperText), canApprove: row.canApprove, canCancel: row.canCancel, canViewMedicalCertificate: row.canViewMedicalCertificate }) })
+      .then((row) => { if (!cancelled) setDetail({ doc: mapDetail(row, mapperText), canApprove: row.canApprove, canCancel: row.canCancel, canViewMedicalCertificate: row.canViewMedicalCertificate, canEditLeaveDates: Boolean(row.canEditLeaveDates), editLogs: row.editLogs ?? [] }) })
       .catch((error) => { if (!cancelled) { showToast(errorText(error), 'error'); setSelectedDocumentId(null) } })
     return () => { cancelled = true }
   }, [selectedDocumentId, mapperText, errorText, showToast])
@@ -784,6 +790,20 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     finally { setCancelSubmitting(false) }
   }
 
+  // HR แก้ไขวันลา (เช่น เลื่อนวันพักร้อนที่ยื่นไว้แล้วไปเป็นวันใหม่ภายหลัง)
+  const saveLeaveDates = async (data: { from: string; to: string; note: string }) => {
+    if (selectedDocumentId === null || leaveDatesEditSubmitting) return
+    setLeaveDatesEditSubmitting(true)
+    try {
+      await updateLeaveDates(selectedDocumentId, data)
+      setLeaveDatesEditOpen(false)
+      showToast(copy.detail.editLeaveDates.savedToast ?? 'บันทึกการแก้ไขวันลาแล้ว', 'success')
+      await reload()
+      notifyDocChanged()
+    } catch (error) { showToast(errorText(error), 'error') }
+    finally { setLeaveDatesEditSubmitting(false) }
+  }
+
   const attachSignature = async (file: File | undefined) => {
     if (!file) return
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
@@ -1028,11 +1048,26 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       canApprove={USE_DB ? Boolean(detail?.canApprove) : false}
       canCancel={USE_DB ? Boolean(detail?.canCancel) : false}
       canViewMedicalCertificate={USE_DB ? Boolean(detail?.canViewMedicalCertificate) : false}
+      canEditLeaveDates={USE_DB ? Boolean(detail?.canEditLeaveDates) : false}
+      editLogs={detail?.editLogs ?? []}
       onClose={() => setSelectedDocumentId(null)}
       onSign={() => setSigningDocumentId(selectedDocument.id)}
       onReject={() => setRejectTarget(selectedDocument)}
       onCancel={() => setCancelTargetId(selectedDocument.id)}
+      onEditLeaveDates={() => setLeaveDatesEditOpen(true)}
     />}
+
+    <DocLeaveDatesEditModal
+      open={leaveDatesEditOpen}
+      documentTitle={selectedDocument?.title ?? ''}
+      documentNo={selectedDocument?.no ?? ''}
+      initialFrom={selectedDocument?.from ?? ''}
+      initialTo={selectedDocument?.to ?? ''}
+      submitting={leaveDatesEditSubmitting}
+      onClose={() => setLeaveDatesEditOpen(false)}
+      onConfirm={(data) => void saveLeaveDates(data)}
+      copy={copy}
+    />
 
     <DocRejectModal
       open={rejectTarget !== null}

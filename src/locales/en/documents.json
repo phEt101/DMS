@@ -258,6 +258,18 @@
       "signApproval": "Sign approval",
       "reject": "Reject",
       "cancel": "Cancel document",
+      "editLeaveDates": {
+        "open": "Edit leave dates",
+        "title": "Edit leave dates",
+        "note": "Reason for change",
+        "notePlaceholder": "e.g. Employee requested to move the leave due to a personal matter",
+        "help": "The change is logged with an audit history and the employee is notified immediately.",
+        "save": "Save changes",
+        "saving": "Saving...",
+        "history": "Leave date change history",
+        "editedBy": "Edited by",
+        "savedToast": "Leave dates updated"
+      },
       "close": "Close"
     },
     "submission": {
@@ -548,6 +560,7 @@
       "emailOff": "Off",
       "emailToggle": "Email notifications",
       "readAll": "Mark all as read",
+      "leaveDatesEdited": "HR updated your leave dates — please review the request",
       "inApp": "In-app",
       "sentEmail": "Sent email",
       "mockNote": "Mock mode: no real email has been sent",

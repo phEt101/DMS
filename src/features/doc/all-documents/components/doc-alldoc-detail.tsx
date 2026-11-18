@@ -15,10 +15,13 @@ type Props = {
   canApprove: boolean
   canCancel: boolean
   canViewMedicalCertificate: boolean
+  canEditLeaveDates: boolean
+  editLogs: Array<{ oldStartDate: string | null; oldEndDate: string | null; oldDays: number | null; newStartDate: string | null; newEndDate: string | null; newDays: number | null; note: string | null; editedAt: string; editorName: string | null }>
   onClose: () => void
   onSign: () => void
   onReject: () => void
   onCancel: () => void
+  onEditLeaveDates: () => void
   copy: any
 }
 function DetailField({ label, value, full = false }: { label: string; value?: string | number; full?: boolean }) {
@@ -58,7 +61,7 @@ type FlowSnap = { stages: FlowKey[]; recordAfterStage: string | null } | null
 const STAGE_OF: Record<FlowKey, SignatureStage> = { manager: 'ผู้จัดการแผนก', executive: 'ผู้ประกอบการ', hr: 'HR' }
 const ALL_STAGES = ['ผู้ยื่น', 'ผู้จัดการแผนก', 'ผู้ประกอบการ', 'HR'] as SignatureStage[]
 
-export default function DocAllDocumentsDetail({ document: doc, policy, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, canViewMedicalCertificate, onClose, onSign, onReject, onCancel, copy: c }: Props) {
+export default function DocAllDocumentsDetail({ document: doc, policy, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, canViewMedicalCertificate, canEditLeaveDates, editLogs, onClose, onSign, onReject, onCancel, onEditLeaveDates, copy: c }: Props) {
   const leaveNames: Record<string, string> = c.leaveTypes
   const statusStyle = doc.status === 'approved' ? 'is-done' : doc.status === 'rejected' ? 'is-cancelled' : 'is-submitted'
   const submittedDateTime = doc.submittedAt
@@ -117,6 +120,9 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
         </div>
         <div className="dms-pm-create-grid"><DetailField label={c.detail.fullName} value={doc.employee} /><DetailField label={c.detail.department} value={doc.department} /><DetailField label={c.detail.kind} value={kindTitle} /><DetailField label={c.detail.date} value={dateText(doc.date)} /><DetailField label={c.detail.number} value={doc.no} /><DetailField label={c.detail.status} value={statusLabel} /></div></section>
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.request}</h3><div className="dms-pm-create-grid">
+        {canEditLeaveDates && <div className="dms-form-field documents-leave-edit-actions dms-form-field--full">
+          <button type="button" className="dms-back-btn" onClick={onEditLeaveDates}><FaPenNib /> {c.detail.editLeaveDates.open}</button>
+        </div>}
         {doc.kind === 'leave' && <>
           <DetailField label={c.fieldLabels.leaveType} value={leaveNames[String(detailValues.leaveType ?? doc.leaveType ?? '')] ?? String(detailValues.leaveType ?? doc.leaveType ?? '')} />
           {['compassionate_employee_family', 'compassionate_spouse_parent'].includes(String(detailValues.leaveType ?? doc.leaveType ?? '')) && <DetailField label={c.fieldLabels.compassionateRelation} value={c.fieldOptions[String(detailValues.compassionateRelation)] ?? ''} />}
@@ -171,6 +177,12 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
         {doc.kind === 'timefix' && <><DetailField label={c.fieldLabels.date} value={detailValues.date ? dateText(String(detailValues.date)) : doc.from ? dateText(doc.from) : ''} /><DetailField label={c.fieldLabels.cause} value={c.fieldOptions[String(detailValues.cause)] ?? ''} /><DetailField label={c.fieldLabels.inTime} value={String(detailValues.inTime ?? '')} /><DetailField label={c.fieldLabels.outTime} value={String(detailValues.outTime ?? '')} /><DetailField label={c.fieldLabels.reason} value={String(detailValues.reason ?? doc.reason ?? '')} full /></>}
         {doc.kind === 'outing' && <><DetailField label={c.fieldLabels.from} value={doc.from ? dateText(doc.from) : ''} /><DetailField label={c.fieldLabels.to} value={doc.to ? dateText(doc.to) : ''} /><DetailField label={c.fieldLabels.outTime} value={String(detailValues.outTime ?? '')} /><DetailField label={c.fieldLabels.backTime} value={String(detailValues.backTime ?? '')} /><DetailField label={c.fieldLabels.company} value={String(detailValues.company ?? '')} /><DetailField label={c.fieldLabels.address} value={outingAddress || String(detailValues.place ?? '')} full /><DetailField label={c.fieldLabels.project} value={String(detailValues.project ?? '')} /><DetailField label={c.fieldLabels.customerName} value={String(detailValues.customerName ?? '')} /><DetailField label={c.fieldLabels.customerPosition} value={String(detailValues.customerPosition ?? '')} /><DetailField label={c.fieldLabels.phone} value={String(detailValues.phone ?? '')} /><DetailField label={c.fieldLabels.workDetails} value={String(detailValues.workDetails || detailValues.reason || doc.reason || '')} full /><DetailField label={c.fieldLabels.remark} value={String(detailValues.remark ?? '')} full /></>}
       </div></section>
+      {doc.kind === 'leave' && editLogs.length > 0 && <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.editLeaveDates.history}</h3><div className="documents-edit-log-list">
+        {editLogs.map((log, index) => <div className="documents-edit-log-item" key={index}>
+          <b>{dateText(String(log.newStartDate ?? ''))}{log.newEndDate && log.newEndDate !== log.newStartDate ? ` – ${dateText(String(log.newEndDate))}` : ''}</b>
+          <small>{c.detail.editLeaveDates.editedBy} {log.editorName ?? '-'} · {new Intl.DateTimeFormat(c.dateLocale, { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(log.editedAt))}{log.note ? ` · ${log.note}` : ''}</small>
+        </div>)}
+      </div></section>}
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.workflow}</h3><div className="documents-workflow-steps">{workflowStages.map((stage) => {
         const sig = doc.signatures?.[stage]
         const rejected = doc.status === 'rejected' && stage === rejectedStage

@@ -38,7 +38,8 @@ export type ApiListRow = {
   submitterAvatarUrl?: string | null
 }
 export type ApiSignature = { stage: 'submitter' | 'manager' | 'executive' | 'hr'; action: string; signerName: string; signatureImage: string | null; note: string | null; signedAt: string; signerAvatarUrl?: string | null }
-export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean; flow?: { stages: Array<'manager' | 'executive' | 'hr'>; recordAfterStage: string | null } | null }
+export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean; canEditLeaveDates?: boolean; editLogs?: ApiEditLog[]; flow?: { stages: Array<'manager' | 'executive' | 'hr'>; recordAfterStage: string | null } | null }
+export type ApiEditLog = { oldStartDate: string | null; oldEndDate: string | null; oldDays: number | null; newStartDate: string | null; newEndDate: string | null; newDays: number | null; note: string | null; editedAt: string; editorName: string | null }
 export type ApiCheck = { ok: boolean; key: string; params?: Record<string, string | number> }
 export type ApiNotification = ApiListRow & { notificationId: number; event: string; isRead: boolean; createdAt: string }
 export type ApiPolicy = {
@@ -79,6 +80,9 @@ export const approveRequest = (id: number, data: { signature?: string; rememberS
 export const decideRequest = (id: number, action: 'approve' | 'reject', data: { signature: string; rememberSignature?: boolean; note?: string }) => call<{ id: number; status: Status }>(`/${id}/${action}`, body(data))
 export const rejectRequest = (id: number, note: string) => call<{ id: number; status: Status }>(`/${id}/reject`, body({ note }))
 export const cancelRequest = (id: number) => call<{ id: number; status: 'cancelled' }>(`/${id}/cancel`, { method: 'POST' })
+// HR แก้ไขวันลา (เช่น เลื่อนวันพักร้อนที่ยื่นไว้แล้วไปเป็นวันใหม่ภายหลัง)
+export const updateLeaveDates = (id: number, data: { from: string; to: string; note?: string }) =>
+  call<{ id: number; from: string; to: string; days: number }>(`/${id}/leave-dates`, { method: 'PUT', body: JSON.stringify(data) })
 export const validateRequestDryRun = (kind: DocKind, values: FormValues) => call<{ checks: ApiCheck[] }>('/validate', body({ kind, values: apiValues(values) }))
 export const listNotifications = () => call<ApiNotification[]>('/notifications')
 export const markNotificationsRead = (id?: number) => call<void>('/notifications/read', body(id === undefined ? {} : { id }))

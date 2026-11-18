@@ -589,7 +589,7 @@ export async function show(req: Request, res: Response) {
   const hrMemberIds = await findHrUserIds(db as any, companyId)
   const isHrMember = hrMemberIds.includes(me)
   const { manager_user_id: _manager, executive_user_id: _exec, department_id: _dep, flow_json: _flow, ...publicRow } = row as any
-  res.json({
+    res.json({
     ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map((sig: any) => withAvatarUrls(camelize(sig))),
     flow: flowViewOf(row),
     canViewMedicalCertificate: canViewCertificate,
@@ -608,7 +608,104 @@ export async function show(req: Request, res: Response) {
         && ['pending_mgr', 'pending_exec', 'pending_hr'].includes(row.status))
       || (isHrMember && ['pending_hr', 'approved'].includes(row.status))
     ),
+    // HR Div. หรือ admin แก้ไขวันลาได้เฉพาะใบลา (เช่น เลื่อนวันพักร้อนที่ยื่นไว้แล้ว) — ยกเว้นใบของตัวเอง
+    canEditLeaveDates: row.kind === 'leave'
+      && Number(row.employee_user_id) !== me
+      && (isHrMember || isAdminFallback || detailIsAdmin),
+    editLogs: row.kind === 'leave' ? (await editLogsOf(id)) : [],
   })
+}
+
+// ---------- HR แก้ไขวันลา (เช่น เลื่อนวันพักร้อนที่ยื่นไว้แล้วไปเป็นวันใหม่) ----------
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const editLogsOf = async (requestId: number) => {
+  const [rows] = await db.query<any[]>(
+    `SELECT DATE_FORMAT(log.old_start_date,'%Y-%m-%d') AS old_start_date, DATE_FORMAT(log.old_end_date,'%Y-%m-%d') AS old_end_date,
+            log.old_days, DATE_FORMAT(log.new_start_date,'%Y-%m-%d') AS new_start_date, DATE_FORMAT(log.new_end_date,'%Y-%m-%d') AS new_end_date,
+            log.new_days, log.note, DATE_FORMAT(log.edited_at,'%Y-%m-%dT%H:%i:%s') AS edited_at, editor.name AS editor_name
+       FROM employee_request_edit_logs log LEFT JOIN users editor ON editor.id = log.edited_by
+      WHERE log.request_id = ? ORDER BY log.edited_at DESC, log.id DESC LIMIT 50`, [requestId],
+  )
+  return rows.map((row) => ({ ...camelize(row), oldDays: Number(row.old_days), newDays: Number(row.new_days) }))
+}
+
+export async function updateLeaveDates(req: Request, res: Response) {
+  needDocumentModule(req)
+  const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id
+  // เฉพาะสมาชิก HR Div. หรือ admin — แก้ใบของตัวเองไม่ได้
+  const hrMemberIds = await findHrUserIds(db as any, companyId)
+  const roleName = String(req.user!.role?.name ?? '').trim().toLowerCase()
+  const isAdmin = roleName === 'admin'
+  if (!hrMemberIds.includes(me) && !isAdmin) throw httpError(403, 'ไม่มีสิทธิ์แก้ไขวันลา')
+  const from = String(req.body?.from ?? ''), to = String(req.body?.to ?? ''), note = nz(req.body?.note)
+  if (!DATE_RE.test(from) || !DATE_RE.test(to) || to < from) throw httpError(400, 'ช่วงวันลาไม่ถูกต้อง')
+  if (note && note.length > 500) throw httpError(400, 'เหตุผลยาวเกิน 500 ตัวอักษร')
+
+  const conn = await db.getConnection()
+  try {
+    await conn.beginTransaction()
+    const [rows] = await conn.query<any[]>(
+      `SELECT id, request_no, kind, status, days, DATE_FORMAT(start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(end_date,'%Y-%m-%d') AS end_date, employee_user_id
+         FROM employee_requests WHERE id = ? AND company_id = ? FOR UPDATE`, [id, companyId],
+    )
+    const row = rows[0]
+    if (!row) throw httpError(404, 'Request not found')
+    if (row.kind !== 'leave') throw httpError(400, 'แก้ไขวันลาได้เฉพาะเอกสารใบลา')
+    if (['rejected', 'cancelled'].includes(row.status)) throw httpError(409, 'เอกสารไม่อนุมัติ/ถูกยกเลิกแล้ว แก้ไขไม่ได้')
+    if (Number(row.employee_user_id) === me) throw httpError(403, 'ไม่สามารถแก้ไขใบลาของตนเองได้')
+
+    // คำนวณจำนวนวันใหม่ตามประเภทการลาเดิม
+    const [detailRows] = await conn.query<any[]>(
+      `SELECT lt.code AS leave_type_code, lt.allow_by_hour, lt.balance_bucket, dl.by_hour, dl.hours
+         FROM employee_request_leave_details dl JOIN leave_types lt ON lt.id = dl.leave_type_id
+        WHERE dl.request_id = ? LIMIT 1`, [id],
+    )
+    const detail = detailRows[0]
+    if (!detail) throw httpError(404, 'Request not found')
+    const diffDaysOf = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000)
+    let newDays: number
+    if (detail.balance_bucket === 'other' || detail.balance_bucket === 'none') {
+      // ลาพิเศษ (บวช/คลอด ฯลฯ) นับปฏิทินรวมวันเสาร์อาทิตย์ เหมือนตอนยื่น
+      newDays = diffDaysOf(from, to) + 1
+    } else if (detail.by_hour) {
+      newDays = Number(row.days) // ลาเป็นชั่วโมง — เลื่อนวันไม่เปลี่ยนจำนวนชั่วโมง
+    } else {
+      // ลากิจ/พักร้อน/ป่วย นับเฉพาะวันทำการ (ตัดวันเสาร์-อาทิตย์) เหมือนตอนยื่น
+      const total = diffDaysOf(from, to)
+      let count = 0
+      for (let i = 0; i <= total; i += 1) {
+        const dow = new Date(Date.parse(`${from}T00:00:00Z`) + i * 86400000).getUTCDay()
+        if (dow !== 0 && dow !== 6) count += 1
+      }
+      newDays = count
+    }
+    if (!(newDays > 0)) throw httpError(400, 'ช่วงวันใหม่ต้องมีอย่างน้อย 1 วันทำการ')
+
+    await conn.execute(
+      `UPDATE employee_requests SET start_date = ?, end_date = ?, days = ? WHERE id = ?`,
+      [from, to, Number(newDays.toFixed(2)), id],
+    )
+    await conn.execute(
+      `INSERT INTO employee_request_edit_logs
+        (request_id, edited_by, old_start_date, old_end_date, old_days, new_start_date, new_end_date, new_days, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, me, row.start_date, row.end_date, row.days, from, to, Number(newDays.toFixed(2)), note || null],
+    )
+    // แจ้งเตือนพนักงานเจ้าของใบว่า HR แก้ไขวันลาแล้ว
+    await notify(conn, [Number(row.employee_user_id)], id, 'leave_dates_edited')
+    await conn.commit()
+    await logActivity({
+      userId: me, module: 'documents', action: 'leave_dates_edited', entityType: 'employee_request', entityId: id,
+      details: { requestNo: row.request_no, from: row.start_date, to: row.end_date, days: row.days, newFrom: from, newTo: to, newDays },
+      ipAddress: req.ip,
+    })
+    res.json({ id, from, to, days: Number(newDays.toFixed(2)) })
+  } catch (error) {
+    await conn.rollback()
+    throw error
+  } finally {
+    conn.release()
+  }
 }
 
 // ---------- แจ้งเตือน ----------
