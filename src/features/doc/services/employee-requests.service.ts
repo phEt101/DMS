@@ -120,15 +120,17 @@ export const saveFlowRules = (rules: Array<Partial<ApiFlowRule>>) =>
 // ---------- mappers ----------
 const bangkokDate = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
 const STAGE: Record<ApiSignature['stage'], SignatureStage> = { submitter: 'ผู้ยื่น', manager: 'ผู้จัดการแผนก', executive: 'ผู้ประกอบการ', hr: 'HR' }
-type MapperText = { locale: string; kinds: Record<string, string>; leaveTypes: Record<string, string>; day: string; hour: string; hoursPerDay: number }
+type MapperText = { locale: string; kinds: Record<string, string>; leaveTypes: Record<string, string>; day: string; hour: string; hoursPerDay: number; hourStep?: number }
 
 // แปลงจำนวนวันเป็นข้อความชั่วโมงให้เข้าใจง่าย ตรงกับที่ผู้ใช้กรอก
 // 1 วัน = hoursPerDay ชั่วโมง (ปกติ 8) — ครบ 8 ชม. แสดง "1 วัน", 11 ชม. แสดง "1 วัน 3 ชั่วโมง"
-// ฐานข้อมูลเก็บ days เป็นทศนิยม 2 ตำแหน่ง (เช่น 0.375 → 0.38) จึงปัดเศษนาทีเล็ก ๆ จากการปัดทิ้ง (≤2 นาที = 0)
+// ฐานข้อมูลเก็บ days เป็นทศนิยม 2 ตำแหน่ง (เช่น 0.0625 → 0.06) จึง snap เข้าหาขั้น hourStep ก่อนแปลง (เช่น 30 นาที = 0.06 วัน → 0.5 ชม. → "30 นาที")
 const daysLabel = (days: number | null | undefined, t: MapperText): string => {
   if (days === null || days === undefined) return ''
   const perDay = t.hoursPerDay > 0 ? t.hoursPerDay : 8
-  let totalHours = days * perDay
+  const step = Number(t.hourStep ?? 0) > 0 ? Number(t.hourStep) : 0.5
+  // snap เข้าหาขั้นที่ใกล้ที่สุด แก้คลาดเคลื่อนจากการปัดทศนิยมในฐานข้อมูล
+  let totalHours = Math.round((days * perDay) / step) * step
   let wholeHours = Math.floor(totalHours)
   let minutes = Math.round((totalHours - wholeHours) * 60)
   if (minutes >= 58) { wholeHours += 1; minutes = 0 }
@@ -216,11 +218,12 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
 
 // แปลงจำนวนวัน (ทศนิยม) เป็นข้อความอ่านง่าย ตามชั่วโมงทำงานต่อวันของบริษัท
 // เช่น 0.375 วัน × 8 ชม. = 3 ชม. → "3 ชั่วโมง" · 1.25 วัน → "1 วัน 2 ชั่วโมง"
-// ฐานข้อมูลเก็บ days เป็นทศนิยม 2 ตำแหน่ง (0.375 → 0.38) จึงปัดเศษนาทีเล็ก ๆ จากการปัดทิ้ง (≤2 นาที = 0)
-function daysToText(days: number | undefined | null, hoursPerDay: number, day: string, hour: string): string {
+// ฐานข้อมูลเก็บ days เป็นทศนิยม 2 ตำแหน่ง (0.0625 → 0.06) จึง snap เข้าหาขั้น hourStep ก่อนแปลง
+function daysToText(days: number | undefined | null, hoursPerDay: number, day: string, hour: string, hourStep = 0.5): string {
   if (days === null || days === undefined) return ''
   const perDay = hoursPerDay > 0 ? hoursPerDay : 8
-  const totalHours = days * perDay
+  const step = hourStep > 0 ? hourStep : 0.5
+  const totalHours = Math.round((days * perDay) / step) * step
   let wholeHours = Math.floor(totalHours + 1e-9)
   let minutes = Math.round((totalHours - wholeHours) * 60)
   if (minutes >= 58) { wholeHours += 1; minutes = 0 }
@@ -244,7 +247,7 @@ export function toFormChecks(checks: ApiCheck[], copy: any) {
     const asHours = Number(params.isHour ?? 0) === 1
     for (const key of ['remaining', 'requested', 'days']) {
       const value = params[key]
-      if (typeof value === 'number') params[key] = daysToText(value, asHours ? perDay : 0, copy.ledger.day, copy.ledger.hour) || String(value)
+      if (typeof value === 'number') params[key] = daysToText(value, asHours ? perDay : 0, copy.ledger.day, copy.ledger.hour, Number(params.hourStep ?? 0) || 0.5) || String(value)
     }
     const message = Object.entries(params).reduce((text, [name, value]) => text.split(`{${name}}`).join(String(value)), String(copy.validation[check.key] ?? check.key))
     return { ok: check.ok, message, key: check.key }

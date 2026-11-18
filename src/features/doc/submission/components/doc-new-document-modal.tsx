@@ -61,7 +61,7 @@ const CHECK_FIELD: Record<string, string> = {
   projectRequired: 'project', customerNameRequired: 'customerName', phoneRequired: 'phone',
   workDetailsRequired: 'workDetails', phoneInvalid: 'phone', specialLeaveLimit: 'from', certificateRequired: 'cert',
 }
-type Props = { open: boolean; selectedKind: DocKind | ''; kindInfo: Record<DocKind, { title: string; description: string; icon: IconType }>; fields: Record<DocKind, Field[]>; values: FormValues; checks: Check[]; validating: boolean; today: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; fixDays: number; ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number; compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number; maternityMaxDays: number; childcareMaxDays: number; childcarePayPercent: number; spouseChildbirthMaxDays: number; spouseChildbirthWindowDays: number; language: 'th' | 'en'; role: string; medicalCertificateFile: File | null; supportingDocumentFiles: File[]; certificateRequired: boolean; onMedicalCertificateFile: (file: File | null) => void; onSupportingDocumentFiles: (files: File[]) => void; onRemoveSupportingDocumentFile: (index: number) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; onClearKind: () => void; onPickKind: (kind: DocKind) => void; onChange: (key: string, value: string | boolean) => void; copy: any; translations: any }
+type Props = { open: boolean; selectedKind: DocKind | ''; kindInfo: Record<DocKind, { title: string; description: string; icon: IconType }>; fields: Record<DocKind, Field[]>; values: FormValues; checks: Check[]; validating: boolean; today: string; leadPersonal: number; leadVacation: number; hoursPerDay: number; hourStep: number; fixDays: number; ordainMaxDays: number; compassionateEmployeeMaxDays: number; compassionateEmployeePaidDays: number; compassionateSpouseParentMaxDays: number; compassionateSpouseParentPaidDays: number; maternityMaxDays: number; childcareMaxDays: number; childcarePayPercent: number; spouseChildbirthMaxDays: number; spouseChildbirthWindowDays: number; language: 'th' | 'en'; role: string; medicalCertificateFile: File | null; supportingDocumentFiles: File[]; certificateRequired: boolean; onMedicalCertificateFile: (file: File | null) => void; onSupportingDocumentFiles: (files: File[]) => void; onRemoveSupportingDocumentFile: (index: number) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onClose: () => void; onClearKind: () => void; onPickKind: (kind: DocKind) => void; onChange: (key: string, value: string | boolean) => void; copy: any; translations: any }
 
 export default function DocNewDocumentModal(p: Props) {
   const formRef = useRef<HTMLFormElement>(null)
@@ -132,7 +132,7 @@ export default function DocNewDocumentModal(p: Props) {
         const calculatedLeaveHours = field.key === 'hours' && p.selectedKind === 'leave'
         const displayValue = calculatedLeaveHours
           ? Number(value) > 0
-            ? formatLeaveDayHour(Number(value) / p.hoursPerDay, p.hoursPerDay, p.copy.ledger.day, p.copy.ledger.hour, p.copy.ledger.minute)
+            ? formatLeaveDayHour(Number(value) / p.hoursPerDay, p.hoursPerDay, p.copy.ledger.day, p.copy.ledger.hour, p.copy.ledger.minute, p.hourStep)
             : ''
           : String(value)
         const emergency = p.selectedKind === 'leave' && (p.values.leaveType === 'emergency' || p.values.leaveType === 'personal' || p.values.leaveType === 'sick')

@@ -13,7 +13,7 @@ const formatDate = (value: string | undefined, locale: string) => value
       .format(new Date(`${value}T00:00:00`))
   : ''
 
-const rowsForExport = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay: number, copy: any) => {
+const rowsForExport = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay: number, copy: any, hourStep = 0.5) => {
   const labels: Record<(typeof leaveTypes)[number], string> = {
     personal: copy.ledger.personal,
     sick: copy.ledger.sick,
@@ -46,8 +46,8 @@ const rowsForExport = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay
       index + 1,
       formatDate(entry?.from, copy.dateLocale),
       formatDate(entry?.to, copy.dateLocale),
-      ...leaveTypes.map((type) => entry?.leaveType === type && entry.days !== null && entry.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute) : ''),
-      entry?.days !== null && entry?.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute) : '',
+      ...leaveTypes.map((type) => entry?.leaveType === type && entry.days !== null && entry.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute, hourStep) : ''),
+      entry?.days !== null && entry?.days !== undefined ? formatLeaveDayHour(entry.days, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute, hourStep) : '',
       entry ? copy.sampleDocuments[String(entry.id)]?.reason ?? entry.reason ?? '' : '',
       entry ? person.name : '',
       managerStatus,
@@ -57,14 +57,14 @@ const rowsForExport = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay
   return { headers, data, labels }
 }
 
-const balanceRows = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay: number, copy: any) => {
+const balanceRows = (person: LedgerPerson, entries: LedgerEntry[], hoursPerDay: number, copy: any, hourStep = 0.5) => {
   const balance = (type: LeaveBalanceType) => {
     const usage = getLeaveUsage(entries, type)
     return [
-      formatLeaveDayHour(person[type], hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute),
-      formatLeaveDayHour(usage.used, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute),
-      formatLeaveDayHour(usage.pending, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute),
-      formatLeaveDayHour(Math.max(0, person[type] - usage.used - usage.pending), hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute),
+      formatLeaveDayHour(person[type], hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute, hourStep),
+      formatLeaveDayHour(usage.used, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute, hourStep),
+      formatLeaveDayHour(usage.pending, hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute, hourStep),
+      formatLeaveDayHour(Math.max(0, person[type] - usage.used - usage.pending), hoursPerDay, copy.ledger.day, copy.ledger.hour, copy.ledger.minute, hourStep),
     ]
   }
   return [
@@ -78,9 +78,9 @@ const displayYear = (policyYear: number, locale: string) =>
   new Intl.DateTimeFormat(locale, { year: 'numeric' }).format(new Date(policyYear, 0, 1))
 const reportName = (person: LedgerPerson, policyYear: number, locale: string) => `Leave_Ledger_${safeFilePart(person.name)}_${displayYear(policyYear, locale)}`
 
-export async function exportLedgerXlsx(person: LedgerPerson, entries: LedgerEntry[], companyName: string | undefined, hoursPerDay: number, policyYear: number, policyYearEnd: string, copy: any) {
+export async function exportLedgerXlsx(person: LedgerPerson, entries: LedgerEntry[], companyName: string | undefined, hoursPerDay: number, policyYear: number, policyYearEnd: string, copy: any, hourStep = 0.5) {
   const { default: ExcelJS } = await import('exceljs')
-  const { headers, data } = rowsForExport(person, entries, hoursPerDay, copy)
+  const { headers, data } = rowsForExport(person, entries, hoursPerDay, copy, hourStep)
   const workbook = new ExcelJS.Workbook()
   workbook.creator = person.name
   workbook.title = copy.ledger.title ?? copy.ledger.companyName
@@ -122,7 +122,7 @@ export async function exportLedgerXlsx(person: LedgerPerson, entries: LedgerEntr
   sheet.addRow([])
   sheet.addRow([copy.ledger.remaining])
   sheet.addRow([copy.ledger.sick, copy.ledger.year, copy.ledger.used, copy.ledger.pending, copy.ledger.remaining])
-  balanceRows(person, entries, hoursPerDay, copy).forEach((row) => sheet.addRow(row))
+  balanceRows(person, entries, hoursPerDay, copy, hourStep).forEach((row) => sheet.addRow(row))
   sheet.addRow([`${copy.ledger.expiryNote} ${new Intl.DateTimeFormat(copy.dateLocale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${policyYearEnd}T00:00:00`))}`])
 
   const buffer = await workbook.xlsx.writeBuffer()
@@ -132,11 +132,11 @@ export async function exportLedgerXlsx(person: LedgerPerson, entries: LedgerEntr
   )
 }
 
-export async function exportLedgerDocx(person: LedgerPerson, entries: LedgerEntry[], companyName: string | undefined, hoursPerDay: number, policyYear: number, policyYearEnd: string, copy: any) {
+export async function exportLedgerDocx(person: LedgerPerson, entries: LedgerEntry[], companyName: string | undefined, hoursPerDay: number, policyYear: number, policyYearEnd: string, copy: any, hourStep = 0.5) {
   const {
     AlignmentType, BorderStyle, Document, PageOrientation, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType,
   } = await import('docx')
-  const { headers, data } = rowsForExport(person, entries, hoursPerDay, copy)
+  const { headers, data } = rowsForExport(person, entries, hoursPerDay, copy, hourStep)
   const border = { style: BorderStyle.SINGLE, size: 1, color: '000000' }
   const borders = { top: border, bottom: border, left: border, right: border }
   const cell = (value: unknown, header = false) => new TableCell({
@@ -151,7 +151,7 @@ export async function exportLedgerDocx(person: LedgerPerson, entries: LedgerEntr
     new TableRow({ tableHeader: true, children: headers.map((header) => cell(header, true)) }),
     ...data.map((row) => new TableRow({ cantSplit: true, children: row.map((value) => cell(value)) })),
   ]
-  const balances = balanceRows(person, entries, hoursPerDay, copy)
+  const balances = balanceRows(person, entries, hoursPerDay, copy, hourStep)
   const doc = new Document({
     creator: person.name,
     title: `${copy.ledger.companyName} - ${person.name}`,

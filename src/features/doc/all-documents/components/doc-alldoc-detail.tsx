@@ -71,10 +71,10 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
       }).format(new Date(doc.submittedAt))
     : dateText(doc.date)
   const leaveDuration = doc.days !== null && doc.days !== undefined
-    ? formatLeaveDayHour(doc.days, policy.hoursPerDay, c.ledger.day, c.ledger.hour, c.ledger.minute)
+    ? formatLeaveDayHour(doc.days, policy.hoursPerDay, c.ledger.day, c.ledger.hour, c.ledger.minute, policy.hourStep)
     : ''
   const hoursDuration = Number(detailValues.hours) > 0
-    ? formatLeaveDayHour(Number(detailValues.hours) / policy.hoursPerDay, policy.hoursPerDay, c.ledger.day, c.ledger.hour, c.ledger.minute)
+    ? formatLeaveDayHour(Number(detailValues.hours) / policy.hoursPerDay, policy.hoursPerDay, c.ledger.day, c.ledger.hour, c.ledger.minute, policy.hourStep)
     : ''
   const outingAddress = [detailValues.address, detailValues.subdistrict, detailValues.district, detailValues.province, detailValues.postalCode, detailValues.country].map((value) => String(value ?? '').trim()).filter(Boolean).join(' ')
   const [zoomAvatar, setZoomAvatar] = useState<{ src: string; name: string } | null>(null)
