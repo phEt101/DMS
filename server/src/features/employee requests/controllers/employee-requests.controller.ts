@@ -1096,7 +1096,7 @@ function headerFields(kind: Kind, v: Values) {
 async function buildContext(kind: Kind, v: Values, user: any, policy: Policy, today: string): Promise<ValidationContext> {
   const ctx: ValidationContext = {
     policy, today, entitlement: { sick: Number(user.sick), personal: Number(user.personal), vacation: Number(user.vacation) },
-    usedByBucket: {}, usedEmergency: 0, hasOverlap: false, maternityEndDate: null,
+    usedByBucket: {}, usedEmergency: 0, overlaps: [], maternityEndDate: null,
   }
   if (kind !== 'leave') return ctx
   const [typeRows] = await db.query<any[]>(`SELECT id, code, balance_bucket, allow_by_hour FROM leave_types WHERE code = ? AND is_active = 1 LIMIT 1`, [String(v.leaveType ?? '')])
@@ -1129,11 +1129,15 @@ async function buildContext(kind: Kind, v: Values, user: any, policy: Policy, to
   ctx.usedEmergency = Number(emergencyUsage[0]?.used ?? 0)
   const from = String(v.from ?? ''), to = String(v.to ?? '')
   if (from && to && to >= from) {
+    // ใบที่นับว่าทับ = ใบลาที่ยังมีผล (ยื่น/รออนุมัติทุกขั้น + อนุมัติแล้ว) ไม่รวมไม่อนุมัติและยกเลิก
     const [overlap] = await db.query<any[]>(
-      `SELECT 1 FROM employee_requests WHERE employee_user_id = ? AND kind = 'leave' AND status IN ('pending_mgr','pending_hr','approved')
-          AND start_date <= ? AND end_date >= ? LIMIT 1`, [user.id, to, from],
+      `SELECT request_no, DATE_FORMAT(start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(end_date,'%Y-%m-%d') AS end_date
+         FROM employee_requests
+        WHERE employee_user_id = ? AND kind = 'leave' AND status IN ('pending_mgr','pending_exec','pending_hr','approved')
+          AND start_date <= ? AND end_date >= ?
+        ORDER BY start_date`, [user.id, to, from],
     )
-    ctx.hasOverlap = overlap.length > 0
+    ctx.overlaps = overlap.map((row) => ({ requestNo: String(row.request_no), from: row.start_date, to: row.end_date }))
   }
   return ctx
 }

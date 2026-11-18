@@ -237,6 +237,13 @@ function daysToText(days: number | undefined | null, hoursPerDay: number, day: s
   return parts.join(' ') || `0 ${hour}`
 }
 
+// วันที่ ISO (YYYY-MM-DD) → ข้อความวันที่ตามภาษาของหน้า เช่น 3 ก.ค. 68
+export function formatIsoDate(iso: string, locale: string) {
+  if (!iso) return ''
+  const date = new Date(`${iso}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? iso : new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: '2-digit' }).format(date)
+}
+
 // แปลง checks จาก server ให้เป็นรูปแบบเดิมที่ฟอร์มใช้ ({ ok, message })
 export function toFormChecks(checks: ApiCheck[], copy: any) {
   return checks.map((check) => {
@@ -248,6 +255,11 @@ export function toFormChecks(checks: ApiCheck[], copy: any) {
     for (const key of ['remaining', 'requested', 'days']) {
       const value = params[key]
       if (typeof value === 'number') params[key] = daysToText(value, asHours ? perDay : 0, copy.ledger.day, copy.ledger.hour, Number(params.hourStep ?? 0) || 0.5) || String(value)
+    }
+    // ใบลาที่ทับ: แสดงช่วงวันที่ของใบเดิมเป็นข้อความอ่านง่าย
+    if (check.key === 'overlap') {
+      params.from = formatIsoDate(String(params.from ?? ''), copy.dateLocale ?? 'th-TH')
+      params.to = formatIsoDate(String(params.to ?? ''), copy.dateLocale ?? 'th-TH')
     }
     const message = Object.entries(params).reduce((text, [name, value]) => text.split(`{${name}}`).join(String(value)), String(copy.validation[check.key] ?? check.key))
     return { ok: check.ok, message, key: check.key }

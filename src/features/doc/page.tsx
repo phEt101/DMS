@@ -23,7 +23,7 @@ import { useAuth } from '../auth/hooks/use-auth'
 import { hasPermission } from '../auth/permissions'
 import {
   ApiError, approveRequest, cancelRequest, createRequest, getMySignature, getPolicy, getRequest,
-  listNotifications, listPeople, listPolicyYears, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, toFormChecks, updateLeaveDates, validateRequestDryRun,
+  listNotifications, listPeople, listPolicyYears, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, formatIsoDate, toFormChecks, updateLeaveDates, validateRequestDryRun,
   type ApiEditLog,
 } from './services/employee-requests.service'
 import DocLeaveDatesEditModal from './all-documents/components/doc-leave-dates-edit-modal'
@@ -164,8 +164,9 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     } else add(qty > 0, msg('daysPositive'))
     add(Boolean(v('reason')), msg(type === 'emergency' ? 'emergencyReason' : 'leaveReason'))
     if (from && to && to >= from) {
-      const overlap = docs.some((doc) => doc.employee === employee.name && doc.kind === 'leave' && doc.status !== 'rejected' && doc.from && doc.to && doc.from <= to && doc.to >= from)
-      add(!overlap, msg('overlap'))
+      // ใบที่นับว่าทับ = สถานะเดียวกับฝั่ง server (ยื่น/รออนุมัติทุกขั้น + อนุมัติแล้ว) — แต่ละใบเป็นบรรทัดแยก พร้อมเลขที่และช่วงวัน
+      const overlaps = docs.filter((doc) => doc.employee === employee.name && doc.kind === 'leave' && ['pending_mgr', 'pending_exec', 'pending_hr', 'approved'].includes(doc.status) && doc.from && doc.to && doc.from <= to && doc.to >= from)
+      for (const doc of overlaps) add(false, msg('overlap', { no: doc.no, from: formatIsoDate(doc.from ?? '', copy.dateLocale ?? 'th-TH'), to: formatIsoDate(doc.to ?? '', copy.dateLocale ?? 'th-TH') }), 'overlap')
     }
     const startDate = from ? new Date(`${from}T00:00:00`) : null
     const leadDays = startDate ? Math.floor((startDate.getTime() - today.getTime()) / 86400000) : 0

@@ -634,7 +634,7 @@
       "compassionateRelationRequired": "Choose the compassionate leave case before submitting.",
       "emergencyReason": "Enter a reason for urgent leave",
       "leaveReason": "Enter a leave reason",
-      "overlap": "Dates overlap with an active leave request",
+      "overlap": "Selected dates overlap leave request {no} ({from} – {to})",
       "personalLead": "Personal and unpaid leave must be submitted at least {days} days in advance",
       "vacationLead": "Vacation must be submitted at least {days} days in advance",
       "emergencyFromToday": "Emergency vacation can be submitted from today onward",

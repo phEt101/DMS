@@ -19,7 +19,7 @@ export type ValidationContext = {
   entitlement: { sick: number; personal: number; vacation: number }
   usedByBucket: Record<string, number> // รวมใบที่รออนุมัติ + อนุมัติแล้ว ภายในปีนโยบาย
   usedEmergency: number // ลาพักร้อนฉุกเฉินที่อนุมัติหรือรออนุมัติแล้วในปีนโยบาย
-  hasOverlap: boolean
+  overlaps: Array<{ requestNo: string; from: string; to: string }> // ใบลาเดิมที่ช่วงวันทับกับที่ขอ
   maternityEndDate: string | null
 }
 
@@ -129,7 +129,10 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
       add(Boolean(expectedStart && from === expectedStart), 'childcareMustFollowMaternity')
     }
     add(Boolean(v('reason')), type === 'emergency' ? 'emergencyReason' : 'leaveReason')
-    if (from && to && to >= from) add(!ctx.hasOverlap, 'overlap')
+    // ทับใบเดิมหลายใบได้ — แต่ละใบเป็น check แยก เพื่อให้ฟอร์มชี้ได้ว่าทับใบไหน (ไม่ทับ = ไม่ส่ง check)
+    if (from && to && to >= from) {
+      for (const o of ctx.overlaps) add(false, 'overlap', { no: o.requestNo, from: o.from, to: o.to })
+    }
 
     const leadDays = from ? diffDays(today, from) : 0
     // วันนี้นับเป็นวันแรก เหมือนวันขั้นต่ำที่ปฏิทินอนุญาตให้เลือก
