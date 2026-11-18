@@ -12,6 +12,7 @@ export default function LocationSection({
   mapHeight,
   className,
   requiredAddress = false,
+  showLatLng = true,
 }: {
   locationValue: any
   updateLocation: (patch: Record<string, any>) => void
@@ -22,6 +23,7 @@ export default function LocationSection({
   mapHeight?: number
   className?: string
   requiredAddress?: boolean
+  showLatLng?: boolean
 }) {
   const t = translations?.features?.survey ?? {}
   const { tempPos, confirmLocation } = picker
@@ -109,17 +111,17 @@ export default function LocationSection({
         </div>
 
         <div className="dms-pm-create-grid">
-          <label className="dms-form-field">
+          <label className={`dms-form-field${showLatLng ? '' : ' dms-form-field--full'}`}>
             <span className="dms-form-label">{t.form?.field?.country ?? 'Country'}</span>
             <input className="dms-form-input" placeholder={t.form?.placeholder?.country ?? 'Country'} value={locationValue?.country ?? ''} onChange={(e) => updateLocation({ country: e.target.value })} />
           </label>
-          <label className="dms-form-field">
+          {showLatLng && <label className="dms-form-field">
             <span className="dms-form-label">{t.form?.field?.latlng ?? 'Latitude / Longitude'}</span>
             <div style={{ display: 'flex', gap: 8 }}>
               <input className="dms-form-input" placeholder={t.form?.placeholder?.latitude ?? 'Latitude'} value={locationValue?.latitude ?? ''} onChange={(e) => updateLocation({ latitude: Number(e.target.value) || 0 })} />
               <input className="dms-form-input" placeholder={t.form?.placeholder?.longitude ?? 'Longitude'} value={locationValue?.longitude ?? ''} onChange={(e) => updateLocation({ longitude: Number(e.target.value) || 0 })} />
             </div>
-          </label>
+          </label>}
         </div>
       </div>
     </section>

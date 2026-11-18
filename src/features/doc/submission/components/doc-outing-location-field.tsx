@@ -58,5 +58,6 @@ export default function DocOutingLocationField({ values, onChange, translations 
     mapHeight={260}
     className="outing-location-section"
     requiredAddress
+    showLatLng={false}
   />
 }
