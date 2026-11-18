@@ -5,7 +5,7 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { db } from '../../../config/database.js'
 import { httpError } from '../../../middleware/errors.js'
-import { validateRequest, type Kind, type LeaveTypeRow, type Policy, type ValidationContext, type Values } from '../services/employee-requests.validation.js'
+import { validateRequest, weekdaysBetween as weekdaysBetweenImported, type Kind, type LeaveTypeRow, type Policy, type ValidationContext, type Values } from '../services/employee-requests.validation.js'
 import { logActivity } from '../../settings/activity/repositories/activity.repository.js'
 import { avatarUrlOf } from '../../settings/users/middleware/avatar-upload.middleware.js'
 import {
@@ -666,7 +666,9 @@ export async function updateLeaveDates(req: Request, res: Response) {
     let newDays: number
     if (detail.balance_bucket === 'other' || detail.balance_bucket === 'none') {
       // ลาพิเศษ (บวช/คลอด ฯลฯ) นับปฏิทินรวมวันเสาร์อาทิตย์ เหมือนตอนยื่น
-      newDays = diffDaysOf(from, to) + 1
+      newDays = detail.leave_type_code === 'compassionate_employee_family' || detail.leave_type_code === 'compassionate_spouse_parent'
+        ? weekdaysBetweenImported(from, to) // ลาเมตตาจิตนับเฉพาะวันทำการ (ตัดเสาร์-อาทิตย์)
+        : diffDaysOf(from, to) + 1
     } else if (detail.by_hour) {
       newDays = Number(row.days) // ลาเป็นชั่วโมง — เลื่อนวันไม่เปลี่ยนจำนวนชั่วโมง
     } else {

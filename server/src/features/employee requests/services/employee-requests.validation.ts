@@ -84,8 +84,10 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
     const isHour = Boolean(ctx.leaveType?.allowByHour) && (values.byHour === true || (!values.byHour && Number(values.hours ?? '') > 0))
     let qty = Number(v('days'))
     add(Boolean(from && to && to >= from), 'dateRange')
+    // ลาเมตตาจิตนับเฉพาะวันทำการ (ตัดเสาร์-อาทิตย์) — ประเภทอื่นนับปฏิทินรวมเสาร์-อาทิตย์
+    const isCompassionate = type === 'compassionate_employee_family' || type === 'compassionate_spouse_parent'
     if (calendarLimit !== null) {
-      qty = calendarDaysInclusive(from, to)
+      qty = isCompassionate ? weekdaysBetween(from, to) : calendarDaysInclusive(from, to)
       values.days = String(qty || '')
       values.hours = ''
       values.byHour = false
@@ -111,7 +113,7 @@ export function validateRequest(kind: Kind, input: Values, ctx: ValidationContex
       add(qty > 0, 'daysPositive')
     }
     if (calendarLimit !== null && from && to && to >= from) {
-      add(qty <= calendarLimit, 'specialLeaveLimit', { max: calendarLimit })
+      add(qty <= calendarLimit, isCompassionate ? 'specialLeaveLimitWorkdays' : 'specialLeaveLimit', { max: calendarLimit })
     }
     if (type === 'spouse_childbirth') {
       const birthDate = v('childBirthDate')

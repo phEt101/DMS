@@ -70,6 +70,15 @@ const calendarDaysBetween = (from: string, to: string) => {
   if (!from || !to || to < from) return 0
   return Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86400000) + 1
 }
+// จำนวนวันทำการ (ตัดเสาร์-อาทิตย์) — ใช้กับลาเมตตาจิตที่ไม่นับวันหยุดสิ้นสัปดาห์
+const workdaysBetween = (from: string, to: string) => {
+  if (!from || !to || to < from) return 0
+  let count = 0
+  const date = new Date(`${from}T00:00:00`)
+  const end = new Date(`${to}T00:00:00`)
+  while (date <= end) { if (date.getDay() !== 0 && date.getDay() !== 6) count += 1; date.setDate(date.getDate() + 1) }
+  return count
+}
 const calendarLeaveMax = (type: string, policy: MockPolicy, relation = '') => type === 'ordain' ? policy.ordainMaxDays
   : (type === 'compassionate_employee_family' && relation === 'spouse_parent') || type === 'compassionate_spouse_parent' ? policy.compassionateSpouseParentMaxDays
     : type === 'compassionate_employee_family' ? policy.compassionateEmployeeMaxDays
@@ -112,12 +121,14 @@ const validateSubmission = (kind: DocKind, values: FormValues, docs: MockDocumen
     }
     const specialLeaveLimit = calendarLeaveMax(type, policy, relation)
     if (specialLeaveLimit !== null) {
-      qty = calendarDaysBetween(from, to)
+      // ลาเมตตาจิตนับเฉพาะวันทำการ (ตัดเสาร์-อาทิตย์) — ประเภทอื่นนับปฏิทินรวมเสาร์-อาทิตย์
+      const isCompassionate = type === 'compassionate_employee_family' || type === 'compassionate_spouse_parent'
+      qty = isCompassionate ? workdaysBetween(from, to) : calendarDaysBetween(from, to)
       values.days = String(qty || '')
       values.hours = ''
       values.byHour = false
       if (from && to && to >= from) {
-        add(qty <= specialLeaveLimit, msg('specialLeaveLimit', { max: specialLeaveLimit }), 'specialLeaveLimit')
+        add(qty <= specialLeaveLimit, msg(isCompassionate ? 'specialLeaveLimitWorkdays' : 'specialLeaveLimit', { max: specialLeaveLimit }), 'specialLeaveLimit')
       }
       if (type === 'spouse_childbirth') {
         const birthDate = v('childBirthDate')
@@ -668,8 +679,11 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         if (next.to && !next.from) next.from = next.to
         if (key === 'from' && next.from && next.to && String(next.to) < String(next.from)) next.to = next.from
         const isCalendarLeave = selectedKind === 'leave' && calendarLeaveMax(String(next.leaveType ?? ''), policy, String(next.compassionateRelation ?? '')) !== null
+        const isCompassionateLeave = selectedKind === 'leave' && ['compassionate_employee_family', 'compassionate_spouse_parent'].includes(String(next.leaveType ?? ''))
         next.days = String((isCalendarLeave
-          ? calendarDaysBetween(String(next.from ?? ''), String(next.to ?? ''))
+          ? isCompassionateLeave
+            ? workdaysBetween(String(next.from ?? ''), String(next.to ?? ''))
+            : calendarDaysBetween(String(next.from ?? ''), String(next.to ?? ''))
           : daysBetween(String(next.from ?? ''), String(next.to ?? ''))) || '')
         const autoDays = Number(next.days) || 0
         next.hours = isCalendarLeave ? '' : autoDays > 0 ? String(autoDays * policy.hoursPerDay) : ''
@@ -678,7 +692,9 @@ export default function DocumentPage({ translations, view = 'all', language = 't
         const specialLeave = calendarLeaveMax(String(value), policy, String(next.compassionateRelation ?? '')) !== null
         if (next.from && next.to) {
           const dateDays = specialLeave
-            ? calendarDaysBetween(String(next.from), String(next.to))
+            ? ['compassionate_employee_family', 'compassionate_spouse_parent'].includes(String(value))
+              ? workdaysBetween(String(next.from), String(next.to))
+              : calendarDaysBetween(String(next.from), String(next.to))
             : daysBetween(String(next.from), String(next.to))
           next.days = String(dateDays || '')
         }
@@ -1065,7 +1081,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       initialTo={selectedDocument?.to ?? ''}
       submitting={leaveDatesEditSubmitting}
       onClose={() => setLeaveDatesEditOpen(false)}
-      onConfirm={(data) => void saveLeaveDates(data)}
+      onConfirm={(data: { from: string; to: string; note: string }) => void saveLeaveDates(data)}
       copy={copy}
     />
 

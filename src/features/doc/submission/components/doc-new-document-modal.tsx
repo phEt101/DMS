@@ -1,6 +1,6 @@
 import { Fragment, useRef, type FormEvent } from 'react'
 import DatePicker, { registerLocale } from 'react-datepicker'
-import { addDays, differenceInCalendarDays, format, getDay, isBefore, parseISO, startOfDay } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, getDay, isAfter, isBefore, parseISO, startOfDay } from 'date-fns'
 import { enUS, th } from 'date-fns/locale'
 import type { IconType } from 'react-icons'
 import type { DocKind, FormValues } from '../../document-types'
@@ -17,9 +17,16 @@ const EXTRA_GAP = 0
 function addCalendarDaysAfter(date: string, days: number) {
   return addDays(parseISO(date), days)
 }
+// จำนวนวันทำการ (ตัดเสาร์-อาทิตย์) — ใช้กับลาเมตตาจิตที่ไม่นับวันหยุดสิ้นสัปดาห์
+function countWorkdays(from: Date, to: Date) {
+  let count = 0
+  for (let d = from; !isAfter(d, to); d = addDays(d, 1)) { const dow = getDay(d); if (dow !== 0 && dow !== 6) count += 1 }
+  return count
+}
 const SPECIAL_LEAVE_HINTS: Record<string, string> = {
   ordain: 'ordinationHint',
   compassionate_employee_family: 'compassionateEmployeeFamilyHint',
+  compassionate_spouse_parent: 'compassionateSpouseParentHint',
   maternity: 'maternityHint',
   childcare_after_maternity: 'childcareAfterMaternityHint',
   spouse_childbirth: 'spouseChildbirthHint',
@@ -110,22 +117,24 @@ export default function DocNewDocumentModal(p: Props) {
       : p.values.leaveType === 'compassionate_spouse_parent' ? p.compassionateSpouseParentMaxDays
         : p.values.leaveType === 'maternity' ? p.maternityMaxDays
           : p.values.leaveType === 'childcare_after_maternity' ? p.childcareMaxDays : p.spouseChildbirthMaxDays
-  const specialLeavePaidDays = compassionateSpouseParent ? p.compassionateSpouseParentPaidDays : p.compassionateEmployeePaidDays
+  const specialLeavePaidDays = leaveType === 'compassionate_spouse_parent'
+    ? p.compassionateSpouseParentPaidDays
+    : compassionateSpouseParent ? p.compassionateSpouseParentPaidDays : p.compassionateEmployeePaidDays
 
   return <div className="documents-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) p.onClose() }}><form ref={formRef} className="dms-modal dms-create-doc-modal documents-submission-modal" onSubmit={p.onSubmit}>
     <h2 className="dms-modal-title">{p.selectedKind ? p.kindInfo[p.selectedKind].title : p.copy.submission.title}</h2><p className="dms-modal-subtitle">{p.selectedKind ? p.copy.submission.instructions : p.copy.submission.intro}</p><button type="button" className="modal-close" aria-label={p.copy.detail.close} onClick={p.onClose}>×</button>
     <div className="dms-create-doc-body documents-submission-body">{!p.selectedKind ? <div className="documents-kind-grid">{(Object.keys(p.kindInfo) as DocKind[]).filter(kind => !HIDDEN_KINDS.includes(kind)).map(kind => { const info = p.kindInfo[kind]; const Icon = info.icon; const merged = kind === 'outing'; return <button type="button" key={kind} onClick={() => p.onPickKind(kind)}><span className="documents-icon"><Icon /></span><span><b>{info.title}</b><small>{merged ? p.copy.submission.offsiteDescription : info.description}</small></span></button> })}</div> : <>
       <button type="button" className="dms-back-btn documents-form-back" onClick={p.onClearKind}>{p.copy.submission.changeKind}</button>
-      {p.selectedKind === 'leave' && SPECIAL_LEAVE_HINTS[String(p.values.leaveType)] && <p className="documents-policy-note">
+      {p.selectedKind === 'leave' && SPECIAL_LEAVE_HINTS[String(p.values.leaveType)] && (() => { const hintKey = SPECIAL_LEAVE_HINTS[String(p.values.leaveType)]; return <p className="documents-policy-note">
         {String(p.copy.submission[SPECIAL_LEAVE_HINTS[String(p.values.leaveType)]])
           .replace('{max}', String(specialLeaveMaxDays))
-          .replace('{paid}', String(p.values.leaveType === 'compassionate_employee_family' ? specialLeavePaidDays : p.compassionateSpouseParentPaidDays))
+          .replace('{paid}', String(specialLeavePaidDays))
           .replace('{percent}', String(p.childcarePayPercent))
           .replace('{window}', String(p.spouseChildbirthWindowDays))}
         {p.values.from && p.values.to && String(p.values.to) >= String(p.values.from)
-          ? ` ${p.language === 'th' ? `เลือกแล้ว ${differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} วัน` : `${differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} days selected`}`
+          ? ` ${p.language === 'th' ? `เลือกแล้ว ${hintKey === 'compassionateEmployeeFamilyHint' || hintKey === 'compassionateSpouseParentHint' ? countWorkdays(parseISO(String(p.values.from)), parseISO(String(p.values.to))) : differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} วัน` : `${hintKey === 'compassionateEmployeeFamilyHint' || hintKey === 'compassionateSpouseParentHint' ? countWorkdays(parseISO(String(p.values.from)), parseISO(String(p.values.to))) : differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} days selected`}`
           : ''}
-      </p>}
+      </p> })()}
       {p.selectedKind === 'timefix' && p.fixDays > 0 && <p className="documents-policy-note">{p.copy.policy?.fixDaysNote?.replace('{days}', String(p.fixDays)) ?? (p.language === 'th' ? `นโยบายการลา: แก้ไขเวลาย้อนหลังได้ไม่เกิน ${p.fixDays} วัน` : `Leave policy: time corrections are allowed up to ${p.fixDays} days back`)}</p>}
       <div className="documents-form-fields">{p.fields[p.selectedKind].map(field => {
         const value = p.values[field.key] ?? (field.type === 'checkbox' ? false : '')
