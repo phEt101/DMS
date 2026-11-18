@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import LoginPage from './features/auth/page'
+// ⚠️ หน้ารีเซ็ทรหัสผ่านแบบไม่ตรวจสอบตัวตน (ใช้เพื่อการทดสอบเท่านั้น — ต้องลบก่อนขึ้น production)
+import ResetPasswordPage from './features/auth/reset-password-page'
+// -----------------------------------------
 import { setCurrentLanguage } from './components/toast-provider'
 import { useAuth } from './features/auth/hooks/use-auth'
 import Sidebar from './layout/sidebar'
@@ -89,6 +92,13 @@ function pathMatchesPage(pathname: string, page: PageKey) {
 
 export default function App() {
   const { user, isLoading, logout } = useAuth()
+  // หน้ารีเซ็ทรหัสผ่านแบบไม่ตรวจสอบตัวตน (ทดสอบเท่านั้น) — /reset-password
+  const [showResetPassword, setShowResetPassword] = useState(() => window.location.pathname === '/reset-password')
+  useEffect(() => {
+    const onPop = () => setShowResetPassword(window.location.pathname === '/reset-password')
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [language, setLanguage] = useState<'th' | 'en'>('th')
@@ -131,6 +141,17 @@ export default function App() {
 
   if (isLoading) {
     return <div className="auth-loading" role="status" aria-label="Loading"><span /></div>
+  }
+
+  if (showResetPassword) {
+    return (
+      <ResetPasswordPage
+        translations={translations}
+        language={language}
+        onLanguageToggle={() => setLanguage((value) => (value === 'th' ? 'en' : 'th'))}
+        onBackToLogin={() => { window.history.pushState({}, '', '/login'); setShowResetPassword(false) }}
+      />
+    )
   }
 
   if (!user) {

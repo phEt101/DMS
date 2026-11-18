@@ -150,3 +150,17 @@ export async function changeOwnPassword(
   await authRepository.updateOwnPasswordHash(userId, await bcrypt.hash(newPassword, BCRYPT_ROUNDS));
   await authRepository.revokeOtherSessions(userId, sessionId);
 }
+
+// ⚠️ ใช้เพื่อการทดสอบเท่านั้น (หน้ารีเซ็ทรหัสผ่านไม่ตรวจสอบตัวตน) — ต้องลบก่อนขึ้น production
+export async function resetPasswordByEmail(input: {
+  email: string;
+  newPassword: string;
+}): Promise<{ userId: number } | null> {
+  const user = await authRepository.findUserByEmail(input.email.trim().toLowerCase());
+  if (!user) return null;
+  await authRepository.updateOwnPasswordHash(user.id, await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS));
+  // เปลี่ยนรหัสผ่านแล้วบังคับ logout ทุกเครื่องของ user นี้ ให้ล็อกอินใหม่ด้วยรหัสใหม่
+  await authRepository.revokeAllSessions(user.id);
+  return { userId: user.id };
+}
+//-------------------------------

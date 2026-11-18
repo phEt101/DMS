@@ -253,3 +253,23 @@
   background: #fff1f3;
   font-size: 12px;
 }
+
+/* ---------- หน้ารีเซ็ทรหัสผ่าน (ทดสอบเท่านั้น) ---------- */
+.signin-error {
+  margin: -4px 0 12px;
+  color: #dc2626;
+  font-size: 0.85rem;
+}
+.signin-reset-link {
+  margin-top: 12px;
+  background: none;
+  border: none;
+  color: var(--signin-muted, #64748b);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.signin-reset-link:hover {
+  color: var(--signin-primary, #2563eb);
+}
+/* ---------- หน้ารีเซ็ทรหัสผ่าน (ทดสอบเท่านั้น) ---------- */

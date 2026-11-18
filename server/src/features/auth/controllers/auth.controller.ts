@@ -145,6 +145,34 @@ export const updateProfile: RequestHandler = async (req, res) => {
   res.json({ data: { ...req.user, name } });
 };
 
+// ⚠️ หน้ารีเซ็ทรหัสผ่านแบบไม่ตรวจสอบตัวตน (ใช้เพื่อการทดสอบเท่านั้น — ต้องลบก่อนขึ้น production)
+// ใส่แค่อีเมล + รหัสผ่านใหม่ ก็เปลี่ยนรหัสผ่านได้ทันที และ revoke session ทั้งหมดของ user นั้น
+export const resetPassword: RequestHandler = async (req, res, next) => {
+  try {
+    const body = readBody(req.body);
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+    if (!email || !newPassword) throw httpError(400, "Email and new password are required");
+    if (!/^\S+@\S+\.\S+$/.test(email)) throw httpError(400, "Invalid email format");
+    if (newPassword.length < 8) throw httpError(400, "Password must be at least 8 characters");
+    if (newPassword.length > 255) throw httpError(400, "Password is too long");
+    const result = await authService.resetPasswordByEmail({ email, newPassword });
+    if (!result) throw httpError(404, "ไม่พบบัญชีผู้ใช้งานนี้ในระบบ");
+    await logActivity({
+      userId: result.userId,
+      module: "authentication",
+      action: "password_reset",
+      entityType: "user",
+      entityId: result.userId,
+      details: { via: "reset-password-page" },
+      ipAddress: req.ip,
+    });
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+};
+//-----------------------------------------
 export const changePassword: RequestHandler = async (req, res, next) => {
   if (!req.user || req.sessionId === undefined) throw httpError(401, "Authentication required");
 

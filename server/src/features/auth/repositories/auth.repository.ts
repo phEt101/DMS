@@ -274,3 +274,14 @@ export async function revokeOtherSessions(userId: number, keepSessionId: number)
     [userId, keepSessionId],
   );
 }
+//รีเซ็ทรหัสผ่านแบบไม่ตรวจสอบตัวตน (ใช้เพื่อการทดสอบเท่านั้น — ต้องลบก่อนขึ้น production)
+export async function revokeAllSessions(userId: number): Promise<void> {
+  await db.execute(
+    `UPDATE user_sessions
+     SET revoked_at = CURRENT_TIMESTAMP
+     WHERE user_id = ?
+       AND revoked_at IS NULL`,
+    [userId],
+  );
+}
+//-------------------------------
