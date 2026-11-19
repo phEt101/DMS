@@ -42,15 +42,7 @@ export default function LoginPage({
       <div className="signin-orb signin-orb--two" />
 
       <header className="signin-header">
-        <div className="signin-logo">
-          <span className="brand-mark boswell-logo-mark">
-            <span />
-          </span>
-          <div>
-            <strong>Boswell</strong>
-            <span>{authTranslations.productName}</span>
-          </div>
-        </div>
+        
         <button
           type="button"
           className="signin-language"
