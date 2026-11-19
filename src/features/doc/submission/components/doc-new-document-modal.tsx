@@ -121,12 +121,68 @@ export default function DocNewDocumentModal(p: Props) {
     ? p.compassionateSpouseParentPaidDays
     : compassionateSpouseParent ? p.compassionateSpouseParentPaidDays : p.compassionateEmployeePaidDays
 
+  // เงื่อนไขการลาแสดงใต้ dropdown ประเภทการลา (เช่น ลากิจ ต้องแจ้งล่วงหน้า, ลาเมตตาจิต ได้ค่าจ้างสูงสุดกี่วัน)
+  const leavePolicyHint = isLeave && (() => {
+    const relation = compassionateSpouseParent ? 'spouse_parent' : 'own_family'
+    const max = relation === 'spouse_parent' ? p.compassionateSpouseParentMaxDays : p.compassionateEmployeeMaxDays
+    const paid = relation === 'spouse_parent' ? p.compassionateSpouseParentPaidDays : p.compassionateEmployeePaidDays
+    switch (leaveType) {
+      case 'personal':
+      case 'unpaid':
+        return p.language === 'th'
+          ? `ลากิจต้องแจ้งล่วงหน้า ${p.leadPersonal} วัน${leaveType === 'unpaid' ? ' (ไม่รับค่าจ้าง)' : ''}`
+          : `Personal leave requires ${p.leadPersonal} days advance notice${leaveType === 'unpaid' ? ' (unpaid)' : ''}`
+      case 'vacation':
+        return p.language === 'th'
+          ? `ลาพักร้อนต้องแจ้งล่วงหน้า ${p.leadVacation} วัน`
+          : `Vacation leave requires ${p.leadVacation} days advance notice`
+      case 'emergency':
+        return p.language === 'th'
+          ? 'ลาด่วนต้องระบุเหตุผลที่ต้องลาทันที'
+          : 'Emergency leave requires a reason for the immediate request'
+      case 'compassionate_employee_family':
+        return p.language === 'th'
+          ? `ลาได้ไม่เกิน ${max} วันทำการ (ไม่นับวันเสาร์และวันอาทิตย์) โดยได้รับค่าจ้างสูงสุด ${paid} วัน`
+          : `Up to ${max} working days (excluding Sat/Sun), paid for up to ${paid} days`
+      case 'ordain':
+        return p.language === 'th'
+          ? `ลาบวชได้ไม่เกิน ${p.ordainMaxDays} วัน โดยนับรวมวันเสาร์และวันอาทิตย์`
+          : `Up to ${p.ordainMaxDays} days including Sat/Sun`
+      case 'maternity':
+        return p.language === 'th'
+          ? `ลาคลอดได้ไม่เกิน ${p.maternityMaxDays} วัน รวมวันเสาร์และวันอาทิตย์`
+          : `Up to ${p.maternityMaxDays} days including Sat/Sun`
+      case 'childcare_after_maternity':
+        return p.language === 'th'
+          ? `ลาต่อเนื่องได้ไม่เกิน ${p.childcareMaxDays} วัน โดยได้รับเงิน ${p.childcarePayPercent}% ของค่าจ้าง`
+          : `Up to ${p.childcareMaxDays} days at ${p.childcarePayPercent}% pay`
+      case 'spouse_childbirth':
+        return p.language === 'th'
+          ? `ลาได้ไม่เกิน ${p.spouseChildbirthMaxDays} วัน ภายใน ${p.spouseChildbirthWindowDays} วันนับจากวันคลอด`
+          : `Up to ${p.spouseChildbirthMaxDays} days within ${p.spouseChildbirthWindowDays} days of birth`
+      default:
+        return undefined
+    }
+  })()
+
   return <div className="documents-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) p.onClose() }}><form ref={formRef} className="dms-modal dms-create-doc-modal documents-submission-modal" onSubmit={p.onSubmit}>
     <h2 className="dms-modal-title">{p.resubmission ? p.copy.submission.resubmitTitle : p.selectedKind ? p.kindInfo[p.selectedKind].title : p.copy.submission.title}</h2><p className="dms-modal-subtitle">{p.resubmission ? p.copy.submission.resubmitInstructions : p.selectedKind ? p.copy.submission.instructions : p.copy.submission.intro}</p><button type="button" className="modal-close" aria-label={p.copy.detail.close} onClick={p.onClose}>×</button>
     <div className="dms-create-doc-body documents-submission-body">{!p.selectedKind ? <div className="documents-kind-grid">{(Object.keys(p.kindInfo) as DocKind[]).filter(kind => !HIDDEN_KINDS.includes(kind)).map(kind => { const info = p.kindInfo[kind]; const Icon = info.icon; const merged = kind === 'outing'; return <button type="button" key={kind} onClick={() => p.onPickKind(kind)}><span className="documents-icon"><Icon /></span><span><b>{info.title}</b><small>{merged ? p.copy.submission.offsiteDescription : info.description}</small></span></button> })}</div> : <>
       {!p.resubmission && <button type="button" className="dms-back-btn documents-form-back" onClick={p.onClearKind}>{p.copy.submission.changeKind}</button>}
       {p.resubmission && <p className="documents-policy-note">{String(p.copy.submission.resubmitNotice).replace('{no}', p.resubmission.no)}{p.resubmission.note ? ` ${p.copy.detail.rejectionNote}: ${p.resubmission.note}` : ''}</p>}
-      {p.selectedKind === 'leave' && SPECIAL_LEAVE_HINTS[String(p.values.leaveType)] && (() => { const hintKey = SPECIAL_LEAVE_HINTS[String(p.values.leaveType)]; return <p className="documents-policy-note">
+      {p.selectedKind === 'leave' && (() => {
+        // ถ้าเป็นประเภทพิเศษ (เมตตาจิต/บวช/คลอด ฯลฯ) ใช้ hint เดิม + จำนวนวันที่เลือก
+        // ถ้าเป็นประเภททั่วไป (ลากิจ/ลาป่วย/พักร้อน/ด่วน) แสดงเงื่อนไขเปิดมาให้รู้ทันที
+        const generalTypes = ['personal', 'unpaid', 'sick', 'vacation', 'emergency']
+        if (!SPECIAL_LEAVE_HINTS[String(p.values.leaveType)] && generalTypes.includes(String(p.values.leaveType)) && leavePolicyHint) {
+          // แสดงจำนวนวันที่เลือกไว้ (ลากิจ/ลาป่วย นับเป็นวันปฏิทิน รวมเสาร์-อาทิตย์)
+          const selectedDays = p.values.from && p.values.to && String(p.values.to) >= String(p.values.from)
+            ? ` ${p.language === 'th' ? `เลือกแล้ว ${differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} วัน` : `${differenceInCalendarDays(parseISO(String(p.values.to)), parseISO(String(p.values.from))) + 1} days selected`}`
+            : ''
+          return <p className="documents-policy-note">{leavePolicyHint}{selectedDays}</p>
+        }
+        if (!SPECIAL_LEAVE_HINTS[String(p.values.leaveType)]) return null
+        const hintKey = SPECIAL_LEAVE_HINTS[String(p.values.leaveType)]; return <p className="documents-policy-note">
         {String(p.copy.submission[SPECIAL_LEAVE_HINTS[String(p.values.leaveType)]])
           .replace('{max}', String(specialLeaveMaxDays))
           .replace('{paid}', String(specialLeavePaidDays))
@@ -216,7 +272,7 @@ export default function DocNewDocumentModal(p: Props) {
               </span>
             )}
         </span>
-          {field.type === 'textarea' ? <textarea className="dms-form-input dms-form-textarea" rows={3} required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} /> : field.type === 'select' ? <select className="dms-form-input" required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)}>{Object.entries(field.options ?? {}).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : field.type === 'checkbox' ? <input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e => p.onChange(field.key, e.target.checked)} />           : field.key === 'hours' && p.selectedKind === 'leave' ? <input className="dms-form-input is-calculated" type="text" required={required} disabled value={displayValue} /> : field.type === 'date' ? <DatePicker className="dms-form-input" required={required} selected={String(value) ? parseISO(String(value)) : null} onChange={(date: Date | null) => p.onChange(field.key, date ? format(date, 'yyyy-MM-dd') : '')} dateFormat={p.language === 'th' ? 'd MMM yyyy' : 'MMM d, yyyy'} locale={p.language} filterDate={date => !minDate || !isBefore(startOfDay(date), startOfDay(minDate))} dayClassName={dayClassName} openToDate={(vacation || personal) && field.key === 'from' && !value ? minDate : undefined} strictParsing placeholderText={p.copy.submission.hintDate} /> : field.type === 'time' ? <TimeField value={String(value)} required={required} language={p.language} onChange={value => p.onChange(field.key, value)} /> : <input className="dms-form-input" type={field.type} required={required} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' && field.key === 'hours' && p.selectedKind === 'leave' ? 0.5 : field.step} readOnly={field.key === 'hours' && p.selectedKind === 'ot' || field.key === 'days' && (p.selectedKind === 'leave' && hourly || p.selectedKind === 'ot')} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} />}{hint && <small className="dms-form-hint">{hint}</small>}</label></Fragment>
+          {field.type === 'textarea' ? <textarea className="dms-form-input dms-form-textarea" rows={3} required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} /> : field.type === 'select' ? <select className="dms-form-input" required={required} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)}>{Object.entries(field.options ?? {}).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : field.type === 'checkbox' ? <input className="dms-form-input documents-checkbox" type="checkbox" checked={Boolean(value)} onChange={e => p.onChange(field.key, e.target.checked)} />           : field.key === 'hours' && p.selectedKind === 'leave' ? <input className="dms-form-input is-calculated" type="text" required={required} disabled value={displayValue} /> : field.type === 'date' ? <DatePicker className="dms-form-input" required={required} selected={String(value) ? parseISO(String(value)) : null} onChange={(date: Date | null) => p.onChange(field.key, date ? format(date, 'yyyy-MM-dd') : '')} dateFormat={p.language === 'th' ? 'd MMM yyyy' : 'MMM d, yyyy'} locale={p.language} filterDate={date => !minDate || !isBefore(startOfDay(date), startOfDay(minDate))} dayClassName={dayClassName} openToDate={(vacation || personal) && field.key === 'from' && !value ? minDate : undefined} strictParsing placeholderText={p.copy.submission.hintDate} /> : field.type === 'time' ? <TimeField value={String(value)} required={required} language={p.language} onChange={value => p.onChange(field.key, value)} /> : <input className="dms-form-input" type={field.type} required={required} min={field.type === 'number' ? 0 : undefined} step={field.type === 'number' && field.key === 'hours' && p.selectedKind === 'leave' ? 0.5 : field.step} readOnly={field.key === 'hours' && p.selectedKind === 'ot' || field.key === 'days' && (p.selectedKind === 'leave' && hourly || p.selectedKind === 'ot')} value={String(value)} onChange={e => p.onChange(field.key, e.target.value)} />}{hint && <small className="dms-form-hint">{hint}</small>}{field.key === 'leaveType' && leavePolicyHint && <small className="dms-form-hint documents-policy-note-inline">{leavePolicyHint}</small>}</label></Fragment>
       })}</div>
       {p.selectedKind === 'leave' && p.values.leaveType === 'sick' && <label className="dms-form-field dms-submission-field dms-form-field--full" data-field="cert">
         <span className="dms-form-label">{p.copy.submission.medicalCertificateLabel}{p.certificateRequired ? ' *' : ''}</span>
