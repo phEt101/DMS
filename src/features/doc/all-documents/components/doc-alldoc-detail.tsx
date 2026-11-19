@@ -14,6 +14,7 @@ type Props = {
   dateText: (value: string) => string
   canApprove: boolean
   canCancel: boolean
+  canResubmit: boolean
   canViewMedicalCertificate: boolean
   canEditLeaveDates: boolean
   editLogs: Array<{ oldStartDate: string | null; oldEndDate: string | null; oldDays: number | null; newStartDate: string | null; newEndDate: string | null; newDays: number | null; note: string | null; editedAt: string; editorName: string | null }>
@@ -21,6 +22,7 @@ type Props = {
   onSign: () => void
   onReject: () => void
   onCancel: () => void
+  onResubmit: () => void
   onEditLeaveDates: () => void
   copy: any
 }
@@ -61,7 +63,7 @@ type FlowSnap = { stages: FlowKey[]; recordAfterStage: string | null } | null
 const STAGE_OF: Record<FlowKey, SignatureStage> = { manager: 'ผู้จัดการแผนก', executive: 'ผู้ประกอบการ', hr: 'HR' }
 const ALL_STAGES = ['ผู้ยื่น', 'ผู้จัดการแผนก', 'ผู้ประกอบการ', 'HR'] as SignatureStage[]
 
-export default function DocAllDocumentsDetail({ document: doc, policy, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, canViewMedicalCertificate, canEditLeaveDates, editLogs, onClose, onSign, onReject, onCancel, onEditLeaveDates, copy: c }: Props) {
+export default function DocAllDocumentsDetail({ document: doc, policy, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, canResubmit, canViewMedicalCertificate, canEditLeaveDates, editLogs, onClose, onSign, onReject, onCancel, onResubmit, onEditLeaveDates, copy: c }: Props) {
   const leaveNames: Record<string, string> = c.leaveTypes
   const statusStyle = doc.status === 'approved' ? 'is-done' : doc.status === 'rejected' ? 'is-cancelled' : 'is-submitted'
   const submittedDateTime = doc.submittedAt
@@ -109,7 +111,7 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
   return <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="dms-modal dms-create-doc-modal documents-detail-modal" role="dialog" aria-modal="true" aria-labelledby="document-detail-title">
     <h2 className="dms-modal-title">{c.detail.title}</h2><p className="dms-modal-subtitle">{doc.no} · {c.detail.submittedAt} {submittedDateTime}</p><button type="button" className="modal-close documents-detail-close" aria-label={c.detail.close} onClick={(event) => { event.stopPropagation(); onClose() }}>×</button>
     <div className="dms-create-doc-body documents-detail-body">
-      <div className="documents-detail-header"><div><span className={`dms-card-status ${statusStyle}`}>{statusLabel}</span><h2 id="document-detail-title">{doc.title}</h2></div></div>
+      <div className="documents-detail-header"><div><span className={`dms-card-status ${statusStyle}`}>{statusLabel}</span>{doc.resubmittedFromRequestNo && <small className="documents-resubmission-label">{String(c.detail.resubmittedFrom).replace('{no}', doc.resubmittedFromRequestNo)}</small>}<h2 id="document-detail-title">{doc.title}</h2></div>{canResubmit && <button type="button" className="documents-primary documents-detail-resubmit" onClick={onResubmit}>{c.detail.resubmit}</button>}</div>
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.submitterInfo}</h3>
         <div className="documents-detail-submitter">
           <DetailAvatar src={doc.employeeAvatarUrl} name={doc.employee} onZoom={zoom} />

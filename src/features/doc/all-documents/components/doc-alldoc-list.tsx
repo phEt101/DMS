@@ -59,6 +59,7 @@ export default function DocAllDocumentsList({
               <h3 className="dms-card-name">{title}</h3>
               <div className="dms-card-foot">
                 <div className="dms-card-meta">{doc.no} · {kindInfo[doc.kind].title} · {dateText(doc.date)}</div>
+                {doc.resubmittedFromRequestNo && <div className="documents-resubmission-label">{String(c.detail.resubmittedFrom).replace('{no}', doc.resubmittedFromRequestNo)}</div>}
                 <div className="dms-card-line">{doc.employee} · {doc.department}</div>
                 <div className="dms-card-line">{summary}</div>
                 {note && <div className="dms-card-line documents-card-note">{c.detail.rejectionNote}: {note}</div>}
@@ -111,6 +112,7 @@ export default function DocAllDocumentsList({
                 <td>
                   {sample.title ?? doc.title}
                   <small className="documents-table-summary">{sample.summary ?? doc.summary}</small>
+                  {doc.resubmittedFromRequestNo && <small className="documents-resubmission-label">{String(c.detail.resubmittedFrom).replace('{no}', doc.resubmittedFromRequestNo)}</small>}
                 </td>
                 <td>
                   {doc.employee}

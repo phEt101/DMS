@@ -303,7 +303,13 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const [filterOpen, setFilterOpen] = useState(false)
   const [draftStatus, setDraftStatus] = useState('all')
   const [draftKind, setDraftKind] = useState('all')
-  const [layout, setLayout] = useState<'grid' | 'list'>('grid')
+  // จำมุมมอง card/list ไว้ตามผู้ใช้ (persist ใน localStorage แยกตาม email)
+  const [layout, setLayout] = useState<'grid' | 'list'>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('doc:layout') ?? '{}') as Record<string, string>
+      return stored[user?.email ?? 'guest'] === 'list' ? 'list' : 'grid'
+    } catch { return 'grid' }
+  })
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [formOpen, setFormOpen] = useState(false)
@@ -312,6 +318,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const [medicalCertificateFile, setMedicalCertificateFile] = useState<File | null>(null)
   const [supportingDocumentFiles, setSupportingDocumentFiles] = useState<File[]>([])
   const [pendingSubmission, setPendingSubmission] = useState<{ kind: DocKind; values: FormValues } | null>(null)
+  const [resubmissionSource, setResubmissionSource] = useState<{ id: number; no: string; note?: string } | null>(null)
   const [rejectTarget, setRejectTarget] = useState<MockDocument | null>(null)
   const [rejectSubmitting, setRejectSubmitting] = useState(false)
   const [cancelTargetId, setCancelTargetId] = useState<number | null>(null)
@@ -665,6 +672,19 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     setFormOpen(false)
   }
 
+  const resubmitRejectedDocument = () => {
+    if (!selectedDocument || !detail || !canSubmitDocuments
+      || selectedDocument.employeeUserId !== user?.id || selectedDocument.status !== 'rejected') return
+    setSelectedKind(selectedDocument.kind)
+    setFormValues({ ...detailValues })
+    setMedicalCertificateFile(null)
+    setSupportingDocumentFiles([])
+    setResubmissionSource({ id: selectedDocument.id, no: selectedDocument.no, note: selectedDocument.note })
+    setDetail(null)
+    setSelectedDocumentId(null)
+    setFormOpen(true)
+  }
+
   const updateFormValue = (key: string, value: string | boolean) => {
     if (key === 'leaveType' && value !== 'sick') {
       setMedicalCertificateFile(null)
@@ -870,14 +890,15 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       try {
         if (pendingSubmission) {
           await createRequest(
-            { kind: pendingSubmission.kind, values: pendingSubmission.values, signature: image, rememberSignature },
+            { kind: pendingSubmission.kind, values: pendingSubmission.values, signature: image, rememberSignature, resubmittedFromId: resubmissionSource?.id },
             medicalCertificateFile ?? undefined,
             supportingDocumentFiles,
           )
           setPendingSubmission(null); setSelectedKind(''); setFormValues({})
+          setResubmissionSource(null)
           setMedicalCertificateFile(null)
           setSupportingDocumentFiles([])
-          showToast(copy.messages.submittedToast, 'success')
+          showToast(resubmissionSource ? copy.messages.resubmittedToast : copy.messages.submittedToast, 'success')
         } else if (signingDocument) {
           const result = await approveRequest(signingDocument.id, { signature: image, rememberSignature })
           setSigningDocumentId(null); setSelectedDocumentId(null)
@@ -1064,6 +1085,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       copy={copy}
       canApprove={USE_DB ? Boolean(detail?.canApprove) : false}
       canCancel={USE_DB ? Boolean(detail?.canCancel) : false}
+      canResubmit={Boolean(USE_DB && canSubmitDocuments && user && selectedDocument.employeeUserId === user.id && selectedDocument.status === 'rejected')}
       canViewMedicalCertificate={USE_DB ? Boolean(detail?.canViewMedicalCertificate) : false}
       canEditLeaveDates={USE_DB ? Boolean(detail?.canEditLeaveDates) : false}
       editLogs={detail?.editLogs ?? []}
@@ -1071,6 +1093,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       onSign={() => setSigningDocumentId(selectedDocument.id)}
       onReject={() => setRejectTarget(selectedDocument)}
       onCancel={() => setCancelTargetId(selectedDocument.id)}
+      onResubmit={resubmitRejectedDocument}
       onEditLeaveDates={() => setLeaveDatesEditOpen(true)}
     />}
 
@@ -1111,9 +1134,10 @@ export default function DocumentPage({ translations, view = 'all', language = 't
 
     <DocNewDocumentModal
       open={formOpen} selectedKind={selectedKind} kindInfo={KIND_INFO} fields={FORM_FIELDS} values={formValues} checks={formChecks} validating={validatingForm} today={todayInBangkok()} leadPersonal={policy.leadPersonal} leadVacation={policy.leadVacation} hoursPerDay={policy.hoursPerDay} hourStep={policy.hourStep} fixDays={policy.fixDays} ordainMaxDays={policy.ordainMaxDays} compassionateEmployeeMaxDays={policy.compassionateEmployeeMaxDays} compassionateEmployeePaidDays={policy.compassionateEmployeePaidDays} compassionateSpouseParentMaxDays={policy.compassionateSpouseParentMaxDays} compassionateSpouseParentPaidDays={policy.compassionateSpouseParentPaidDays} maternityMaxDays={policy.maternityMaxDays} childcareMaxDays={policy.childcareMaxDays} childcarePayPercent={policy.childcarePayPercent} spouseChildbirthMaxDays={policy.spouseChildbirthMaxDays} spouseChildbirthWindowDays={policy.spouseChildbirthWindowDays} language={language} role={mockRole} copy={copy} translations={translations}
+      resubmission={resubmissionSource ?? undefined}
       onSubmit={submitMock}
-      onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null); setSupportingDocumentFiles([]) }}
-      onClearKind={() => { setSelectedKind(''); setFormValues({}); setMedicalCertificateFile(null); setSupportingDocumentFiles([]) }}
+      onClose={() => { setFormOpen(false); setSelectedKind(''); setFormValues({}); setResubmissionSource(null); setMedicalCertificateFile(null); setSupportingDocumentFiles([]) }}
+      onClearKind={() => { setSelectedKind(''); setFormValues({}); setResubmissionSource(null); setMedicalCertificateFile(null); setSupportingDocumentFiles([]) }}
       onPickKind={(kind) => {
         setSelectedKind(kind)
         setMedicalCertificateFile(null)

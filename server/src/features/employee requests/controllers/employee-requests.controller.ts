@@ -442,6 +442,7 @@ export async function index(req: Request, res: Response) {
   }
   const [rows] = await db.query<any[]>(
     `SELECT r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at,
+            previous.request_no AS resubmitted_from_request_no,
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
             r.employee_user_id, eu.name AS employee_name, eu.avatar_path AS employee_avatar_url, dep.name AS department_name,
             lt.code AS leave_type, ot.hours AS ot_hours, ot.task AS ot_task,
@@ -455,6 +456,7 @@ export async function index(req: Request, res: Response) {
             eu.avatar_path AS employee_avatar_url,
             smu.avatar_path AS mgr_signer_avatar_url, seu.avatar_path AS exec_signer_avatar_url, shu.avatar_path AS hr_signer_avatar_url
        FROM employee_requests r
+       LEFT JOIN employee_requests previous ON previous.id = r.resubmitted_from_id
        JOIN users eu ON eu.id = r.employee_user_id
        LEFT JOIN departments dep ON dep.id = r.department_id
        LEFT JOIN employee_request_leave_details dl ON dl.request_id = r.id
@@ -527,9 +529,12 @@ export async function show(req: Request, res: Response) {
   const myDept = await myManagedDeptId(db as any, req)
   const [rows] = await db.query<any[]>(
     `SELECT r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at, r.decided_at,
+            previous.request_no AS resubmitted_from_request_no,
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
             r.employee_user_id, r.manager_user_id, r.department_id, r.flow_json, eu.name AS employee_name, eu.avatar_path AS employee_avatar_url, dep.name AS department_name
-       FROM employee_requests r JOIN users eu ON eu.id = r.employee_user_id LEFT JOIN departments dep ON dep.id = r.department_id
+       FROM employee_requests r
+       LEFT JOIN employee_requests previous ON previous.id = r.resubmitted_from_id
+       JOIN users eu ON eu.id = r.employee_user_id LEFT JOIN departments dep ON dep.id = r.department_id
       WHERE r.id = ? AND r.company_id = ? LIMIT 1`, [id, companyId],
   )
   const row = rows[0]
@@ -1166,6 +1171,13 @@ export async function store(req: Request, res: Response) {
   const companyId = companyIdOf(req), me = req.user!.id, today = todayBangkok()
   const kind = req.body?.kind as Kind
   if (!KINDS.includes(kind)) throw httpError(400, 'ประเภทเอกสารไม่ถูกต้อง')
+  const rawResubmittedFromId = req.body?.resubmittedFromId
+  const resubmittedFromId = rawResubmittedFromId === undefined || rawResubmittedFromId === ''
+    ? null
+    : Number(rawResubmittedFromId)
+  if (resubmittedFromId !== null && (!Number.isSafeInteger(resubmittedFromId) || resubmittedFromId < 1)) {
+    throw httpError(400, 'เอกสารต้นฉบับไม่ถูกต้อง')
+  }
   let raw = req.body?.values
   if (typeof raw === 'string') {
     try { raw = JSON.parse(raw) } catch { throw httpError(400, 'ข้อมูลเอกสารไม่ถูกต้อง') }
@@ -1239,6 +1251,19 @@ export async function store(req: Request, res: Response) {
   const conn = await db.getConnection()
   try {
     await conn.beginTransaction()
+    if (resubmittedFromId !== null) {
+      const [sourceRows] = await conn.query<any[]>(
+        `SELECT employee_user_id, kind, status FROM employee_requests
+          WHERE id = ? AND company_id = ? FOR UPDATE`,
+        [resubmittedFromId, companyId],
+      )
+      const source = sourceRows[0]
+      if (!source) throw httpError(404, 'ไม่พบเอกสารต้นฉบับ')
+      if (Number(source.employee_user_id) !== me) throw httpError(403, 'ยื่นแก้ไขได้เฉพาะเอกสารของตนเอง')
+      if (source.status !== 'rejected' || source.kind !== kind) {
+        throw httpError(409, 'เอกสารต้นฉบับไม่อยู่ในสถานะที่ยื่นแก้ไขได้')
+      }
+    }
     await conn.execute(
       `INSERT INTO employee_request_sequences (company_id, prefix, policy_year, last_no) VALUES (?, ?, ?, LAST_INSERT_ID(1))
        ON DUPLICATE KEY UPDATE last_no = LAST_INSERT_ID(last_no + 1)`, [companyId, PREFIX[kind], policy.year],
@@ -1246,11 +1271,11 @@ export async function store(req: Request, res: Response) {
     const [seq] = await conn.query<any[]>('SELECT LAST_INSERT_ID() AS n')
     const requestNo = `${PREFIX[kind]}-${policy.year}-${String(seq[0].n).padStart(4, '0')}`
     const [result] = await conn.execute<any>(
-      `INSERT INTO employee_requests (company_id, request_no, kind, employee_user_id, department_id, manager_user_id, executive_user_id, policy_id, status, flow_json, start_date, end_date, days, reason)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO employee_requests (company_id, request_no, kind, employee_user_id, department_id, manager_user_id, executive_user_id, policy_id, status, flow_json, start_date, end_date, days, reason, resubmitted_from_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [companyId, requestNo, kind, me, user.department_id, flow.managerUserId, flow.executiveUserId, policy.id, status,
         JSON.stringify(flowSnapshotOf(flow)),
-        head.start, head.end, head.days, head.reason],
+        head.start, head.end, head.days, head.reason, resubmittedFromId],
     )
     const id = result.insertId as number
     const s = (key: string) => nz(v[key])
@@ -1700,10 +1725,12 @@ export async function validate(req: Request, res: Response) {
 
 // ---------- รายการ/ใบที่ใช้ร่วมกับการแจ้งเตือน ----------
 const LIST_COLUMNS = `r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at,
+  previous.request_no AS resubmitted_from_request_no,
   DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
   r.employee_user_id, eu.name AS employee_name, eu.avatar_path AS employee_avatar_url, dep.name AS department_name,
   lt.code AS leave_type, ot.hours AS ot_hours, ot.task AS ot_task, outing.place AS place`
-const LIST_JOINS = `JOIN users eu ON eu.id = r.employee_user_id
+const LIST_JOINS = `LEFT JOIN employee_requests previous ON previous.id = r.resubmitted_from_id
+  JOIN users eu ON eu.id = r.employee_user_id
   LEFT JOIN departments dep ON dep.id = r.department_id
   LEFT JOIN employee_request_leave_details dl ON dl.request_id = r.id
   LEFT JOIN leave_types lt ON lt.id = dl.leave_type_id

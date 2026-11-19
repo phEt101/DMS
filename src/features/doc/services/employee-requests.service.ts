@@ -27,6 +27,7 @@ export type ApiListRow = {
   days: number | null; reason: string | null; rejectionNote: string | null; rejectedStage: 'manager' | 'executive' | 'hr' | null
   submittedAt: string; startDate: string | null; endDate: string | null
   employeeUserId: number; employeeName: string; departmentName: string | null; medicalCertificateAvailable?: boolean
+  resubmittedFromRequestNo?: string | null
   employeeAvatarUrl?: string | null
   mgrSignerAvatarUrl?: string | null
   leaveType: string | null; otHours: number | null; otTask: string | null; place: string | null
@@ -64,12 +65,13 @@ export const getRequest = (id: number) => call<ApiDetail>(`/${id}`)
 const apiValues = (values: FormValues): FormValues => values.leaveType === 'compassionate_employee_family'
   ? { ...values, leaveType: values.compassionateRelation === 'spouse_parent' ? 'compassionate_spouse_parent' : 'compassionate_employee_family' }
   : values
-export const createRequest = (data: { kind: DocKind; values: FormValues; signature: string; rememberSignature: boolean }, medicalCertificate?: File, supportingDocuments: File[] = []) => {
+export const createRequest = (data: { kind: DocKind; values: FormValues; signature: string; rememberSignature: boolean; resubmittedFromId?: number }, medicalCertificate?: File, supportingDocuments: File[] = []) => {
   const form = new FormData()
   form.set('kind', data.kind)
   form.set('values', JSON.stringify(apiValues(data.values)))
   form.set('signature', data.signature)
   form.set('rememberSignature', String(data.rememberSignature))
+  if (data.resubmittedFromId !== undefined) form.set('resubmittedFromId', String(data.resubmittedFromId))
   if (medicalCertificate) form.set('medicalCertificate', medicalCertificate)
   supportingDocuments.forEach((file) => form.append('supportingDocuments', file))
   return call<{ id: number; requestNo: string; status: Status }>('/', { method: 'POST', body: form })
@@ -156,6 +158,8 @@ export function mapListRow(row: ApiListRow, t: MapperText): MockDocument {
   const extra = row.kind === 'ot' ? row.otTask : row.place ?? row.reason
   return {
     id: row.id, no: row.requestNo, kind: row.kind, title, summary: [range, extra].filter(Boolean).join(' · '),
+    employeeUserId: Number(row.employeeUserId),
+    resubmittedFromRequestNo: row.resubmittedFromRequestNo ?? null,
     medicalCertificateAvailable: row.medicalCertificateAvailable,
     employee: row.employeeName, department: row.departmentName ?? '', date: bangkokDate(row.submittedAt), submittedAt: row.submittedAt,
     employeeAvatarUrl: row.employeeAvatarUrl ?? undefined,

@@ -454,7 +454,7 @@
 
 .documents-detail-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
@@ -465,6 +465,18 @@
   color: #141a2b;
   font-size: 20px;
   font-weight: 800;
+}
+
+.documents-detail-resubmit {
+  flex: 0 0 auto;
+}
+
+.documents-resubmission-label {
+  display: block;
+  margin-top: 5px;
+  color: #5b647a;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .documents-detail-section {
