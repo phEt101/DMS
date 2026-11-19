@@ -206,6 +206,7 @@
   color: #4d576c;
   font-size: 14px;
   font-weight: 700;
+  position: relative;
 }
 .signin-field input {
   width: 100%;
@@ -224,6 +225,26 @@
 .signin-field input:focus {
   border-color: #25207e;
   box-shadow: 0 0 0 4px rgba(28, 23, 125, 0.1);
+}
+/* ปุ่มแสดง/ซ่อนรหัสผ่าน (ตา) วางทับขอบขวาของช่อง input */
+.signin-password-toggle {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #7a8398;
+  cursor: pointer;
+}
+.signin-password-toggle:hover {
+  color: #25207e;
+  background: rgba(28, 23, 125, 0.08);
 }
 .signin-submit {
   min-height: 49px;

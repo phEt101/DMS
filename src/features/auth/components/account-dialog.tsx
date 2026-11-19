@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { createPortal } from "react-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 import { useToast } from "../../../components/toast-provider";
 import type { Translations } from "../../../locales";
@@ -27,6 +28,9 @@ export default function AccountDialog({ mode, user, translations, onClose }: Pro
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
@@ -88,15 +92,30 @@ export default function AccountDialog({ mode, user, translations, onClose }: Pro
             <>
               <label>
                 {translations.currentPassword}
-                <input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" required autoFocus />
+                <div className="account-password-wrap">
+                  <input type={showCurrent ? "text" : "password"} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" required autoFocus />
+                  <button type="button" className="account-password-toggle" onClick={() => setShowCurrent((value) => !value)} aria-label={showCurrent ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}>
+                    {showCurrent ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
               </label>
               <label>
                 {translations.newPassword}
-                <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={255} required />
+                <div className="account-password-wrap">
+                  <input type={showNew ? "text" : "password"} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={255} required />
+                  <button type="button" className="account-password-toggle" onClick={() => setShowNew((value) => !value)} aria-label={showNew ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}>
+                    {showNew ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
               </label>
               <label>
                 {translations.confirmPassword}
-                <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={255} required />
+                <div className="account-password-wrap">
+                  <input type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} maxLength={255} required />
+                  <button type="button" className="account-password-toggle" onClick={() => setShowConfirm((value) => !value)} aria-label={showConfirm ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}>
+                    {showConfirm ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
               </label>
               <small>{translations.passwordHint}</small>
             </>

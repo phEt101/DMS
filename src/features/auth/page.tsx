@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { SyntheticEvent } from "react";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 import type { Language, Translations } from "../../locales";
 import { useAuth } from "./hooks/use-auth";
@@ -26,6 +27,7 @@ export default function LoginPage({
   };
   const DOMAIN_LIST = Array.from(new Set(Object.values(DOMAIN_ALIASES)));
   const [showDomains, setShowDomains] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   useErrorToast(error);
   const authTranslations = translations.auth;
 
@@ -163,7 +165,7 @@ export default function LoginPage({
             <label className="signin-field">
               <span>{authTranslations.password}</span>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder={authTranslations.passwordPlaceholder}
@@ -171,6 +173,14 @@ export default function LoginPage({
                 maxLength={255}
                 required
               />
+              <button
+                type="button"
+                className="signin-password-toggle"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </label>
 
             <button

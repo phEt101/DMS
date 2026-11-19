@@ -462,3 +462,33 @@
 .is-collapsed .module-disabled-tag {
   display: none;
 }
+
+/* ── ปุ่มแสดง/ซ่อนรหัสผ่าน ใน dialog เปลี่ยนรหัสผ่าน (topbar) ── */
+.account-password-wrap {
+  position: relative;
+  display: flex;
+}
+.account-password-wrap input {
+  width: 100%;
+  padding-right: 42px;
+}
+.account-password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #7a8398;
+  cursor: pointer;
+}
+.account-password-toggle:hover {
+  color: #25207e;
+  background: rgba(28, 23, 125, 0.08);
+}
