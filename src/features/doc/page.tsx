@@ -310,6 +310,15 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       return stored[user?.email ?? 'guest'] === 'list' ? 'list' : 'grid'
     } catch { return 'grid' }
   })
+  // บันทึกมุมมองที่เลือกไว้ตาม email ผู้ใช้ ให้จำได้แม้ออกจากระบบ/ปิดเบราว์เซอร์
+  const changeLayout = (next: 'grid' | 'list') => {
+    setLayout(next)
+    try {
+      const stored = JSON.parse(localStorage.getItem('doc:layout') ?? '{}') as Record<string, string>
+      stored[user?.email ?? 'guest'] = next
+      localStorage.setItem('doc:layout', JSON.stringify(stored))
+    } catch { /* ignore */ }
+  }
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [formOpen, setFormOpen] = useState(false)
@@ -1043,7 +1052,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     {USE_DB && docsError && ['all', 'pending'].includes(view) && <p className="documents-empty" role="alert">{docsError}</p>}
 
     {view === 'all' && <DocAllDocumentsFilters
-      search={search} onSearch={setSearch} layout={layout} onLayout={setLayout} status={statusFilter} kind={kindFilter} department={departmentFilter} employee={employeeFilter}
+      search={search} onSearch={setSearch} layout={layout} onLayout={changeLayout} status={statusFilter} kind={kindFilter} department={departmentFilter} employee={employeeFilter}
       draftStatus={draftStatus} draftKind={draftKind} draftDepartment={draftDepartment} draftEmployee={draftEmployee}
       onDraftStatus={setDraftStatus} onDraftKind={setDraftKind} onDraftDepartment={setDraftDepartment} onDraftEmployee={setDraftEmployee}
       departmentOptions={departmentOptions} employeeOptions={employeeOptions}
@@ -1067,7 +1076,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     />}
     {view === 'pending' && <DocPendingApproval
       documents={pagedDocs} totalDocs={totalDocs} page={pageSafe} totalPages={totalPages} pageSize={pageSize}
-      layout={layout} onLayout={setLayout} search={search} onSearch={(value) => { setSearch(value); setPage(1) }}
+      layout={layout} onLayout={changeLayout} search={search} onSearch={(value) => { setSearch(value); setPage(1) }}
       onPageChange={(p) => setPage(Math.max(1, Math.min(p, totalPages)))}
       onPageSizeChange={(s) => { setPageSize(s); setPage(1) }} mockRole={mockRole}
       kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
