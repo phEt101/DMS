@@ -26,6 +26,7 @@ export type ApiListRow = {
   id: number; requestNo: string; kind: DocKind; status: Status | 'cancelled'
   days: number | null; reason: string | null; rejectionNote: string | null; rejectedStage: 'manager' | 'executive' | 'hr' | null
   submittedAt: string; startDate: string | null; endDate: string | null
+  revisionNo?: number; rejectionCount?: number; resubmittedAt?: string | null; lastRejectedAt?: string | null
   employeeUserId: number; employeeName: string; departmentName: string | null; medicalCertificateAvailable?: boolean
   resubmittedFromRequestNo?: string | null
   employeeAvatarUrl?: string | null
@@ -39,8 +40,19 @@ export type ApiListRow = {
   submitterAvatarUrl?: string | null
 }
 export type ApiSignature = { stage: 'submitter' | 'manager' | 'executive' | 'hr'; action: string; signerName: string; signatureImage: string | null; note: string | null; signedAt: string; signerAvatarUrl?: string | null }
-export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean; canEditLeaveDates?: boolean; editLogs?: ApiEditLog[]; flow?: { stages: Array<'manager' | 'executive' | 'hr'>; recordAfterStage: string | null } | null }
+export type ApiDetail = ApiListRow & { detail: Record<string, unknown> | null; signatures: ApiSignature[]; canApprove: boolean; canCancel: boolean; canViewMedicalCertificate: boolean; canEditLeaveDates?: boolean; editLogs?: ApiEditLog[]; reviewHistory?: ApiReviewRound[]; flow?: { stages: Array<'manager' | 'executive' | 'hr'>; recordAfterStage: string | null } | null }
 export type ApiEditLog = { oldStartDate: string | null; oldEndDate: string | null; oldDays: number | null; newStartDate: string | null; newEndDate: string | null; newDays: number | null; note: string | null; editedAt: string; editorName: string | null }
+/** รอบการพิจารณาที่ปิดไปแล้ว (ถูกไม่อนุมัติ) ก่อนยื่นแก้ไขเอกสารฉบับเดิม */
+export type ApiReviewRound = {
+  roundNo: number
+  rejectedStage: 'manager' | 'executive' | 'hr' | null
+  rejectionNote: string | null
+  submittedAt: string | null
+  rejectedAt: string | null
+  resubmittedAt: string
+  request: { startDate?: string | null; endDate?: string | null; days?: number | null; reason?: string | null; detail?: Record<string, unknown> | null } | null
+  decisions: Array<{ stage: string; action: string; signerName: string; note: string | null; signedAt: string }>
+}
 export type ApiCheck = { ok: boolean; key: string; params?: Record<string, string | number> }
 export type ApiNotification = ApiListRow & { notificationId: number; event: string; isRead: boolean; createdAt: string }
 export type ApiPolicy = {
@@ -75,6 +87,17 @@ export const createRequest = (data: { kind: DocKind; values: FormValues; signatu
   if (medicalCertificate) form.set('medicalCertificate', medicalCertificate)
   supportingDocuments.forEach((file) => form.append('supportingDocuments', file))
   return call<{ id: number; requestNo: string; status: Status }>('/', { method: 'POST', body: form })
+}
+// ยื่นแก้ไขเอกสารฉบับเดิมหลังถูกไม่อนุมัติ — คงเลขที่เอกสารและประวัติการพิจารณาเดิม
+export const resubmitRequest = (id: number, data: { kind: DocKind; values: FormValues; signature: string; rememberSignature: boolean }, medicalCertificate?: File, supportingDocuments: File[] = []) => {
+  const form = new FormData()
+  form.set('kind', data.kind)
+  form.set('values', JSON.stringify(apiValues(data.values)))
+  form.set('signature', data.signature)
+  form.set('rememberSignature', String(data.rememberSignature))
+  if (medicalCertificate) form.set('medicalCertificate', medicalCertificate)
+  supportingDocuments.forEach((file) => form.append('supportingDocuments', file))
+  return call<{ id: number; requestNo: string; status: Status; revisionNo: number }>(`/${id}/resubmit`, { method: 'POST', body: form })
 }
 export const medicalCertificateUrl = (id: number) => apiUrl(`${BASE}/${id}/medical-certificate`)
 export const supportingDocumentUrl = (id: number, attachmentId: number) => apiUrl(`${BASE}/${id}/supporting-documents/${attachmentId}`)
@@ -160,6 +183,10 @@ export function mapListRow(row: ApiListRow, t: MapperText): MockDocument {
     id: row.id, no: row.requestNo, kind: row.kind, title, summary: [range, extra].filter(Boolean).join(' · '),
     employeeUserId: Number(row.employeeUserId),
     resubmittedFromRequestNo: row.resubmittedFromRequestNo ?? null,
+    revisionNo: Number(row.revisionNo ?? 0),
+    rejectionCount: Number(row.rejectionCount ?? 0),
+    resubmittedAt: row.resubmittedAt ?? null,
+    lastRejectedAt: row.lastRejectedAt ?? null,
     medicalCertificateAvailable: row.medicalCertificateAvailable,
     employee: row.employeeName, department: row.departmentName ?? '', date: bangkokDate(row.submittedAt), submittedAt: row.submittedAt,
     employeeAvatarUrl: row.employeeAvatarUrl ?? undefined,
@@ -217,7 +244,10 @@ export function mapDetail(row: ApiDetail, t: MapperText): MockDocument {
         }]
       })
     : []
-  return { ...base, formData, supportingDocuments, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures, flow: row.flow ?? null } as MockDocument
+  return {
+    ...base, formData, supportingDocuments, medicalCertificateAvailable: Boolean(d.medicalCertificateAvailable), signatures,
+    flow: row.flow ?? null, reviewHistory: row.reviewHistory ?? [],
+  } as MockDocument
 }
 
 // แปลงจำนวนวัน (ทศนิยม) เป็นข้อความอ่านง่าย ตามชั่วโมงทำงานต่อวันของบริษัท

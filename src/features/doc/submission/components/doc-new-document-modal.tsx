@@ -303,7 +303,7 @@ export default function DocNewDocumentModal(p: Props) {
         </div>)}
       </label>}
       <ul className="documents-validation-list" aria-live="polite" aria-busy={p.validating}>{p.validating && <li className="is-invalid">{p.copy.submission.validationChecking}</li>}{p.checks.map((check, index) => <li key={`${index}-${check.message}`} className={check.ok ? 'is-valid' : 'is-invalid'} onClick={() => { if (!check.ok) focusField(check.key) }} style={!check.ok ? { cursor: 'pointer' } : undefined} title={!check.ok ? p.copy.submission.clickToFix : undefined}><b>{check.ok ? '✓' : '!'}</b>{check.message}</li>)}</ul><p className="documents-submit-route">{p.copy.submission.afterSign} {isEmployee ? p.copy.submission.manager : p.copy.submission.hr}</p>
-      <div className="documents-modal-actions documents-submission-actions">{!p.resubmission && <button type="button" className="dms-back-btn" onClick={p.onClearKind}>{p.copy.submission.backToKinds}</button>}<button type="submit" className="dms-create-btn" disabled={p.validating || p.checks.some(check => !check.ok)}>{p.copy.submission.signAndSend}</button></div>
+      <div className="documents-modal-actions documents-submission-actions">{!p.resubmission && <button type="button" className="dms-back-btn" onClick={p.onClearKind}>{p.copy.submission.backToKinds}</button>}<button type="submit" className="dms-create-btn" disabled={p.validating || p.checks.some(check => !check.ok)}>{p.resubmission ? p.copy.submission.resubmitSubmit : p.copy.submission.signAndSend}</button></div>
     </>}</div>
   </form></div>
 }

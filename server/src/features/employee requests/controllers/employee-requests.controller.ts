@@ -442,6 +442,9 @@ export async function index(req: Request, res: Response) {
   }
   const [rows] = await db.query<any[]>(
     `SELECT r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at,
+            r.revision_no, DATE_FORMAT(r.resubmitted_at,'%Y-%m-%dT%H:%i:%s') AS resubmitted_at,
+            DATE_FORMAT(COALESCE(r.last_rejected_at, IF(r.status = 'rejected', r.decided_at, NULL)),'%Y-%m-%dT%H:%i:%s') AS last_rejected_at,
+            (r.revision_no + IF(r.status = 'rejected', 1, 0)) AS rejection_count,
             previous.request_no AS resubmitted_from_request_no,
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
             r.employee_user_id, eu.name AS employee_name, eu.avatar_path AS employee_avatar_url, dep.name AS department_name,
@@ -529,6 +532,9 @@ export async function show(req: Request, res: Response) {
   const myDept = await myManagedDeptId(db as any, req)
   const [rows] = await db.query<any[]>(
     `SELECT r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at, r.decided_at,
+            r.revision_no, DATE_FORMAT(r.resubmitted_at,'%Y-%m-%dT%H:%i:%s') AS resubmitted_at,
+            DATE_FORMAT(COALESCE(r.last_rejected_at, IF(r.status = 'rejected', r.decided_at, NULL)),'%Y-%m-%dT%H:%i:%s') AS last_rejected_at,
+            (r.revision_no + IF(r.status = 'rejected', 1, 0)) AS rejection_count,
             previous.request_no AS resubmitted_from_request_no,
             DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
             r.employee_user_id, r.manager_user_id, r.department_id, r.flow_json, eu.name AS employee_name, eu.avatar_path AS employee_avatar_url, dep.name AS department_name
@@ -597,6 +603,9 @@ export async function show(req: Request, res: Response) {
     res.json({
     ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map((sig: any) => withAvatarUrls(camelize(sig))),
     flow: flowViewOf(row),
+    revisionNo: Number(row.revision_no ?? 0),
+    rejectionCount: Number(row.revision_no ?? 0) + (row.status === 'rejected' ? 1 : 0),
+    reviewHistory: await reviewHistoryOf(id),
     canViewMedicalCertificate: canViewCertificate,
     canApprove: has(req, PERM.review) && !isOwner && (
       (row.status === 'pending_mgr' && (row.manager_user_id === me || isDeptMgr))
@@ -632,6 +641,35 @@ const editLogsOf = async (requestId: number) => {
       WHERE log.request_id = ? ORDER BY log.edited_at DESC, log.id DESC LIMIT 50`, [requestId],
   )
   return rows.map((row) => ({ ...camelize(row), oldDays: Number(row.old_days), newDays: Number(row.new_days) }))
+}
+
+// ---------- ประวัติการพิจารณาหลายรอบ (รอบที่ปิดไปแล้วจากการไม่อนุมัติ) ----------
+// เก็บ snapshot ไว้ตอนยื่นแก้ไข เพราะตารางลายเซ็นมี 1 แถวต่อขั้น (unique request_id+stage)
+// จึงต้องเก็บผลของรอบเดิมไว้ก่อนเริ่มรอบใหม่ เพื่อให้ตรวจสอบย้อนหลังได้ครบ
+const reviewHistoryOf = async (requestId: number) => {
+  const [rows] = await db.query<any[]>(
+    `SELECT round_no, rejected_stage, rejection_note,
+            DATE_FORMAT(submitted_at,'%Y-%m-%dT%H:%i:%s') AS submitted_at,
+            DATE_FORMAT(rejected_at,'%Y-%m-%dT%H:%i:%s') AS rejected_at,
+            DATE_FORMAT(resubmitted_at,'%Y-%m-%dT%H:%i:%s') AS resubmitted_at,
+            request_snapshot, decisions_snapshot
+       FROM employee_request_rounds
+      WHERE request_id = ? ORDER BY round_no, id`, [requestId],
+  )
+  return rows.map((row) => {
+    const snapshot = parseFlowJson(row.request_snapshot) ?? null
+    const decisions = parseFlowJson(row.decisions_snapshot)
+    return {
+      roundNo: Number(row.round_no),
+      rejectedStage: row.rejected_stage ?? null,
+      rejectionNote: row.rejection_note ?? null,
+      submittedAt: row.submitted_at,
+      rejectedAt: row.rejected_at,
+      resubmittedAt: row.resubmitted_at,
+      request: snapshot,
+      decisions: Array.isArray(decisions) ? decisions : [],
+    }
+  })
 }
 
 export async function updateLeaveDates(req: Request, res: Response) {
@@ -1370,6 +1408,253 @@ export async function store(req: Request, res: Response) {
   }
 }
 
+// ---------- ยื่นแก้ไขเอกสารฉบับเดิม (หลังถูกไม่อนุมัติ) ----------
+// ไม่สร้างคำขอหรือเลขที่ใหม่: อัปเดตเอกสารเดิม เพิ่ม revision_no และเก็บ snapshot ของรอบที่ถูกปฏิเสธ
+// ไว้ใน employee_request_rounds ก่อนล้างลายเซ็นของรอบเดิม เพื่อให้รอบใหม่เริ่มที่ขั้นที่ไม่อนุมัติได้
+export async function resubmit(req: Request, res: Response) {
+  const uploadedFiles = req.files as Record<string, NonNullable<typeof req.file>[]> | undefined
+  const uploadedCertificate = uploadedFiles?.medicalCertificate?.[0]
+  const uploadedSupportingDocuments = uploadedFiles?.supportingDocuments ?? []
+  let uploadedCertificateBytes = Buffer.alloc(0)
+  let uploadedSupportingDocumentBytes: Buffer[] = []
+  let certificateCommitted = false
+  let supportingDocumentsCommitted = false
+  try {
+    uploadedCertificateBytes = uploadedCertificate ? fs.readFileSync(uploadedCertificate.path) : Buffer.alloc(0)
+    uploadedSupportingDocumentBytes = uploadedSupportingDocuments.map((file) => fs.readFileSync(file.path))
+    const removeUploadedFiles = () => {
+      if (uploadedCertificate) fs.rmSync(uploadedCertificate.path, { force: true })
+      for (const file of uploadedSupportingDocuments) fs.rmSync(file.path, { force: true })
+    }
+    need(req, PERM.submit)
+    const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id, today = todayBangkok()
+    const kind = req.body?.kind as Kind
+    if (!KINDS.includes(kind)) throw httpError(400, 'ประเภทเอกสารไม่ถูกต้อง')
+    let raw = req.body?.values
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw) } catch { throw httpError(400, 'ข้อมูลเอกสารไม่ถูกต้อง') }
+    }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw httpError(400, 'ข้อมูลเอกสารไม่ถูกต้อง')
+    if (uploadedCertificate && (kind !== 'leave' || String((raw as Values).leaveType ?? '') !== 'sick')) {
+      throw httpError(400, 'แนบใบรับรองแพทย์ได้เฉพาะคำขอลาป่วย')
+    }
+    const leaveType = kind === 'leave' ? String((raw as Values).leaveType ?? '') : ''
+    if (uploadedSupportingDocuments.length && !SUPPORTING_DOCUMENT_LEAVE_TYPES.has(leaveType)) {
+      throw httpError(400, 'เอกสารประกอบใช้ได้เฉพาะประเภทลาที่กำหนด')
+    }
+    if (SUPPORTING_DOCUMENT_LEAVE_TYPES.has(leaveType) && uploadedSupportingDocuments.length === 0) {
+      throw httpError(400, 'กรุณาแนบเอกสารประกอบการลา')
+    }
+    const valuesWithCertificate = { ...(raw as Values), cert: Boolean(uploadedCertificate) }
+    if (uploadedCertificate) {
+      const validFile = uploadedCertificate.mimetype === 'application/pdf'
+        ? uploadedCertificateBytes.subarray(0, 5).toString('ascii') === '%PDF-'
+        : uploadedCertificate.mimetype === 'image/png'
+          ? uploadedCertificateBytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+          : uploadedCertificate.mimetype === 'image/jpeg'
+            && uploadedCertificateBytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
+      if (!validFile) throw httpError(400, 'รูปแบบไฟล์ใบรับรองแพทย์ไม่ถูกต้อง')
+      if (path.basename(uploadedCertificate.originalname).length > 255) throw httpError(400, 'ชื่อไฟล์ยาวเกินไป')
+    }
+    for (const [index, file] of uploadedSupportingDocuments.entries()) {
+      const bytes = uploadedSupportingDocumentBytes[index]!
+      const validFile = file.mimetype === 'application/pdf'
+        ? bytes.subarray(0, 5).toString('ascii') === '%PDF-'
+        : file.mimetype === 'image/png'
+          ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+          : file.mimetype === 'image/jpeg' && bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255]))
+      if (!validFile) throw httpError(400, 'รูปแบบไฟล์เอกสารประกอบไม่ถูกต้อง')
+      if (path.basename(file.originalname.replace(/\\/g, '/')).length > 255) throw httpError(400, 'ชื่อไฟล์ยาวเกินไป')
+    }
+    const signature = checkSignature(req.body?.signature, false)
+
+    const [userRows] = await db.query<any[]>(
+      `SELECT u.id, u.name, u.department_id, u.role_id, r.name AS role_name, dep.name AS department_name, dep.name = 'HR Div.' AS isHrDept,
+              COALESCE(e.sick_leave_days, 0) AS sick, COALESCE(e.personal_leave_days, 0) AS personal, COALESCE(e.vacation_leave_days, 0) AS vacation
+         FROM users u LEFT JOIN employees e ON e.user_id = u.id
+         JOIN roles r ON r.id = u.role_id
+         LEFT JOIN departments dep ON dep.id = u.department_id
+        WHERE u.id = ? AND u.deleted_at IS NULL LIMIT 1`, [me],
+    )
+    const user = userRows[0]
+    if (!user) throw httpError(404, 'User not found')
+
+    const policy = await loadPolicy(companyId, today)
+    const ctx = await buildContext(kind, valuesWithCertificate, user, policy, today)
+    const { checks, values: v } = validateRequest(kind, valuesWithCertificate, ctx)
+    const failed = checks.filter((check: { ok: any }) => !check.ok)
+    if (failed.length) {
+      removeUploadedFiles()
+      res.status(422).json({ message: 'ข้อมูลไม่ผ่านการตรวจสอบ', errors: failed.map((check) => ({ key: check.key, params: check.params })) })
+      return
+    }
+    if (kind === 'ot') oneOf(v.dayType, ['weekday', 'weekend', 'holiday'], 'ประเภทวันไม่ถูกต้อง')
+    if (kind === 'timefix') oneOf(v.cause, ['forgot', 'device', 'offsite', 'other'], 'สาเหตุไม่ถูกต้อง')
+
+    const head = headerFields(kind, v)
+    const conn = await db.getConnection()
+    try {
+      await conn.beginTransaction()
+      const [rows] = await conn.query<any[]>(
+        `SELECT id, request_no, kind, employee_user_id, manager_user_id, executive_user_id, status, rejected_stage, revision_no,
+                reason, rejection_note, days,
+                DATE_FORMAT(start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(end_date,'%Y-%m-%d') AS end_date,
+                DATE_FORMAT(submitted_at,'%Y-%m-%dT%H:%i:%s') AS submitted_at,
+                DATE_FORMAT(decided_at,'%Y-%m-%dT%H:%i:%s') AS decided_at,
+                DATE_FORMAT(last_rejected_at,'%Y-%m-%dT%H:%i:%s') AS last_rejected_at
+           FROM employee_requests WHERE id = ? AND company_id = ? FOR UPDATE`, [id, companyId],
+      )
+      const row = rows[0]
+      if (!row) throw httpError(404, 'ไม่พบเอกสารต้นฉบับ')
+      if (Number(row.employee_user_id) !== me) throw httpError(403, 'ยื่นแก้ไขได้เฉพาะเอกสารของตนเอง')
+      if (row.kind !== kind) throw httpError(400, 'ประเภทเอกสารต้องตรงกับเอกสารเดิม')
+      if (row.status !== 'rejected') throw httpError(409, 'เอกสารนี้ไม่ได้อยู่ในสถานะไม่อนุมัติ')
+      // เริ่มพิจารณาใหม่ที่ขั้นที่ไม่อนุมัติ (ตามที่ผู้ใช้กำหนด) ไม่ใช่เริ่มทั้งกระบวนการ
+      const resumeStage: 'manager' | 'executive' | 'hr' = row.rejected_stage ?? 'manager'
+      const status = resumeStage === 'executive' ? 'pending_exec' : resumeStage === 'hr' ? 'pending_hr' : 'pending_mgr'
+      const roundNo = Number(row.revision_no ?? 0) + 1
+
+      // เก็บ snapshot ของรอบเดิมก่อนล้างลายเซ็น (ตารางลายเซ็นมี 1 แถวต่อขั้น)
+      const detailSql = DETAIL_SQL[kind as Kind]
+      const [detailRows] = detailSql ? await conn.query<any[]>(detailSql, [id]) : [[]]
+      const [signatureRows] = await conn.query<any[]>(
+        `SELECT stage, action, signer_name, note, DATE_FORMAT(signed_at,'%Y-%m-%dT%H:%i:%s') AS signed_at
+           FROM employee_request_signatures WHERE request_id = ? ORDER BY signed_at, id`, [id],
+      )
+      const requestSnapshot = JSON.stringify({
+        startDate: row.start_date,
+        endDate: row.end_date,
+        days: row.days === null ? null : Number(row.days),
+        reason: row.reason,
+        detail: detailRows[0] ? camelize(detailRows[0]) : null,
+      })
+      const decisionsSnapshot = JSON.stringify(signatureRows.map((sig: any) => ({
+        stage: sig.stage, action: sig.action, signerName: sig.signer_name, note: sig.note, signedAt: sig.signed_at,
+      })))
+      await conn.execute(
+        `INSERT INTO employee_request_rounds
+          (request_id, round_no, rejected_stage, rejection_note, submitted_at, rejected_at, resubmitted_at, request_snapshot, decisions_snapshot)
+         VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+        [id, roundNo, row.rejected_stage ?? resumeStage, row.rejection_note ?? null,
+          row.submitted_at, row.last_rejected_at ?? row.decided_at, requestSnapshot, decisionsSnapshot],
+      )
+      await conn.execute('DELETE FROM employee_request_signatures WHERE request_id = ?', [id])
+      const [update] = await conn.execute<any>(
+        `UPDATE employee_requests
+            SET status = ?, start_date = ?, end_date = ?, days = ?, reason = ?,
+                last_rejected_at = COALESCE(last_rejected_at, ?),
+                revision_no = revision_no + 1, resubmitted_at = NOW(), decided_at = NULL
+          WHERE id = ? AND status = 'rejected'`,
+        [status, head.start, head.end, head.days, head.reason, row.last_rejected_at ?? row.decided_at, id],
+      )
+      if (!update.affectedRows) throw httpError(409, 'เอกสารไม่อยู่ในสถานะที่ยื่นแก้ไขได้')
+
+      const s = (key: string) => nz(v[key])
+      if (kind === 'leave') {
+        await conn.execute(
+          `UPDATE employee_request_leave_details
+              SET leave_type_id = ?, by_hour = ?, start_time = ?, end_time = ?, hours = ?,
+                  has_medical_certificate = ?, child_birth_date = ?, compassionate_relation = ?
+            WHERE request_id = ?`,
+          [ctx.leaveType!.id, ctx.leaveType!.allowByHour && v.byHour === true ? 1 : 0, s('start'), s('end'), num(v.hours),
+            Boolean(uploadedCertificate) ? 1 : 0, s('childBirthDate'), s('compassionateRelation'), id],
+        )
+        if (uploadedCertificate) {
+          const fileHash = createHash('sha256').update(uploadedCertificateBytes).digest('hex')
+          await conn.execute(
+            `INSERT INTO employee_request_medical_certificates
+              (request_id, stored_name, original_name, mime_type, file_size, file_hash, storage_path, uploaded_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, path.basename(uploadedCertificate.filename), path.basename(uploadedCertificate.originalname),
+              uploadedCertificate.mimetype, uploadedCertificate.size, fileHash, uploadedCertificate.path, me],
+          )
+        }
+        for (const [index, file] of uploadedSupportingDocuments.entries()) {
+          await conn.execute(
+            `INSERT INTO employee_request_supporting_documents
+              (request_id, stored_name, original_name, mime_type, file_size, file_hash, storage_path, uploaded_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, path.basename(file.filename), path.basename(file.originalname.replace(/\\/g, '/')),
+              file.mimetype, file.size, createHash('sha256').update(uploadedSupportingDocumentBytes[index]!).digest('hex'), file.path, me],
+          )
+        }
+      } else if (kind === 'ot') {
+        await conn.execute(
+          `UPDATE employee_request_ot_details
+              SET day_type = ?, work_date = ?, start_time = ?, end_time = ?, hours = ?, task = ?
+            WHERE request_id = ?`,
+          [String(v.dayType), s('date'), s('start'), s('end'), num(v.hours), s('task'), id],
+        )
+      } else if (kind === 'timefix') {
+        await conn.execute(
+          `UPDATE employee_request_timefix_details
+              SET fix_date = ?, cause = ?, in_time = ?, out_time = ?
+            WHERE request_id = ?`,
+          [s('date'), String(v.cause), s('inTime'), s('outTime'), id],
+        )
+      } else if (kind === 'outing') {
+        await conn.execute(
+          `UPDATE employee_request_outing_details
+              SET outing_date = ?, out_time = ?, back_time = ?, place = ?, company_name = ?, address = ?,
+                  province = ?, district = ?, subdistrict = ?, postal_code = ?, country = ?, latitude = ?, longitude = ?,
+                  project_name = ?, customer_name = ?, customer_position = ?, phone = ?, work_details = ?, remark = ?
+            WHERE request_id = ?`,
+          [s('from'), s('outTime'), s('backTime'), s('address')?.slice(0, 255) ?? null, s('company'), s('address'),
+            s('province'), s('district'), s('subdistrict'), s('postalCode'), s('country'), num(v.latitude),
+            num(v.longitude), s('project'), s('customerName'), s('customerPosition'), s('phone'),
+            s('workDetails'), s('remark'), id],
+        )
+      }
+
+      const signatureFileId = signature
+        ? await storeSignatureImage(conn, signature, { department: user.department_name, userName: user.name, userId: me })
+        : null
+      await conn.execute(
+        `INSERT INTO employee_request_signatures (request_id, stage, action, signer_user_id, signer_name, signature_file_id)
+         VALUES (?, 'submitter', 'submitted', ?, ?, ?)`,
+        [id, me, user.name, signatureFileId],
+      )
+      if ((req.body?.rememberSignature === true || req.body?.rememberSignature === 'true') && signatureFileId !== null) {
+        await rememberUserSignature(conn, me, signatureFileId)
+      }
+
+      const recipients = status === 'pending_mgr'
+        ? [
+            ...(await findDeptManagerIds(conn, companyId, user.department_id, me)),
+            ...[Number(row.manager_user_id)].filter((userId): userId is number => Number.isSafeInteger(userId)),
+          ]
+        : status === 'pending_exec'
+          ? (Number(row.executive_user_id) ? [Number(row.executive_user_id)] : await findExecUserIds(conn, companyId))
+          : await findHrUserIds(conn, companyId, me)
+      await notify(conn, recipients, id, 'submitted')
+      await conn.commit()
+      certificateCommitted = Boolean(uploadedCertificate)
+      supportingDocumentsCommitted = uploadedSupportingDocuments.length > 0
+      await logActivity({
+        userId: me,
+        module: 'documents',
+        action: 'resubmitted',
+        entityType: 'employee_request',
+        entityId: id,
+        details: { requestNo: row.request_no, kind, status, revisionNo: roundNo },
+        ipAddress: req.ip,
+      })
+      res.json({ id, requestNo: row.request_no, status, revisionNo: roundNo })
+    } catch (error) {
+      await conn.rollback()
+      throw error
+    } finally {
+      conn.release()
+    }
+  } catch (error) {
+    if (uploadedCertificate && !certificateCommitted) fs.rmSync(uploadedCertificate.path, { force: true })
+    if (!supportingDocumentsCommitted) {
+      for (const file of uploadedSupportingDocuments) fs.rmSync(file.path, { force: true })
+    }
+    throw error
+  }
+}
+
 export async function medicalCertificate(req: Request, res: Response) {
   needDocumentModule(req)
   const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id
@@ -1474,9 +1759,11 @@ async function decide(req: Request, res: Response, action: 'approve' | 'reject')
           : row.status !== 'pending_hr' && requiresHr ? 'pending_hr'
             : 'approved'
     const [update] = await conn.execute<any>(
-      `UPDATE employee_requests SET status = ?, rejected_stage = ?, rejection_note = ?, decided_at = IF(? IN ('approved','rejected'), CURRENT_TIMESTAMP, NULL)
+      `UPDATE employee_requests SET status = ?, rejected_stage = ?, rejection_note = ?,
+              last_rejected_at = IF(? = 'reject', CURRENT_TIMESTAMP, last_rejected_at),
+              decided_at = IF(? IN ('approved','rejected'), CURRENT_TIMESTAMP, NULL)
         WHERE id = ? AND status = ?`,
-      [next, action === 'reject' ? stage : null, action === 'reject' ? note : null, next, id, row.status],
+      [next, action === 'reject' ? stage : null, action === 'reject' ? note : null, action, next, id, row.status],
     )
     if (!update.affectedRows) throw httpError(409, 'เอกสารไม่อยู่ในสถานะรออนุมัติแล้ว')
     const [names] = await conn.query<any[]>(`SELECT u.name, dep.name AS department_name FROM users u LEFT JOIN departments dep ON dep.id = u.department_id WHERE u.id = ? LIMIT 1`, [me])
@@ -1725,6 +2012,9 @@ export async function validate(req: Request, res: Response) {
 
 // ---------- รายการ/ใบที่ใช้ร่วมกับการแจ้งเตือน ----------
 const LIST_COLUMNS = `r.id, r.request_no, r.kind, r.status, r.days, r.reason, r.rejection_note, r.rejected_stage, r.submitted_at,
+  r.revision_no, DATE_FORMAT(r.resubmitted_at,'%Y-%m-%dT%H:%i:%s') AS resubmitted_at,
+  DATE_FORMAT(COALESCE(r.last_rejected_at, IF(r.status = 'rejected', r.decided_at, NULL)),'%Y-%m-%dT%H:%i:%s') AS last_rejected_at,
+  (r.revision_no + IF(r.status = 'rejected', 1, 0)) AS rejection_count,
   previous.request_no AS resubmitted_from_request_no,
   DATE_FORMAT(r.start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(r.end_date,'%Y-%m-%d') AS end_date,
   r.employee_user_id, eu.name AS employee_name, eu.avatar_path AS employee_avatar_url, dep.name AS department_name,

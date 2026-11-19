@@ -479,6 +479,156 @@
   font-weight: 700;
 }
 
+.documents-detail-stage,
+.documents-detail-revised-at {
+  display: block;
+  margin-top: 4px;
+  color: #7a849e;
+  font-size: 11px;
+}
+
+.documents-detail-header .documents-revision-badge {
+  margin-left: 6px;
+  margin-top: 0;
+  vertical-align: 4px;
+}
+
+/* เหตุผลที่ไม่อนุมัติ — แสดงก่อนรายละเอียดคำขอ เพื่อให้เห็นสิ่งที่ต้องแก้ทันที */
+.documents-rejection-panel {
+  margin: 0 0 16px;
+  padding: 13px 15px;
+  border: 1px solid #fadadd;
+  border-radius: 13px;
+  background: #fff7f7;
+}
+
+.documents-rejection-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.documents-rejection-head .documents-rejection-mark {
+  display: grid;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.documents-rejection-head h3 {
+  margin: 0;
+  color: #9e3b3b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.documents-rejection-head small {
+  margin-left: auto;
+  color: #a86868;
+  font-size: 11px;
+}
+
+.documents-rejection-reason {
+  margin: 0;
+  color: #7d2f2f;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.documents-rejection-by {
+  margin-top: 8px;
+  color: #9a6565;
+  font-size: 11.5px;
+}
+
+/* ประวัติการพิจารณารอบที่ปิดแล้ว (ถูกไม่อนุมัติ) ก่อนยื่นฉบับแก้ไข */
+.documents-review-rounds {
+  display: grid;
+  gap: 10px;
+}
+
+.documents-review-round {
+  padding: 11px 12px;
+  border: 1px solid #e9eef5;
+  border-radius: 10px;
+  background: #fbfcfe;
+}
+
+.documents-review-round-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.documents-review-round-head b {
+  color: #283451;
+  font-size: 12.5px;
+}
+
+.documents-review-round-head small {
+  color: #7a849e;
+  font-size: 11px;
+}
+
+.documents-review-round-note {
+  margin: 0;
+  color: #9e3b3b;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.documents-review-round-note b {
+  color: #b42357;
+}
+
+.documents-review-decisions {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.documents-review-decisions li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px;
+  color: #465268;
+  font-size: 11.5px;
+}
+
+.documents-review-decisions li > span {
+  min-width: 96px;
+  color: #283451;
+  font-weight: 700;
+}
+
+.documents-review-decisions li small {
+  color: #7a849e;
+  font-size: 11px;
+}
+
+.documents-review-decisions li em {
+  flex-basis: 100%;
+  padding-left: 103px;
+  color: #9e3b3b;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.45;
+}
+
 .documents-detail-section {
   margin: 0 0 12px;
 }

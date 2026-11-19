@@ -1,4 +1,5 @@
 import type { MockDocument, FormValues, MockPolicy, SignatureStage } from '../../document-types'
+import { displayStatusOf } from '../../document-types'
 import { medicalCertificateUrl, supportingDocumentUrl } from '../../services/employee-requests.service'
 import { FaPenNib } from 'react-icons/fa6'
 import { useState } from 'react'
@@ -65,7 +66,32 @@ const ALL_STAGES = ['ผู้ยื่น', 'ผู้จัดการแผ�
 
 export default function DocAllDocumentsDetail({ document: doc, policy, detailValues, kindTitle, statusLabel, dateText, canApprove, canCancel, canResubmit, canViewMedicalCertificate, canEditLeaveDates, editLogs, onClose, onSign, onReject, onCancel, onResubmit, onEditLeaveDates, copy: c }: Props) {
   const leaveNames: Record<string, string> = c.leaveTypes
-  const statusStyle = doc.status === 'approved' ? 'is-done' : doc.status === 'rejected' ? 'is-cancelled' : 'is-submitted'
+  const displayStatus = displayStatusOf(doc)
+  const statusStyle = displayStatus === 'approved' ? 'is-done'
+    : displayStatus === 'resubmitted' ? 'is-revised'
+      : displayStatus === 'rejected' || displayStatus === 'cancelled' ? 'is-cancelled'
+        : 'is-submitted'
+  // ขั้นปัจจุบัน/ผู้ที่ไม่อนุมัติ — ใช้ป้ายขั้นแยกจากชื่อสถานะ
+  const stageNameOf = (stage: string) => stage === 'submitter' ? c.detail.submitted
+    : stage === 'manager' ? c.detail.manager
+      : stage === 'executive' ? c.detail.executive
+        : stage === 'hr' ? c.detail.hr : stage
+  const currentStageLabel = doc.status === 'pending_mgr' ? c.detail.manager
+    : doc.status === 'pending_exec' ? c.detail.executive
+      : doc.status === 'pending_hr' ? c.detail.hr : ''
+  const rejectedStageKey: SignatureStage | undefined = doc.rejectedBy === 'manager' ? 'ผู้จัดการแผนก'
+    : doc.rejectedBy === 'executive' ? 'ผู้ประกอบการ'
+      : doc.rejectedBy === 'hr' ? 'HR' : undefined
+  const rejectionLabel = displayStatus === 'resubmitted' ? c.detail.rejectionReasonPrevious : c.detail.rejectionReason
+  const rejectionBy = rejectedStageKey
+    ? [doc.signatures?.[rejectedStageKey]?.name, stageNameOf(doc.rejectedBy ?? '')].filter(Boolean).join(' · ')
+    : ''
+  const lastRound = doc.reviewHistory && doc.reviewHistory.length > 0 ? doc.reviewHistory[doc.reviewHistory.length - 1] : null
+  const rejectionAt = doc.lastRejectedAt
+    ? dateText(String(doc.lastRejectedAt).slice(0, 10))
+    : lastRound?.rejectedAt
+      ? dateText(String(lastRound.rejectedAt).slice(0, 10))
+      : rejectedStageKey ? doc.signatures?.[rejectedStageKey]?.date ?? '' : ''
   const submittedDateTime = doc.submittedAt
     ? new Intl.DateTimeFormat(c.dateLocale, {
         day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -111,7 +137,12 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
   return <div className="documents-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="dms-modal dms-create-doc-modal documents-detail-modal" role="dialog" aria-modal="true" aria-labelledby="document-detail-title">
     <h2 className="dms-modal-title">{c.detail.title}</h2><p className="dms-modal-subtitle">{doc.no} · {c.detail.submittedAt} {submittedDateTime}</p><button type="button" className="modal-close documents-detail-close" aria-label={c.detail.close} onClick={(event) => { event.stopPropagation(); onClose() }}>×</button>
     <div className="dms-create-doc-body documents-detail-body">
-      <div className="documents-detail-header"><div><span className={`dms-card-status ${statusStyle}`}>{statusLabel}</span>{doc.resubmittedFromRequestNo && <small className="documents-resubmission-label">{String(c.detail.resubmittedFrom).replace('{no}', doc.resubmittedFromRequestNo)}</small>}<h2 id="document-detail-title">{doc.title}</h2></div>{canResubmit && <button type="button" className="documents-primary documents-detail-resubmit" onClick={onResubmit}>{c.detail.resubmit}</button>}</div>
+      <div className="documents-detail-header"><div><span className={`dms-card-status ${statusStyle}`}>{statusLabel}</span>{doc.revisionNo ? <span className="documents-revision-badge">{String(c.detail.revisionNo).replace('{n}', String(doc.revisionNo))}</span> : null}{doc.resubmittedFromRequestNo && <small className="documents-resubmission-label">{String(c.detail.resubmittedFrom).replace('{no}', doc.resubmittedFromRequestNo)}</small>}{displayStatus === 'resubmitted' && currentStageLabel && <small className="documents-detail-stage">{c.detail.waiting} · {currentStageLabel}</small>}<h2 id="document-detail-title">{doc.title}</h2>{doc.resubmittedAt && <small className="documents-detail-revised-at">{String(c.detail.resubmittedOn).replace('{date}', dateText(String(doc.resubmittedAt).slice(0, 10)))}</small>}</div>{canResubmit && <button type="button" className="documents-primary documents-detail-resubmit" onClick={onResubmit}>{c.detail.resubmit}</button>}</div>
+      {(displayStatus === 'rejected' || displayStatus === 'resubmitted') && doc.note && <section className="documents-rejection-panel">
+        <div className="documents-rejection-head"><span className="documents-rejection-mark">!</span><h3>{rejectionLabel}</h3>{rejectionAt && <small>{rejectionAt}</small>}</div>
+        <p className="documents-rejection-reason">{doc.note}</p>
+        {rejectionBy && <div className="documents-rejection-by">{c.detail.rejectedBy} {rejectionBy}</div>}
+      </section>}
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.submitterInfo}</h3>
         <div className="documents-detail-submitter">
           <DetailAvatar src={doc.employeeAvatarUrl} name={doc.employee} onZoom={zoom} />
@@ -209,7 +240,19 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
             <div className="documents-workflow-copy"><b>{stageLabel}</b><small>{workflowText}</small></div>
           </div>
         </div>
-      })}</div>{doc.note&&<p className="documents-review-note">{c.detail.rejectionNote}: {doc.note}</p>}</section>
+      })}</div>{doc.note && displayStatus !== 'rejected' && displayStatus !== 'resubmitted' && <p className="documents-review-note">{c.detail.rejectionNote}: {doc.note}</p>}</section>
+      {doc.reviewHistory && doc.reviewHistory.length > 0 && <section className="dms-pm-create-section documents-detail-section">
+        <h3>{c.detail.reviewHistory}</h3>
+        <div className="documents-review-rounds">{doc.reviewHistory.map((round) => <article className="documents-review-round" key={round.roundNo}>
+          <div className="documents-review-round-head"><b>{String(c.detail.roundNo).replace('{n}', String(round.roundNo))}</b><small>{[round.submittedAt ? `${c.detail.submittedAt} ${dateText(String(round.submittedAt).slice(0, 10))}` : '', round.resubmittedAt ? String(c.detail.resubmittedOn).replace('{date}', dateText(String(round.resubmittedAt).slice(0, 10))) : ''].filter(Boolean).join(' · ')}</small></div>
+          {round.rejectionNote && <p className="documents-review-round-note"><b>{c.detail.rejectionReason}:</b> {round.rejectionNote}</p>}
+          {round.decisions.length > 0 && <ul className="documents-review-decisions">{round.decisions.map((decision, index) => <li key={`${decision.stage}-${index}`}>
+            <span>{stageNameOf(decision.stage)}</span>
+            <small>{[decision.signerName, decision.signedAt ? dateText(String(decision.signedAt).slice(0, 10)) : '', decision.action === 'rejected' ? c.detail.rejected : decision.action === 'submitted' ? c.detail.submitted : c.statuses?.approved].filter(Boolean).join(' · ')}</small>
+            {decision.note && <em>{decision.note}</em>}
+          </li>)}</ul>}
+        </article>)}</div>
+      </section>}
       {/* รูป+ชื่อขนาดใหญ่ (แบบลายเซ็น) ต่อจากขั้นตอนการพิจารณา ก่อนลายเซ็น */}
       <section className="dms-pm-create-section documents-detail-section"><h3>{c.detail.portraits}</h3><div className="documents-portrait-list">{workflowStages.map((stage) => {
         const sig = doc.signatures?.[stage]

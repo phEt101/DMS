@@ -36,8 +36,140 @@
   color: #b91c1c;
 }
 
+/* เอกสารที่ถูกไม่อนุมัติแล้วยื่นแก้ไขใหม่ — คนละสีกับรอพิจารณาและไม่อนุมัติ */
+.documents-survey-grid .dms-card-status.is-revised,
+.documents-documents-table .dms-card-status.is-revised {
+  background: #ece9ff;
+  color: #4c3fd6;
+}
+
 .documents-survey-grid .documents-card-note {
   color: #9e3b3b;
+}
+
+.documents-survey-card.is-revised,
+.documents-table-row-revised {
+  background: #fbfaff;
+}
+
+.documents-review-card {
+  border-color: #e3defc;
+}
+
+/* ป้าย "แก้ไขครั้งที่ N" — ข้อมูลประกอบเลขที่เอกสาร ไม่ใช่สถานะ */
+.documents-revision-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 1px 7px;
+  border: 1px solid #e0dcff;
+  border-radius: 5px;
+  color: #5d50c9;
+  background: #f5f3ff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.documents-table-revision {
+  margin-left: 6px;
+}
+
+/* เหตุผลที่ไม่อนุมัติ/เคยไม่อนุมัติ แสดงใต้ข้อมูลใบลาในรายการ */
+.documents-rejection-line,
+.documents-rejection-preview {
+  margin: 6px 0 0;
+  color: #9e3b3b;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.documents-rejection-line b,
+.documents-rejection-preview b {
+  color: #b42357;
+}
+
+/* สรุปประวัติการพิจารณาในคอลัมน์ประวัติ */
+.documents-history-count {
+  display: block;
+  color: #283451;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.documents-history-detail {
+  display: block;
+  margin-top: 2px;
+  color: #7a849e;
+  font-size: 11px;
+}
+
+.documents-history-none {
+  color: #a1a9b9;
+  font-size: 12px;
+}
+
+.documents-history-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.documents-table-revised-row,
+.documents-documents-table tr.is-revised {
+  background: #fbfaff;
+}
+
+.documents-documents-table td {
+  vertical-align: top;
+}
+
+.documents-documents-table th:last-child,
+.documents-documents-table td:last-child {
+  min-width: 150px;
+}
+
+.documents-table-submitted {
+  display: block;
+  margin-top: 2px;
+  color: #8b94a9;
+  font-size: 11px;
+}
+
+.documents-table-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.documents-table-stage {
+  display: block;
+  margin-top: 4px;
+  color: #7a849e;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.documents-edit-rejected {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  margin-top: 7px;
+  padding: 0 10px;
+  border: 1px solid #dedcfb;
+  border-radius: 10px;
+  background: #f5f4ff;
+  color: #5143e8;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.documents-edit-rejected:hover {
+  border-color: #c7c2f8;
+  background: #efecff;
 }
 
 .documents-cancel-card {

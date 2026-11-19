@@ -15,7 +15,8 @@ import DocPendingApproval from './pending-approval/components/doc-pending-approv
 import { PaginationFooter } from '../../components/pagination-footer'
 import ConfirmDialog from '../../components/confirm-dialog'
 import { useToast } from '../../components/toast-provider'
-import type { DocKind, FormValues, MockDocument, MockEmployee, MockNotification, MockPolicy, SignatureStage, Status } from './document-types'
+import type { DisplayStatus, DocKind, FormValues, MockDocument, MockEmployee, MockNotification, MockPolicy, SignatureStage, Status } from './document-types'
+import { displayStatusOf } from './document-types'
 import { translateServerErrorMessage } from '../../services/api'
 import { listUsers, type User } from '../settings/users/services/users.service'
 import { listDepartments } from '../settings/access/departments/services/departments.service'
@@ -23,7 +24,7 @@ import { useAuth } from '../auth/hooks/use-auth'
 import { hasPermission } from '../auth/permissions'
 import {
   ApiError, approveRequest, cancelRequest, createRequest, getMySignature, getPolicy, getRequest,
-  listNotifications, listPeople, listPolicyYears, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, savePolicy, formatIsoDate, toFormChecks, updateLeaveDates, validateRequestDryRun,
+  listNotifications, listPeople, listPolicyYears, listRequests, mapDetail, mapListRow, markNotificationsRead, rejectRequest, resubmitRequest, savePolicy, formatIsoDate, toFormChecks, updateLeaveDates, validateRequestDryRun,
   type ApiEditLog,
 } from './services/employee-requests.service'
 import DocLeaveDatesEditModal from './all-documents/components/doc-leave-dates-edit-modal'
@@ -225,6 +226,14 @@ const INITIAL_DOCS: MockDocument[] = [
   { id: 6, no: 'LV-2026-0009', kind: 'leave', title: 'ลาพักร้อน · 3 วัน', summary: '15–17 มิ.ย. 2026 · เดินทางกับครอบครัว', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-05-19', status: 'approved', leaveType:'vacation', from:'2026-06-15', to:'2026-06-17', days:3, reason:'เดินทางกับครอบครัว' },
   { id: 7, no: 'LV-2026-0008', kind: 'leave', title: 'ลากิจ · 1 วัน', summary: '14 ก.ย. 2026 · ธุระที่ธนาคาร', employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-09-09', status: 'rejected', note: 'ตรงกับช่วงปิดงบ ขอเลื่อนเป็นสัปดาห์ถัดไป', leaveType:'personal', from:'2026-09-14', to:'2026-09-14', days:1, reason:'ธุระที่ธนาคาร', rejectedBy:'manager' },
   { id: 8, no: 'TF-2026-0002', kind: 'timefix', title: 'ขอแก้เวลาเข้างาน', summary: '9 ต.ค. 2026 · ลืมสแกนเข้างานตอนเช้า', employee: 'ธนากร ปัญญา', department: 'ฝ่ายขาย', date: '2026-10-12', status: 'pending_mgr' },
+  // ตัวอย่างเอกสารที่ถูกไม่อนุมัติแล้วยื่นฉบับแก้ไข: เลขที่เดิม สถานะ 'ยื่นแก้ไขใหม่' และเก็บประวัติรอบที่ 1
+  {
+    id: 9, no: 'LV-2026-0015', kind: 'leave', title: 'ลาพักร้อน · 3 วัน', summary: '23–25 พ.ย. 2026 · พักผ่อนปลายปีกับครอบครัว',
+    employee: 'สมชาย ใจดี', department: 'การตลาด', date: '2026-11-10', status: 'pending_mgr', leaveType: 'vacation',
+    from: '2026-11-23', to: '2026-11-25', days: 3, reason: 'พักผ่อนปลายปีกับครอบครัว',
+    note: 'วันที่ 18–19 พ.ย. มีประชุมปิดงบการตลาด ขอให้เลื่อนวันลาเป็นสัปดาห์ถัดไป', rejectedBy: 'manager',
+    revisionNo: 1, rejectionCount: 1, resubmittedAt: '2026-11-14T09:15:00+07:00', lastRejectedAt: '2026-11-11T14:20:00+07:00',
+  },
 ]
 const INITIAL_EMPLOYEES: MockEmployee[] = [
   { id:'e1', name:'สมชาย ใจดี', code:'BCG-0142', department:'การตลาด', email:'somchai@example.com', emailNotify:true, role:'พนักงาน', sick:30, personal:3, vacation:6, other:0, active:true, startDate:'2023-03-01', appointedDate:'2023-06-01' },
@@ -265,7 +274,15 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const LEAVE_TYPES = copy.leaveTypes
   const FORM_FIELDS = Object.fromEntries(Object.entries(FORM_FIELDS_DEFAULT).map(([kind, fields]) => [kind, fields.map((field) => ({ ...field, label: copy.fieldLabels[field.key as keyof typeof copy.fieldLabels] ?? field.label, ...(field.key === 'leaveType' ? { options: Object.fromEntries(Object.entries(LEAVE_TYPES).filter(([key]) => key !== 'compassionate_spouse_parent')) } : field.options ? { options: Object.fromEntries(Object.entries(field.options).map(([key, label]) => [key, copy.fieldOptions[key as keyof typeof copy.fieldOptions] ?? label])) } : {}) }))])) as typeof FORM_FIELDS_DEFAULT
   // cancelled: เอกสารถูกยกเลิก — คลิกแจ้งเตือนเข้ามายังต้องแสดงรายละเอียดได้ ไม่งั้น STATUS_INFO[status] เป็น undefined แล้วหน้าจอขาว
-  const STATUS_INFO = { pending_mgr: { label: copy.statuses.pending_mgr, className: 'pending' }, pending_exec: { label: copy.statuses.pending_exec, className: 'pending' }, pending_hr: { label: copy.statuses.pending_hr, className: 'pending' }, approved: { label: copy.statuses.approved, className: 'approved' }, rejected: { label: copy.statuses.rejected, className: 'rejected' }, cancelled: { label: copy.statuses.cancelled, className: 'rejected' } }
+  const STATUS_INFO: Record<DisplayStatus, { label: string }> = {
+    pending_mgr: { label: copy.statuses.pending_mgr },
+    pending_exec: { label: copy.statuses.pending_exec },
+    pending_hr: { label: copy.statuses.pending_hr },
+    approved: { label: copy.statuses.approved },
+    rejected: { label: copy.statuses.rejected },
+    cancelled: { label: copy.statuses.cancelled },
+    resubmitted: { label: copy.statuses.resubmitted },
+  }
 
   const [policy, setPolicy] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
   const [policyDraft, setPolicyDraft] = useState<MockPolicy>(() => ({ ...INITIAL_POLICY, ...readMockSnapshot().policy }))
@@ -573,12 +590,14 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       const roleMatches = USE_DB || view === 'pending' || mockRole === 'HR'
         || (mockRole === 'พนักงาน' && doc.employee === 'สมชาย ใจดี')
         || (mockRole === 'ผู้จัดการแผนก' && doc.department === 'การตลาด')
+      const displayStatus = displayStatusOf(doc)
       const statusMatches = USE_DB && view === 'pending'
         ? true
-        : view === 'pending' ? doc.status === 'pending_hr' && doc.employee !== 'ศิริพร แก้วมณี' : statusFilter === 'all' || (statusFilter === 'pending' ? doc.status.startsWith('pending') : doc.status === statusFilter)
+        : view === 'pending' ? doc.status === 'pending_hr' && doc.employee !== 'ศิริพร แก้วมณี'
+          : statusFilter === 'all' || (statusFilter === 'pending' ? displayStatus.startsWith('pending') : displayStatus === statusFilter)
       const group = KIND_INFO[doc.kind].group
       const kindMatches = kindFilter === 'all' || group === kindFilter || doc.kind === kindFilter
-      const searchMatches = !query || [doc.no, doc.title, doc.summary, doc.employee, doc.department].some((field) => field.toLocaleLowerCase('th').includes(query))
+      const searchMatches = !query || [doc.no, doc.title, doc.summary, doc.employee, doc.department, doc.note].some((field) => String(field ?? '').toLocaleLowerCase('th').includes(query))
       const departmentMatches = departmentFilter === 'all' || doc.department === departmentFilter
       const employeeMatches = employeeFilter === 'all' || doc.employee === employeeFilter
       return roleMatches && statusMatches && kindMatches && searchMatches && departmentMatches && employeeMatches
@@ -601,6 +620,31 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   )
   // ตัวเลือกผู้ยื่น: จากเอกสารที่มองเห็น
   const employeeOptions = useMemo(() => Array.from(new Set(documents.map((doc) => doc.employee).filter(Boolean))).sort((left, right) => left.localeCompare(right)), [documents])
+
+  // จำนวนเอกสารแยกตามสถานะที่แสดงผล (เอกสารที่ยื่นแก้ไขแล้วนับเป็น "ยื่นแก้ไขใหม่" ไม่ปนกับรอพิจารณา)
+  const statusCounts = useMemo(() => {
+    const counts = { all: documents.length, pending: 0, resubmitted: 0, rejected: 0, approved: 0 }
+    for (const doc of documents) {
+      const status = displayStatusOf(doc)
+      if (status === 'resubmitted') counts.resubmitted += 1
+      else if (status.startsWith('pending')) counts.pending += 1
+      else if (status === 'rejected') counts.rejected += 1
+      else if (status === 'approved') counts.approved += 1
+    }
+    return counts
+  }, [documents])
+  const statusTabs: Array<{ key: string; label: string; count: number }> = [
+    { key: 'all', label: copy.filters.all, count: statusCounts.all },
+    { key: 'pending', label: copy.filters.pending, count: statusCounts.pending },
+    { key: 'resubmitted', label: copy.statuses.resubmitted, count: statusCounts.resubmitted },
+    { key: 'rejected', label: copy.statuses.rejected, count: statusCounts.rejected },
+    { key: 'approved', label: copy.statuses.approved, count: statusCounts.approved },
+  ]
+  const changeStatusFilter = (status: string) => {
+    setStatusFilter(status)
+    setDraftStatus(status)
+    setPage(1)
+  }
 
   // แบ่งหน้า (เหมือนหน้าจอ survey): ทั้ง pending และ all ใช้ pagination
   const totalDocs = visibleDocs.length
@@ -898,16 +942,29 @@ export default function DocumentPage({ translations, view = 'all', language = 't
     if (USE_DB) {
       try {
         if (pendingSubmission) {
-          await createRequest(
-            { kind: pendingSubmission.kind, values: pendingSubmission.values, signature: image, rememberSignature, resubmittedFromId: resubmissionSource?.id },
-            medicalCertificateFile ?? undefined,
-            supportingDocumentFiles,
-          )
+          // ยื่นแก้ไขเอกสารฉบับเดิม: คงเลขที่เอกสารและประวัติเดิม ไม่สร้างคำขอใหม่
+          const resubmittedId = resubmissionSource?.id
+          if (resubmittedId !== undefined) {
+            await resubmitRequest(
+              resubmittedId,
+              { kind: pendingSubmission.kind, values: pendingSubmission.values, signature: image, rememberSignature },
+              medicalCertificateFile ?? undefined,
+              supportingDocumentFiles,
+            )
+          } else {
+            await createRequest(
+              { kind: pendingSubmission.kind, values: pendingSubmission.values, signature: image, rememberSignature },
+              medicalCertificateFile ?? undefined,
+              supportingDocumentFiles,
+            )
+          }
           setPendingSubmission(null); setSelectedKind(''); setFormValues({})
           setResubmissionSource(null)
           setMedicalCertificateFile(null)
           setSupportingDocumentFiles([])
-          showToast(resubmissionSource ? copy.messages.resubmittedToast : copy.messages.submittedToast, 'success')
+          showToast(resubmittedId !== undefined ? copy.messages.resubmittedToast : copy.messages.submittedToast, 'success')
+          // กลับไปเปิดเอกสารฉบับเดิมเพื่อดูรอบใหม่และประวัติเดิม
+          if (resubmittedId !== undefined) setSelectedDocumentId(resubmittedId)
         } else if (signingDocument) {
           const result = await approveRequest(signingDocument.id, { signature: image, rememberSignature })
           setSigningDocumentId(null); setSelectedDocumentId(null)
@@ -1062,6 +1119,19 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       onReset={() => { setDraftStatus('all'); setDraftKind('all'); setDraftDepartment('all'); setDraftEmployee('all'); setStatusFilter('all'); setKindFilter('all'); setDepartmentFilter('all'); setEmployeeFilter('all'); setPage(1); setFilterOpen(false) }} copy={copy}
     />}
 
+    {view === 'all' && <div className="documents-status-tabs" role="tablist" aria-label={copy.filters.status}>
+      {statusTabs.map((tab) => <button
+        key={tab.key}
+        type="button"
+        role="tab"
+        aria-selected={statusFilter === tab.key}
+        className={`documents-status-tab${statusFilter === tab.key ? ' is-active' : ''}`}
+        onClick={() => changeStatusFilter(tab.key)}
+      >
+        {tab.label}<b>{tab.count}</b>
+      </button>)}
+    </div>}
+
     {view === 'all' && <DocAllDocumentsList
       documents={pagedDocs} layout={layout} kindInfo={KIND_INFO} statusInfo={STATUS_INFO} dateText={dateText}
       onSelect={setSelectedDocumentId}
@@ -1089,7 +1159,7 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       policy={policy}
       detailValues={detailValues}
       kindTitle={KIND_INFO[selectedDocument.kind].title}
-      statusLabel={STATUS_INFO[selectedDocument.status]?.label ?? selectedDocument.status}
+      statusLabel={STATUS_INFO[displayStatusOf(selectedDocument)]?.label ?? selectedDocument.status}
       dateText={dateText}
       copy={copy}
       canApprove={USE_DB ? Boolean(detail?.canApprove) : false}

@@ -31,6 +31,11 @@ employeeRequestsRouter.post('/', medicalCertificateUpload.fields([
   { name: 'supportingDocuments', maxCount: 5 },
 ]), asyncHandler(controller.store))
 employeeRequestsRouter.get('/:id', asyncHandler(controller.show))
+// ยื่นแก้ไขเอกสารฉบับเดิมหลังถูกไม่อนุมัติ (ไม่สร้างเลขที่ใหม่)
+employeeRequestsRouter.post('/:id/resubmit', medicalCertificateUpload.fields([
+  { name: 'medicalCertificate', maxCount: 1 },
+  { name: 'supportingDocuments', maxCount: 5 },
+]), asyncHandler(controller.resubmit))
 employeeRequestsRouter.post('/:id/approve', asyncHandler(controller.approve))
 employeeRequestsRouter.post('/:id/reject', asyncHandler(controller.reject))
 employeeRequestsRouter.post('/:id/cancel', asyncHandler(controller.cancel))

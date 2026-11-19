@@ -201,6 +201,51 @@
 }
 
 
+/* แท็บกรองสถานะในหน้าเอกสารทั้งหมด (รวม "ยื่นแก้ไขใหม่") */
+.documents-status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+
+.documents-status-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #5b647a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.documents-status-tab b {
+  color: #8a94aa;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.documents-status-tab:hover {
+  background: #f2f0ff;
+  color: #4338ca;
+}
+
+.documents-status-tab.is-active {
+  border-color: #cdc7ff;
+  background: #f2f0ff;
+  color: #4338ca;
+}
+
+.documents-status-tab.is-active b {
+  color: #5b4fe0;
+}
+
 /* ปุ่มสลับขอบเขตเอกสาร: ของฉัน / ที่เกี่ยวข้อง (หน้าเอกสารรายบุคคล) */
 .documents-scope-toggle button[aria-pressed="true"] {
   background: #5143e8;
