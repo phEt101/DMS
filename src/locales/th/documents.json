@@ -36,6 +36,7 @@
       "hr": "HR"
     },
     "submitNew": "ยื่นเอกสารใหม่",
+    "loadingDocuments": "กำลังโหลดเอกสาร...",
     "statuses": {
       "pending_mgr": "รอผู้จัดการ",
       "pending_exec": "รอกรรมการผู้จัดการ",

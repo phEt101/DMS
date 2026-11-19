@@ -36,6 +36,7 @@
       "hr": "HR"
     },
     "submitNew": "Submit a document",
+    "loadingDocuments": "Loading documents...",
     "statuses": {
       "pending_mgr": "Awaiting manager",
       "pending_exec": "Awaiting executive",

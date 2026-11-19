@@ -474,3 +474,58 @@
   background: #fff6f9;
   color: #b42357;
 }
+
+/* สถานะโหลด/ผิดพลาดของรายการเอกสาร: ลอยมุมล่างขวา ไม่กินพื้นที่ จึงไม่ทำให้เลย์เอาต์กระโดด */
+.documents-load-status {
+  position: fixed;
+  z-index: 1050;
+  right: 24px;
+  bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 8px 14px;
+  border: 1px solid #e3e8f2;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 10px 28px #10162926;
+  color: #6a7592;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  pointer-events: none;
+  animation: documents-load-status-in 0.18s ease-out;
+}
+
+.documents-load-status.is-error {
+  border-color: #f3c9c9;
+  background: #fdf3f3;
+  color: #b42318;
+}
+
+.documents-load-spinner {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #d9dcea;
+  border-top-color: #6c5ce7;
+  animation: documents-load-spin 0.7s linear infinite;
+}
+
+@keyframes documents-load-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes documents-load-status-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 720px) {
+  .documents-load-status {
+    right: 16px;
+    bottom: 16px;
+  }
+}

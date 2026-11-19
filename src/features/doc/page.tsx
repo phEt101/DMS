@@ -1105,9 +1105,6 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       }}
     />}
 
-    {USE_DB && docsLoading && ['all', 'pending'].includes(view) && <p className="documents-empty">…</p>}
-    {USE_DB && docsError && ['all', 'pending'].includes(view) && <p className="documents-empty" role="alert">{docsError}</p>}
-
     {view === 'all' && <DocAllDocumentsFilters
       search={search} onSearch={setSearch} layout={layout} onLayout={changeLayout} status={statusFilter} kind={kindFilter} department={departmentFilter} employee={employeeFilter}
       draftStatus={draftStatus} draftKind={draftKind} draftDepartment={draftDepartment} draftEmployee={draftEmployee}
@@ -1239,5 +1236,17 @@ export default function DocumentPage({ translations, view = 'all', language = 't
       onSupportingDocumentFiles={updateSupportingDocumentFiles}
       onRemoveSupportingDocumentFile={removeSupportingDocumentFile}
     />
+
+    {/* สถานะโหลด/ผิดพลาดแบบลอยมุมล่างขวา — ไม่กินพื้นที่ในหน้า จึงไม่ดันเลย์เอาต์ขึ้นลงเวลาข้อมูลรีเฟรช */}
+    {USE_DB && (docsLoading || docsError) && ['all', 'pending'].includes(view) && (
+      <div
+        className={`documents-load-status${docsError ? ' is-error' : ''}`}
+        role={docsError ? 'alert' : 'status'}
+        aria-live="polite"
+      >
+        {!docsError && <span className="documents-load-spinner" aria-hidden="true" />}
+        <span>{docsError || copy.loadingDocuments}</span>
+      </div>
+    )}
   </section>
 }
