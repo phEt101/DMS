@@ -19,6 +19,13 @@ export default function LoginPage({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // รายการโดเมน + ชื่อย่อ: พิมพ์ @bo → boswell.co.th, @bi → gmoney.co.th
+  const DOMAIN_ALIASES: Record<string, string> = {
+    bo: "boswell.co.th",
+    bi: "bigmoney.co.th",
+  };
+  const DOMAIN_LIST = Array.from(new Set(Object.values(DOMAIN_ALIASES)));
+  const [showDomains, setShowDomains] = useState(false);
   useErrorToast(error);
   const authTranslations = translations.auth;
 
@@ -27,8 +34,13 @@ export default function LoginPage({
     setError("");
     setIsSubmitting(true);
 
+    // ถ้าผู้ใช้ไม่ได้พิมพ์ @ ให้เติม @boswell.co.th ต่อท้ายให้อัตโนมัติ
+    const formattedEmail = email.includes("@")
+      ? email.trim()
+      : `${email.trim()}@boswell.co.th`;
+
     try {
-      await login({ email, password });
+      await login({ email: formattedEmail, password });
     } catch {
       setError(authTranslations.loginError);
     } finally {
@@ -71,19 +83,83 @@ export default function LoginPage({
           </header>
 
           <form onSubmit={handleSubmit}>
-            <label className="signin-field">
+            <label
+              className="signin-field"
+              style={{ position: "relative" }}
+            >
               <span>{authTranslations.email}</span>
               <input
-                type="email"
+                type="text"
+                inputMode="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  // แสดงรายการโดเมนเมื่อพิมพ์ "@" ตามด้วยตัวอักษร
+                  setShowDomains(/@\S*$/.test(event.target.value));
+                }}
+                onFocus={() => setShowDomains(/@\S*$/.test(email))}
+                onBlur={() => setShowDomains(false)}
                 placeholder={authTranslations.emailPlaceholder}
                 autoComplete="email"
                 maxLength={255}
                 required
               />
+              {showDomains && (() => {
+                const afterAt = email.slice(email.lastIndexOf("@") + 1).toLowerCase();
+                // ชื่อย่อตรงเป๊ะ (เช่น @bo, @bi) → โชว์โดเมนนั้นทันที
+                const aliased = DOMAIN_ALIASES[afterAt];
+                const matches = aliased
+                  ? [aliased]
+                  : DOMAIN_LIST.filter((d) => d.startsWith(afterAt));
+                if (matches.length === 0) return null;
+                return (
+                  <ul
+                    className="signin-domain-list"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      right: 0,
+                      zIndex: 10,
+                      background: "#fff",
+                      border: "1px solid #ddd",
+                      borderRadius: 8,
+                      listStyle: "none",
+                      margin: 4,
+                      padding: 4,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    }}
+                  >
+                    {matches.map((domain) => (
+                      <li key={domain}>
+                        <button
+                          type="button"
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "8px 12px",
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            borderRadius: 6,
+                          }}
+                          onMouseDown={(event) => {
+                            // ใช้ onMouseDown เพื่อกัน onBlur ปิดรายการก่อนคลิก
+                            event.preventDefault();
+                            setEmail(
+                              `${email.slice(0, email.lastIndexOf("@"))}@${domain}`
+                            );
+                            setShowDomains(false);
+                          }}
+                        >
+                          {email.slice(0, email.lastIndexOf("@"))}@{domain}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
             </label>
-
             <label className="signin-field">
               <span>{authTranslations.password}</span>
               <input
