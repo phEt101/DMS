@@ -113,6 +113,28 @@ through `127.0.0.1:3307`, so local development and Docker use the same data.
 The API is written in TypeScript with strict type checking. Run
 `npm --prefix server run typecheck` before committing backend changes.
 
+### Sharing on the same Wi-Fi
+
+Bind Vite to all interfaces, then open the printed LAN address from other devices:
+
+```bash
+npm run dev:lan        # http://<lan-ip>:5137
+```
+
+For a group demo prefer the compiled bundle (one hashed file instead of hundreds
+of dev modules, which is much lighter when many clients load it at once):
+
+```bash
+npm run share:lan      # build, then serve preview on http://<lan-ip>:4173
+```
+
+Express can stay on loopback because Vite proxies `/boswell-api` and `/api`.
+The login limiter counts only failed attempts, keyed per IP + email
+(`LOGIN_RATE_LIMIT_MAX_FAILURES`, `LOGIN_RATE_LIMIT_WINDOW_MINUTES`), so a group
+can sign in at the same time without locking each other out. Behind Apache or a
+tunnel set `TRUST_PROXY` to the number of proxy hops (Docker Compose defaults to
+1) so each client keeps its own address.
+
 ## Docker environment
 
 Docker Compose simulates the DMS application topology. Shared MySQL 5.6 and

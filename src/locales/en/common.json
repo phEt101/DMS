@@ -724,6 +724,54 @@
       "filters": "Filter",
       "clearFilters": "Clear filters",
       "records": "{count} records"
+    },
+    "settingsSessions": {
+      "kicker": "Settings",
+      "title": "Online users",
+      "subtitle": "See who is signed in, from which device, and when they were last active",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing...",
+      "updatedAt": "Updated {time}",
+      "onlineSummary": "Online {online} of {total} people",
+      "showAllStatuses": "Show all statuses",
+      "showOnlineOnly": "Show online only",
+      "searchPlaceholder": "Search by name or email",
+      "departmentFilter": "Department",
+      "allDepartments": "All departments",
+      "roleFilter": "Role",
+      "allRoles": "All roles",
+      "results": "{count} people",
+      "table": {
+        "user": "User",
+        "company": "Company",
+        "email": "Email",
+        "department": "Department",
+        "role": "Role",
+        "device": "Device",
+        "status": "Status",
+        "lastActivity": "Last activity"
+      },
+      "presence": {
+        "active": "Active now",
+        "idle": "Online but idle",
+        "offline": "Offline",
+        "never": "Never signed in"
+      },
+      "device": {
+        "lastDevice": "Last device",
+        "ip": "IP {ip}"
+      },
+      "loading": "Loading...",
+      "empty": "No users found",
+      "emptyOnline": "No one is online right now",
+      "emptyActive": "No one is active right now",
+      "emptyIdle": "No one is online but idle",
+      "emptyOffline": "No offline users",
+      "emptyAll": "No users found",
+      "emptyActionOffline": "View offline users",
+      "emptyActionAll": "View all users",
+      "loadError": "Unable to load online users",
+      "retry": "Try again"
     }
   },
   "sidebar": {
@@ -737,6 +785,7 @@
     "modules": "Modules",
     "companies": "Companies",
     "activity": "Activity Log",
+    "sessions": "Online users",
     "settingsHint": "Settings - has submenu",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",

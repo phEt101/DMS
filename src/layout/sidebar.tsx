@@ -7,6 +7,7 @@ import {
   FaKey,
   FaLayerGroup,
   FaShieldHalved,
+  FaSignal,
   FaTableCellsLarge,
   FaUser,
   FaWaveSquare,
@@ -31,6 +32,7 @@ const icons = {
   settings: FaGear,
   user: FaUser,
   activity: FaWaveSquare,
+  sessions: FaSignal,
 };
 
 function Icon({ name }: { name: keyof typeof icons }) {
@@ -59,7 +61,8 @@ type SidebarItem =
   | "settings-permissions"
   | "settings-modules"
   | "settings-companies"
-  | "settings-activity";
+  | "settings-activity"
+  | "settings-sessions";
 
 type ConfiguredModuleIcons = Record<string, { iconName: string | null; sortOrder: number; isActive?: boolean | number }>;
 
@@ -543,6 +546,13 @@ if (item.key === "documents") {
                 >
                   <Icon name="activity" />
                   <span>{sidebarTranslations.activity}</span>
+                </button>}
+                {canViewActivity && <button
+                  className={`nav-item nav-button ${activeItem === "settings-sessions" ? "is-active" : ""}`}
+                  onClick={() => onNavigate?.("settings-sessions")}
+                >
+                  <Icon name="sessions" />
+                  <span>{sidebarTranslations.sessions}</span>
                 </button>}
               </div>
             )}

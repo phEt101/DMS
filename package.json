@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:lan": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
+    "share:lan": "vite build && vite preview --host 0.0.0.0 --port 4173",
     "server:dev": "npm --prefix server run dev",
     "server:start": "npm --prefix server start",
     "db:migrate": "npm --prefix server run db:migrate",

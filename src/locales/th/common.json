@@ -723,6 +723,54 @@
       "filters": "ตัวกรอง",
       "clearFilters": "ล้างตัวกรอง",
       "records": "รายการ"
+    },
+    "settingsSessions": {
+      "kicker": "ตั้งค่า",
+      "title": "ผู้ใช้งานออนไลน์",
+      "subtitle": "ดูว่าใครกำลังเข้าใช้งานระบบ ผ่านอุปกรณ์ใด และใช้งานล่าสุดเมื่อไร",
+      "refresh": "รีเฟรช",
+      "refreshing": "กำลังรีเฟรช...",
+      "updatedAt": "อัปเดตล่าสุด {time}",
+      "onlineSummary": "ออนไลน์ {online} จาก {total} คน",
+      "showAllStatuses": "แสดงทุกสถานะ",
+      "showOnlineOnly": "ดูเฉพาะออนไลน์",
+      "searchPlaceholder": "ค้นหาชื่อหรืออีเมล",
+      "departmentFilter": "แผนก",
+      "allDepartments": "ทุกแผนก",
+      "roleFilter": "สิทธิ์",
+      "allRoles": "ทุกสิทธิ์",
+      "results": "{count} คน",
+      "table": {
+        "user": "ผู้ใช้",
+        "company": "บริษัท",
+        "email": "อีเมล",
+        "department": "แผนก",
+        "role": "สิทธิ์",
+        "device": "อุปกรณ์",
+        "status": "สถานะ",
+        "lastActivity": "ใช้งานล่าสุด"
+      },
+      "presence": {
+        "active": "กำลังใช้งาน",
+        "idle": "ออนไลน์แต่ไม่มีการเคลื่อนไหว",
+        "offline": "ออฟไลน์",
+        "never": "ยังไม่เคยเข้าใช้"
+      },
+      "device": {
+        "lastDevice": "อุปกรณ์ล่าสุด",
+        "ip": "ไอพี {ip}"
+      },
+      "loading": "กำลังโหลดข้อมูล...",
+      "empty": "ไม่พบผู้ใช้งาน",
+      "emptyOnline": "ไม่มีผู้ออนไลน์ในขณะนี้",
+      "emptyActive": "ไม่มีผู้ใช้งานที่กำลังใช้งานในขณะนี้",
+      "emptyIdle": "ไม่มีผู้ออนไลน์แต่ไม่มีการเคลื่อนไหว",
+      "emptyOffline": "ไม่มีผู้ใช้ออฟไลน์",
+      "emptyAll": "ไม่พบผู้ใช้งาน",
+      "emptyActionOffline": "ดูผู้ใช้ออฟไลน์",
+      "emptyActionAll": "ดูผู้ใช้ทั้งหมด",
+      "loadError": "ไม่สามารถโหลดข้อมูลผู้ใช้ออนไลน์ได้",
+      "retry": "ลองใหม่"
     }
   },
   "sidebar": {
@@ -736,6 +784,7 @@
     "modules": "โมดูล",
     "companies": "บริษัท",
     "activity": "บันทึกกิจกรรม",
+    "sessions": "ผู้ใช้งานออนไลน์",
     "settingsHint": "ตั้งค่า - มีเมนูย่อย",
     "collapse": "ย่อแถบด้านข้าง",
     "expand": "ขยายแถบด้านข้าง",

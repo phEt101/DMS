@@ -24,6 +24,8 @@ services:
     environment:
       NODE_ENV: production
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Apache อยู่หน้า API 1 hop → ใช้ X-Forwarded-For เพื่อแยก IP ผู้ใช้แต่ละคน
+      TRUST_PROXY: ${TRUST_PROXY:-1}
       HOST: 0.0.0.0
       PORT: 3000
       DB_HOST: shared-mysql

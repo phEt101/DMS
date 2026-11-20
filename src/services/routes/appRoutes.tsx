@@ -7,6 +7,7 @@ import ReportPage from '../../features/doc/report/page'
 import SettingsAccessPage from '../../features/settings/access/page'
 import SettingsUsersPage from '../../features/settings/users/page'
 import SettingsActivityPage from '../../features/settings/activity/page'
+import SettingsSessionsPage from '../../features/settings/sessions/page'
 import type { Language, Translations } from '../../locales'
 import DocumentPage from '../../features/doc/page'
 import PayslipsPage from '../../features/doc/payslips/page'
@@ -28,6 +29,7 @@ export function buildPages(translations: Translations, language: Language, onNav
     'settings-modules': <SettingsAccessPage translations={translations} section="modules" />,
     'settings-companies': <SettingsAccessPage translations={translations} section="companies" />,
     'settings-activity': <SettingsActivityPage translations={translations} language={language} />,
+    'settings-sessions': <SettingsSessionsPage translations={translations} language={language} />,
     documents: <DocumentPage translations={translations} language={language} view="all" />,
     'documents-all': <DocumentPage translations={translations} language={language} view="all" />,
     'documents-pending': <DocumentPage translations={translations} language={language} view="pending" />,

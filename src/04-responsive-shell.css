@@ -227,6 +227,31 @@
     width: 100%;
     min-width: 0;
   }
+  .sessions-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .sessions-header-actions {
+    align-items: flex-start;
+  }
+  .sessions-presence-bar {
+    flex-direction: column;
+    min-height: 0;
+    overflow: visible;
+  }
+  .sessions-presence-segment {
+    flex: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 40px;
+    border-radius: 10px;
+  }
+  .sessions-table td:first-child,
+  .sessions-email,
+  .sessions-device {
+    min-width: 0;
+    max-width: none;
+  }
   .users-count {
     margin-left: 0;
   }

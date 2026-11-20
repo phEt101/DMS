@@ -1426,3 +1426,258 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(93, 83, 205, 0.1);
 }
+
+/* ---- Online users (sessions) -------------------------------------------- */
+.sessions-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.sessions-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.sessions-refresh .is-spinning {
+  animation: sessions-spin 0.9s linear infinite;
+}
+@keyframes sessions-spin {
+  to { transform: rotate(360deg); }
+}
+.sessions-updated {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* แถบสถานะรวม: ใช้เป็นทั้งสรุปจำนวนและตัวกรองสถานะในแถวเดียว */
+.sessions-presence {
+  margin-bottom: 14px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(31, 39, 62, 0.065);
+}
+.sessions-presence-head {
+  margin-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sessions-presence-total {
+  margin: 0;
+  color: #3f495d;
+  font-size: 14px;
+  font-weight: 700;
+}
+.sessions-presence-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sessions-presence-reset {
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: var(--accent);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sessions-presence-reset:hover {
+  text-decoration: underline;
+}
+.sessions-presence-reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.sessions-presence-bar {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 18px;
+  background: #eef1f6;
+  overflow: hidden;
+}
+.sessions-presence-segment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+.sessions-presence-segment:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.sessions-presence-segment:not(:disabled):hover {
+  filter: brightness(0.98);
+}
+.sessions-presence-segment:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.sessions-presence-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sessions-presence-count {
+  flex: none;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.sessions-presence-segment.is-active-level {
+  color: #216b50;
+  background: #e5f6ee;
+}
+.sessions-presence-segment.is-idle-level {
+  color: #8a6413;
+  background: repeating-linear-gradient(135deg, #fbe9c7 0 7px, #fdf4e3 7px 14px);
+}
+.sessions-presence-segment.is-offline-level {
+  color: #5f6b7d;
+  background: #eef1f6;
+}
+.sessions-presence-segment.is-selected {
+  box-shadow: inset 0 0 0 2px rgba(93, 83, 205, 0.3);
+}
+.sessions-presence-segment.is-active-level.is-selected {
+  box-shadow: inset 0 0 0 2px #7fbfa6;
+}
+.sessions-presence-segment.is-idle-level.is-selected {
+  box-shadow: inset 0 0 0 2px #d9a63f;
+}
+.sessions-presence-segment.is-offline-level.is-selected {
+  box-shadow: inset 0 0 0 2px #a6b0c2;
+}
+.sessions-bar-empty {
+  min-height: 50px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--muted);
+  background: #f5f7fb;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sessions-toolbar {
+  flex-wrap: nowrap;
+}
+.sessions-toolbar .users-filter-search {
+  flex: 1 1 260px;
+  width: auto;
+}
+.sessions-toolbar .users-filter-department {
+  flex: 0 1 220px;
+  width: 220px;
+}
+.sessions-toolbar .users-filter-role {
+  flex: 0 1 160px;
+  width: 160px;
+}
+.sessions-count {
+  margin-left: 0;
+}
+
+.sessions-table {
+  white-space: normal;
+}
+.sessions-table td:first-child {
+  min-width: 190px;
+}
+.sessions-email {
+  max-width: 230px;
+  overflow-wrap: anywhere;
+}
+.sessions-device {
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+}
+.sessions-device-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.sessions-device-main svg {
+  flex: none;
+  color: #7a86a0;
+}
+.sessions-device-ip,
+.sessions-device-hint {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.sessions-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.sessions-status-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c6cedc;
+}
+.sessions-status-dot.is-active {
+  background: #277759;
+  box-shadow: 0 0 0 3px #e8f7f0;
+}
+.sessions-status-dot.is-idle {
+  border: 2px solid #b7791f;
+  background: #fff;
+  box-shadow: 0 0 0 3px #fdf4e3;
+}
+.sessions-status-dot.is-offline {
+  border: 2px solid #8b95a7;
+  background: transparent;
+}
+.sessions-status-dot.is-never {
+  width: 12px;
+  height: 2px;
+  border-radius: 2px;
+  background: #b8c0ce;
+}
+.sessions-table tr.is-idle-row td {
+  background: rgba(246, 201, 109, 0.08);
+}
+.sessions-table tr.is-offline-row td {
+  color: #6b7484;
+}
+.sessions-activity-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sessions-muted {
+  color: var(--muted);
+}
+.sessions-table .table-message > span {
+  display: block;
+}
+.sessions-empty-action {
+  margin-top: 10px;
+  min-height: 34px;
+  padding: 0 14px;
+}

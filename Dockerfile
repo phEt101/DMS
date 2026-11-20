@@ -16,6 +16,8 @@ RUN sed -i \
       -e 's/^#LoadModule proxy_module/LoadModule proxy_module/' \
       -e 's/^#LoadModule proxy_http_module/LoadModule proxy_http_module/' \
       -e 's/^#LoadModule rewrite_module/LoadModule rewrite_module/' \
+      -e 's/^#LoadModule deflate_module/LoadModule deflate_module/' \
+      -e 's/^#LoadModule headers_module/LoadModule headers_module/' \
       /usr/local/apache2/conf/httpd.conf \
     && printf '\nInclude conf/extra/boswell-dms.conf\n' >> /usr/local/apache2/conf/httpd.conf \
     && chown -R daemon:daemon /usr/local/apache2/logs
