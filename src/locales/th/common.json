@@ -758,6 +758,7 @@
       },
       "device": {
         "lastDevice": "อุปกรณ์ล่าสุด",
+        "signedInDevices": "เข้าใช้อยู่ {count} อุปกรณ์",
         "ip": "ไอพี {ip}"
       },
       "loading": "กำลังโหลดข้อมูล...",

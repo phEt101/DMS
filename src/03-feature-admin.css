@@ -1603,8 +1603,9 @@
   min-width: 190px;
 }
 .sessions-email {
-  max-width: 230px;
-  overflow-wrap: anywhere;
+  min-width: 260px;
+  max-width: 300px;
+  overflow-wrap: break-word;
 }
 .sessions-device {
   display: grid;
@@ -1622,10 +1623,14 @@
   color: #7a86a0;
 }
 .sessions-device-ip,
-.sessions-device-hint {
+.sessions-device-hint,
+.sessions-device-count {
   color: var(--muted);
   font-size: 11px;
   font-weight: 600;
+}
+.sessions-device-count {
+  color: #277759;
 }
 .sessions-status {
   display: inline-flex;

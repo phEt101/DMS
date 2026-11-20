@@ -759,6 +759,7 @@
       },
       "device": {
         "lastDevice": "Last device",
+        "signedInDevices": "Signed in on {count} devices",
         "ip": "IP {ip}"
       },
       "loading": "Loading...",

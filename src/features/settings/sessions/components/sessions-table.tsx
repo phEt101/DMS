@@ -84,7 +84,7 @@ export function SessionsTable({
       const rowClass = row.presence === 'active' ? undefined : row.presence === 'idle' ? 'is-idle-row' : 'is-offline-row'
 
       return (
-        <tr key={row.id} className={rowClass}>
+        <tr key={`${row.id}-${row.sessionId ?? 'none'}`} className={rowClass}>
           <td data-label={copy.table.user}>
             <div className="user-identity">
               {avatarSrc(row.avatarUrl)
@@ -104,6 +104,7 @@ export function SessionsTable({
                   <DeviceIcon aria-hidden="true" />
                   {deviceLabel(row.device)}
                 </span>
+                {row.activeDeviceCount > 1 && <small className="sessions-device-count">{copy.device.signedInDevices.replace('{count}', String(row.activeDeviceCount))}</small>}
                 {row.ipAddress && <small className="sessions-device-ip">{copy.device.ip.replace('{ip}', row.ipAddress)}</small>}
                 {row.presence === 'offline' && row.hasSession && <small className="sessions-device-hint">{copy.device.lastDevice}</small>}
               </div>

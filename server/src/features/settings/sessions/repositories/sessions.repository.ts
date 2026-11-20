@@ -7,12 +7,6 @@ import { parseDevice, type SessionDevice } from '../services/device-parser.js'
 export type PresenceStatus = 'active' | 'idle' | 'offline'
 export type PresenceFilter = 'online' | 'active' | 'idle' | 'offline' | 'all'
 
-// ระยะเวลาที่ถือว่า "กำลังใช้งาน" — last_used_at ถูกอัปเดตอย่างมากทุก 5 นาที จึงใช้ 15 นาทีเป็นค่าเริ่มต้น
-const ACTIVE_WINDOW_MINUTES = (() => {
-  const parsed = Number.parseInt(process.env.SESSION_ACTIVE_WINDOW_MINUTES ?? '', 10)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15
-})()
-
 interface SessionRow extends RowDataPacket {
   id: number
   name: string
@@ -28,6 +22,7 @@ interface SessionRow extends RowDataPacket {
   sessionStartedAt: Date | string | null
   sessionExpiresAt: Date | string | null
   lastActivityAt: Date | string | null
+  activeDeviceCount: number
   presence: PresenceStatus
 }
 
@@ -38,6 +33,7 @@ interface PresenceCountRow extends RowDataPacket {
 
 export interface SessionUser {
   id: number
+  sessionId: number | null
   name: string
   email: string
   avatarUrl: string | null
@@ -79,8 +75,8 @@ export interface SessionsFilterOptions {
   roles: string[]
 }
 
-// เลือก session ที่ยังมีชีวิตอยู่ล่าสุดของแต่ละคน ถ้าไม่มีเลยจึงใช้ session ล่าสุดใด ๆ เพื่อแสดงอุปกรณ์ล่าสุด
-// (เขียนให้ทำงานบน MySQL 5.6: ใช้ correlated subquery ไม่ใช้ window function)
+// แสดงทุก session ที่ยังใช้งานได้ เพื่อให้เห็นอุปกรณ์ที่ล็อกอินพร้อมกัน
+// ถ้าไม่มี session ใช้ session ล่าสุดเป็นข้อมูลประกอบสถานะออฟไลน์
 const baseSelect = `
   SELECT
     u.id AS id,
@@ -97,19 +93,21 @@ const baseSelect = `
     ls.created_at AS sessionStartedAt,
     ls.expires_at AS sessionExpiresAt,
     COALESCE(ls.last_used_at, ls.created_at) AS lastActivityAt,
-    CASE
-      WHEN ls.id IS NULL THEN 'offline'
-      WHEN COALESCE(ls.last_used_at, ls.created_at) >= (NOW() - INTERVAL ${ACTIVE_WINDOW_MINUTES} MINUTE) THEN 'active'
-      ELSE 'idle'
-    END AS presence
+    (SELECT COUNT(*) FROM user_sessions active_session
+      WHERE active_session.user_id = u.id
+        AND active_session.revoked_at IS NULL
+        AND active_session.expires_at > NOW()) AS activeDeviceCount,
+    CASE WHEN ls.id IS NOT NULL AND ls.revoked_at IS NULL AND ls.expires_at > NOW() THEN 'active' ELSE 'offline' END AS presence
   FROM users u
   INNER JOIN roles r ON r.id = u.role_id AND r.deleted_at IS NULL
   INNER JOIN companies c ON c.id = u.company_id AND c.is_active = 1 AND c.deleted_at IS NULL
   LEFT JOIN departments d ON d.id = u.department_id AND d.deleted_at IS NULL
-  LEFT JOIN user_sessions ls ON ls.id = COALESCE(
-    (SELECT MAX(s1.id) FROM user_sessions s1
-      WHERE s1.user_id = u.id AND s1.revoked_at IS NULL AND s1.expires_at > NOW()),
-    (SELECT MAX(s2.id) FROM user_sessions s2 WHERE s2.user_id = u.id)
+  LEFT JOIN user_sessions ls ON (
+    (ls.user_id = u.id AND ls.revoked_at IS NULL AND ls.expires_at > NOW())
+    OR (ls.user_id = u.id AND NOT EXISTS (
+      SELECT 1 FROM user_sessions live
+      WHERE live.user_id = u.id AND live.revoked_at IS NULL AND live.expires_at > NOW()
+    ) AND ls.id = (SELECT MAX(last_session.id) FROM user_sessions last_session WHERE last_session.user_id = u.id))
   )
   WHERE u.company_id = ? AND u.deleted_at IS NULL
 `
@@ -148,6 +146,7 @@ function toIso(value: Date | string | null): string | null {
 function toSessionUser(row: SessionRow): SessionUser {
   return {
     id: row.id,
+    sessionId: row.sessionId,
     name: row.name,
     email: row.email,
     avatarUrl: avatarUrlOf(row.avatarPath),
@@ -161,6 +160,7 @@ function toSessionUser(row: SessionRow): SessionUser {
     lastActivityAt: toIso(row.lastActivityAt),
     sessionStartedAt: toIso(row.sessionStartedAt),
     sessionExpiresAt: toIso(row.sessionExpiresAt),
+    activeDeviceCount: Number(row.activeDeviceCount),
   }
 }
 

@@ -12,6 +12,7 @@ export interface SessionDevice {
 
 export interface SessionUserRow {
   id: number
+  sessionId: number | null
   name: string
   email: string
   avatarUrl: string | null
@@ -25,6 +26,7 @@ export interface SessionUserRow {
   lastActivityAt: string | null
   sessionStartedAt: string | null
   sessionExpiresAt: string | null
+  activeDeviceCount: number
 }
 
 export interface SessionsSummary {
