@@ -891,6 +891,8 @@
 .documents-portrait-card b { font-size: 12px; color: #334155; }
 .documents-portrait-card small { color: #64748b; font-size: 11px; overflow-wrap: anywhere; }
 .documents-portrait-card img { cursor: zoom-in; }
+/* ขั้นตอนที่ยังไม่มีคนยืนยัน: ซ่อนชื่อ/รูป แสดงแค่ชื่อขั้นตอน + "รอดำเนินการ" */
+.documents-portrait-card--pending .documents-portrait-empty { color: #94a3b8; font-size: 18px; }
 .documents-reject {
   border-color: #fecaca;
   background: #fef2f2;
