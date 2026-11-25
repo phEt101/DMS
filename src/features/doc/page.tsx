@@ -249,6 +249,31 @@ const INITIAL_NOTIFICATIONS: MockNotification[] = [
   { id:3, title:'ผู้จัดการอนุมัติใบลาของคุณแล้ว', body:'เอกสารส่งต่อให้ HR ตรวจแล้ว', date:'2026-10-11T15:00:00+07:00', read:true, documentId:1 },
 ]
 const MOCK_STORAGE_KEY = 'boswell-leave-v2-mock'
+const SUBMISSION_DRAFT_KEY = 'dms-submission-draft:'
+const submissionDraftFiles = new Map<number, { medicalCertificateFile: File | null; supportingDocumentFiles: File[] }>()
+type SubmissionDraft = {
+  formOpen: true
+  selectedKind: DocKind | ''
+  formValues: FormValues
+  resubmissionSource: { id: number; no: string; note?: string } | null
+}
+function readSubmissionDraft(userId?: number): SubmissionDraft | null {
+  if (!userId) return null
+  try {
+    const stored = sessionStorage.getItem(`${SUBMISSION_DRAFT_KEY}${userId}`)
+    if (!stored) return null
+    const draft = JSON.parse(stored) as Partial<SubmissionDraft>
+    if (draft.formOpen !== true || !draft.formValues || typeof draft.formValues !== 'object') return null
+    return {
+      formOpen: true,
+      selectedKind: draft.selectedKind ?? '',
+      formValues: draft.formValues,
+      resubmissionSource: draft.resubmissionSource ?? null,
+    }
+  } catch {
+    return null
+  }
+}
 // key ที่ Topbar ใช้ส่ง document id เมื่อคลิกแจ้งเตือน → ให้หน้าเอกสารเปิด popup รายละเอียดทันที
 export const OPEN_DOCUMENT_KEY = 'dms-open-doc'
 type MockSnapshot = { policy: MockPolicy; documents: MockDocument[]; employees: MockEmployee[]; notifications: MockNotification[]; mockRole: MockEmployee['role']; emailEnabled: boolean; ledgerEmployeeId: string; savedSignature?: string }
@@ -338,13 +363,15 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   }
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [formOpen, setFormOpen] = useState(false)
-  const [selectedKind, setSelectedKind] = useState<DocKind | ''>('')
-  const [formValues, setFormValues] = useState<FormValues>({})
-  const [medicalCertificateFile, setMedicalCertificateFile] = useState<File | null>(null)
-  const [supportingDocumentFiles, setSupportingDocumentFiles] = useState<File[]>([])
+  const [restoredSubmissionDraft] = useState(() => readSubmissionDraft(user?.id))
+  const [restoredSubmissionFiles] = useState(() => user?.id ? submissionDraftFiles.get(user.id) : undefined)
+  const [formOpen, setFormOpen] = useState(() => restoredSubmissionDraft?.formOpen ?? false)
+  const [selectedKind, setSelectedKind] = useState<DocKind | ''>(() => restoredSubmissionDraft?.selectedKind ?? '')
+  const [formValues, setFormValues] = useState<FormValues>(() => restoredSubmissionDraft?.formValues ?? {})
+  const [medicalCertificateFile, setMedicalCertificateFile] = useState<File | null>(() => restoredSubmissionFiles?.medicalCertificateFile ?? null)
+  const [supportingDocumentFiles, setSupportingDocumentFiles] = useState<File[]>(() => restoredSubmissionFiles?.supportingDocumentFiles ?? [])
   const [pendingSubmission, setPendingSubmission] = useState<{ kind: DocKind; values: FormValues } | null>(null)
-  const [resubmissionSource, setResubmissionSource] = useState<{ id: number; no: string; note?: string } | null>(null)
+  const [resubmissionSource, setResubmissionSource] = useState<{ id: number; no: string; note?: string } | null>(() => restoredSubmissionDraft?.resubmissionSource ?? null)
   const [rejectTarget, setRejectTarget] = useState<MockDocument | null>(null)
   const [rejectSubmitting, setRejectSubmitting] = useState(false)
   const [cancelTargetId, setCancelTargetId] = useState<number | null>(null)
@@ -361,6 +388,20 @@ export default function DocumentPage({ translations, view = 'all', language = 't
   const errorText = useCallback((error: unknown) => translateServerErrorMessage(error instanceof ApiError && error.errors?.length
     ? toFormChecks(error.errors.map((item) => ({ ok: false, ...item })), copy).map((item) => item.message).join(' / ')
     : error instanceof Error ? error.message : 'Error', language), [copy, language])
+
+  // Keep an unfinished submission when DocumentPage unmounts during navigation or this tab reloads.
+  useEffect(() => {
+    if (!user?.id) return
+    const key = `${SUBMISSION_DRAFT_KEY}${user.id}`
+    if (!formOpen && pendingSubmission === null) {
+      try { sessionStorage.removeItem(key) } catch { /* browser storage may be unavailable */ }
+      submissionDraftFiles.delete(user.id)
+      return
+    }
+    const draft: SubmissionDraft = { formOpen: true, selectedKind, formValues, resubmissionSource }
+    try { sessionStorage.setItem(key, JSON.stringify(draft)) } catch { /* browser storage may be unavailable */ }
+    submissionDraftFiles.set(user.id, { medicalCertificateFile, supportingDocumentFiles })
+  }, [user?.id, formOpen, selectedKind, formValues, resubmissionSource, pendingSubmission, medicalCertificateFile, supportingDocumentFiles])
 
   // เก็บ mock ลง localStorage เฉพาะโหมด mock
   useEffect(() => {
