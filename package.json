@@ -14,6 +14,7 @@
     "db:migrate": "npm --prefix server run db:migrate",
     "db:seed": "npm --prefix server run db:seed",
     "db:fresh": "npm --prefix server run db:fresh",
+    "db:clean": "npm --prefix server run db:clean",
     "db:fresh:seed": "npm --prefix server run db:fresh:seed",
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down",

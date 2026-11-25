@@ -11,6 +11,7 @@
     "db:migrate": "sh -c 'if [ \"$NODE_ENV\" = \"production\" ]; then node dist/scripts/migrate.js; else tsx scripts/migrate.ts; fi'",
     "db:seed": "sh -c 'if [ \"$NODE_ENV\" = \"production\" ]; then node dist/scripts/seed.js; else tsx scripts/seed.ts; fi'",
     "db:fresh": "sh -c 'if [ \"$NODE_ENV\" = \"production\" ]; then node dist/scripts/fresh.js; else tsx scripts/fresh.ts; fi'",
+    "db:clean": "sh -c 'if [ \"$NODE_ENV\" = \"production\" ]; then node dist/scripts/clean.js \"$@\"; else tsx scripts/clean.ts \"$@\"; fi' --",
     "db:fresh:seed": "sh -c 'if [ \"$NODE_ENV\" = \"production\" ]; then node dist/scripts/fresh.js --seed; else tsx scripts/fresh.ts --seed; fi'"
   },
   "dependencies": {
