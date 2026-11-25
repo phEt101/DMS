@@ -4,6 +4,7 @@ import { asyncHandler } from "../../../middleware/errors.js";
 import { changePassword, login, logout, me, resetPassword, updateProfile } from "../controllers/auth.controller.js";
 import { requireAuth } from "../middleware/require-auth.middleware.js";
 import { loginRateLimiter } from "../middleware/login-rate-limit.middleware.js";
+import { getResetPasswordStatus } from "../../settings/app-settings/controllers/app-settings.controller.js";
 
 export const authRouter = Router();
 
@@ -13,5 +14,6 @@ authRouter.get("/me", asyncHandler(requireAuth), me);
 authRouter.patch("/profile", asyncHandler(requireAuth), asyncHandler(updateProfile));
 authRouter.post("/password", asyncHandler(requireAuth), asyncHandler(changePassword));
 // ⚠️ หน้ารีเซ็ทรหัสผ่านแบบไม่ตรวจสอบตัวตน (ทดสอบเท่านั้น — ต้องลบก่อนขึ้น production)
+authRouter.get("/reset-password-status", asyncHandler(getResetPasswordStatus));
 authRouter.post("/reset-password", asyncHandler(resetPassword));
 //-------------------------------

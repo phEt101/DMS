@@ -47,6 +47,7 @@ export interface SessionUser {
   lastActivityAt: string | null
   sessionStartedAt: string | null
   sessionExpiresAt: string | null
+  activeDeviceCount: number
 }
 
 export interface SessionFilters {

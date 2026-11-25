@@ -8,6 +8,7 @@ import SettingsAccessPage from '../../features/settings/access/page'
 import SettingsUsersPage from '../../features/settings/users/page'
 import SettingsActivityPage from '../../features/settings/activity/page'
 import SettingsSessionsPage from '../../features/settings/sessions/page'
+import ResetPasswordSettingsPage from '../../features/settings/reset-password/page'
 import type { Language, Translations } from '../../locales'
 import DocumentPage from '../../features/doc/page'
 import PayslipsPage from '../../features/doc/payslips/page'
@@ -23,6 +24,7 @@ export function buildPages(translations: Translations, language: Language, onNav
     survey: <SurveyPage translations={translations} language={language} />,
     report: <ReportPage translations={translations} language={language} />,
     'settings-user': <SettingsUsersPage translations={translations} />,
+    'settings-reset-password': <ResetPasswordSettingsPage translations={translations} />,
     'settings-roles': <SettingsAccessPage translations={translations} section="roles" />,
     'settings-departments': <SettingsAccessPage translations={translations} section="departments" />,
     'settings-permissions': <SettingsAccessPage translations={translations} section="permissions" />,

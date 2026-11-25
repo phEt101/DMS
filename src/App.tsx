@@ -21,6 +21,7 @@ const pathByPage: Record<PageKey, string> = {
   survey: '/survey',
   report: '/documents/report',
   'settings-user': '/settings/users',
+  'settings-reset-password': '/settings/reset-password',
   'settings-roles': '/settings/access/roles',
   'settings-departments': '/settings/access/departments',
   'settings-permissions': '/settings/access/permissions',
@@ -48,6 +49,7 @@ const moduleByPage: Record<PageKey, string> = {
   survey: 'survey',
   report: 'report',
   'settings-user': 'users',
+  'settings-reset-password': 'users',
   'settings-roles': 'roles',
   'settings-departments': 'departments',
   'settings-permissions': 'permissions',
@@ -70,6 +72,7 @@ const moduleByPage: Record<PageKey, string> = {
 const pageOrder = Object.keys(pathByPage) as PageKey[]
 
 function canAccessPage(user: AuthUser, page: PageKey) {
+  if (page === 'settings-reset-password' && user.role.name.trim().toLocaleLowerCase() !== 'admin') return false
   return canViewDepartmentModule(user, moduleByPage[page])
 }
 

@@ -56,6 +56,7 @@ type SidebarItem =
   | "announcements"
   | "report"
   | "settings-user"
+  | "settings-reset-password"
   | "settings-roles"
   | "settings-departments"
   | "settings-permissions"
@@ -262,6 +263,7 @@ export default function Sidebar({
     !isHrDepartment
   );
   const canViewActivity = Boolean(user && canViewModule(user, "activity_logs"));
+  const canManageResetPassword = user?.role.name.trim().toLocaleLowerCase() === "admin";
   const hasSettingsItems = canViewUsers || accessItems.length > 0 || canViewActivity;
   const hasActiveSettingsItem = activeItem.startsWith("settings-");
   const hasActiveAccessItem = accessItems.some((item) => item.key === activeItem);
@@ -511,6 +513,13 @@ if (item.key === "documents") {
                 >
                   <Icon name="user" />
                   <span>{sidebarTranslations.user}</span>
+                </button>}
+                {canManageResetPassword && <button
+                  className={`nav-item nav-button ${activeItem === "settings-reset-password" ? "is-active" : ""}`}
+                  onClick={() => onNavigate?.("settings-reset-password")}
+                >
+                  <FaKey className="nav-icon" size={17} aria-hidden="true" />
+                  <span>รีเซ็ทรหัสผ่าน</span>
                 </button>}
                 {accessItems.length > 0 && <button
                   className={`nav-item nav-button access-toggle ${hasActiveAccessItem ? "has-active-child" : ""}`}

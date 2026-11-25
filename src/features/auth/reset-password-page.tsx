@@ -1,5 +1,5 @@
 // ⚠️ หน้ารีเซ็ทรหัสผ่านแบบไม่ตรวจสอบตัวตน (ใช้เพื่อการทดสอบเท่านั้น — ต้องลบก่อนขึ้น production)
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import type { Language, Translations } from "../../locales";
 import { apiUrl } from "../../services/api";
@@ -24,6 +24,23 @@ export default function ResetPasswordPage({
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // null = ยังโหลดสถานะไม่เสร็จ, true/false = สถานะจริงจาก server (ค่าเริ่มต้นของระบบคือปิด)
+  const [resetEnabled, setResetEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(apiUrl("/auth/reset-password-status"))
+      .then((response) => response.json())
+      .then((json: { data?: { enabled?: boolean } }) => {
+        if (!cancelled) setResetEnabled(json.data?.enabled === true);
+      })
+      .catch(() => {
+        if (!cancelled) setResetEnabled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -49,7 +66,7 @@ export default function ResetPasswordPage({
         const json = await response.json().catch(() => ({}));
         setError(
           language === "th"
-            ? (json.message === "ไม่พบบัญชีผู้ใช้งานนี้ในระบบ" ? json.message : "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง")
+            ? (json.message === "ไม่พบบัญชีผู้ใช้งานนี้ในระบบ" || json.message === "หน้ารีเซ็ทรหัสผ่านถูกปิดอยู่" ? json.message : "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง")
             : (json.message ?? "Something went wrong, please try again"),
         );
       }
@@ -110,6 +127,14 @@ export default function ResetPasswordPage({
                 <span>{language === "th" ? "กรอกอีเมลของบัญชี แล้วตั้งรหัสผ่านใหม่ได้ทันที" : "Enter the account email and set a new password instantly"}</span>
               </header>
 
+              {resetEnabled === false && (
+                <p className="signin-error" role="alert">
+                  {language === "th"
+                    ? "หน้ารีเซ็ทรหัสผ่านถูกปิดอยู่ในขณะนี้ กรุณาติดต่อผู้ดูแลระบบ (admin) เพื่อเปิดใช้งาน"
+                    : "The password reset page is currently disabled. Please contact an administrator."}
+                </p>
+              )}
+
               <form onSubmit={handleSubmit}>
                 <label className="signin-field">
                   <span>{a.email}</span>
@@ -151,7 +176,7 @@ export default function ResetPasswordPage({
 
                 {error && <p className="signin-error" role="alert">{error}</p>}
 
-                <button type="submit" className="signin-submit" disabled={isSubmitting}>
+                <button type="submit" className="signin-submit" disabled={isSubmitting || resetEnabled !== true}>
                   {isSubmitting
                     ? (language === "th" ? "กำลังบันทึก..." : "Saving...")
                     : (language === "th" ? "เปลี่ยนรหัสผ่าน" : "Change password")}

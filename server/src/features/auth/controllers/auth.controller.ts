@@ -4,6 +4,7 @@ import { env } from "../../../config/env.js";
 import { httpError } from "../../../middleware/errors.js";
 import { logActivity } from "../../settings/activity/repositories/activity.repository.js";
 import * as authService from "../services/auth.service.js";
+import { isResetPasswordEnabled } from "../../settings/app-settings/services/app-settings.service.js";
 
 interface LoginPayload {
   email: string;
@@ -149,6 +150,7 @@ export const updateProfile: RequestHandler = async (req, res) => {
 // ใส่แค่อีเมล + รหัสผ่านใหม่ ก็เปลี่ยนรหัสผ่านได้ทันที และ revoke session ทั้งหมดของ user นั้น
 export const resetPassword: RequestHandler = async (req, res, next) => {
   try {
+    if (!(await isResetPasswordEnabled())) throw httpError(403, "หน้ารีเซ็ทรหัสผ่านถูกปิดอยู่");
     const body = readBody(req.body);
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
