@@ -1,4 +1,6 @@
-import { FaDesktop, FaMobileScreen, FaTabletScreenButton } from 'react-icons/fa6'
+import { useState } from 'react'
+import { createPortal } from 'react-dom'
+import { FaDesktop, FaMobileScreen, FaTabletScreenButton, FaXmark } from 'react-icons/fa6'
 
 import { avatarSrc } from '../../../../services/avatar'
 import type { SessionsCopy } from '../sessions-copy'
@@ -45,6 +47,7 @@ export function SessionsTable({
   onSwitchStatus: (status: PresenceFilter) => void
 }) {
   const columnCount = 8
+  const [previewUser, setPreviewUser] = useState<SessionUserRow | null>(null)
 
   let body
   if (loading) {
@@ -88,7 +91,12 @@ export function SessionsTable({
           <td data-label={copy.table.user}>
             <div className="user-identity">
               {avatarSrc(row.avatarUrl)
-                ? <img className="user-avatar user-avatar--image" src={avatarSrc(row.avatarUrl)!} alt={row.name} />
+                ? <button
+                    type="button"
+                    className="sessions-avatar-trigger"
+                    aria-label={language === 'th' ? `ดูรูปโปรไฟล์ ${row.name}` : `View ${row.name}'s profile photo`}
+                    onClick={() => setPreviewUser(row)}
+                  ><img className="user-avatar user-avatar--image" src={avatarSrc(row.avatarUrl)!} alt={row.name} /></button>
                 : <span className="user-avatar">{initials(row.name)}</span>}
               <strong>{row.name}</strong>
             </div>
@@ -127,6 +135,7 @@ export function SessionsTable({
   }
 
   return (
+    <>
     <div className="users-table-wrap">
       <table className="users-table sessions-table">
         <thead>
@@ -144,5 +153,27 @@ export function SessionsTable({
         <tbody>{body}</tbody>
       </table>
     </div>
+    {previewUser && avatarSrc(previewUser.avatarUrl) && createPortal(
+      <div
+        className="topbar-avatar-lightbox"
+        role="dialog"
+        aria-modal="true"
+        aria-label={language === 'th' ? 'ดูรูปโปรไฟล์' : 'Profile photo preview'}
+        onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewUser(null) }}
+        onKeyDown={(event) => { if (event.key === 'Escape') setPreviewUser(null) }}
+      >
+        <button
+          type="button"
+          className="topbar-avatar-lightbox-close"
+          aria-label={language === 'th' ? 'ปิด' : 'Close'}
+          autoFocus
+          onClick={() => setPreviewUser(null)}
+        ><FaXmark aria-hidden="true" /></button>
+        <img src={avatarSrc(previewUser.avatarUrl)!} alt={previewUser.name} />
+        <strong>{previewUser.name}</strong>
+      </div>,
+      document.body,
+    )}
+    </>
   )
 }
