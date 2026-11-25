@@ -5,6 +5,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import type { Language, Translations } from "../../locales";
 import { useAuth } from "./hooks/use-auth";
 import { useErrorToast } from "../../components/toast-provider";
+import { SystemLoading } from "../../components/system-loading";
 
 export default function LoginPage({
   translations,
@@ -15,7 +16,7 @@ export default function LoginPage({
   language: Language;
   onLanguageToggle: () => void;
 }) {
-  const { login } = useAuth();
+  const { login, loadingCompanyLogoUrl } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -30,6 +31,10 @@ export default function LoginPage({
   const [showPassword, setShowPassword] = useState(false);
   useErrorToast(error);
   const authTranslations = translations.auth;
+
+  if (isSubmitting) {
+    return <SystemLoading language={language} message={authTranslations.signingIn} logoUrl={loadingCompanyLogoUrl} />
+  }
 
   const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();

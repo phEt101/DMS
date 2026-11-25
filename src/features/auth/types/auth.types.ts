@@ -36,6 +36,7 @@ export interface CurrentUserResponse {
 export interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
+  loadingCompanyLogoUrl: string | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: (preserveUserOnError?: boolean) => Promise<void>;

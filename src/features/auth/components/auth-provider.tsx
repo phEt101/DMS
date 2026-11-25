@@ -9,9 +9,12 @@ import type {
   LoginCredentials,
 } from "../types/auth.types";
 
+const MIN_LOGIN_LOADING_MS = 3000
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingCompanyLogoUrl, setLoadingCompanyLogoUrl] = useState<string | null>(null);
 
   const refreshUser = useCallback(async (preserveUserOnError = false) => {
     try {
@@ -34,8 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUser])
 
   const login = useCallback(async (credentials: LoginCredentials) => {
+    const startedAt = Date.now()
     const response = await authService.login(credentials);
+    setLoadingCompanyLogoUrl(response.data.company?.logoUrl ?? null)
+    const remainingLoadingMs = MIN_LOGIN_LOADING_MS - (Date.now() - startedAt)
+    if (remainingLoadingMs > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, remainingLoadingMs))
+    }
     setUser(response.data);
+    setLoadingCompanyLogoUrl(null)
   }, []);
 
   const logout = useCallback(async () => {
@@ -44,8 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isLoading, login, logout, refreshUser }),
-    [user, isLoading, login, logout, refreshUser],
+    () => ({ user, isLoading, loadingCompanyLogoUrl, login, logout, refreshUser }),
+    [user, isLoading, loadingCompanyLogoUrl, login, logout, refreshUser],
   );
 
   // โปรไฟล์ที่ Topbar: เมื่อมีการแก้ไขข้อมูลผู้ใช้ (ชื่อ/รูป/บทบาท ฯลฯ) → ดึงข้อมูลตัวเองใหม่ทันที

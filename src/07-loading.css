@@ -1,0 +1,519 @@
+/* =========================================================
+   07 — System loading
+   ต้องมี --accent ใน :root (ไม่มีก็ fallback เป็น #6855dc)
+   ========================================================= */
+
+.system-loading-page {
+  --sl-accent: var(--accent, #6855dc);
+  --sl-blue: #4f8bff;
+  --sl-pink: #ff6fb5;
+  --sl-ink: #293248;
+  --sl-mute: #78839a;
+  --px: 0;
+  --py: 0;
+
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px;
+  overflow: hidden;
+  background: #f7f9fc;
+  color: var(--sl-ink);
+  animation: sl-page-in 0.6s ease-out both;
+}
+
+.system-loading-page.is-leaving {
+  animation: sl-page-out 0.65s cubic-bezier(0.5, 0, 0.8, 0.4) forwards;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------
+   พื้นหลัง: ออโรร่า + พื้นกริดวิ่งเข้าหาจอ + ประกายลอยขึ้น
+   --------------------------------------------------------- */
+.sl-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sl-aurora {
+  position: absolute;
+  inset: -35%;
+  background: conic-gradient(
+    from 0deg at 50% 46%,
+    rgb(104 85 220 / 22%),
+    rgb(79 139 255 / 16%),
+    rgb(255 111 181 / 16%),
+    rgb(104 85 220 / 22%)
+  );
+  filter: blur(80px);
+  animation: sl-spin 24s linear infinite;
+}
+
+.sl-floor {
+  position: absolute;
+  right: -50%;
+  bottom: -8%;
+  left: -50%;
+  height: 52%;
+  background-image:
+    linear-gradient(rgb(104 85 220 / 26%) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgb(104 85 220 / 22%) 1.5px, transparent 1.5px);
+  background-size: 64px 64px;
+  transform: perspective(520px) rotateX(64deg);
+  transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(to top, #000 8%, transparent 78%);
+  mask-image: linear-gradient(to top, #000 8%, transparent 78%);
+  animation: sl-floor 2.2s linear infinite;
+}
+
+.sl-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 44%, transparent 30%, rgb(247 249 252 / 85%) 100%);
+}
+
+.sl-sparkle {
+  position: absolute;
+  bottom: -12px;
+  left: var(--x);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: var(--sl-accent);
+  box-shadow: 0 0 10px 2px rgb(104 85 220 / 45%);
+  opacity: 0;
+  animation: sl-rise var(--d) linear var(--dl) infinite;
+}
+
+/* ---------------------------------------------------------
+   การ์ดกลาง
+   --------------------------------------------------------- */
+.system-loading-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  animation: sl-card-in 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+
+/* ---------------------------------------------------------
+   เวที 3D
+   --------------------------------------------------------- */
+.sl-stage {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  margin-bottom: 6px;
+  perspective: 800px;
+}
+
+.sl-tilt {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform-style: preserve-3d;
+  transform: rotateX(calc(var(--py) * -9deg)) rotateY(calc(var(--px) * 11deg));
+  transition: transform 0.25s ease-out;
+}
+
+.sl-tilt > * {
+  grid-area: 1 / 1;
+}
+
+/* วงแหวนความคืบหน้า */
+.sl-progress {
+  width: 240px;
+  height: 240px;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.sl-progress circle {
+  fill: none;
+  stroke-width: 5;
+}
+
+.sl-progress-track {
+  stroke: rgb(104 85 220 / 12%);
+}
+
+.sl-progress-fill {
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 7px rgb(104 85 220 / 55%));
+  transition: stroke-dashoffset 0.25s linear;
+}
+
+/* แสงเรืองหลังโลโก้ */
+.sl-glow {
+  width: 112px;
+  height: 112px;
+  border-radius: 36px;
+  background: conic-gradient(from 0deg, var(--sl-accent), var(--sl-blue), var(--sl-pink), var(--sl-accent));
+  filter: blur(28px);
+  opacity: 0.6;
+  animation:
+    sl-spin 5s linear infinite,
+    sl-breathe 2.6s ease-in-out infinite;
+}
+
+/* ไจโรสโคป */
+.sl-gyro {
+  --ring: var(--sl-accent);
+  position: relative;
+  width: 200px;
+  height: 200px;
+  transform-style: preserve-3d;
+}
+
+.sl-gyro em {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0%, var(--ring) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+}
+
+.sl-gyro i {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: var(--ring);
+  box-shadow:
+    0 0 0 3px rgb(255 255 255 / 70%),
+    0 0 16px 3px var(--ring);
+}
+
+.sl-gyro-a {
+  --ring: var(--sl-accent);
+  animation: sl-gyro-a 5.2s linear infinite;
+}
+
+.sl-gyro-b {
+  --ring: var(--sl-blue);
+  width: 176px;
+  height: 176px;
+  animation: sl-gyro-b 4.2s linear infinite;
+}
+
+.sl-gyro-c {
+  --ring: var(--sl-pink);
+  width: 224px;
+  height: 224px;
+  animation: sl-gyro-c 7s linear infinite reverse;
+}
+
+/* อนุภาคพุ่งออก */
+.sl-emitters {
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+.sl-p {
+  --c: var(--sl-accent);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2);
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 10px var(--c);
+  opacity: 0;
+  animation: sl-emit 3.2s cubic-bezier(0.2, 0.7, 0.3, 1) var(--dl) infinite;
+}
+
+.sl-p-1 {
+  --c: var(--sl-blue);
+}
+
+.sl-p-2 {
+  --c: var(--sl-pink);
+}
+
+/* คลื่นกระแทกเมื่อเสร็จ */
+.sl-shock {
+  width: 100px;
+  height: 100px;
+  border: 2px solid var(--sl-accent);
+  border-radius: 30px;
+  opacity: 0;
+}
+
+.is-done .sl-shock-1 {
+  animation: sl-shock 0.95s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+
+.is-done .sl-shock-2 {
+  border-color: var(--sl-pink);
+  animation: sl-shock 0.95s cubic-bezier(0.1, 0.7, 0.3, 1) 0.14s forwards;
+}
+
+/* โลโก้บริษัท (ซ่อนไว้จนรูปโหลดเสร็จ ไม่มีตัวอักษรสำรอง) */
+.system-loading-mark {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  width: 100px;
+  height: 100px;
+  padding: 14px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 30px;
+  background: linear-gradient(160deg, #fff 0%, #f3f1ff 100%);
+  box-shadow:
+    0 20px 46px rgb(82 66 190 / 30%),
+    0 0 0 1px rgb(104 85 220 / 12%),
+    inset 0 1px 0 #fff,
+    inset 0 -10px 20px rgb(104 85 220 / 8%);
+  opacity: 0;
+}
+
+.system-loading-mark.is-ready {
+  opacity: 1;
+  animation:
+    sl-pop 1s cubic-bezier(0.2, 1.4, 0.3, 1) backwards,
+    sl-float 3.4s ease-in-out 1s infinite;
+}
+
+.is-done .system-loading-mark.is-ready {
+  animation: sl-done 0.75s cubic-bezier(0.2, 1.5, 0.3, 1) both;
+}
+
+.sl-mark-company-logo {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  filter: drop-shadow(0 3px 6px rgb(40 30 130 / 18%));
+}
+
+.sl-mark-shine {
+  position: absolute;
+  top: -20%;
+  left: -70%;
+  z-index: 2;
+  width: 40%;
+  height: 140%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 85%), transparent);
+  transform: skewX(-20deg);
+  animation: sl-shine 2.8s ease-in-out 1s infinite;
+}
+
+/* ---------------------------------------------------------
+   ข้อความ
+   --------------------------------------------------------- */
+.system-loading-brand {
+  display: flex;
+  font-size: 17px;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+}
+
+.system-loading-brand span {
+  display: inline-block;
+  background: linear-gradient(100deg, var(--sl-ink) 30%, var(--sl-accent) 50%, var(--sl-ink) 70%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: sl-letter 2.2s ease-in-out infinite;
+}
+
+.sl-percent {
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--sl-ink);
+}
+
+.sl-percent small {
+  margin-left: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sl-mute);
+}
+
+.sl-message {
+  display: flex;
+  align-items: baseline;
+  min-height: 21px;
+  margin: 2px 0 0;
+  color: var(--sl-mute);
+  font-size: 14px;
+  animation: sl-text-in 0.45s ease-out both;
+}
+
+.sl-dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 4px;
+}
+
+.sl-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: sl-dot 1.2s ease-in-out infinite;
+}
+
+.sl-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.sl-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* ---------------------------------------------------------
+   Keyframes
+   --------------------------------------------------------- */
+@keyframes sl-page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sl-page-out {
+  to { opacity: 0; transform: scale(1.06); filter: blur(8px); }
+}
+
+@keyframes sl-card-in {
+  from { opacity: 0; transform: translateY(22px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes sl-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sl-breathe {
+  0%, 100% { opacity: 0.45; scale: 1; }
+  50% { opacity: 0.8; scale: 1.2; }
+}
+
+@keyframes sl-floor {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 64px, 0 0; }
+}
+
+@keyframes sl-rise {
+  0% { opacity: 0; transform: translateY(0); }
+  12% { opacity: 0.9; }
+  85% { opacity: 0.5; }
+  100% { opacity: 0; transform: translateY(-105vh); }
+}
+
+@keyframes sl-gyro-a {
+  from { transform: rotateX(72deg) rotateZ(0deg); }
+  to { transform: rotateX(72deg) rotateZ(360deg); }
+}
+
+@keyframes sl-gyro-b {
+  from { transform: rotateY(72deg) rotateZ(0deg); }
+  to { transform: rotateY(72deg) rotateZ(360deg); }
+}
+
+@keyframes sl-gyro-c {
+  from { transform: rotateX(-38deg) rotateY(52deg) rotateZ(0deg); }
+  to { transform: rotateX(-38deg) rotateY(52deg) rotateZ(360deg); }
+}
+
+@keyframes sl-emit {
+  0% { opacity: 0; transform: rotate(var(--a)) translateX(34px) scale(0.2); }
+  15% { opacity: 1; transform: rotate(var(--a)) translateX(52px) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--d)) scale(0.2); }
+}
+
+@keyframes sl-pop {
+  0% { opacity: 0; transform: translateZ(40px) scale(0.2) rotate(-24deg); }
+  100% { opacity: 1; transform: translateZ(40px) scale(1) rotate(0deg); }
+}
+
+@keyframes sl-float {
+  0%, 100% { transform: translateZ(40px) translateY(0) rotate(0deg); }
+  50% { transform: translateZ(40px) translateY(-8px) rotate(2.5deg); }
+}
+
+@keyframes sl-done {
+  0% { transform: translateZ(40px) scale(1); }
+  40% { transform: translateZ(60px) scale(1.22) rotate(-4deg); }
+  100% { transform: translateZ(40px) scale(1) rotate(0deg); }
+}
+
+@keyframes sl-shine {
+  0%, 55% { left: -70%; }
+  100% { left: 150%; }
+}
+
+@keyframes sl-shock {
+  0% { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; transform: scale(4.2); }
+}
+
+@keyframes sl-letter {
+  0%, 100% { background-position: 100% 0; transform: translateY(0); }
+  50% { background-position: 0% 0; transform: translateY(-4px); }
+}
+
+@keyframes sl-text-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sl-dot {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-4px); }
+}
+
+/* ---------------------------------------------------------
+   จอเล็ก
+   --------------------------------------------------------- */
+@media (max-width: 420px) {
+  .sl-stage {
+    margin-block: -14px 0;
+    transform: scale(0.82);
+  }
+}
+
+/* ---------------------------------------------------------
+   ผู้ใช้ตั้งค่าลดการเคลื่อนไหว: หยุดทุกอย่าง เหลือภาพนิ่งสวยๆ
+   --------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .system-loading-page,
+  .system-loading-page *,
+  .system-loading-page *::before,
+  .system-loading-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .sl-sparkle,
+  .sl-p {
+    display: none;
+  }
+
+  .sl-tilt {
+    transform: none;
+  }
+}

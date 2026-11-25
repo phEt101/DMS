@@ -12,6 +12,7 @@ import { buildPages } from './services/routes/appRoutes'
 import type { AuthUser } from './features/auth/types/auth.types'
 import type { PageKey } from './services/routes/pageTypes'
 import { canViewDepartmentModule } from './features/auth/permissions'
+import { SystemLoading } from './components/system-loading'
 
 const pathByPage: Record<PageKey, string> = {
   dashboard: '/dashboard',
@@ -145,7 +146,7 @@ export default function App() {
   }, [isLoading, user])
 
   if (isLoading) {
-    return <div className="auth-loading" role="status" aria-label="Loading"><span /></div>
+    return <SystemLoading language={language} logoUrl={user?.company?.logoUrl} />
   }
 
   if (showResetPassword) {
