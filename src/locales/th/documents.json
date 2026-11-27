@@ -263,7 +263,7 @@
       "hr": "HR",
       "noResults": "ไม่พบเอกสาร ลองเปลี่ยนคำค้นหาหรือตัวกรอง",
       "medicalCertificateLabel": "แนบใบรับรองแพทย์",
-      "medicalCertificateHelp": "รองรับ PDF, JPG, PNG ขนาดไม่เกิน 10 MB ไฟล์นี้จะเห็นได้เฉพาะคุณ, HR Div. และ admin",
+      "medicalCertificateHelp": "รองรับ PDF, JPG, PNG ขนาดไม่เกิน 10 MB ไฟล์นี้จะเห็นได้เฉพาะคุณ, HR Div., admin และผู้ที่มีสิทธิ์พิจารณาคำขอนี้",
       "supportingDocumentsLabel": "แนบเอกสารประกอบการลา",
       "supportingDocumentsHelp": "เลือกได้สูงสุด 5 ไฟล์ รองรับ PDF, JPG, PNG ขนาดไม่เกิน 10 MB ต่อไฟล์ ผู้ยื่น, HR Div. และ admin ดาวน์โหลดได้",
       "supportingDocumentsTooMany": "แนบเอกสารประกอบได้สูงสุด 5 ไฟล์",

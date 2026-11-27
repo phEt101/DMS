@@ -305,7 +305,7 @@
       "hr": "HR",
       "noResults": "No documents found. Try changing your search or filters.",
       "medicalCertificateLabel": "Attach medical certificate",
-      "medicalCertificateHelp": "PDF, JPG, or PNG, up to 10 MB. Only you, HR Div., and admins can view this file.",
+      "medicalCertificateHelp": "PDF, JPG, or PNG, up to 10 MB. Only you, HR Div., admins, and people authorized to review this request can view this file.",
       "supportingDocumentsLabel": "Attach supporting documents",
       "supportingDocumentsHelp": "Up to 5 PDF, JPG, or PNG files, max 10 MB each. The submitter, HR Div., and admins can download them.",
       "supportingDocumentsTooMany": "You can attach up to 5 supporting documents.",

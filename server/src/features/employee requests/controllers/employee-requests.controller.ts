@@ -517,10 +517,19 @@ async function isHrDivisionMember(userId: number, companyId: number): Promise<bo
   return rows.length > 0
 }
 
-async function canViewMedicalCertificate(userId: number, ownerId: number, companyId: number, roleName: string): Promise<boolean> {
-  return roleName.trim().toLowerCase() === 'admin'
+async function canViewMedicalCertificate(userId: number, ownerId: number, companyId: number, roleName: string, requestId?: number, canApproveRequest = false): Promise<boolean> {
+  if (roleName.trim().toLowerCase() === 'admin'
     || userId === ownerId
-    || await isHrDivisionMember(userId, companyId)
+    || canApproveRequest
+    || await isHrDivisionMember(userId, companyId)) return true
+  if (requestId === undefined) return false
+  const [rows] = await db.query<any[]>(
+    `SELECT 1 FROM employee_request_signatures
+      WHERE request_id = ? AND signer_user_id = ? AND action IN ('approved', 'rejected')
+      LIMIT 1`,
+    [requestId, userId],
+  )
+  return rows.length > 0
 }
 
 export async function show(req: Request, res: Response) {
@@ -563,7 +572,17 @@ export async function show(req: Request, res: Response) {
   const [certificateRows] = await db.query<any[]>(
     `SELECT request_id FROM employee_request_medical_certificates WHERE request_id = ? LIMIT 1`, [id],
   )
-  const canViewCertificate = await canViewMedicalCertificate(me, Number(row.employee_user_id), companyId, detailRoleName)
+  const otherHrIds = await findHrUserIds(db as any, companyId, row.employee_user_id)
+  const isAdminFallback = detailIsAdmin && otherHrIds.length === 0
+  const hrMemberIds = await findHrUserIds(db as any, companyId)
+  const isHrMember = hrMemberIds.includes(me)
+  const isOwner = Number(row.employee_user_id) === me
+  const canApproveRequest = has(req, PERM.review) && !isOwner && (
+    (row.status === 'pending_mgr' && (row.manager_user_id === me || isDeptMgr))
+    || (row.status === 'pending_exec' && (detailIsExec || detailIsAdmin))
+    || (row.status === 'pending_hr' && ((isHrMember && !isAdminFallback) || isAdminFallback))
+  )
+  const canViewCertificate = await canViewMedicalCertificate(me, Number(row.employee_user_id), companyId, detailRoleName, id, canApproveRequest)
   const hasCertificateFile = certificateRows.length > 0
   const [supportingDocumentRows] = canViewCertificate
     ? await db.query<any[]>(
@@ -591,14 +610,7 @@ export async function show(req: Request, res: Response) {
        LEFT JOIN users signer ON signer.id = signature.signer_user_id
       WHERE signature.request_id = ? ORDER BY signature.signed_at, signature.id`, [id],
   )
-  const isOwner = Number(row.employee_user_id) === me
   const isExec = detailIsExec, isAdmin = detailIsAdmin
-  // ขั้น HR: ใครใน HR Div. อนุมัติก็ได้ (ยกเว้นผู้ยื่น) — ถ้าไม่มี HR คนอื่น admin fallback
-  const otherHrIds = await findHrUserIds(db as any, companyId, row.employee_user_id)
-  const isAdminFallback = isAdmin && otherHrIds.length === 0
-  // ขั้น HR: เฉพาะสมาชิก HR Div. (ยกเว้นผู้ยื่น) — ถ้าไม่มี HR คนอื่น admin fallback
-  const hrMemberIds = await findHrUserIds(db as any, companyId)
-  const isHrMember = hrMemberIds.includes(me)
   const { manager_user_id: _manager, executive_user_id: _exec, department_id: _dep, flow_json: _flow, ...publicRow } = row as any
     res.json({
     ...camelize(publicRow), days: row.days === null ? null : Number(row.days), detail, signatures: signatures.map((sig: any) => withAvatarUrls(camelize(sig))),
@@ -607,11 +619,7 @@ export async function show(req: Request, res: Response) {
     rejectionCount: Number(row.revision_no ?? 0) + (row.status === 'rejected' ? 1 : 0),
     reviewHistory: await reviewHistoryOf(id),
     canViewMedicalCertificate: canViewCertificate,
-    canApprove: has(req, PERM.review) && !isOwner && (
-      (row.status === 'pending_mgr' && (row.manager_user_id === me || isDeptMgr))
-      || (row.status === 'pending_exec' && (isExec || isAdmin))
-      || (row.status === 'pending_hr' && ((isHrMember && !isAdminFallback) || isAdminFallback))
-    ),
+    canApprove: canApproveRequest,
     canCancel: has(req, PERM.cancel) && (
       (isOwner && (
         row.status === 'pending_mgr'
@@ -1659,7 +1667,8 @@ export async function medicalCertificate(req: Request, res: Response) {
   needDocumentModule(req)
   const id = idParam(req), companyId = companyIdOf(req), me = req.user!.id
   const [rows] = await db.query<any[]>(
-    `SELECT request.employee_user_id, certificate.storage_path, certificate.original_name, certificate.mime_type
+    `SELECT request.id, request.employee_user_id, request.manager_user_id, request.department_id, request.status,
+            certificate.storage_path, certificate.original_name, certificate.mime_type
        FROM employee_requests request
        JOIN employee_request_medical_certificates certificate ON certificate.request_id = request.id
       WHERE request.id = ? AND request.company_id = ? LIMIT 1`,
@@ -1668,7 +1677,18 @@ export async function medicalCertificate(req: Request, res: Response) {
   const certificate = rows[0]
   if (!certificate) throw httpError(404, 'ไม่พบใบรับรองแพทย์')
   const roleName = String(req.user!.role?.name ?? '')
-  if (!(await canViewMedicalCertificate(me, Number(certificate.employee_user_id), companyId, roleName))) {
+  const role = roleName.trim().toLowerCase()
+  const myDept = await myManagedDeptId(db as any, req)
+  const isDeptMgr = myDept !== null && Number(certificate.department_id) === myDept
+  const isHr = await isHrDivisionMember(me, companyId)
+  const otherHrIds = await findHrUserIds(db as any, companyId, Number(certificate.employee_user_id))
+  const isAdminFallback = role === 'admin' && otherHrIds.length === 0
+  const canApproveRequest = has(req, PERM.review) && Number(certificate.employee_user_id) !== me && (
+    (certificate.status === 'pending_mgr' && (Number(certificate.manager_user_id) === me || isDeptMgr))
+    || (certificate.status === 'pending_exec' && (role === 'executive' || role === 'admin'))
+    || (certificate.status === 'pending_hr' && ((isHr && !isAdminFallback) || isAdminFallback))
+  )
+  if (!(await canViewMedicalCertificate(me, Number(certificate.employee_user_id), companyId, roleName, id, canApproveRequest))) {
     throw httpError(404, 'ไม่พบใบรับรองแพทย์')
   }
   const resolved = path.resolve(certificate.storage_path)
