@@ -99,7 +99,7 @@ export const resubmitRequest = (id: number, data: { kind: DocKind; values: FormV
   supportingDocuments.forEach((file) => form.append('supportingDocuments', file))
   return call<{ id: number; requestNo: string; status: Status; revisionNo: number }>(`/${id}/resubmit`, { method: 'POST', body: form })
 }
-export const medicalCertificateUrl = (id: number) => apiUrl(`${BASE}/${id}/medical-certificate`)
+export const medicalCertificateUrl = (id: number, preview = false) => apiUrl(`${BASE}/${id}/medical-certificate${preview ? '?preview=1' : ''}`)
 export const supportingDocumentUrl = (id: number, attachmentId: number) => apiUrl(`${BASE}/${id}/supporting-documents/${attachmentId}`)
 export const approveRequest = (id: number, data: { signature?: string; rememberSignature?: boolean }) => call<{ id: number; status: Status }>(`/${id}/approve`, body(data))
 export const decideRequest = (id: number, action: 'approve' | 'reject', data: { signature: string; rememberSignature?: boolean; note?: string }) => call<{ id: number; status: Status }>(`/${id}/${action}`, body(data))

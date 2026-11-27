@@ -570,7 +570,7 @@
       "cancelDocumentTitle": "ยืนยันยกเลิกเอกสาร",
       "cancelDocumentConfirm": "ต้องการยกเลิกเอกสารนี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้",
       "cancelledToast": "ยกเลิกเอกสารแล้ว",
-      "downloadCertificate": "เปิด/ดาวน์โหลดใบรับรองแพทย์",
+      "downloadCertificate": "ดูใบรับรองแพทย์",
       "rejectedToast": "ไม่อนุมัติเอกสารแล้ว",
       "resubmittedToast": "ยื่นฉบับแก้ไขเอกสารฉบับเดิมแล้ว",
       "forwardedToast": "ส่งต่อให้ HR แล้ว",

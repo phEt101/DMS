@@ -625,7 +625,7 @@
       "cancelDocumentTitle": "Cancel document?",
       "cancelDocumentConfirm": "Are you sure you want to cancel this document? This action cannot be undone.",
       "cancelledToast": "Document cancelled",
-      "downloadCertificate": "Open/download medical certificate",
+      "downloadCertificate": "View medical certificate",
       "rejectedToast": "document rejected",
       "resubmittedToast": "Same document resubmitted with the revision",
       "forwardedToast": "forwarded to HR",

@@ -1695,6 +1695,23 @@ export async function medicalCertificate(req: Request, res: Response) {
   if (!resolved.startsWith(`${medicalCertificateDirectory}${path.sep}`) || !fs.existsSync(resolved)) {
     throw httpError(404, 'ไม่พบไฟล์ใบรับรองแพทย์')
   }
+  if (req.query.preview === '1') {
+    const mimeType = String(certificate.mime_type ?? '')
+    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(mimeType)) {
+      throw httpError(415, 'ไฟล์นี้ไม่รองรับการแสดงตัวอย่าง กรุณาดาวน์โหลดไฟล์')
+    }
+    const safeName = path.basename(String(certificate.original_name ?? 'medical-certificate'))
+    const fallbackName = safeName.replace(/[^\x20-\x7e]/g, '_').replace(/["\\;]/g, '_')
+    const encodedName = encodeURIComponent(safeName).replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+    res.setHeader('Content-Type', mimeType)
+    res.setHeader('Content-Disposition', `inline; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`)
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Cache-Control', 'private, no-store')
+    res.sendFile(resolved, (error) => {
+      if (error && !res.headersSent) res.status(404).json({ message: 'ไม่พบไฟล์ใบรับรองแพทย์' })
+    })
+    return
+  }
   res.setHeader('Cache-Control', 'private, no-store')
   res.download(resolved, path.basename(certificate.original_name), (error) => {
     if (error && !res.headersSent) res.status(500).end()

@@ -189,7 +189,7 @@ export default function DocAllDocumentsDetail({ document: doc, policy, detailVal
             {doc.medicalCertificateAvailable && canViewMedicalCertificate && (
               <div className="dms-form-field">
                 <span className="dms-form-label">{c.fieldLabels.cert}</span>
-                <a className="dms-back-btn" download href={medicalCertificateUrl(doc.id)}>
+                <a className="dms-back-btn" href={medicalCertificateUrl(doc.id, true)} target="_blank" rel="noreferrer">
                   {c.messages.downloadCertificate}
                 </a>
               </div>
