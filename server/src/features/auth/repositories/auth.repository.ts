@@ -214,6 +214,95 @@ export async function findActiveModuleNamesByDepartmentId(departmentId: number |
   return rows.map((row) => row.name);
 }
 
+/** รวมสิทธิ์หน้าจอของแผนก + override รายบุคคล (grant เพิ่ม, deny ถอด) */
+export async function findEffectiveModuleNames(departmentId: number | null, userId: number): Promise<string[]> {
+  const base = await findActiveModuleNamesByDepartmentId(departmentId);
+  const [rows] = await db.execute<(RowDataPacket & { name: string; effect: 'grant' | 'deny' })[]>(
+    `SELECT permission_modules.name, user_module_overrides.effect
+       FROM user_module_overrides
+       INNER JOIN permission_modules ON permission_modules.id = user_module_overrides.module_id
+      WHERE user_module_overrides.user_id = ?
+        AND permission_modules.is_active = 1
+        AND permission_modules.deleted_at IS NULL`,
+    [userId],
+  );
+  const denied = new Set(rows.filter((row) => row.effect === 'deny').map((row) => row.name));
+  const granted = new Set(rows.filter((row) => row.effect === 'grant').map((row) => row.name));
+  return [...base.filter((name) => !denied.has(name)), ...Array.from(granted).filter((name) => !base.includes(name) && !denied.has(name))];
+}
+
+/** รวมสิทธิ์การทำงานของบทบาท + override รายบุคคล (grant เพิ่ม, deny ถอด) */
+export async function findEffectivePermissionsByUserId(roleId: number, userId: number): Promise<AuthPermissionRow[]> {
+  const base = await findActivePermissionsByRoleId(roleId);
+  const [rows] = await db.execute<(RowDataPacket & { id: number; name: string; module: string; moduleIconName: string | null; moduleSortOrder: number; effect: 'grant' | 'deny' })[]>(
+    `SELECT permissions.id, permissions.name, permission_modules.name AS module,
+            permission_modules.icon_name AS moduleIconName,
+            permission_modules.sort_order AS moduleSortOrder,
+            user_permission_overrides.effect
+       FROM user_permission_overrides
+       INNER JOIN permissions ON permissions.id = user_permission_overrides.permission_id
+       INNER JOIN permission_modules ON permission_modules.id = permissions.module_id
+      WHERE user_permission_overrides.user_id = ?
+        AND permissions.is_active = 1
+        AND permissions.deleted_at IS NULL
+        AND permission_modules.is_active = 1
+        AND permission_modules.deleted_at IS NULL`,
+    [userId],
+  );
+  const denied = new Set(rows.filter((row) => row.effect === 'deny').map((row) => row.name));
+  const granted = rows.filter((row) => row.effect === 'grant' && !base.some((permission) => permission.name === row.name));
+  return [...base.filter((permission) => !denied.has(permission.name)), ...granted.map(({ effect, ...permission }) => permission as AuthPermissionRow)];
+}
+
+export async function findUserAccessOverrides(userId: number) {
+  const [moduleRows] = await db.query<(RowDataPacket & { moduleId: number; effect: 'grant' | 'deny' })[]>(
+    `SELECT module_id AS moduleId, effect FROM user_module_overrides WHERE user_id = ?`,
+    [userId],
+  );
+  const [permissionRows] = await db.query<(RowDataPacket & { permissionId: number; effect: 'grant' | 'deny' })[]>(
+    `SELECT permission_id AS permissionId, effect FROM user_permission_overrides WHERE user_id = ?`,
+    [userId],
+  );
+  return {
+    moduleGrants: moduleRows.filter((row) => row.effect === 'grant').map((row) => Number(row.moduleId)),
+    moduleDenies: moduleRows.filter((row) => row.effect === 'deny').map((row) => Number(row.moduleId)),
+    permissionGrants: permissionRows.filter((row) => row.effect === 'grant').map((row) => Number(row.permissionId)),
+    permissionDenies: permissionRows.filter((row) => row.effect === 'deny').map((row) => Number(row.permissionId)),
+  };
+}
+
+export async function setUserAccessOverrides(
+  userId: number,
+  input: { moduleGrants: number[]; moduleDenies: number[]; permissionGrants: number[]; permissionDenies: number[] },
+): Promise<void> {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.execute(`DELETE FROM user_module_overrides WHERE user_id = ?`, [userId]);
+    await connection.execute(`DELETE FROM user_permission_overrides WHERE user_id = ?`, [userId]);
+    for (const moduleId of input.moduleGrants) await connection.execute(`INSERT INTO user_module_overrides (user_id, module_id, effect) VALUES (?, ?, 'grant')`, [userId, moduleId]);
+    for (const moduleId of input.moduleDenies) await connection.execute(`INSERT INTO user_module_overrides (user_id, module_id, effect) VALUES (?, ?, 'deny')`, [userId, moduleId]);
+    for (const permissionId of input.permissionGrants) await connection.execute(`INSERT INTO user_permission_overrides (user_id, permission_id, effect) VALUES (?, ?, 'grant')`, [userId, permissionId]);
+    for (const permissionId of input.permissionDenies) await connection.execute(`INSERT INTO user_permission_overrides (user_id, permission_id, effect) VALUES (?, ?, 'deny')`, [userId, permissionId]);
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function findUserCompanyById(userId: number): Promise<{ companyId: number; name: string } | null> {
+  const [rows] = await db.execute<(RowDataPacket & { companyId: number; name: string })[]>(
+    `SELECT u.company_id AS companyId, c.name
+       FROM users u INNER JOIN companies c ON c.id = u.company_id
+      WHERE u.id = ? AND u.deleted_at IS NULL AND c.deleted_at IS NULL LIMIT 1`,
+    [userId],
+  );
+  return rows[0] ? { companyId: Number(rows[0].companyId), name: String(rows[0].name) } : null;
+}
+
 export async function updateSessionLastUsed(
   sessionId: number,
 ): Promise<void> {

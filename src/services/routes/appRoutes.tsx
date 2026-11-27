@@ -6,6 +6,7 @@ import SurveyPage from '../../features/projects/survey/page'
 import ReportPage from '../../features/doc/report/page'
 import SettingsAccessPage from '../../features/settings/access/page'
 import SettingsUsersPage from '../../features/settings/users/page'
+import SettingsUserAccessPage from '../../features/settings/users/user-access-page'
 import SettingsActivityPage from '../../features/settings/activity/page'
 import SettingsSessionsPage from '../../features/settings/sessions/page'
 import ResetPasswordSettingsPage from '../../features/settings/reset-password/page'
@@ -24,6 +25,7 @@ export function buildPages(translations: Translations, language: Language, onNav
     survey: <SurveyPage translations={translations} language={language} />,
     report: <ReportPage translations={translations} language={language} />,
     'settings-user': <SettingsUsersPage translations={translations} />,
+    'settings-user-access': <SettingsUserAccessPage translations={translations} />,
     'settings-reset-password': <ResetPasswordSettingsPage translations={translations} />,
     'settings-roles': <SettingsAccessPage translations={translations} section="roles" />,
     'settings-departments': <SettingsAccessPage translations={translations} section="departments" />,

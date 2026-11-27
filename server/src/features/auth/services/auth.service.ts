@@ -97,8 +97,8 @@ export async function login(input: LoginInput): Promise<LoginResult> {
     userAgent: input.userAgent ?? null,
   });
 
-  const permissions = await authRepository.findActivePermissionsByRoleId(user.roleId);
-  const departmentModules = await authRepository.findActiveModuleNamesByDepartmentId(user.departmentId);
+  const permissions = await authRepository.findEffectivePermissionsByUserId(user.roleId, user.id);
+  const departmentModules = await authRepository.findEffectiveModuleNames(user.departmentId, user.id);
 
   return {
     token,

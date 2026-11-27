@@ -56,6 +56,7 @@ type SidebarItem =
   | "announcements"
   | "report"
   | "settings-user"
+  | "settings-user-access"
   | "settings-reset-password"
   | "settings-roles"
   | "settings-departments"
@@ -257,14 +258,21 @@ export default function Sidebar({
     ) || left.index - right.index)
     .map(({ item }) => item);
   const isHrDepartment = user?.department?.trim().toLowerCase() === "hr div.";
+  function isAdminUser(user: NonNullable<Parameters<typeof canViewModule>[0]>): boolean {
+    return user.role.name.trim().toLowerCase() === "admin";
+  }
   const canViewUsers = Boolean(
     user &&
     canViewModule(user, "users") &&
     !isHrDepartment
   );
+  const canViewUserAccess = Boolean(
+    user &&
+    isAdminUser(user)
+  );
   const canViewActivity = Boolean(user && canViewModule(user, "activity_logs"));
   const canManageResetPassword = user?.role.name.trim().toLocaleLowerCase() === "admin";
-  const hasSettingsItems = canViewUsers || accessItems.length > 0 || canViewActivity;
+  const hasSettingsItems = canViewUsers || canViewUserAccess || accessItems.length > 0 || canViewActivity;
   const hasActiveSettingsItem = activeItem.startsWith("settings-");
   const hasActiveAccessItem = accessItems.some((item) => item.key === activeItem);
 
@@ -513,6 +521,13 @@ if (item.key === "documents") {
                 >
                   <Icon name="user" />
                   <span>{sidebarTranslations.user}</span>
+                </button>}
+                {canViewUserAccess && <button
+                  className={`nav-item nav-button ${activeItem === "settings-user-access" ? "is-active" : ""}`}
+                  onClick={() => onNavigate?.("settings-user-access")}
+                >
+                  <Icon name="user" />
+                  <span>{sidebarTranslations.userAccess}</span>
                 </button>}
                 {canManageResetPassword && <button
                   className={`nav-item nav-button ${activeItem === "settings-reset-password" ? "is-active" : ""}`}

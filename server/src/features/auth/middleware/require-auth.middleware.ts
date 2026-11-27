@@ -39,10 +39,11 @@ export const requireAuth: RequestHandler = async (
     throw httpError(401, "Invalid or expired session");
   }
 
-  const permissions = await authRepository.findActivePermissionsByRoleId(
+  const permissions = await authRepository.findEffectivePermissionsByUserId(
     session.roleId,
+    session.userId,
   );
-  const departmentModules = await authRepository.findActiveModuleNamesByDepartmentId(session.departmentId);
+  const departmentModules = await authRepository.findEffectiveModuleNames(session.departmentId, session.userId);
 
   const userCompany = { id: session.companyId, name: session.companyName, logoUrl: session.companyLogoUrl };
   const managementCompanyHeader = req.get("X-Management-Company-Id");

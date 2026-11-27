@@ -1700,3 +1700,276 @@
   min-height: 34px;
   padding: 0 14px;
 }
+/* ===== สิทธิ์รายบุคคล (User Access) — การ์ดกลุ่ม + ปุ่มเลือก 3 ทาง ===== */
+
+/* ---------- ส่วนหัวหน้ารายละเอียด ---------- */
+.user-access-detail-head {
+  align-items: flex-start;
+  gap: 12px;
+}
+.user-access-detail-head .secondary-button {
+  margin-bottom: 8px;
+}
+.user-access-user-name {
+  margin: 0;
+  font-size: 20px;
+}
+.user-access-detail-head p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+.user-access-hint {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ---------- legend ---------- */
+.ua-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: #475569;
+}
+.ua-legend .dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 4px;
+  background: #cbd5e1;
+}
+.ua-legend .dot.is-grant { background: #3b82f6; }
+.ua-legend .dot.is-deny { background: #ef4444; }
+
+/* ---------- toolbar ---------- */
+.user-access-toolbar {
+  margin-bottom: 12px;
+}
+.user-access-only-changed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* ---------- กริดการ์ดกลุ่ม ---------- */
+.user-access-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  gap: 16px;
+  align-items: start;
+  padding-bottom: 24px;
+}
+.user-access-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0 0 6px;
+  overflow: hidden;
+}
+.user-access-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  margin: 0;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+.ua-card-title h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.ua-card-title small {
+  color: #64748b;
+  font-size: 12px;
+}
+.ua-card-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+.ua-card-actions button {
+  border: 1px solid #c7d2fe;
+  background: #fff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ua-card-actions button:hover:not(:disabled) {
+  background: #eef2ff;
+}
+.ua-card-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---------- แถวรายการ ---------- */
+.user-access-card-body {
+  display: flex;
+  flex-direction: column;
+}
+.user-access-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #eef2f7;
+  border-left: 3px solid transparent;
+}
+.user-access-row:last-child {
+  border-bottom: none;
+}
+.user-access-row.is-grant {
+  background: #eff6ff;
+  border-left-color: #3b82f6;
+}
+.user-access-row.is-deny {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+}
+
+.user-access-row-name {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.user-access-row-name svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: #4f46e5;
+}
+.user-access-row-name > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.user-access-row-name span {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: normal; /* ให้ขึ้นบรรทัดใหม่ ไม่ตัดด้วย ... */
+  overflow-wrap: anywhere;
+}
+.user-access-row-name small {
+  color: #94a3b8;
+  font-size: 12px;
+  white-space: normal;
+}
+
+/* ผลลัพธ์จริงของสิทธิ์ (เห็น/ไม่เห็น, ทำได้/ทำไม่ได้) */
+.ua-result {
+  font-style: normal;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.ua-result.is-yes { color: #15803d; }
+.ua-result.is-no { color: #b91c1c; }
+.ua-result::before {
+  content: "● ";
+  font-size: 8px;
+  vertical-align: 1px;
+}
+
+/* ---------- ปุ่มเลือก 3 ทาง ---------- */
+.ua-seg {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.ua-seg-btn {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  padding: 5px 11px;
+  min-height: 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ua-seg-btn:hover:not(:disabled):not(.is-on) {
+  background: #e2e8f0;
+}
+.ua-seg-btn:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 1px;
+}
+.ua-seg-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ua-seg-btn.is-on.is-base {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.ua-seg-btn.is-on.is-grant {
+  background: #2563eb;
+  color: #fff;
+}
+.ua-seg-btn.is-on.is-deny {
+  background: #dc2626;
+  color: #fff;
+}
+
+/* ---------- แถบบันทึกลอย ---------- */
+.ua-savebar {
+  position: sticky;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 10px 16px;
+  background: #0f172a;
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  z-index: 5;
+  font-size: 13.5px;
+}
+.user-access-saved {
+  color: #16a34a;
+  font-weight: 600;
+}
+.ua-savebar .user-access-saved {
+  color: #86efac;
+}
+
+/* ---------- มือถือ ---------- */
+@media (max-width: 760px) {
+  .user-access-grid {
+    grid-template-columns: 1fr;
+  }
+  .user-access-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .ua-seg {
+    justify-self: start;
+  }
+  .user-access-card-head {
+    flex-wrap: wrap;
+  }
+}

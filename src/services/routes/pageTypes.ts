@@ -16,6 +16,7 @@ export type PageKey =
   | 'announcements'
   | 'report'
   | 'settings-user'
+  | 'settings-user-access'
   | 'settings-reset-password'
   | 'settings-roles'
   | 'settings-departments'
@@ -26,5 +27,5 @@ export type PageKey =
   | 'settings-sessions'
 
 export const pageKeys: PageKey[] = [
-  'dashboard','projects','projects-cm','projects-cm-create','survey','documents','documents-all','documents-pending','documents-ledger','report','documents-employees','documents-policy','documents-flow-rules','documents-notifications','documents-payslips','announcements','settings-user','settings-reset-password','settings-roles','settings-departments','settings-permissions','settings-modules','settings-companies','settings-activity','settings-sessions'
+  'dashboard','projects','projects-cm','projects-cm-create','survey','documents','documents-all','documents-pending','documents-ledger','report','documents-employees','documents-policy','documents-flow-rules','documents-notifications','documents-payslips','announcements','settings-user','settings-user-access','settings-reset-password','settings-roles','settings-departments','settings-permissions','settings-modules','settings-companies','settings-activity','settings-sessions'
 ]
